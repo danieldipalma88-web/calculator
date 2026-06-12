@@ -71,7 +71,22 @@ function injectCloudStorageSync(
     } catch (e) {}
   }
   function applyRoleUi(){
-    if (calculatorUser && calculatorUser.canManageUsers) return;
+    if (calculatorUser && calculatorUser.canManageUsers) {
+      var certButtonForAdmin = document.getElementById('certValuesActionBtn');
+      if (certButtonForAdmin && !document.getElementById('adminUsersActionBtn')) {
+        var usersButton = document.createElement('button');
+        usersButton.id = 'adminUsersActionBtn';
+        usersButton.type = 'button';
+        usersButton.className = 'secondary';
+        usersButton.textContent = 'Users';
+        usersButton.onclick = function(){
+          try { window.top.location.href = '/admin/users'; }
+          catch(e) { window.location.href = '/admin/users'; }
+        };
+        certButtonForAdmin.parentNode.insertBefore(usersButton, certButtonForAdmin.nextSibling);
+      }
+      return;
+    }
     var certButton = document.getElementById('certValuesActionBtn');
     if (certButton) certButton.style.display = 'none';
     var certDrawer = document.getElementById('certDrawer');
