@@ -9,6 +9,9 @@ type ApprovedUser = {
   created_at: string;
 };
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 function normalizeEmail(value: FormDataEntryValue | null) {
   return String(value || "").trim().toLowerCase();
 }
@@ -118,10 +121,7 @@ export default async function AdminUsersPage({
 }) {
   const params = await searchParams;
   const { supabase, email: currentEmail } = await requireAdmin();
-  const { data, error } = await supabase
-    .from("approved_users")
-    .select("email, role, created_at")
-    .order("created_at", { ascending: false });
+  const { data, error } = await supabase.rpc("admin_list_approved_users");
 
   const users = (data || []) as ApprovedUser[];
 

@@ -97,6 +97,31 @@ $$;
 revoke all on function public.admin_delete_approved_user(text) from public;
 grant execute on function public.admin_delete_approved_user(text) to authenticated;
 
+create or replace function public.admin_list_approved_users()
+returns table (
+  email text,
+  role text,
+  created_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_approved_admin() then
+    raise exception 'Not authorized';
+  end if;
+
+  return query
+  select au.email, au.role, au.created_at
+  from public.approved_users au
+  order by au.created_at desc;
+end;
+$$;
+
+revoke all on function public.admin_list_approved_users() from public;
+grant execute on function public.admin_list_approved_users() to authenticated;
+
 drop policy if exists "admins can manage approved users" on public.approved_users;
 create policy "admins can manage approved users"
 on public.approved_users
