@@ -645,7 +645,7 @@ tbody tr:hover td{background:#f0f7ff}
       <div id="commissionIncRow" class="summaryLine"><span>Total commission payable inc GST</span><strong id="commissionInc"></strong></div>
       <div id="netProfitRow" class="summaryLine cash"><span>Installer net profit ex GST</span><strong id="netProfit"></strong></div>
       <div id="summaryInstallAddons" class="summaryAddons hidden"><div class="summaryAddonsHead"><strong>Install add-ons</strong><span>Cost only</span></div><div id="summaryInstallAddonRows" class="summaryAddonRows"></div><div id="summaryInstallAddonFoot" class="summaryAddonFoot"></div></div>
-      <div class="actions"><button class="orange" onclick="addToQuote()">Add to Quote</button><button class="secondary" onclick="openDrawer()">View Options (<span id="quoteCount">0</span>)</button><button class="secondary" onclick="openProposalDrawer('current')">Export Proposal PDF</button><button class="secondary" onclick="openPriceDrawer()">Price Manager</button><button class="secondary" onclick="openCertDrawer()">Certificate Values</button><button class="secondary" onclick="downloadTxt()">Download Summary</button></div>
+      <div class="actions"><button class="orange" onclick="addToQuote()">Add to Quote</button><button class="secondary" onclick="openDrawer()">View Options (<span id="quoteCount">0</span>)</button><button class="secondary" onclick="openProposalDrawer('current')">Export Proposal PDF</button><button class="secondary" onclick="openPriceDrawer()">Price Manager</button><button id="certValuesActionBtn" class="secondary" onclick="openCertDrawer()">Certificate Values</button><button class="secondary" onclick="downloadTxt()">Download Summary</button></div>
       <div style="margin-top:12px"><label>Add current unit to option</label><div class="row2"><select id="addOptionSelect" onchange="syncAddOptionSelects(this.value); updateMainOptionNameInput();"></select><button class="secondary" type="button" onclick="createNewOption(true)">+ New Option</button></div><div style="margin-top:10px"><label>Selected option name</label><input id="mainOptionName" placeholder="Option name" onchange="renameCurrentMainOption(this.value)"></div></div>
     </aside>
   </div>
@@ -2270,7 +2270,7 @@ function renderPriceManager(){
       <td><input class="priceInput managedPriceInput" data-field="unitPriceInc" type="number" step="0.01" value="${price}" ${locked?'disabled':''}></td>
       <td><input class="priceInput managedPriceInput" data-field="rebate" type="number" step="0.01" value="${rebate}" ${locked?'disabled':''}></td>
       <td><span class="pill">${locked?'Locked':'Unlocked'}</span></td>
-      <td><button type="button" class="lockBtn ${locked?'':'unlocked'} managedLockBtn">${locked?'Unlock':'Lock'}</button></td>
+      <td><button type="button" class="lockBtn ${locked?'':'unlocked'} managedLockBtn" onclick="event.stopPropagation(); togglePriceLock(decodeKeyFromDom(this.closest('tr[data-key]').dataset.key));">${locked?'Unlock':'Lock'}</button></td>
     </tr>`;
   }).join('');
 }
