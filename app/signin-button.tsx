@@ -1,15 +1,15 @@
 "use client";
 
 import { createSupabaseBrowserClient } from "../lib/supabase/client";
+import { publicSiteUrl } from "../lib/supabase/config";
 
 export default function LoginButton() {
   async function signIn() {
     const supabase = createSupabaseBrowserClient();
-    const origin = window.location.origin;
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${origin}/auth/callback`,
+        redirectTo: `${publicSiteUrl}/auth/callback`,
       },
     });
   }

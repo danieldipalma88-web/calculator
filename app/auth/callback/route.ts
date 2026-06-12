@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { publicSiteUrl } from "../../../lib/supabase/config";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
 
 export async function GET(request: NextRequest) {
@@ -7,7 +8,7 @@ export async function GET(request: NextRequest) {
   const next = requestUrl.searchParams.get("next") || "/calculator";
 
   if (!code) {
-    const loginUrl = new URL("/", requestUrl.origin);
+    const loginUrl = new URL("/", publicSiteUrl);
     loginUrl.searchParams.set("error", "Google did not return a login code. Please try again.");
     return NextResponse.redirect(loginUrl);
   }
@@ -16,10 +17,10 @@ export async function GET(request: NextRequest) {
   const { error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error) {
-    const loginUrl = new URL("/", requestUrl.origin);
+    const loginUrl = new URL("/", publicSiteUrl);
     loginUrl.searchParams.set("error", `Login failed: ${error.message}`);
     return NextResponse.redirect(loginUrl);
   }
 
-  return NextResponse.redirect(new URL(next, requestUrl.origin));
+  return NextResponse.redirect(new URL(next, publicSiteUrl));
 }
