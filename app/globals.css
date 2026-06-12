@@ -90,9 +90,20 @@ button.secondary {
   color: var(--ink);
 }
 
+button:disabled,
+select:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .button.orange,
 button.orange {
   background: var(--brand-2);
+}
+
+button.danger {
+  background: #fee2e2;
+  color: #991b1b;
 }
 
 .topbar {
@@ -124,6 +135,12 @@ button.orange {
   margin-top: 2px;
 }
 
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .calculator-frame {
   width: 100%;
   height: calc(100vh - 56px);
@@ -139,4 +156,129 @@ button.orange {
   background: #fff7ed;
   border-radius: 8px;
   color: #7c2d12;
+}
+
+.notice.success {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.admin-shell {
+  min-height: 100vh;
+  padding: 28px;
+}
+
+.admin-card {
+  max-width: 1080px;
+  margin: 0 auto;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 24px;
+  box-shadow: 0 18px 50px rgba(16, 24, 39, 0.08);
+}
+
+.admin-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.admin-form {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 160px auto;
+  gap: 12px;
+  align-items: end;
+  margin: 24px 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+label {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  margin-bottom: 7px;
+  text-transform: uppercase;
+}
+
+input,
+select {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  padding: 0 12px;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.admin-table th,
+.admin-table td {
+  border-top: 1px solid var(--line);
+  padding: 12px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.admin-table th {
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.inline-form {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.inline-form select {
+  max-width: 120px;
+}
+
+.self-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  margin-left: 8px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: #e0f2fe;
+  color: #075985;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+@media (max-width: 760px) {
+  .admin-shell {
+    padding: 14px;
+  }
+
+  .admin-head,
+  .inline-form {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-form {
+    grid-template-columns: 1fr;
+  }
 }

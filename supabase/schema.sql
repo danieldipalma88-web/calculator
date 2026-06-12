@@ -14,6 +14,32 @@ for select
 to authenticated
 using (lower(email) = lower((auth.jwt() ->> 'email')));
 
+create or replace function public.is_approved_admin()
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1
+    from public.approved_users
+    where lower(email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+      and role = 'admin'
+  );
+$$;
+
+revoke all on function public.is_approved_admin() from public;
+grant execute on function public.is_approved_admin() to authenticated;
+
+drop policy if exists "admins can manage approved users" on public.approved_users;
+create policy "admins can manage approved users"
+on public.approved_users
+for all
+to authenticated
+using (public.is_approved_admin())
+with check (public.is_approved_admin());
+
 create table if not exists public.user_calculator_data (
   user_id uuid primary key references auth.users(id) on delete cascade,
   data jsonb not null default '{}'::jsonb,

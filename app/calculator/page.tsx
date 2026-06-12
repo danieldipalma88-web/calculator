@@ -44,11 +44,18 @@ export default async function CalculatorPage() {
           <strong>Quote Calculator</strong>
           <span>{user.email}</span>
         </div>
-        <form action="/auth/signout" method="post">
-          <button className="secondary" type="submit">
-            Sign out
-          </button>
-        </form>
+        <div className="topbar-actions">
+          {approvedUser.role === "admin" ? (
+            <a className="button secondary" href="/admin/users">
+              Users
+            </a>
+          ) : null}
+          <form action="/auth/signout" method="post">
+            <button className="secondary" type="submit">
+              Sign out
+            </button>
+          </form>
+        </div>
       </header>
       <iframe className="calculator-frame" src="/calculator/raw" title="Quote calculator" />
     </>

@@ -17,6 +17,8 @@ Run the SQL in `supabase/schema.sql` in the Supabase SQL editor.
 
 Then add approved users to `public.approved_users`.
 
+Admin users can manage access from `/admin/users` after the SQL policies have been run.
+
 ## Calculator source
 
 `index.html` remains the calculator app. The Next.js routes wrap it with login protection.
