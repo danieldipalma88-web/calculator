@@ -21,7 +21,8 @@ security definer
 set search_path = public
 stable
 as $$
-  select exists (
+  select lower(coalesce(auth.jwt() ->> 'email', '')) = 'danieldipalma88@gmail.com'
+    or exists (
     select 1
     from public.approved_users
     where lower(email) = lower(coalesce(auth.jwt() ->> 'email', ''))
@@ -31,6 +32,70 @@ $$;
 
 revoke all on function public.is_approved_admin() from public;
 grant execute on function public.is_approved_admin() to authenticated;
+
+create or replace function public.admin_upsert_approved_user(
+  target_email text,
+  target_role text default 'user'
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  normalized_email text := lower(trim(coalesce(target_email, '')));
+  normalized_role text := case when target_role = 'admin' then 'admin' else 'user' end;
+begin
+  if not public.is_approved_admin() then
+    raise exception 'Not authorized';
+  end if;
+
+  if normalized_email = '' then
+    raise exception 'Email is required';
+  end if;
+
+  if normalized_email = 'danieldipalma88@gmail.com' then
+    normalized_role := 'admin';
+  end if;
+
+  insert into public.approved_users (email, role)
+  values (normalized_email, normalized_role)
+  on conflict (email) do update set role = excluded.role;
+end;
+$$;
+
+revoke all on function public.admin_upsert_approved_user(text, text) from public;
+grant execute on function public.admin_upsert_approved_user(text, text) to authenticated;
+
+create or replace function public.admin_delete_approved_user(target_email text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  normalized_email text := lower(trim(coalesce(target_email, '')));
+  current_email text := lower(coalesce(auth.jwt() ->> 'email', ''));
+begin
+  if not public.is_approved_admin() then
+    raise exception 'Not authorized';
+  end if;
+
+  if normalized_email = '' then
+    raise exception 'Email is required';
+  end if;
+
+  if normalized_email = current_email or normalized_email = 'danieldipalma88@gmail.com' then
+    raise exception 'You cannot remove this admin account';
+  end if;
+
+  delete from public.approved_users
+  where lower(email) = normalized_email;
+end;
+$$;
+
+revoke all on function public.admin_delete_approved_user(text) from public;
+grant execute on function public.admin_delete_approved_user(text) to authenticated;
 
 drop policy if exists "admins can manage approved users" on public.approved_users;
 create policy "admins can manage approved users"

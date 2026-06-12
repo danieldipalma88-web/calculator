@@ -1,5 +1,6 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { canManageUsers } from "../../../lib/admin";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
 
 type ApprovedUser = {
@@ -33,7 +34,7 @@ async function requireAdmin() {
     .eq("email", email)
     .maybeSingle();
 
-  if (approvedUser?.role !== "admin") {
+  if (!canManageUsers(email, approvedUser?.role)) {
     redirect("/calculator");
   }
 
@@ -51,9 +52,10 @@ async function addApprovedUser(formData: FormData) {
     redirect("/admin/users?error=Enter an email address.");
   }
 
-  const { error } = await supabase
-    .from("approved_users")
-    .upsert({ email, role }, { onConflict: "email" });
+  const { error } = await supabase.rpc("admin_upsert_approved_user", {
+    target_email: email,
+    target_role: role,
+  });
 
   if (error) {
     redirect(`/admin/users?error=${encodeURIComponent(error.message)}`);
@@ -74,10 +76,10 @@ async function updateApprovedUserRole(formData: FormData) {
     redirect("/admin/users?error=You cannot demote your own admin account.");
   }
 
-  const { error } = await supabase
-    .from("approved_users")
-    .update({ role })
-    .eq("email", email);
+  const { error } = await supabase.rpc("admin_upsert_approved_user", {
+    target_email: email,
+    target_role: role,
+  });
 
   if (error) {
     redirect(`/admin/users?error=${encodeURIComponent(error.message)}`);
@@ -97,7 +99,9 @@ async function removeApprovedUser(formData: FormData) {
     redirect("/admin/users?error=You cannot remove your own admin account.");
   }
 
-  const { error } = await supabase.from("approved_users").delete().eq("email", email);
+  const { error } = await supabase.rpc("admin_delete_approved_user", {
+    target_email: email,
+  });
 
   if (error) {
     redirect(`/admin/users?error=${encodeURIComponent(error.message)}`);

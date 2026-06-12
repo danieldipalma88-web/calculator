@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { canManageUsers } from "../../lib/admin";
 import { createSupabaseServerClient } from "../../lib/supabase/server";
 
 export default async function CalculatorPage() {
@@ -45,7 +46,7 @@ export default async function CalculatorPage() {
           <span>{user.email}</span>
         </div>
         <div className="topbar-actions">
-          {approvedUser.role === "admin" ? (
+          {canManageUsers(user.email, approvedUser.role) ? (
             <a className="button secondary" href="/admin/users">
               Users
             </a>
