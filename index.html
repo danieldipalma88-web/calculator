@@ -47,6 +47,7 @@ body{
     radial-gradient(circle at 95% 4%, #e7f5ff 0%, transparent 28%),
     linear-gradient(180deg,var(--bg-alt) 0%, var(--bg) 100%);
 }
+body.drawerOpen{overflow:hidden}
 
 h1,h2,h3{
   font-family:'Space Grotesk','Manrope','Segoe UI',sans-serif;
@@ -517,17 +518,28 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
   top:0;
   height:100vh;
   width:min(1120px,96vw);
+  max-width:100vw;
   background:#fcfdff;
   z-index:40;
   transform:translateX(100%);
-  transition:.25s;
+  visibility:hidden;
+  pointer-events:none;
+  transition:transform .25s ease, visibility 0s linear .25s;
   box-shadow:-18px 0 50px rgba(15,23,42,.25);
   padding:22px;
   overflow:auto;
+  overflow-x:hidden;
+  overscroll-behavior:contain;
   border-left:1px solid var(--line);
 }
-.quoteDrawer.open{transform:translateX(0)}
+.quoteDrawer.open{
+  transform:translateX(0);
+  visibility:visible;
+  pointer-events:auto;
+  transition:transform .25s ease;
+}
 .drawerHead{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:14px}
+.drawerFloatingActions{display:none}
 
 .tableWrap{overflow:auto;border:1px solid var(--line);border-radius:16px;background:#fff}
 table{border-collapse:collapse;width:100%;font-size:12.5px;min-width:1180px}
@@ -752,6 +764,117 @@ tbody tr:hover td{background:#f0f7ff}
     padding:12px 8px;
     font-size:13px;
   }
+  body.drawerOpen .floatingActionBar{display:none}
+  .quoteDrawer{
+    left:0;
+    right:auto;
+    top:0;
+    width:100vw;
+    max-width:100vw;
+    height:100vh;
+    height:100dvh;
+    padding:12px 10px calc(92px + env(safe-area-inset-bottom, 0px));
+    border-left:0;
+    box-shadow:none;
+    transform:translate3d(100vw,0,0);
+    overflow-y:auto;
+    overflow-x:hidden;
+    overscroll-behavior:contain;
+    touch-action:pan-y;
+  }
+  .quoteDrawer.open{transform:translate3d(0,0,0)}
+  .quoteDrawer *{max-width:100%}
+  .quoteDrawer .drawerHead{
+    display:grid;
+    grid-template-columns:1fr;
+    align-items:stretch;
+    gap:10px;
+    margin-bottom:10px;
+  }
+  .quoteBuilderDrawer .drawerIntro,
+  .quoteBuilderDrawer .quoteExportField{display:none!important}
+  .quoteBuilderDrawer > .drawerHead .actions,
+  .quoteDrawer .actions{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px;
+  }
+  .quoteDrawer .actions button{
+    width:100%;
+    min-height:42px;
+    padding:10px 8px;
+    border-radius:11px;
+    font-size:12px;
+  }
+  .quoteBuilderDrawer.open .drawerFloatingActions{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+    position:fixed;
+    left:10px;
+    right:10px;
+    bottom:calc(10px + env(safe-area-inset-bottom, 0px));
+    z-index:60;
+    padding:8px;
+    border:1px solid var(--line);
+    border-radius:14px;
+    background:rgba(255,255,255,.96);
+    box-shadow:0 12px 30px rgba(15,23,42,.18);
+  }
+  .drawerFloatingActions button{
+    min-height:44px;
+    padding:10px 8px;
+    font-size:13px;
+  }
+  .quoteDrawer .totalsManager,
+  .quoteDrawer .card{
+    overflow:hidden;
+    border-radius:16px!important;
+  }
+  .quoteDrawer .totalsManager{padding:12px;margin:10px 0}
+  .quoteDrawer .totalsGrid{
+    grid-template-columns:1fr;
+    gap:10px;
+  }
+  .quoteDrawer .hint,
+  .quoteDrawer .sub{
+    font-size:11.5px;
+    line-height:1.4;
+  }
+  .quoteDrawer .tableWrap{
+    overflow-x:hidden;
+    border-radius:12px;
+  }
+  .quoteDrawer table,
+  .quoteDrawer .optionBody table{
+    width:100%;
+    min-width:0;
+    table-layout:fixed;
+    font-size:11px;
+  }
+  .quoteDrawer th,
+  .quoteDrawer td{
+    white-space:normal;
+    word-break:break-word;
+    padding:8px 6px;
+  }
+  .optionHeader,
+  .optionBody{
+    padding:10px;
+  }
+  .optionNameInput{max-width:none}
+  .optionSummary{font-size:11px}
+  .optionTotals{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px;
+  }
+  .optionTools{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px;
+  }
+  .optionTools button{width:100%}
 }
 </style>
 <!-- Version: Option groups -->
@@ -825,7 +948,8 @@ tbody tr:hover td{background:#f0f7ff}
 </div>
 <div class="floatingActionBar"><button class="floatingAction floatingAdd" onclick="addToQuote()">+ Add to Quote</button><button class="floatingAction floatingView" onclick="openDrawer()">View Options</button></div>
 <div id="overlay" class="drawerOverlay" onclick="closeAllDrawers()"></div>
-<div id="drawer" class="quoteDrawer"><div class="drawerHead"><div><div class="kicker">Quote builder</div><h2 style="margin:4px 0">Saved options</h2><div class="sub">Compare split and ducted options. Working options are stored for 7 days. Use Save Quote to store permanent snapshots in this browser.</div><div style="margin-top:14px;max-width:420px"><label>Quote / customer export name</label><input id="quoteExportName" placeholder="Example: Ash Macquarie Links" oninput="saveQuoteExportName()"></div></div><div class="actions"><button class="orange" onclick="saveCurrentQuoteSet()">Save Quote</button><button class="secondary" onclick="openProposalDrawer('quote')">Export Proposal PDF</button><button class="secondary" onclick="downloadCsv()">Download CSV</button><button class="danger" onclick="clearQuotes()">Clear</button><button class="secondary" onclick="closeDrawer()">Close</button></div></div>
+<div id="drawer" class="quoteDrawer quoteBuilderDrawer"><div class="drawerHead"><div><div class="kicker">Quote builder</div><h2 style="margin:4px 0">Saved options</h2><div class="sub drawerIntro">Compare split and ducted options. Working options are stored for 7 days. Use Save Quote to store permanent snapshots in this browser.</div><div class="quoteExportField" style="margin-top:14px;max-width:420px"><label>Quote / customer export name</label><input id="quoteExportName" placeholder="Example: Ash Macquarie Links" oninput="saveQuoteExportName()"></div></div><div class="actions"><button class="orange" onclick="saveCurrentQuoteSet()">Save Quote</button><button class="secondary" onclick="openProposalDrawer('quote')">Export Proposal PDF</button><button class="secondary" onclick="downloadCsv()">Download CSV</button><button class="danger" onclick="clearQuotes()">Clear</button><button class="secondary" onclick="closeDrawer()">Close</button></div></div>
+  <div class="drawerFloatingActions"><button class="orange" onclick="saveCurrentQuoteSet()">Save Quote</button><button class="secondary" onclick="closeDrawer()">Close</button></div>
   <div class="totalsManager" style="margin-top:14px">
     <div class="drawerHead" style="margin-bottom:10px;align-items:flex-end">
       <div><div class="kicker">Saved quote sets</div><h3 style="margin:4px 0 0">Save and reload full quote snapshots</h3><div class="sub">Saved quote sets remain in this browser until deleted.</div></div>
@@ -1710,7 +1834,7 @@ function toggleCertValuesLock(){
   refreshLiveRebateForCurrentProduct();
   refreshBestValueIndicator();
 }
-function openCertDrawer(){applyLockedCertValuesToMain(); $('certDrawer').classList.add('open'); $('overlay').classList.add('open');}
+function openCertDrawer(){applyLockedCertValuesToMain(); $('certDrawer').classList.add('open'); $('overlay').classList.add('open'); syncOverlayState();}
 function closeCertDrawer(){
   $('certDrawer').classList.remove('open');
   if(!$('drawer').classList.contains('open') && !$('priceDrawer').classList.contains('open')) $('overlay').classList.remove('open');
@@ -2323,7 +2447,7 @@ function loadManagedPrices(){
 function persistManagedPrices(){
   try{localStorage.setItem(PRICE_STORAGE_KEY, JSON.stringify(priceLocks));}catch(e){}
 }
-function openPriceDrawer(){renderDefaultCostManager(); renderPriceManager(); $('priceDrawer').classList.add('open'); $('overlay').classList.add('open');}
+function openPriceDrawer(){renderDefaultCostManager(); renderPriceManager(); $('priceDrawer').classList.add('open'); $('overlay').classList.add('open'); syncOverlayState();}
 function closePriceDrawer(){$('priceDrawer').classList.remove('open'); if(!$('drawer').classList.contains('open') && !$('certDrawer').classList.contains('open')) $('overlay').classList.remove('open');}
 function closeAllDrawers(){closeDrawer(); closePriceDrawer(); closeCertDrawer();}
 function ruleSystemLabel(rule){return rule.system==='split'?'Split':'Ducted';}
@@ -2637,7 +2761,7 @@ function renderQuotes(){
 }
 function removeQuote(i){quotes.splice(i,1); persistQuotes(); renderQuotes();}
 function clearQuotes(){quotes=[]; persistQuotes(); renderQuotes();}
-function openDrawer(){$('drawer').classList.add('open'); $('overlay').classList.add('open')}
+function openDrawer(){$('drawer').classList.add('open'); $('overlay').classList.add('open'); syncOverlayState();}
 function closeDrawer(){$('drawer').classList.remove('open'); if(!$('priceDrawer').classList.contains('open') && !$('certDrawer').classList.contains('open')) $('overlay').classList.remove('open')}
 function parseManagedIndexFromKey(key,expectedType){
   const parts=String(key||'').split('|');
@@ -3137,6 +3261,7 @@ function syncOverlayState(){
   if(!overlay) return;
   const open=['drawer','priceDrawer','certDrawer','proposalDrawer'].some(drawerIsOpen);
   overlay.classList.toggle('open',open);
+  document.body.classList.toggle('drawerOpen',open);
 }
 function closeDrawer(){const el=$('drawer'); if(el) el.classList.remove('open'); syncOverlayState();}
 function closePriceDrawer(){const el=$('priceDrawer'); if(el) el.classList.remove('open'); syncOverlayState();}
@@ -3203,6 +3328,7 @@ function openProposalDrawer(source){
   const drawer=$('proposalDrawer');
   if(drawer) drawer.classList.add('open');
   if($('overlay')) $('overlay').classList.add('open');
+  syncOverlayState();
 }
 function currentProposalRow(){
   const x=calculate();
@@ -3483,7 +3609,12 @@ const MOBILE_MONEY_STEPS={
   materials:50,
   misc:100,
   finalInc:50,
-  powerCircuit:50
+  powerCircuit:50,
+  distCustomerTotal:50,
+  distLabourTotal:100,
+  distMaterialsTotal:50,
+  distMiscTotal:100,
+  distPowerTotal:50
 };
 function isMobileMoneyUi(){
   return window.matchMedia && window.matchMedia('(max-width: 760px)').matches;
@@ -3505,6 +3636,9 @@ function moneyStepLabel(el,id){
 function enhanceMoneyStepper(id,step){
   const el=$(id);
   if(!el || el.closest('.moneyStepper')) return;
+  el.setAttribute('inputmode','decimal');
+  el.addEventListener('focus',()=>{if(isMobileMoneyUi()) setTimeout(()=>{try{el.select();}catch(e){}},0);});
+  el.addEventListener('click',()=>{if(isMobileMoneyUi()) {try{el.select();}catch(e){}}});
   const label=moneyStepLabel(el,id);
   const wrap=document.createElement('div');
   wrap.className='moneyStepper';
