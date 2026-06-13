@@ -13,11 +13,20 @@
   box-sizing: border-box;
 }
 
+html {
+  width: 100%;
+  min-height: 100%;
+  overflow-x: hidden;
+}
+
 body {
   margin: 0;
   background: var(--bg);
   color: var(--ink);
   font-family: Arial, Helvetica, sans-serif;
+  width: 100%;
+  min-height: 100%;
+  overflow-x: hidden;
 }
 
 a {
@@ -107,13 +116,13 @@ button.danger {
 }
 
 .topbar {
-  height: 56px;
+  min-height: calc(56px + env(safe-area-inset-top, 0px));
   background: #fff;
   border-bottom: 1px solid var(--line);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 18px;
+  padding: env(safe-area-inset-top, 0px) 18px 0;
   gap: 16px;
 }
 
@@ -143,7 +152,8 @@ button.danger {
 
 .calculator-frame {
   width: 100%;
-  height: calc(100vh - 56px);
+  height: calc(100vh - 56px - env(safe-area-inset-top, 0px));
+  height: calc(100dvh - 56px - env(safe-area-inset-top, 0px));
   border: 0;
   display: block;
   background: #fff;
@@ -268,6 +278,32 @@ select {
 }
 
 @media (max-width: 760px) {
+  .topbar {
+    gap: 10px;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .topbar-title strong {
+    font-size: 13px;
+  }
+
+  .topbar-title span {
+    font-size: 11px;
+  }
+
+  .topbar-actions {
+    gap: 6px;
+    justify-content: flex-end;
+  }
+
+  .topbar-actions .button,
+  .topbar-actions button {
+    min-height: 38px;
+    padding: 0 10px;
+    font-size: 12px;
+  }
+
   .admin-shell {
     padding: 14px;
   }

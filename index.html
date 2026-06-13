@@ -27,11 +27,21 @@
 }
 
 *{box-sizing:border-box}
-html{scroll-behavior:smooth}
+html{
+  scroll-behavior:smooth;
+  width:100%;
+  max-width:100%;
+  overflow-x:hidden;
+  overscroll-behavior-x:none;
+}
 body{
   margin:0;
   font-family:'Manrope','Segoe UI',sans-serif;
   color:var(--dark);
+  width:100%;
+  max-width:100%;
+  overflow-x:hidden;
+  overscroll-behavior-x:none;
   background:
     radial-gradient(circle at 3% 0%, #ffffff 0%, transparent 32%),
     radial-gradient(circle at 95% 4%, #e7f5ff 0%, transparent 28%),
@@ -90,6 +100,30 @@ input:focus,select:focus,textarea:focus{
   border-color:var(--primary);
   box-shadow:0 0 0 3px rgba(15,118,110,.14);
 }
+.fixedMoneyInput{background:#f8fafc;color:#475569}
+.moneyStepper{
+  display:grid;
+  grid-template-columns:42px minmax(0,1fr) 42px;
+  gap:6px;
+  align-items:center;
+}
+.moneyStepper input{
+  text-align:center;
+  padding:0 6px;
+}
+.moneyStepBtn{
+  width:42px;
+  height:44px;
+  min-height:44px;
+  padding:0;
+  border-radius:12px;
+  background:#eaf1f6;
+  color:#0f172a;
+  font-size:20px;
+  line-height:1;
+  box-shadow:none;
+}
+.moneyStepBtn:hover{box-shadow:none}
 
 button{
   border:0;
@@ -503,17 +537,26 @@ tbody tr:nth-child(even) td{background:#fbfdff}
 tbody tr:hover td{background:#f0f7ff}
 .money,.num{text-align:right;font-variant-numeric:tabular-nums}
 
-.floatingAdd{
+.floatingActionBar{
   position:fixed;
   right:24px;
   bottom:24px;
   z-index:28;
+  display:flex;
+  gap:10px;
+  align-items:center;
+}
+.floatingAction{
+  border-radius:999px;
+  padding:15px 20px;
+  box-shadow:0 18px 36px rgba(15,23,42,.2);
+}
+.floatingAdd{
   background:var(--orange);
   color:#fff;
-  border-radius:999px;
-  padding:15px 22px;
   box-shadow:0 18px 36px rgba(234,106,27,.34);
 }
+.floatingView{background:#0f172a;color:#fff}
 
 .priceDrawer{width:min(980px,96vw)}
 .priceDrawer table{min-width:980px}
@@ -573,13 +616,142 @@ tbody tr:hover td{background:#f0f7ff}
   .selectedHeader{flex-direction:column;align-items:stretch}
   .copyModelBtn{width:100%}
   .priceResetRow button{width:100%}
-  .floatingAdd{right:14px;bottom:14px}
+  .floatingActionBar{right:14px;bottom:14px}
 }
 @media(max-width:640px){
-  .card,.brand{padding:16px}
-  h1{font-size:26px}
+  html,body{min-width:0}
+  .wrap{
+    width:100%;
+    max-width:100%;
+    padding:12px 10px calc(98px + env(safe-area-inset-bottom, 0px));
+    touch-action:pan-y pinch-zoom;
+  }
+  .header{display:block;margin-bottom:10px}
+  .card,.brand{
+    padding:14px;
+    border-radius:16px;
+    margin-bottom:12px;
+  }
+  .grid{gap:12px}
+  .brand .sub{display:none}
+  h1{font-size:24px}
   .sectionTitle{font-size:17px}
+  input,select,textarea{font-size:16px}
   button{padding:11px 13px}
+  .systemTabs,.installTabs{gap:6px}
+  .systemTabs button,.installTabs button{
+    min-height:42px;
+    padding:10px 8px;
+    font-size:13px;
+  }
+  .mobileHideRebateConfig,
+  #modelMeta,
+  #rebateCalcMeta{display:none!important}
+  .selected{
+    padding:12px;
+    margin-top:12px;
+  }
+  .selectedHeader{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto;
+    align-items:start;
+    gap:8px;
+  }
+  .selected strong{font-size:14px}
+  .copyModelBtn{
+    width:auto;
+    padding:9px 10px;
+    font-size:12px;
+  }
+  #certificateBreakdown{
+    grid-template-columns:1fr;
+    margin-top:8px;
+  }
+  #certificateBreakdown .certificateMetric:not(:last-child){display:none}
+  .recommendationCards{
+    grid-template-columns:1fr;
+    gap:8px;
+  }
+  .recommendationCard{padding:10px}
+  .recommendationValue{font-size:21px}
+  .recommendationStats{gap:6px}
+  .priceResetRow{
+    justify-content:stretch;
+    margin-top:10px;
+  }
+  .priceResetRow button{
+    width:100%;
+    min-width:0;
+  }
+  .addonPanel{
+    padding:10px;
+    margin-top:12px;
+  }
+  .addonPanelHead{
+    display:grid;
+    gap:6px;
+    margin-bottom:8px;
+  }
+  .addonSummary{
+    text-align:left;
+    font-size:11px;
+  }
+  .addonGrid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px;
+  }
+  .addonCheck{
+    min-height:118px;
+    padding:10px;
+    flex-direction:column;
+    gap:8px;
+  }
+  .addonCheck input[type="checkbox"]{margin:0}
+  .addonQtyItem{
+    align-items:stretch;
+    justify-content:flex-start;
+  }
+  .addonText strong{font-size:12.5px}
+  .addonText small{font-size:10.5px}
+  .qtyControl{
+    width:100%;
+    justify-content:space-between;
+    gap:4px;
+  }
+  .qtyControl button{
+    width:32px;
+    height:32px;
+  }
+  .qtyControl input{
+    width:48px;
+    height:32px;
+  }
+  .summary .actions{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px;
+  }
+  .summary .actions button{
+    width:100%;
+    min-height:42px;
+    padding:10px 8px;
+    border-radius:11px;
+    font-size:12px;
+  }
+  .floatingActionBar{
+    left:10px;
+    right:10px;
+    bottom:calc(10px + env(safe-area-inset-bottom, 0px));
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+  }
+  .floatingAction{
+    width:100%;
+    min-height:44px;
+    padding:12px 8px;
+    font-size:13px;
+  }
 }
 </style>
 <!-- Version: Option groups -->
@@ -598,12 +770,12 @@ tbody tr:hover td{background:#f0f7ff}
         <div class="installTabs"><button id="newBtn" class="active" onclick="setInstall('new')">New install</button><button id="replacementBtn" onclick="setInstall('replacement')">Replacement</button></div>
         <div class="row3" style="margin-top:12px">
           <div><label>ESS postcode</label><input id="essPostcode" type="text" inputmode="numeric" value="2000" maxlength="4"></div>
-          <div><label>ESS climate zone</label><select id="essClimateZone"><option value="auto">Auto from postcode</option><option value="mixed">Mixed</option><option value="hot">Hot</option><option value="cold">Cold</option></select></div>
-          <div><label>ESS $ per ESC</label><input id="essEscRate" type="number" step="0.01" value="21.95"></div>
+          <div class="mobileHideRebateConfig"><label>ESS climate zone</label><select id="essClimateZone"><option value="auto">Auto from postcode</option><option value="mixed">Mixed</option><option value="hot">Hot</option><option value="cold">Cold</option></select></div>
+          <div class="mobileHideRebateConfig"><label>ESS $ per ESC</label><input id="essEscRate" type="number" step="0.01" value="21.95"></div>
         </div>
-        <div class="row2" style="margin-top:12px">
-          <div><label>PERC (PRC) $ per cert</label><input id="essPrcRate" type="number" step="0.01" value="2.65"></div>
-          <div><label>Live calc source</label><input readonly value="NSW ESS/PDRS API"></div>
+        <div class="row2 mobileHideRebateConfig" style="margin-top:12px">
+          <div class="mobileHideRebateConfig"><label>PERC (PRC) $ per cert</label><input id="essPrcRate" type="number" step="0.01" value="2.65"></div>
+          <div class="mobileHideRebateConfig"><label>Live calc source</label><input readonly value="NSW ESS/PDRS API"></div>
         </div>
         <div class="selected"><div class="selectedText"><div class="selectedHeader"><strong id="selectedModel"></strong><button type="button" class="copyModelBtn" onclick="copyCurrentModel()">Copy model</button></div><div class="tiny" id="modelMeta"></div><div class="tiny" id="rebateCalcMeta">Live ESS/PERC rebate status will appear here.</div><div class="certificateBreakdown" id="certificateBreakdown"><div class="certificateMetric"><span>ESC generated</span><strong id="escCertCount">-</strong><small id="escCertValue">Waiting for live lookup</small></div><div class="certificateMetric"><span>PERC generated</span><strong id="prcCertCount">-</strong><small id="prcCertValue">Waiting for live lookup</small></div><div class="certificateMetric"><span>Rebate calculation</span><strong id="certRebateValue">-</strong><small id="certRebateMeta">Waiting for live lookup</small></div></div><div class="recommendationCards"><div class="recommendationCard" id="bestValueMeta"><div class="recommendationEyebrow">Best rebate</div><div class="recommendationStatus">Best rebate indicator will appear here.</div></div><div class="recommendationCard net" id="bestNetCostMeta"><div class="recommendationEyebrow">Best net unit cost</div><div class="recommendationStatus">Best net unit cost indicator will appear here.</div></div></div></div></div>
       </div>
@@ -619,7 +791,7 @@ tbody tr:hover td{background:#f0f7ff}
           <div class="addonGrid">
             <div class="addonCheck addonQtyItem"><span class="addonText"><strong>Extra 5m pipe runs</strong><small>Each run adds +$200 labour, +$100 materials inc GST</small></span><div class="qtyControl"><button type="button" onclick="adjustInstallAddonQuantity('addonExtraPipeRun',-1)">-</button><input id="addonExtraPipeRunQty" type="number" min="0" step="1" value="0" inputmode="numeric" aria-label="Extra 5m pipe run quantity"><button type="button" onclick="adjustInstallAddonQuantity('addonExtraPipeRun',1)">+</button></div></div>
             <label class="addonCheck" for="addonCondensatePump"><input id="addonCondensatePump" type="checkbox"><span class="addonText"><strong>Condensate pump</strong><small>+$200 labour, +$200 materials inc GST</small></span></label>
-            <label class="addonCheck" for="addonWallMountDoubleTriple"><input id="addonWallMountDoubleTriple" type="checkbox"><span class="addonText"><strong>Wall mount double/triple storey</strong><small>+$200 labour, +$100 materials inc GST</small></span></label>
+            <label class="addonCheck" for="addonWallMountDoubleTriple"><input id="addonWallMountDoubleTriple" type="checkbox"><span class="addonText"><strong>Two/three storey mount</strong><small>+$200 labour, +$100 materials inc GST</small></span></label>
             <label class="addonCheck" for="addonRoofCeilingRun"><input id="addonRoofCeilingRun" type="checkbox"><span class="addonText"><strong>Roof or ceiling run</strong><small>+$200 labour, +$200 materials inc GST</small></span></label>
           </div>
         </div>
@@ -651,7 +823,7 @@ tbody tr:hover td{background:#f0f7ff}
   </div>
 
 </div>
-<button class="floatingAdd" onclick="addToQuote()">+ Add to Quote</button>
+<div class="floatingActionBar"><button class="floatingAction floatingAdd" onclick="addToQuote()">+ Add to Quote</button><button class="floatingAction floatingView" onclick="openDrawer()">View Options</button></div>
 <div id="overlay" class="drawerOverlay" onclick="closeAllDrawers()"></div>
 <div id="drawer" class="quoteDrawer"><div class="drawerHead"><div><div class="kicker">Quote builder</div><h2 style="margin:4px 0">Saved options</h2><div class="sub">Compare split and ducted options. Working options are stored for 7 days. Use Save Quote to store permanent snapshots in this browser.</div><div style="margin-top:14px;max-width:420px"><label>Quote / customer export name</label><input id="quoteExportName" placeholder="Example: Ash Macquarie Links" oninput="saveQuoteExportName()"></div></div><div class="actions"><button class="orange" onclick="saveCurrentQuoteSet()">Save Quote</button><button class="secondary" onclick="openProposalDrawer('quote')">Export Proposal PDF</button><button class="secondary" onclick="downloadCsv()">Download CSV</button><button class="danger" onclick="clearQuotes()">Clear</button><button class="secondary" onclick="closeDrawer()">Close</button></div></div>
   <div class="totalsManager" style="margin-top:14px">
@@ -3305,10 +3477,69 @@ function generateProposalPdf(){
   win.document.close();
   setTimeout(()=>{try{win.focus(); win.print();}catch(e){}},350);
 }
+const MOBILE_MONEY_STEPS={
+  unitPriceInc:50,
+  labour:100,
+  materials:50,
+  misc:100,
+  finalInc:50,
+  powerCircuit:50
+};
+function isMobileMoneyUi(){
+  return window.matchMedia && window.matchMedia('(max-width: 760px)').matches;
+}
+function applyMoneyStep(id,step){
+  const el=$(id);
+  if(!el) return;
+  const current=Number(el.value)||0;
+  const next=Math.max(0,current+step);
+  el.value=next.toFixed(2);
+  el.dispatchEvent(new Event('input',{bubbles:true}));
+  el.dispatchEvent(new Event('change',{bubbles:true}));
+}
+function moneyStepLabel(el,id){
+  const field=el.closest('div');
+  const label=field ? field.querySelector('label') : null;
+  return label ? label.textContent.trim() : id;
+}
+function enhanceMoneyStepper(id,step){
+  const el=$(id);
+  if(!el || el.closest('.moneyStepper')) return;
+  const label=moneyStepLabel(el,id);
+  const wrap=document.createElement('div');
+  wrap.className='moneyStepper';
+  const minus=document.createElement('button');
+  const plus=document.createElement('button');
+  minus.type='button';
+  plus.type='button';
+  minus.className='moneyStepBtn';
+  plus.className='moneyStepBtn';
+  minus.textContent='-';
+  plus.textContent='+';
+  minus.setAttribute('aria-label',`Decrease ${label} by $${step}`);
+  plus.setAttribute('aria-label',`Increase ${label} by $${step}`);
+  el.parentNode.insertBefore(wrap,el);
+  wrap.appendChild(minus);
+  wrap.appendChild(el);
+  wrap.appendChild(plus);
+  minus.addEventListener('click',()=>applyMoneyStep(id,-step));
+  plus.addEventListener('click',()=>applyMoneyStep(id,step));
+}
+function setupMobileMoneySteppers(){
+  if(!isMobileMoneyUi()) return;
+  Object.keys(MOBILE_MONEY_STEPS).forEach(id=>enhanceMoneyStepper(id,MOBILE_MONEY_STEPS[id]));
+  const rebate=$('rebate');
+  if(rebate){
+    rebate.readOnly=true;
+    rebate.classList.add('fixedMoneyInput');
+    rebate.setAttribute('aria-label','Rebate calculated automatically');
+  }
+}
 ['unitPriceInc','labour','rebate','materials','misc','powerCircuit','powerMode','installerRetainsLabour','electrician','airtouch','zones','sensors','commissionModelOn'].forEach(id=>{const el=$(id); if(el){ el.addEventListener('input',()=>{ if(!finalPriceLocked) autoFinal(); render(); }); el.addEventListener('change',()=>{ if(!finalPriceLocked) autoFinal(); render(); }); }});
 INSTALL_ADDONS.map(a=>a.type==='quantity'?a.qtyId:a.id).forEach(id=>{const el=$(id); if(el){ el.addEventListener('input',()=>{ render(); }); el.addEventListener('change',()=>{ if(el.type==='number') el.value=String(Math.max(0,Math.floor(Number(el.value)||0))); render(); }); }});
 const finalInput=$('finalInc');
 if(finalInput){ finalInput.addEventListener('input',()=>{ finalPriceLocked=true; render(); }); finalInput.addEventListener('change',()=>{ finalPriceLocked=true; render(); }); }
+setupMobileMoneySteppers();
 loadOptionDefs();
 loadRecentQuotes();
 loadSavedQuoteSets();
