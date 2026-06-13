@@ -33,6 +33,7 @@ html{
   max-width:100%;
   overflow-x:hidden;
   overscroll-behavior-x:none;
+  touch-action:pan-y pinch-zoom;
 }
 body{
   margin:0;
@@ -42,6 +43,7 @@ body{
   max-width:100%;
   overflow-x:hidden;
   overscroll-behavior-x:none;
+  touch-action:pan-y pinch-zoom;
   background:
     radial-gradient(circle at 3% 0%, #ffffff 0%, transparent 32%),
     radial-gradient(circle at 95% 4%, #e7f5ff 0%, transparent 28%),
@@ -1303,8 +1305,9 @@ function brands(){return [...new Set(data().map(p=>p.brand))]}
 function setSystem(t){systemType=t; $('splitTab').classList.toggle('active',t==='split'); $('ductedTab').classList.toggle('active',t==='ducted'); $('splitOnly').classList.toggle('hidden',t!=='split'); $('ductedOnly').classList.toggle('hidden',t!=='ducted'); populateBrands();}
 function setInstall(t){installType=t; $('newBtn').classList.toggle('active',t==='new'); $('replacementBtn').classList.toggle('active',t==='replacement'); applyDefaults(); refreshLiveRebateForCurrentProduct(); refreshBestValueIndicator();}
 function populateBrands(){$('brand').innerHTML=brands().map(b=>`<option>${b}</option>`).join(''); populateProducts();}
-function populateProducts(){const b=$('brand').value; const list=data().map((p,i)=>({p,i})).filter(x=>x.p.brand===b); $('product').innerHTML=list.map(x=>`<option value="${x.i}">${label(x.p)}</option>`).join(''); onProductChange();}
-function label(p){return `${p.capacity||p.size+'kW'}${p.series?' - '+p.series:''}${p.phase?' - '+p.phase:''} - ${p.model}`;}
+function populateProducts(){const b=$('brand').value; const list=data().map((p,i)=>({p,i})).filter(x=>x.p.brand===b); $('product').innerHTML=list.map(x=>`<option value="${x.i}">${unitSelectLabel(x.p)}</option>`).join(''); onProductChange();}
+function unitSelectLabel(p){return `${p.capacity||p.size+'kW'}${p.series?' - '+p.series:''}${p.phase?' - '+p.phase:''}`;}
+function label(p){return `${unitSelectLabel(p)} - ${p.model}`;}
 function product(){return data()[Number($('product').value)||0]||data()[0]}
 function cap(p){return Number(p.capacityNum||p.size)||0}
 function normalizeLookup(v){return String(v||'').toUpperCase().replace(/[^A-Z0-9]+/g,'');}
@@ -2527,7 +2530,7 @@ function syncCurrentProductAfterPriceChange(changedItem){
   const currentIndex=Number($('product').value)||0;
   if(currentIndex!==changedItem.index) return;
   const option=$('product').options[currentIndex];
-  if(option) option.textContent=label(changedItem.p);
+  if(option) option.textContent=unitSelectLabel(changedItem.p);
   $('unitPriceInc').value=(changedItem.p.unitPriceInc||changedItem.p.priceIncGst||0).toFixed(2);
   $('rebate').value=(changedItem.p.rebate||0).toFixed(2);
   if(hasManualRebateOverride(systemType,changedItem.p)){
@@ -3669,11 +3672,41 @@ function setupMobileMoneySteppers(){
     rebate.setAttribute('aria-label','Rebate calculated automatically');
   }
 }
+function setupMobileHorizontalDragLock(){
+  if(!('ontouchstart' in window)) return;
+  let startX=0, startY=0, axis='';
+  const resetHorizontalScroll=()=>{
+    const x=window.scrollX || document.documentElement.scrollLeft || document.body.scrollLeft || 0;
+    if(x) window.scrollTo(0, window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0);
+  };
+  document.addEventListener('touchstart',e=>{
+    if(!isMobileMoneyUi() || e.touches.length!==1) return;
+    startX=e.touches[0].clientX;
+    startY=e.touches[0].clientY;
+    axis='';
+    resetHorizontalScroll();
+  },{passive:true});
+  document.addEventListener('touchmove',e=>{
+    if(!isMobileMoneyUi() || e.touches.length!==1) return;
+    const touch=e.touches[0];
+    const dx=touch.clientX-startX;
+    const dy=touch.clientY-startY;
+    const absX=Math.abs(dx);
+    const absY=Math.abs(dy);
+    if(!axis && Math.max(absX,absY)>6) axis=absX>absY*1.05?'x':'y';
+    if(axis==='x'){
+      e.preventDefault();
+      resetHorizontalScroll();
+    }
+  },{passive:false});
+  window.addEventListener('scroll',resetHorizontalScroll,{passive:true});
+}
 ['unitPriceInc','labour','rebate','materials','misc','powerCircuit','powerMode','installerRetainsLabour','electrician','airtouch','zones','sensors','commissionModelOn'].forEach(id=>{const el=$(id); if(el){ el.addEventListener('input',()=>{ if(!finalPriceLocked) autoFinal(); render(); }); el.addEventListener('change',()=>{ if(!finalPriceLocked) autoFinal(); render(); }); }});
 INSTALL_ADDONS.map(a=>a.type==='quantity'?a.qtyId:a.id).forEach(id=>{const el=$(id); if(el){ el.addEventListener('input',()=>{ render(); }); el.addEventListener('change',()=>{ if(el.type==='number') el.value=String(Math.max(0,Math.floor(Number(el.value)||0))); render(); }); }});
 const finalInput=$('finalInc');
 if(finalInput){ finalInput.addEventListener('input',()=>{ finalPriceLocked=true; render(); }); finalInput.addEventListener('change',()=>{ finalPriceLocked=true; render(); }); }
 setupMobileMoneySteppers();
+setupMobileHorizontalDragLock();
 loadOptionDefs();
 loadRecentQuotes();
 loadSavedQuoteSets();
