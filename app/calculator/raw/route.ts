@@ -108,6 +108,7 @@ function injectCloudStorageSync(
   var calculatorUser = ${safeScriptJson(userContext)};
   var calculatorSyncUrl = ${safeScriptJson(syncUrl)};
   var profileStorageKey = '__calculatorProfileEmail';
+  var profileEmail = (calculatorUser && (calculatorUser.viewingEmail || calculatorUser.email)) || '';
   var syncing = false;
   var timer = null;
   var lastSnapshotJson = '';
@@ -124,6 +125,28 @@ function injectCloudStorageSync(
       }
     } catch (e) {}
     return output;
+  }
+  function storedValueHasData(value){
+    if (typeof value !== 'string' || value.trim() === '') return false;
+    try {
+      var parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) return parsed.length > 0;
+      if (parsed && typeof parsed === 'object') return Object.keys(parsed).length > 0;
+      return parsed !== null && parsed !== '';
+    } catch(e) {
+      return true;
+    }
+  }
+  function snapshotHasData(data){
+    return Object.keys(data || {}).some(function(key){
+      return isAppStorageKey(key) && storedValueHasData(data[key]);
+    });
+  }
+  function setCloudValue(key, value){
+    if (!isAppStorageKey(key) || typeof value !== 'string') return;
+    var localValue = localStorage.getItem(key);
+    if (!storedValueHasData(value) && storedValueHasData(localValue)) return;
+    localStorage.setItem(key, value);
   }
   function writeSnapshot(force){
     var data = snapshot();
@@ -242,12 +265,14 @@ function injectCloudStorageSync(
   }
   try {
     syncing = true;
-    clearAppStorage();
+    var existingProfile = localStorage.getItem(profileStorageKey) || '';
+    if (existingProfile && profileEmail && existingProfile !== profileEmail) clearAppStorage();
     Object.keys(cloudData || {}).forEach(function(key){
-      if (isAppStorageKey(key) && typeof cloudData[key] === 'string') localStorage.setItem(key, cloudData[key]);
+      setCloudValue(key, cloudData[key]);
     });
     applyCommissionSettings();
-    localStorage.setItem(profileStorageKey, calculatorUser.email || '');
+    localStorage.setItem(profileStorageKey, profileEmail);
+    var shouldBackfillCloud = !snapshotHasData(cloudData) && snapshotHasData(snapshot());
     lastSnapshotJson = JSON.stringify(snapshot());
   } catch (e) {
   } finally {
@@ -277,6 +302,9 @@ function injectCloudStorageSync(
         navigator.sendBeacon('/api/calculator-data', new Blob([JSON.stringify({data: snapshot()})], {type: 'application/json'}));
       } catch(e) {}
     });
+    if (typeof shouldBackfillCloud !== 'undefined' && shouldBackfillCloud) {
+      setTimeout(function(){ writeSnapshot(true); }, 1000);
+    }
   } catch (e) {}
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){ applyRoleUi(); wrapPrivacyRenderers(); });
   else { applyRoleUi(); wrapPrivacyRenderers(); }

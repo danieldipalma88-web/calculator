@@ -20,6 +20,40 @@ function targetEmailFromRequest(request: Request, currentEmail: string, canManag
   return canManage && targetEmail ? targetEmail : currentEmail;
 }
 
+function storedValueHasData(value: unknown) {
+  if (typeof value !== "string" || value.trim() === "") return false;
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) return parsed.length > 0;
+    if (parsed && typeof parsed === "object") return Object.keys(parsed).length > 0;
+    return parsed !== null && parsed !== "";
+  } catch {
+    return true;
+  }
+}
+
+function calculatorDataHasData(data: unknown) {
+  if (!data || typeof data !== "object") return false;
+  return Object.entries(data as Record<string, unknown>).some(([key, value]) => {
+    return key && !key.startsWith("sb-") && key !== "__calculatorProfileEmail" && storedValueHasData(value);
+  });
+}
+
+function mergeCalculatorData(existing: unknown, incoming: unknown) {
+  const merged: Record<string, unknown> =
+    existing && typeof existing === "object" ? { ...(existing as Record<string, unknown>) } : {};
+  if (!incoming || typeof incoming !== "object") return merged;
+
+  for (const [key, value] of Object.entries(incoming as Record<string, unknown>)) {
+    const existingHasData = storedValueHasData(merged[key]);
+    const incomingHasData = storedValueHasData(value);
+    if (!incomingHasData && existingHasData) continue;
+    merged[key] = value;
+  }
+
+  return merged;
+}
+
 export async function GET(request: Request) {
   const supabase = await createSupabaseServerClient();
   const {
@@ -62,6 +96,7 @@ async function saveCalculatorData(request: Request) {
 
   const body = await request.json().catch(() => null);
   const calculatorData = body && typeof body.data === "object" ? body.data : {};
+  const incomingHasData = calculatorDataHasData(calculatorData);
   const currentEmail = String(user.email || "").toLowerCase();
   const approvedUser = await currentApprovedUser(supabase, currentEmail);
   const viewingEmail = targetEmailFromRequest(
@@ -73,7 +108,7 @@ async function saveCalculatorData(request: Request) {
   if (viewingEmail !== currentEmail) {
     const { data: existingData } = await supabase
       .from("user_calculator_data")
-      .select("user_id")
+      .select("user_id, data")
       .eq("email", viewingEmail)
       .maybeSingle();
 
@@ -84,10 +119,16 @@ async function saveCalculatorData(request: Request) {
       );
     }
 
+    if (!incomingHasData && calculatorDataHasData(existingData.data)) {
+      return NextResponse.json({ ok: true, skipped: "empty_snapshot_ignored" });
+    }
+
+    const mergedData = mergeCalculatorData(existingData.data, calculatorData);
+
     const { error } = await supabase
       .from("user_calculator_data")
       .update({
-        data: calculatorData,
+        data: mergedData,
         updated_at: new Date().toISOString(),
       })
       .eq("email", viewingEmail);
@@ -99,10 +140,22 @@ async function saveCalculatorData(request: Request) {
     return NextResponse.json({ ok: true });
   }
 
+  const { data: existingData } = await supabase
+    .from("user_calculator_data")
+    .select("data")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!incomingHasData && calculatorDataHasData(existingData?.data)) {
+    return NextResponse.json({ ok: true, skipped: "empty_snapshot_ignored" });
+  }
+
+  const mergedData = mergeCalculatorData(existingData?.data, calculatorData);
+
   const { error } = await supabase.from("user_calculator_data").upsert({
     user_id: user.id,
     email: currentEmail,
-    data: calculatorData,
+    data: mergedData,
     updated_at: new Date().toISOString(),
   });
 
