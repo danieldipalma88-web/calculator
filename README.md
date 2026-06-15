@@ -13,11 +13,13 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_sw1gVqjqbdwRfu7E1XZtkA_zZKH9
 
 ## Supabase setup
 
-Run the SQL in `supabase/schema.sql` in the Supabase SQL editor.
+Run the SQL in `supabase/schema.sql` in the Supabase SQL editor after each schema change.
 
-Then add approved users to `public.approved_users`.
+The schema creates the default `Green Energy Climate Control` business, upgrades user roles,
+and keeps `danieldipalma88@gmail.com` as the platform admin.
 
-Admin users can manage access from `/admin/users` after the SQL policies have been run.
+Platform admin users can manage businesses, approved users, roles, and commission settings
+from `/admin/users` after the SQL policies have been run.
 
 ## Calculator source
 

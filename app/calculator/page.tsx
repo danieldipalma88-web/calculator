@@ -2,7 +2,30 @@ import { redirect } from "next/navigation";
 import { canManageUsers } from "../../lib/admin";
 import { createSupabaseServerClient } from "../../lib/supabase/server";
 
-export default async function CalculatorPage() {
+type ApprovedUser = {
+  email: string;
+  role: string;
+  business_id?: string | null;
+};
+
+async function getApprovedUser(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>, email: string) {
+  const upgraded = await supabase
+    .from("approved_users")
+    .select("email, role, business_id")
+    .eq("email", email)
+    .maybeSingle();
+
+  if (!upgraded.error) return upgraded;
+
+  return supabase.from("approved_users").select("email, role").eq("email", email).maybeSingle();
+}
+
+export default async function CalculatorPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ as?: string }>;
+}) {
+  const params = await searchParams;
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -12,11 +35,7 @@ export default async function CalculatorPage() {
     redirect("/");
   }
 
-  const { data: approvedUser, error } = await supabase
-    .from("approved_users")
-    .select("email, role")
-    .eq("email", user.email.toLowerCase())
-    .maybeSingle();
+  const { data: approvedUser, error } = await getApprovedUser(supabase, user.email.toLowerCase());
 
   if (error || !approvedUser) {
     return (
@@ -38,15 +57,26 @@ export default async function CalculatorPage() {
     );
   }
 
+  const approved = approvedUser as ApprovedUser;
+  const canManage = canManageUsers(user.email, approved.role);
+  const requestedEmail = String(params?.as || "").trim().toLowerCase();
+  const viewingEmail = canManage && requestedEmail ? requestedEmail : user.email.toLowerCase();
+  const isViewingAnotherUser = viewingEmail !== user.email.toLowerCase();
+  const rawSrc = isViewingAnotherUser
+    ? `/calculator/raw?as=${encodeURIComponent(viewingEmail)}`
+    : "/calculator/raw";
+
   return (
     <>
       <header className="topbar">
         <div className="topbar-title">
           <strong>Quote Calculator</strong>
-          <span>{user.email}</span>
+          <span>
+            {isViewingAnotherUser ? `Viewing ${viewingEmail} as ${user.email}` : user.email}
+          </span>
         </div>
         <div className="topbar-actions">
-          {canManageUsers(user.email, approvedUser.role) ? (
+          {canManage ? (
             <a className="button secondary" href="/admin/users">
               Users
             </a>
@@ -58,7 +88,7 @@ export default async function CalculatorPage() {
           </form>
         </div>
       </header>
-      <iframe className="calculator-frame" src="/calculator/raw" title="Quote calculator" />
+      <iframe className="calculator-frame" src={rawSrc} title="Quote calculator" />
     </>
   );
 }

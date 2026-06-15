@@ -212,6 +212,57 @@ button.danger {
   background: #f8fafc;
 }
 
+.admin-section {
+  margin-top: 28px;
+}
+
+.section-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.section-heading h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.section-heading p {
+  margin: 6px 0 0;
+}
+
+.business-form,
+.user-form {
+  grid-template-columns: minmax(220px, 1.3fr) minmax(150px, 0.8fr) minmax(150px, 0.8fr) minmax(150px, 0.8fr) minmax(120px, 0.6fr);
+}
+
+.user-form {
+  grid-template-columns: minmax(220px, 1.3fr) minmax(150px, 0.8fr) minmax(190px, 1fr) minmax(180px, 1fr) minmax(130px, 0.7fr) minmax(130px, 0.7fr) auto;
+}
+
+.business-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.business-card,
+.empty-card {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.4fr) minmax(150px, 0.8fr) minmax(140px, 0.7fr) minmax(140px, 0.7fr) auto;
+  gap: 12px;
+  align-items: end;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.empty-card {
+  display: block;
+  color: var(--muted);
+}
+
 label {
   display: block;
   color: var(--muted);
@@ -268,6 +319,38 @@ select {
   max-width: 120px;
 }
 
+.wide-inline-form {
+  display: grid;
+  grid-template-columns: minmax(130px, 0.8fr) minmax(180px, 1fr) minmax(180px, 1fr) minmax(110px, 0.55fr) minmax(110px, 0.55fr) auto;
+  width: 100%;
+}
+
+.wide-inline-form select {
+  max-width: none;
+}
+
+.wide-inline-form input {
+  min-width: 0;
+}
+
+.action-stack {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.admin-help {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .self-pill {
   display: inline-flex;
   align-items: center;
@@ -279,6 +362,14 @@ select {
   color: #075985;
   font-size: 12px;
   font-weight: 800;
+}
+
+.muted-line {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 6px;
+  line-height: 1.35;
 }
 
 @media (max-width: 760px) {
@@ -319,6 +410,13 @@ select {
   }
 
   .admin-form {
+    grid-template-columns: 1fr;
+  }
+
+  .business-form,
+  .user-form,
+  .business-card,
+  .wide-inline-form {
     grid-template-columns: 1fr;
   }
 }

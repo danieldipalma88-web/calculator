@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { NextResponse } from "next/server";
-import { canManageUsers } from "../../../lib/admin";
+import { canManageUsers, canSeeCommissionDetails, canSeeProfitDetails } from "../../../lib/admin";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
 
 function safeScriptJson(value: unknown) {
@@ -10,20 +10,102 @@ function safeScriptJson(value: unknown) {
 
 type CalculatorUserContext = {
   email: string;
+  viewingEmail: string;
   role: string;
+  businessId: string | null;
+  businessName: string;
+  commissionType: string;
+  agencyCommissionRate: number;
+  salespersonCommissionRate: number;
   canManageUsers: boolean;
+  canSeeCommissionDetails: boolean;
+  canSeeProfitDetails: boolean;
 };
+
+type ApprovedUser = {
+  email: string;
+  role: string;
+  business_id?: string | null;
+  commission_type_override?: string | null;
+  agency_commission_rate_override?: number | null;
+  salesperson_commission_rate_override?: number | null;
+};
+
+type Business = {
+  id: string;
+  name: string;
+  commission_type: string;
+  agency_commission_rate: number;
+  salesperson_commission_rate: number;
+};
+
+function stripSensitiveQuoteFields(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(stripSensitiveQuoteFields);
+  if (!value || typeof value !== "object") return value;
+
+  const output: Record<string, unknown> = {};
+  for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+    const lowerKey = key.toLowerCase();
+    if (
+      lowerKey.includes("commission") ||
+      lowerKey.includes("profit") ||
+      lowerKey === "margin" ||
+      lowerKey === "cashprofit"
+    ) {
+      continue;
+    }
+    output[key] = stripSensitiveQuoteFields(item);
+  }
+  return output;
+}
+
+function sanitizeCalculatorData(
+  data: Record<string, unknown>,
+  userContext: CalculatorUserContext,
+) {
+  if (userContext.canSeeCommissionDetails && userContext.canSeeProfitDetails) return data;
+
+  const sanitized: Record<string, unknown> = { ...data };
+  [
+    "installerCommissionSettingsV1",
+    "CommissionSettingsV1",
+    "installerMasterQuoteLogV1",
+    "MasterQuoteLogV1",
+    "installerSavedQuoteSetsV1",
+    "SavedQuoteSetsV1",
+  ].forEach((key) => {
+    if (!(key in sanitized)) return;
+    if (key.toLowerCase().includes("commission")) {
+      delete sanitized[key];
+      return;
+    }
+    try {
+      const parsed = JSON.parse(String(sanitized[key] || "null"));
+      sanitized[key] = JSON.stringify(stripSensitiveQuoteFields(parsed));
+    } catch {
+      delete sanitized[key];
+    }
+  });
+
+  return sanitized;
+}
 
 function injectCloudStorageSync(
   html: string,
   data: Record<string, unknown>,
   userContext: CalculatorUserContext,
 ) {
+  const syncUrl =
+    userContext.viewingEmail && userContext.viewingEmail !== userContext.email
+      ? `/api/calculator-data?as=${encodeURIComponent(userContext.viewingEmail)}`
+      : "/api/calculator-data";
+  const sanitizedData = sanitizeCalculatorData(data, userContext);
   const bootstrap = `
 <script>
 (function(){
-  var cloudData = ${safeScriptJson(data)};
+  var cloudData = ${safeScriptJson(sanitizedData)};
   var calculatorUser = ${safeScriptJson(userContext)};
+  var calculatorSyncUrl = ${safeScriptJson(syncUrl)};
   var profileStorageKey = '__calculatorProfileEmail';
   var syncing = false;
   var timer = null;
@@ -47,7 +129,7 @@ function injectCloudStorageSync(
     var nextJson = JSON.stringify(data);
     if (!force && nextJson === lastSnapshotJson) return;
     lastSnapshotJson = nextJson;
-    fetch('/api/calculator-data', {
+    fetch(calculatorSyncUrl, {
       method: 'PUT',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({data: data})
@@ -70,6 +152,44 @@ function injectCloudStorageSync(
       keys.forEach(function(key){ localStorage.removeItem(key); });
     } catch (e) {}
   }
+  function applyCommissionSettings(){
+    if (!calculatorUser || !calculatorUser.canSeeCommissionDetails) return;
+    try {
+      if (calculatorUser.commissionType === 'none') {
+        localStorage.setItem('installerCommissionSettingsV1', JSON.stringify({agencyRate:0,agencyLocked:true,salespersonRate:0,salespersonLocked:true}));
+        return;
+      }
+      localStorage.setItem('installerCommissionSettingsV1', JSON.stringify({
+        agencyRate: Number(calculatorUser.agencyCommissionRate || 0),
+        agencyLocked: true,
+        salespersonRate: Number(calculatorUser.salespersonCommissionRate || 0),
+        salespersonLocked: true
+      }));
+    } catch(e) {}
+  }
+  function hideElement(id){
+    var el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  }
+  function hideProfitAndCommissionUi(){
+    if (calculatorUser && calculatorUser.canSeeCommissionDetails && calculatorUser.canSeeProfitDetails) return;
+    hideElement('commissionRatePanel');
+    hideElement('commissionRow');
+    hideElement('commissionGstRow');
+    hideElement('commissionIncRow');
+    hideElement('salespersonCommissionRow');
+    hideElement('salespersonCommissionGstRow');
+    hideElement('salespersonCommissionIncRow');
+    hideElement('netProfitRow');
+    hideElement('marginRow');
+    hideElement('cashProfitRow');
+    var toggle = document.getElementById('commissionModelOn');
+    if (toggle) {
+      toggle.checked = false;
+      var toggleRow = toggle.closest ? toggle.closest('.toggleRow') : null;
+      if (toggleRow) toggleRow.style.display = 'none';
+    }
+  }
   function applyRoleUi(){
     if (calculatorUser && calculatorUser.canManageUsers) {
       var certButtonForAdmin = document.getElementById('certValuesActionBtn');
@@ -85,13 +205,28 @@ function injectCloudStorageSync(
         };
         certButtonForAdmin.parentNode.insertBefore(usersButton, certButtonForAdmin.nextSibling);
       }
-      return;
+    } else {
+      var certButton = document.getElementById('certValuesActionBtn');
+      if (certButton) certButton.style.display = 'none';
+      var certDrawer = document.getElementById('certDrawer');
+      if (certDrawer) certDrawer.style.display = 'none';
+      window.openCertDrawer = function(){ return false; };
     }
-    var certButton = document.getElementById('certValuesActionBtn');
-    if (certButton) certButton.style.display = 'none';
-    var certDrawer = document.getElementById('certDrawer');
-    if (certDrawer) certDrawer.style.display = 'none';
-    window.openCertDrawer = function(){ return false; };
+    hideProfitAndCommissionUi();
+  }
+  function wrapPrivacyRenderers(){
+    ['render','renderQuotes','downloadCsv','downloadTxt'].forEach(function(name){
+      var original = window[name];
+      if (typeof original !== 'function' || original.__privacyWrapped) return;
+      var wrapped = function(){
+        var result = original.apply(this, arguments);
+        hideProfitAndCommissionUi();
+        return result;
+      };
+      wrapped.__privacyWrapped = true;
+      window[name] = wrapped;
+    });
+    hideProfitAndCommissionUi();
   }
   try {
     syncing = true;
@@ -99,6 +234,7 @@ function injectCloudStorageSync(
     Object.keys(cloudData || {}).forEach(function(key){
       if (isAppStorageKey(key) && typeof cloudData[key] === 'string') localStorage.setItem(key, cloudData[key]);
     });
+    applyCommissionSettings();
     localStorage.setItem(profileStorageKey, calculatorUser.email || '');
     lastSnapshotJson = JSON.stringify(snapshot());
   } catch (e) {
@@ -130,15 +266,68 @@ function injectCloudStorageSync(
       } catch(e) {}
     });
   } catch (e) {}
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', applyRoleUi);
-  else applyRoleUi();
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){ applyRoleUi(); wrapPrivacyRenderers(); });
+  else { applyRoleUi(); wrapPrivacyRenderers(); }
 })();
 </script>`;
 
   return html.replace("<script>", `${bootstrap}\n<script>`);
 }
 
-export async function GET() {
+async function getApprovedUser(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  email: string,
+) {
+  const upgraded = await supabase
+    .from("approved_users")
+    .select(
+      "email, role, business_id, commission_type_override, agency_commission_rate_override, salesperson_commission_rate_override",
+    )
+    .eq("email", email)
+    .maybeSingle();
+
+  if (!upgraded.error) return upgraded;
+
+  return supabase.from("approved_users").select("email, role").eq("email", email).maybeSingle();
+}
+
+async function getBusiness(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  businessId?: string | null,
+) {
+  if (!businessId) return null;
+  const { data } = await supabase
+    .from("businesses")
+    .select("id, name, commission_type, agency_commission_rate, salesperson_commission_rate")
+    .eq("id", businessId)
+    .maybeSingle();
+  return (data || null) as Business | null;
+}
+
+async function getSavedCalculatorData(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  currentUserId: string,
+  currentEmail: string,
+  viewingEmail: string,
+) {
+  if (viewingEmail === currentEmail) {
+    const { data } = await supabase
+      .from("user_calculator_data")
+      .select("data")
+      .eq("user_id", currentUserId)
+      .maybeSingle();
+    return (data?.data || {}) as Record<string, unknown>;
+  }
+
+  const { data } = await supabase
+    .from("user_calculator_data")
+    .select("data")
+    .eq("email", viewingEmail)
+    .maybeSingle();
+  return (data?.data || {}) as Record<string, unknown>;
+}
+
+export async function GET(request: Request) {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -148,30 +337,52 @@ export async function GET() {
     return NextResponse.redirect("/");
   }
 
-  const { data: approvedUser } = await supabase
-    .from("approved_users")
-    .select("email, role")
-    .eq("email", user.email.toLowerCase())
-    .maybeSingle();
+  const currentEmail = user.email.toLowerCase();
+  const { searchParams } = new URL(request.url);
+  const requestedEmail = String(searchParams.get("as") || "").trim().toLowerCase();
+  const { data: approvedUser } = await getApprovedUser(supabase, currentEmail);
 
   if (!approvedUser) {
     return new NextResponse("Not approved", { status: 403 });
   }
 
-  const { data: savedData } = await supabase
-    .from("user_calculator_data")
-    .select("data")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  const approved = approvedUser as ApprovedUser;
+  const canManage = canManageUsers(currentEmail, approved.role);
+  const currentRole = String(approved.role || "user");
+  const viewingEmail = canManage && requestedEmail ? requestedEmail : currentEmail;
+  const { data: viewedApprovedUser } =
+    viewingEmail === currentEmail
+      ? { data: approved }
+      : await getApprovedUser(supabase, viewingEmail);
+  const viewedUser = (viewedApprovedUser || approved) as ApprovedUser;
+  const business = await getBusiness(supabase, viewedUser.business_id);
+  const commissionType =
+    viewedUser.commission_type_override || business?.commission_type || "none";
+  const agencyCommissionRate = Number(
+    viewedUser.agency_commission_rate_override ?? business?.agency_commission_rate ?? 0,
+  );
+  const salespersonCommissionRate = Number(
+    viewedUser.salesperson_commission_rate_override ?? business?.salesperson_commission_rate ?? 0,
+  );
+  const contextRole = String(viewedUser.role || "user");
+  const savedData = await getSavedCalculatorData(supabase, user.id, currentEmail, viewingEmail);
 
   const calculatorPath = path.join(process.cwd(), "index.html");
   const html = injectCloudStorageSync(
     await readFile(calculatorPath, "utf8"),
-    (savedData?.data || {}) as Record<string, unknown>,
+    savedData,
     {
-      email: user.email.toLowerCase(),
-      role: String(approvedUser.role || "user"),
-      canManageUsers: canManageUsers(user.email, approvedUser.role),
+      email: currentEmail,
+      viewingEmail,
+      role: contextRole,
+      businessId: business?.id || null,
+      businessName: business?.name || "",
+      commissionType,
+      agencyCommissionRate,
+      salespersonCommissionRate,
+      canManageUsers: canManage,
+      canSeeCommissionDetails: canManage || canSeeCommissionDetails(currentRole),
+      canSeeProfitDetails: canManage || canSeeProfitDetails(currentRole),
     },
   );
 
