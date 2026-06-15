@@ -337,10 +337,56 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
   padding:18px;
   margin-bottom:14px;
   box-shadow:0 14px 30px rgba(15,23,42,.28);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
 }
+.finalCopy{min-width:0}
 .final span{display:block;color:#d9e5fb;font-size:12px;text-transform:uppercase;font-weight:800;letter-spacing:.06em}
 .final strong{font-size:33px;line-height:1.15}
+.finalBumpBtn{
+  border:1px solid rgba(255,255,255,.35);
+  background:rgba(255,255,255,.14);
+  color:#fff;
+  border-radius:12px;
+  padding:10px 12px;
+  min-height:42px;
+  font-weight:900;
+  white-space:nowrap;
+  cursor:pointer;
+}
+.finalBumpBtn:hover{background:rgba(255,255,255,.22)}
 .cash{background:#effcf4;border-radius:14px;padding:12px!important;margin:6px 0;border:1px solid #b9ebc9!important}
+.summaryCostBreakdown{
+  border:1px solid #e2e8f0;
+  border-radius:14px;
+  background:#f8fafc;
+  padding:8px 12px;
+  margin:12px 0;
+}
+.summaryCostBreakdown .summaryLine{padding:7px 0}
+.summaryCostBreakdown .summaryLine span{font-size:12px}
+.profitHighlight{
+  background:#e9fcef;
+  border-color:#86efac!important;
+  color:#14532d;
+}
+.profitHighlight span{color:#166534}
+.profitHighlight strong{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:2px;
+  color:#052e16;
+  font-size:18px;
+}
+.profitHighlight small{
+  font-size:11px;
+  line-height:1.1;
+  color:#166534;
+  font-weight:800;
+}
 .checkbox{display:flex;gap:10px;align-items:center;margin:10px 0}
 .checkbox input{width:auto;height:auto;padding:0;border:0;background:transparent}
 .toggleRow{
@@ -976,7 +1022,7 @@ tbody tr:hover td{background:#f0f7ff}
       </div>
     </main>
     <aside class="summary card">
-      <div class="final"><span>Final customer price inc GST</span><strong id="finalBig"></strong></div>
+      <div class="final"><div class="finalCopy"><span>Final customer price inc GST</span><strong id="finalBig"></strong></div><button class="finalBumpBtn" type="button" onclick="applyMoneyStep('finalInc',50)">+ $50</button></div>
       <label class="toggleRow">
         <span><strong>Commission model</strong><small>Use when a sales commission is payable</small></span>
         <input id="commissionModelOn" type="checkbox" checked>
@@ -990,6 +1036,16 @@ tbody tr:hover td{background:#f0f7ff}
       </div>
       <div class="summaryLine"><span>Sell price ex GST</span><strong id="sellEx"></strong></div>
       <div class="summaryLine"><span>Original price before rebate inc GST</span><strong id="originalInc"></strong></div>
+      <div class="summaryCostBreakdown" id="summaryCostBreakdown">
+        <div class="summaryLine"><span>Unit ex GST</span><strong id="summaryUnitEx"></strong></div>
+        <div class="summaryLine"><span>Labour ex GST</span><strong id="summaryLabourEx"></strong></div>
+        <div class="summaryLine"><span>Materials ex GST</span><strong id="summaryMaterialsEx"></strong></div>
+        <div class="summaryLine"><span>Misc ex GST</span><strong id="summaryMiscEx"></strong></div>
+        <div class="summaryLine"><span>Power / electrician ex GST</span><strong id="summaryServiceEx"></strong></div>
+        <div class="summaryLine"><span>Airtouch / add-ons</span><strong id="summaryAddonsEx"></strong></div>
+        <div class="summaryLine"><span>True cost ex GST</span><strong id="summaryTrueCost"></strong></div>
+        <div class="summaryLine"><span>Rebate retained</span><strong id="summaryRebateOut"></strong></div>
+      </div>
       <div id="marginRow" class="summaryLine"><span>Margin incl rebate</span><strong id="margin"></strong></div>
       <div id="cashProfitRow" class="summaryLine cash"><span id="profitBeforeLabel">Cash profit before commission ex GST</span><strong id="cashProfit"></strong></div>
       <div id="commissionRow" class="summaryLine"><span id="commissionLabel">Agency commission 25% ex GST</span><strong id="commission"></strong></div>
@@ -998,7 +1054,7 @@ tbody tr:hover td{background:#f0f7ff}
       <div id="salespersonCommissionRow" class="summaryLine"><span id="salespersonCommissionLabel">Salesperson commission 50% of agency ex GST</span><strong id="salespersonCommission"></strong></div>
       <div id="salespersonCommissionGstRow" class="summaryLine"><span>GST on salesperson commission</span><strong id="salespersonCommissionGst"></strong></div>
       <div id="salespersonCommissionIncRow" class="summaryLine"><span>Salesperson commission payable inc GST</span><strong id="salespersonCommissionInc"></strong></div>
-      <div id="netProfitRow" class="summaryLine cash"><span>Installer net profit ex GST</span><strong id="netProfit"></strong></div>
+      <div id="netProfitRow" class="summaryLine cash profitHighlight"><span id="netProfitLabel">Installer profit after commission ex GST</span><strong><span id="netProfit"></span><small id="netProfitMargin"></small></strong></div>
       <div id="summaryInstallAddons" class="summaryAddons hidden"><div class="summaryAddonsHead"><strong>Install add-ons</strong><span>Cost only</span></div><div id="summaryInstallAddonRows" class="summaryAddonRows"></div><div id="summaryInstallAddonFoot" class="summaryAddonFoot"></div></div>
       <div class="actions"><button class="orange" onclick="addToQuote()">Add to Quote</button><button class="secondary" onclick="openDrawer()">View Options (<span id="quoteCount">0</span>)</button><button class="secondary" onclick="openProposalDrawer('current')">Export Proposal PDF</button><button class="secondary" onclick="openPriceDrawer()">Price Manager</button><button id="certValuesActionBtn" class="secondary" onclick="openCertDrawer()">Certificate Values</button><button class="secondary" onclick="downloadTxt()">Download Summary</button></div>
       <div style="margin-top:12px"><label>Add current unit to option</label><div class="row2"><select id="addOptionSelect" onchange="syncAddOptionSelects(this.value); updateMainOptionNameInput();"></select><button class="secondary" type="button" onclick="createNewOption(true)">+ New Option</button></div><div style="margin-top:10px"><label>Selected option name</label><input id="mainOptionName" placeholder="Option name" onchange="renameCurrentMainOption(this.value)"></div></div>
@@ -2513,8 +2569,8 @@ function calculate(){
   const salespersonCommissionGst=commissionModelOn?salespersonCommission*.1:0, salespersonCommissionInc=salespersonCommission+salespersonCommissionGst;
   const commissionRate=agencyCommissionRate;
   const commission=agencyCommission, commissionGst=agencyCommissionGst, commissionInc=agencyCommissionInc;
-  const netProfit=cashProfit-(commissionType==='standard'?salespersonCommission:agencyCommission), margin=sellEx?cashProfit/sellEx:0;
-  return {p,c,unitInc,unitEx,baseLabour,labour,baseMaterialsInc,materialsInc,matsEx,miscEx,service,addons,installAddons,rebate,finalInc,sellEx,trueCost,profit,dealProfit,retainedLabour,labourTreatment,cashProfit,commissionType,commissionModelOn,commissionRate,agencyCommissionRate,salespersonCommissionRate,commission,commissionGst,commissionInc,agencyCommission,agencyCommissionGst,agencyCommissionInc,salespersonCommission,salespersonCommissionGst,salespersonCommissionInc,netProfit,margin};
+  const netProfit=cashProfit-(commissionType==='standard'?salespersonCommission:agencyCommission), margin=sellEx?cashProfit/sellEx:0, netMargin=sellEx?netProfit/sellEx:0;
+  return {p,c,unitInc,unitEx,baseLabour,labour,baseMaterialsInc,materialsInc,matsEx,miscEx,service,addons,installAddons,rebate,finalInc,sellEx,trueCost,profit,dealProfit,retainedLabour,labourTreatment,cashProfit,commissionType,commissionModelOn,commissionRate,agencyCommissionRate,salespersonCommissionRate,commission,commissionGst,commissionInc,agencyCommission,agencyCommissionGst,agencyCommissionInc,salespersonCommission,salespersonCommissionGst,salespersonCommissionInc,netProfit,margin,netMargin};
 }
 function autoFinal(){
   const p=product(), c=cap(p), installAddons=installAddonTotals();
@@ -2525,7 +2581,64 @@ function autoFinal(){
 }
 function updatePriceLockNote(){const n=$('priceLockNote'); if(!n) return; n.textContent='';}
 function resetSuggestedPrice(){finalPriceLocked=false; autoFinal(); render();}
-function render(){const x=calculate(); const showPrivate=canSeeProfitDetails(); const showAgency=x.commissionModelOn&&x.commissionType==='agency'&&showPrivate; const showLimitedSales=x.commissionModelOn&&!showPrivate&&canSeeSalespersonCommission(); const showSales=x.commissionModelOn&&['agency','standard'].includes(x.commissionType)&&(showPrivate||showLimitedSales); const profitLabelBase=systemType==='ducted'?'Operating profit':'Cash profit'; $('profitBeforeLabel').textContent=x.commissionModelOn?`${profitLabelBase} before commission ex GST`:`${profitLabelBase} ex GST`; $('commissionRatePanel').classList.toggle('hidden',!x.commissionModelOn||!showPrivate); $('commissionRow').classList.toggle('hidden',!showAgency); $('commissionGstRow').classList.toggle('hidden',!showAgency); $('commissionIncRow').classList.toggle('hidden',!showAgency); $('salespersonCommissionRow').classList.toggle('hidden',!showSales); $('salespersonCommissionGstRow').classList.toggle('hidden',!showSales||showLimitedSales); $('salespersonCommissionIncRow').classList.toggle('hidden',!showSales||showLimitedSales); $('netProfitRow').classList.toggle('hidden',!x.commissionModelOn||!showPrivate); if($('marginRow')) $('marginRow').classList.toggle('hidden',!showPrivate); if($('cashProfitRow')) $('cashProfitRow').classList.toggle('hidden',!showPrivate); if($('commissionLabel')) $('commissionLabel').textContent=`Agency commission ${formatCommissionRate(x.agencyCommissionRate)}% ex GST`; if($('salespersonCommissionLabel')) $('salespersonCommissionLabel').textContent=showLimitedSales?'Salesperson commission':(x.commissionType==='standard'?`Salesperson commission ${formatCommissionRate(x.agencyCommissionRate)}% ex GST`:`Salesperson commission ${formatCommissionRate(x.salespersonCommissionRate)}% of agency ex GST`); $('selectedModel').textContent=x.p.model; $('modelMeta').textContent=`${systemType==='split'?'Split system':'Ducted system'} - ${productDisplayName(x.p)} - ${x.p.capacity||x.p.size+'kW'} - Spreadsheet price ${money(x.p.unitPriceInc||x.p.priceIncGst)} inc GST`; $('unitEx').textContent=money(x.unitEx); $('labourOut').textContent=money(x.labour); $('materialsEx').textContent=money(x.matsEx); $('miscEx').textContent=money(x.miscEx); $('serviceEx').textContent=money(x.service); $('addonsEx').textContent=money(x.addons); $('trueCost').textContent=money(x.trueCost); $('rebateOut').textContent=money(x.rebate); $('finalBig').textContent=money(x.finalInc); $('sellEx').textContent=money(x.sellEx); $('originalInc').textContent=money(x.finalInc+x.rebate); $('margin').textContent=pct(x.margin); $('cashProfit').textContent=money(x.cashProfit); $('commission').textContent=money(x.commission); $('commissionGst').textContent=money(x.commissionGst); $('commissionInc').textContent=money(x.commissionInc); $('salespersonCommission').textContent=money(showLimitedSales?x.salespersonCommissionInc:x.salespersonCommission); $('salespersonCommissionGst').textContent=money(x.salespersonCommissionGst); $('salespersonCommissionInc').textContent=money(x.salespersonCommissionInc); $('netProfit').textContent=money(x.netProfit); renderInstallAddonSummary(x); updatePriceLockNote();}
+function render(){
+  const x=calculate();
+  const showPrivate=canSeeProfitDetails();
+  const showLimitedSales=x.commissionModelOn&&!showPrivate&&canSeeSalespersonCommission();
+  const showAgency=x.commissionModelOn&&x.commissionType==='agency'&&showPrivate;
+  const showSales=x.commissionModelOn&&['agency','standard'].includes(x.commissionType)&&(showPrivate||showLimitedSales);
+  const showNetProfit=x.commissionModelOn&&(showPrivate||showLimitedSales);
+  const profitLabelBase=systemType==='ducted'?'Operating profit':'Cash profit';
+
+  $('profitBeforeLabel').textContent=x.commissionModelOn?`${profitLabelBase} before commission ex GST`:`${profitLabelBase} ex GST`;
+  $('commissionRatePanel').classList.toggle('hidden',!x.commissionModelOn||!showPrivate);
+  $('commissionRow').classList.toggle('hidden',!showAgency);
+  $('commissionGstRow').classList.toggle('hidden',!showAgency);
+  $('commissionIncRow').classList.toggle('hidden',!showAgency);
+  $('salespersonCommissionRow').classList.toggle('hidden',!showSales);
+  $('salespersonCommissionGstRow').classList.toggle('hidden',!showSales||showLimitedSales);
+  $('salespersonCommissionIncRow').classList.toggle('hidden',!showSales||showLimitedSales);
+  $('netProfitRow').classList.toggle('hidden',!showNetProfit);
+  if($('marginRow')) $('marginRow').classList.toggle('hidden',!showPrivate);
+  if($('cashProfitRow')) $('cashProfitRow').classList.toggle('hidden',!showPrivate);
+  if($('commissionLabel')) $('commissionLabel').textContent=`Agency commission ${formatCommissionRate(x.agencyCommissionRate)}% ex GST`;
+  if($('salespersonCommissionLabel')) $('salespersonCommissionLabel').textContent=showLimitedSales?'Salesperson commission':(x.commissionType==='standard'?`Salesperson commission ${formatCommissionRate(x.agencyCommissionRate)}% ex GST`:`Salesperson commission ${formatCommissionRate(x.salespersonCommissionRate)}% of agency ex GST`);
+  if($('netProfitLabel')) $('netProfitLabel').textContent=x.commissionModelOn?'Installer profit after commission ex GST':'Installer profit ex GST';
+
+  $('selectedModel').textContent=x.p.model;
+  $('modelMeta').textContent=`${systemType==='split'?'Split system':'Ducted system'} - ${productDisplayName(x.p)} - ${x.p.capacity||x.p.size+'kW'} - Spreadsheet price ${money(x.p.unitPriceInc||x.p.priceIncGst)} inc GST`;
+  $('unitEx').textContent=money(x.unitEx);
+  $('labourOut').textContent=money(x.labour);
+  $('materialsEx').textContent=money(x.matsEx);
+  $('miscEx').textContent=money(x.miscEx);
+  $('serviceEx').textContent=money(x.service);
+  $('addonsEx').textContent=money(x.addons);
+  $('trueCost').textContent=money(x.trueCost);
+  $('rebateOut').textContent=money(x.rebate);
+  $('summaryUnitEx').textContent=money(x.unitEx);
+  $('summaryLabourEx').textContent=money(x.labour);
+  $('summaryMaterialsEx').textContent=money(x.matsEx);
+  $('summaryMiscEx').textContent=money(x.miscEx);
+  $('summaryServiceEx').textContent=money(x.service);
+  $('summaryAddonsEx').textContent=money(x.addons);
+  $('summaryTrueCost').textContent=money(x.trueCost);
+  $('summaryRebateOut').textContent=money(x.rebate);
+  $('finalBig').textContent=money(x.finalInc);
+  $('sellEx').textContent=money(x.sellEx);
+  $('originalInc').textContent=money(x.finalInc+x.rebate);
+  $('margin').textContent=pct(x.margin);
+  $('cashProfit').textContent=money(x.cashProfit);
+  $('commission').textContent=money(x.commission);
+  $('commissionGst').textContent=money(x.commissionGst);
+  $('commissionInc').textContent=money(x.commissionInc);
+  $('salespersonCommission').textContent=money(showLimitedSales?x.salespersonCommissionInc:x.salespersonCommission);
+  $('salespersonCommissionGst').textContent=money(x.salespersonCommissionGst);
+  $('salespersonCommissionInc').textContent=money(x.salespersonCommissionInc);
+  $('netProfit').textContent=money(x.netProfit);
+  if($('netProfitMargin')) $('netProfitMargin').textContent=`Margin ${pct(x.netMargin)}`;
+  renderInstallAddonSummary(x);
+  updatePriceLockNote();
+}
 
 
 function managedProductKey(type,index){return `${type}|${index}`;}
@@ -2833,7 +2946,7 @@ function addToQuote(){
     installAddons:installAddonDisplayLabels(x.installAddons), addonLabour:x.installAddons.labour, addonMaterialsInc:x.installAddons.materialsInc,
     materialsInc:x.materialsInc,matsEx:x.matsEx,miscInc:num('misc'),powerCost:systemType==='split'?x.service:null,otherEx:x.miscEx+x.service+x.addons,trueCost:x.trueCost,finalInc:x.finalInc,
     cashProfit:x.cashProfit,commissionType:x.commissionType,commissionRate:x.commissionRate,agencyCommissionRate:x.agencyCommissionRate,agencyCommission:x.agencyCommission,agencyCommissionGst:x.agencyCommissionGst,agencyCommissionInc:x.agencyCommissionInc,salespersonCommissionRate:x.salespersonCommissionRate,salespersonCommission:x.salespersonCommission,salespersonCommissionGst:x.salespersonCommissionGst,salespersonCommissionInc:x.salespersonCommissionInc,commission:x.commission,commissionGst:x.commissionGst,commissionInc:x.commissionInc,
-    netProfit:x.netProfit,margin:x.margin
+    netProfit:x.netProfit,margin:x.margin,netMargin:x.netMargin
   });
   persistQuotes(); renderQuotes(); openDrawer();
 }
@@ -2889,6 +3002,7 @@ function recomputeSavedQuote(r){
   const salespersonCommissionGst=commissionModelOn?salespersonCommission*0.1:0;
   const salespersonCommissionInc=salespersonCommission+salespersonCommissionGst;
   const netProfit=cashProfit-(commissionType==='standard'?salespersonCommission:agencyCommission);
+  const netMargin=sellEx?netProfit/sellEx:0;
   r.materialsInc=materialsInc;
   r.matsEx=matsEx;
   r.miscInc=miscInc;
@@ -2910,6 +3024,7 @@ function recomputeSavedQuote(r){
   r.commissionGst=commissionGst;
   r.commissionInc=commissionInc;
   r.netProfit=netProfit;
+  r.netMargin=netMargin;
   return r;
 }
 function quoteTotalsSnapshot(){
@@ -3337,7 +3452,7 @@ function addToQuote(){
     installAddons:installAddonDisplayLabels(x.installAddons), addonLabour:x.installAddons.labour, addonMaterialsInc:x.installAddons.materialsInc,
     materialsInc:x.materialsInc,matsEx:x.matsEx,miscInc:num('misc'),powerCost:systemType==='split'?x.service:null,otherEx:x.miscEx+x.service+x.addons,trueCost:x.trueCost,finalInc:x.finalInc,
     cashProfit:x.cashProfit,commissionType:x.commissionType,commissionRate:x.commissionRate,agencyCommissionRate:x.agencyCommissionRate,agencyCommission:x.agencyCommission,agencyCommissionGst:x.agencyCommissionGst,agencyCommissionInc:x.agencyCommissionInc,salespersonCommissionRate:x.salespersonCommissionRate,salespersonCommission:x.salespersonCommission,salespersonCommissionGst:x.salespersonCommissionGst,salespersonCommissionInc:x.salespersonCommissionInc,commission:x.commission,commissionGst:x.commissionGst,commissionInc:x.commissionInc,
-    netProfit:x.netProfit,margin:x.margin
+    netProfit:x.netProfit,margin:x.margin,netMargin:x.netMargin
   });
   persistQuotes(); renderQuotes(); openDrawer();
 }
@@ -3362,12 +3477,12 @@ function renderQuotes(){
         const bodyRows=g.rows.length?g.rows.map(r=>{
           const materialsInc=savedMaterialsInc(r);
           const power=(r.type==='Split')?money(r.powerCost!==undefined?r.powerCost:0):'N/A';
-          const privateCells=showPrivate?`<td class="money">${money(r.commissionInc)}</td><td class="money">${money(r.salespersonCommissionInc)}</td><td class="money">${money(r.netProfit)}</td>`:(showLimitedSales?`<td class="money">${money(r.salespersonCommissionInc)}</td>`:'');
+          const privateCells=showPrivate?`<td class="money">${money(r.commissionInc)}</td><td class="money">${money(r.salespersonCommissionInc)}</td><td class="money">${money(r.netProfit)}</td>`:(showLimitedSales?`<td class="money">${money(r.salespersonCommissionInc)}</td><td class="money">${money(r.netProfit)}</td>`:'');
           return `<tr><td>${htmlEscape(r.type)}</td><td>${htmlEscape(r.brand)}</td><td>${htmlEscape(r.size)}</td><td>${htmlEscape(r.model)}</td><td>${htmlEscape(r.install)}</td><td class="money">${money(r.finalInc)}</td><td class="money">${money(r.rebate)}</td><td class="money">${money(r.unitInc)}</td><td class="money">${money(r.labour)}</td><td>${htmlEscape(r.labourTreatment || (r.type==='Split' ? 'Retained' : 'Expense'))}</td><td class="money">${money(materialsInc)}</td><td class="money">${power}</td>${privateCells}<td><button class="load" onclick="loadQuote(${r._index})">Load</button> <button class="danger" onclick="removeQuote(${r._index})">Remove</button></td></tr>`;
-        }).join(''):`<tr><td colspan="${showPrivate?16:(showLimitedSales?14:13)}">No units in this option yet.</td></tr>`;
-        const privateSummary=showPrivate?` | Installer profit ${money(t.profit)} ex GST`:'';
-        const privateHeads=showPrivate?'<th>Agency comm inc</th><th>Salesperson comm inc</th><th>Installer Profit ex</th>':(showLimitedSales?'<th>Salesperson commission</th>':'');
-        const privateTotals=showPrivate?`<span>Agency commission inc<strong>${money(t.commission)}</strong></span><span>Salesperson commission inc<strong>${money(t.salespersonCommission)}</strong></span><span>Installer profit ex<strong>${money(t.profit)}</strong></span>`:(showLimitedSales?`<span>Salesperson commission<strong>${money(t.salespersonCommission)}</strong></span>`:'');
+        }).join(''):`<tr><td colspan="${showPrivate?16:(showLimitedSales?15:13)}">No units in this option yet.</td></tr>`;
+        const privateSummary=(showPrivate||showLimitedSales)?` | Installer profit ${money(t.profit)} ex GST`:'';
+        const privateHeads=showPrivate?'<th>Agency comm inc</th><th>Salesperson comm inc</th><th>Installer Profit ex</th>':(showLimitedSales?'<th>Salesperson commission</th><th>Installer Profit ex</th>':'');
+        const privateTotals=showPrivate?`<span>Agency commission inc<strong>${money(t.commission)}</strong></span><span>Salesperson commission inc<strong>${money(t.salespersonCommission)}</strong></span><span>Installer profit ex<strong>${money(t.profit)}</strong></span>`:(showLimitedSales?`<span>Salesperson commission<strong>${money(t.salespersonCommission)}</strong></span><span>Installer profit ex<strong>${money(t.profit)}</strong></span>`:'');
         return `<div class="optionCard">
           <div class="optionHeader">
             <div class="optionHeaderLeft">
@@ -3392,7 +3507,7 @@ function renderQuotes(){
       totalBody.innerHTML=canSeeProfitDetails()
         ? `<tr><td>Total customer inc</td><td class="money">${money(all.customer)}</td><td>Total rebate</td><td class="money">${money(all.rebate)}</td><td>Total labour ex</td><td class="money">${money(all.labour)}</td></tr><tr><td>Total unit inc</td><td class="money">${money(all.unit)}</td><td>Total materials inc</td><td class="money">${money(all.materials)}</td><td>Total misc inc</td><td class="money">${money(all.misc)}</td></tr><tr><td>Total power ex</td><td class="money">${money(all.power)}</td><td>Agency commission inc</td><td class="money">${money(all.commission)}</td><td>Salesperson commission inc</td><td class="money">${money(all.salespersonCommission)}</td></tr><tr><td>Installer profit ex</td><td class="money">${money(all.profit)}</td><td></td><td></td><td></td><td></td></tr>`
         : (canSeeSalespersonCommission()
-          ? `<tr><td>Total customer inc</td><td class="money">${money(all.customer)}</td><td>Total rebate</td><td class="money">${money(all.rebate)}</td><td>Total labour ex</td><td class="money">${money(all.labour)}</td></tr><tr><td>Total unit inc</td><td class="money">${money(all.unit)}</td><td>Total materials inc</td><td class="money">${money(all.materials)}</td><td>Total misc inc</td><td class="money">${money(all.misc)}</td></tr><tr><td>Total power ex</td><td class="money">${money(all.power)}</td><td>Salesperson commission</td><td class="money">${money(all.salespersonCommission)}</td><td></td><td></td></tr>`
+          ? `<tr><td>Total customer inc</td><td class="money">${money(all.customer)}</td><td>Total rebate</td><td class="money">${money(all.rebate)}</td><td>Total labour ex</td><td class="money">${money(all.labour)}</td></tr><tr><td>Total unit inc</td><td class="money">${money(all.unit)}</td><td>Total materials inc</td><td class="money">${money(all.materials)}</td><td>Total misc inc</td><td class="money">${money(all.misc)}</td></tr><tr><td>Total power ex</td><td class="money">${money(all.power)}</td><td>Salesperson commission</td><td class="money">${money(all.salespersonCommission)}</td><td>Installer profit ex</td><td class="money">${money(all.profit)}</td></tr>`
           : `<tr><td>Total customer inc</td><td class="money">${money(all.customer)}</td><td>Total rebate</td><td class="money">${money(all.rebate)}</td><td>Total labour ex</td><td class="money">${money(all.labour)}</td></tr><tr><td>Total unit inc</td><td class="money">${money(all.unit)}</td><td>Total materials inc</td><td class="money">${money(all.materials)}</td><td>Total misc inc</td><td class="money">${money(all.misc)}</td></tr><tr><td>Total power ex</td><td class="money">${money(all.power)}</td><td></td><td></td><td></td><td></td></tr>`);
     }
   }
@@ -3404,11 +3519,11 @@ function downloadCsv(){
   const quoteName=($('quoteExportName') && $('quoteExportName').value.trim()) || ($('customer') && $('customer').value.trim()) || 'Quote Builder';
   const showPrivate=canSeeProfitDetails();
   const showLimitedSales=!showPrivate&&canSeeSalespersonCommission();
-  const heads=['Quote Name','Option','Type','Brand','Series','Size','Model','Install','Customer inc','Rebate','Unit inc','Labour ex','Installer Labour','Materials inc','Power'].concat(showPrivate?['Agency Comm inc','Salesperson Comm inc','Installer Profit ex']:(showLimitedSales?['Salesperson commission']:[]));
+  const heads=['Quote Name','Option','Type','Brand','Series','Size','Model','Install','Customer inc','Rebate','Unit inc','Labour ex','Installer Labour','Materials inc','Power'].concat(showPrivate?['Agency Comm inc','Salesperson Comm inc','Installer Profit ex']:(showLimitedSales?['Salesperson commission','Installer Profit ex']:[]));
   const rows=[];
   optionGroups().forEach(g=>g.rows.forEach(r=>{
     const materialsInc=savedMaterialsInc(r); const power=(r.type==='Split')?(r.powerCost!==undefined?Number(r.powerCost):0):'N/A';
-    rows.push([quoteName,g.def.name,r.type,r.brand,r.series||'',r.size,r.model,r.install,r.finalInc,r.rebate,r.unitInc,r.labour,(r.labourTreatment || (r.type==='Split' ? 'Retained' : 'Expense')),materialsInc,power].concat(showPrivate?[r.commissionInc,r.salespersonCommissionInc,r.netProfit]:(showLimitedSales?[r.salespersonCommissionInc]:[])));
+    rows.push([quoteName,g.def.name,r.type,r.brand,r.series||'',r.size,r.model,r.install,r.finalInc,r.rebate,r.unitInc,r.labour,(r.labourTreatment || (r.type==='Split' ? 'Retained' : 'Expense')),materialsInc,power].concat(showPrivate?[r.commissionInc,r.salespersonCommissionInc,r.netProfit]:(showLimitedSales?[r.salespersonCommissionInc,r.netProfit]:[])));
   }));
   const csv=[heads,...rows].map(row=>row.map(v=>'"'+String(v).replaceAll('"','""')+'"').join(',')).join('\n');
   const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download='installer-quote-'+cleanFileName(quoteName)+'.csv'; a.click();
@@ -3425,6 +3540,9 @@ function downloadTxt(){
   const privateText=canSeeProfitDetails()
     ? `\n${systemType==='ducted'?'Operating profit before commission ex GST':'Cash profit before commission ex GST'}: ${money(x.cashProfit)}${commissionText}\nInstaller net profit ex GST: ${money(x.netProfit)}`
     : '';
+  const limitedSalesText=!canSeeProfitDetails()&&canSeeSalespersonCommission()&&x.commissionModelOn
+    ? `\nSalesperson commission: ${money(x.salespersonCommissionInc)}\nInstaller profit after commission ex GST: ${money(x.netProfit)} (${pct(x.netMargin)} margin)`
+    : '';
   const txt=`Installer quote summary
 
 Type: ${systemType}
@@ -3433,7 +3551,7 @@ Series: ${x.p.series||'N/A'}
 Model: ${x.p.model}
 Size: ${x.p.capacity||x.p.size+'kW'}
 Final customer price inc GST: ${money(x.finalInc)}
-Labour treatment: ${x.labourTreatment}${privateText}${addonText}`;
+Labour treatment: ${x.labourTreatment}${privateText}${limitedSalesText}${addonText}`;
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([txt],{type:'text/plain'}));
   a.download='installer-current-quote.txt';

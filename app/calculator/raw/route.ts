@@ -172,18 +172,27 @@ function injectCloudStorageSync(
     var el = document.getElementById(id);
     if (el) el.style.display = 'none';
   }
+  function showElement(id){
+    var el = document.getElementById(id);
+    if (el) el.style.display = '';
+  }
   function hideProfitAndCommissionUi(){
     if (calculatorUser && calculatorUser.canSeeCommissionDetails && calculatorUser.canSeeProfitDetails) return;
     hideElement('commissionRatePanel');
     hideElement('commissionRow');
     hideElement('commissionGstRow');
     hideElement('commissionIncRow');
-    if (!calculatorUser || !calculatorUser.canSeeSalespersonCommission) hideElement('salespersonCommissionRow');
+    if (!calculatorUser || !calculatorUser.canSeeSalespersonCommission) {
+      hideElement('salespersonCommissionRow');
+      hideElement('netProfitRow');
+    } else {
+      showElement('salespersonCommissionRow');
+      showElement('netProfitRow');
+    }
     var salespersonLabel = document.getElementById('salespersonCommissionLabel');
     if (salespersonLabel) salespersonLabel.textContent = 'Salesperson commission';
     hideElement('salespersonCommissionGstRow');
     hideElement('salespersonCommissionIncRow');
-    hideElement('netProfitRow');
     hideElement('marginRow');
     hideElement('cashProfitRow');
     var toggle = document.getElementById('commissionModelOn');
