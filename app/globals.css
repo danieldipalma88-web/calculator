@@ -184,7 +184,7 @@ button.danger {
 }
 
 .admin-card {
-  max-width: 1080px;
+  max-width: 1280px;
   margin: 0 auto;
   background: var(--panel);
   border: 1px solid var(--line);
@@ -234,11 +234,16 @@ button.danger {
 
 .business-form,
 .user-form {
-  grid-template-columns: minmax(220px, 1.3fr) minmax(150px, 0.8fr) minmax(150px, 0.8fr) minmax(150px, 0.8fr) minmax(120px, 0.6fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .user-form {
-  grid-template-columns: minmax(220px, 1.3fr) minmax(150px, 0.8fr) minmax(190px, 1fr) minmax(180px, 1fr) minmax(130px, 0.7fr) minmax(130px, 0.7fr) auto;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.business-form button,
+.user-form button {
+  width: 100%;
 }
 
 .business-grid {

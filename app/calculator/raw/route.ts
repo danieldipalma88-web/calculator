@@ -20,6 +20,7 @@ type CalculatorUserContext = {
   canManageUsers: boolean;
   canSeeCommissionDetails: boolean;
   canSeeProfitDetails: boolean;
+  canSeeSalespersonCommission: boolean;
 };
 
 type ApprovedUser = {
@@ -153,7 +154,7 @@ function injectCloudStorageSync(
     } catch (e) {}
   }
   function applyCommissionSettings(){
-    if (!calculatorUser || !calculatorUser.canSeeCommissionDetails) return;
+    if (!calculatorUser) return;
     try {
       if (calculatorUser.commissionType === 'none') {
         localStorage.setItem('installerCommissionSettingsV1', JSON.stringify({agencyRate:0,agencyLocked:true,salespersonRate:0,salespersonLocked:true}));
@@ -177,7 +178,9 @@ function injectCloudStorageSync(
     hideElement('commissionRow');
     hideElement('commissionGstRow');
     hideElement('commissionIncRow');
-    hideElement('salespersonCommissionRow');
+    if (!calculatorUser || !calculatorUser.canSeeSalespersonCommission) hideElement('salespersonCommissionRow');
+    var salespersonLabel = document.getElementById('salespersonCommissionLabel');
+    if (salespersonLabel) salespersonLabel.textContent = 'Salesperson commission';
     hideElement('salespersonCommissionGstRow');
     hideElement('salespersonCommissionIncRow');
     hideElement('netProfitRow');
@@ -348,7 +351,6 @@ export async function GET(request: Request) {
 
   const approved = approvedUser as ApprovedUser;
   const canManage = canManageUsers(currentEmail, approved.role);
-  const currentRole = String(approved.role || "user");
   const viewingEmail = canManage && requestedEmail ? requestedEmail : currentEmail;
   const { data: viewedApprovedUser } =
     viewingEmail === currentEmail
@@ -381,8 +383,9 @@ export async function GET(request: Request) {
       agencyCommissionRate,
       salespersonCommissionRate,
       canManageUsers: canManage,
-      canSeeCommissionDetails: canManage || canSeeCommissionDetails(currentRole),
-      canSeeProfitDetails: canManage || canSeeProfitDetails(currentRole),
+      canSeeCommissionDetails: canSeeCommissionDetails(contextRole),
+      canSeeProfitDetails: canSeeProfitDetails(contextRole),
+      canSeeSalespersonCommission: true,
     },
   );
 

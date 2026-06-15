@@ -341,7 +341,6 @@ declare
     when target_salesperson_commission_rate_override is null then null
     else least(greatest(target_salesperson_commission_rate_override, 0), 100)
   end;
-  assigned_business_id uuid := target_business_id;
 begin
   if not public.is_approved_admin() then
     raise exception 'Not authorized';
@@ -355,13 +354,6 @@ begin
     normalized_role := 'admin';
   end if;
 
-  if assigned_business_id is null then
-    select id into assigned_business_id
-    from public.businesses
-    order by created_at asc
-    limit 1;
-  end if;
-
   insert into public.approved_users (
     email,
     role,
@@ -373,7 +365,7 @@ begin
   values (
     normalized_email,
     normalized_role,
-    assigned_business_id,
+    target_business_id,
     normalized_commission_type,
     normalized_agency_rate,
     normalized_salesperson_rate
