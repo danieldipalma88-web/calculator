@@ -517,3 +517,6 @@ $$;
 
 revoke all on function public.admin_list_approved_users() from public;
 grant execute on function public.admin_list_approved_users() to authenticated;
+
+-- Refresh Supabase/PostgREST schema cache so new RPC functions are available immediately.
+select pg_notify('pgrst', 'reload schema');

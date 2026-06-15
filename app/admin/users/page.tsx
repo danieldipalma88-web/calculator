@@ -30,6 +30,9 @@ type ApprovedUser = {
   created_at: string;
 };
 
+type SupabaseServer = Awaited<ReturnType<typeof createSupabaseServerClient>>;
+type DbError = { message?: string; code?: string; details?: string; hint?: string } | null | undefined;
+
 const roleOptions: { value: UserRole; label: string }[] = [
   { value: "user", label: "Standard user" },
   { value: "salesperson", label: "Salesperson" },
@@ -99,6 +102,253 @@ function commissionLabel(type: string | null | undefined) {
   return "None";
 }
 
+function dbMessage(error: DbError) {
+  return String(error?.message || "");
+}
+
+function isSchemaCacheFunctionError(error: DbError) {
+  const message = dbMessage(error).toLowerCase();
+  return message.includes("schema cache") && message.includes("function");
+}
+
+function schemaSetupMessage(error: DbError) {
+  const message = dbMessage(error);
+  return `Supabase setup needs the latest business/user SQL. Run the full supabase/schema.sql file in Supabase SQL Editor, then wait a minute or refresh the schema cache. ${message}`;
+}
+
+function isUserRole(value: unknown): value is UserRole {
+  return roleOptions.some((option) => option.value === value);
+}
+
+function isCommissionType(value: unknown): value is CommissionType {
+  return value === "none" || value === "standard" || value === "agency";
+}
+
+function asNumber(value: unknown, fallback: number) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function normalizeBusiness(row: Record<string, unknown>): Business {
+  return {
+    id: String(row.id || ""),
+    name: String(row.name || "Unnamed business"),
+    commission_type: isCommissionType(row.commission_type) ? row.commission_type : "none",
+    agency_commission_rate: asNumber(row.agency_commission_rate, 0),
+    salesperson_commission_rate: asNumber(row.salesperson_commission_rate, 0),
+    created_at: String(row.created_at || new Date().toISOString()),
+  };
+}
+
+function normalizeApprovedUser(
+  row: Record<string, unknown>,
+  businesses: Business[],
+): ApprovedUser {
+  const businessId = row.business_id ? String(row.business_id) : null;
+  const business = businessId ? businesses.find((item) => item.id === businessId) : null;
+  const role = isUserRole(row.role) ? row.role : "user";
+  const commissionOverride = isCommissionType(row.commission_type_override)
+    ? row.commission_type_override
+    : null;
+  const agencyOverride = row.agency_commission_rate_override;
+  const salespersonOverride = row.salesperson_commission_rate_override;
+
+  return {
+    email: String(row.email || ""),
+    role,
+    business_id: businessId,
+    business_name: String(row.business_name || business?.name || ""),
+    commission_type_override: commissionOverride,
+    agency_commission_rate_override:
+      agencyOverride === null || agencyOverride === undefined ? null : asNumber(agencyOverride, 0),
+    salesperson_commission_rate_override:
+      salespersonOverride === null || salespersonOverride === undefined
+        ? null
+        : asNumber(salespersonOverride, 0),
+    effective_commission_type: isCommissionType(row.effective_commission_type)
+      ? row.effective_commission_type
+      : commissionOverride || business?.commission_type || "none",
+    effective_agency_commission_rate:
+      row.effective_agency_commission_rate !== undefined
+        ? asNumber(row.effective_agency_commission_rate, 0)
+        : agencyOverride === null || agencyOverride === undefined
+          ? business?.agency_commission_rate || 0
+          : asNumber(agencyOverride, 0),
+    effective_salesperson_commission_rate:
+      row.effective_salesperson_commission_rate !== undefined
+        ? asNumber(row.effective_salesperson_commission_rate, 0)
+        : salespersonOverride === null || salespersonOverride === undefined
+          ? business?.salesperson_commission_rate || 0
+          : asNumber(salespersonOverride, 0),
+    created_at: String(row.created_at || new Date().toISOString()),
+  };
+}
+
+async function listBusinesses(supabase: SupabaseServer) {
+  const rpcResult = await supabase.rpc("admin_list_businesses");
+  if (!rpcResult.error) {
+    return {
+      data: ((rpcResult.data || []) as Record<string, unknown>[]).map(normalizeBusiness),
+      errorMessage: "",
+    };
+  }
+
+  if (!isSchemaCacheFunctionError(rpcResult.error)) {
+    return { data: [] as Business[], errorMessage: dbMessage(rpcResult.error) };
+  }
+
+  const directResult = await supabase
+    .from("businesses")
+    .select("id, name, commission_type, agency_commission_rate, salesperson_commission_rate, created_at")
+    .order("name", { ascending: true });
+
+  if (directResult.error) {
+    return {
+      data: [] as Business[],
+      errorMessage: schemaSetupMessage(directResult.error),
+    };
+  }
+
+  return {
+    data: ((directResult.data || []) as Record<string, unknown>[]).map(normalizeBusiness),
+    errorMessage: "",
+  };
+}
+
+async function listApprovedUsers(supabase: SupabaseServer, businesses: Business[]) {
+  const rpcResult = await supabase.rpc("admin_list_approved_users");
+  if (!rpcResult.error) {
+    return {
+      data: ((rpcResult.data || []) as Record<string, unknown>[]).map((row) =>
+        normalizeApprovedUser(row, businesses),
+      ),
+      errorMessage: "",
+    };
+  }
+
+  if (!isSchemaCacheFunctionError(rpcResult.error)) {
+    return { data: [] as ApprovedUser[], errorMessage: dbMessage(rpcResult.error) };
+  }
+
+  const directResult = await supabase
+    .from("approved_users")
+    .select(
+      "email, role, business_id, commission_type_override, agency_commission_rate_override, salesperson_commission_rate_override, created_at",
+    )
+    .order("created_at", { ascending: false });
+
+  if (!directResult.error) {
+    return {
+      data: ((directResult.data || []) as Record<string, unknown>[]).map((row) =>
+        normalizeApprovedUser(row, businesses),
+      ),
+      errorMessage: "",
+    };
+  }
+
+  const legacyResult = await supabase
+    .from("approved_users")
+    .select("email, role, created_at")
+    .order("created_at", { ascending: false });
+
+  if (legacyResult.error) {
+    return {
+      data: [] as ApprovedUser[],
+      errorMessage: schemaSetupMessage(directResult.error),
+    };
+  }
+
+  return {
+    data: ((legacyResult.data || []) as Record<string, unknown>[]).map((row) =>
+      normalizeApprovedUser(row, businesses),
+    ),
+    errorMessage: schemaSetupMessage(directResult.error),
+  };
+}
+
+async function saveBusiness(
+  supabase: SupabaseServer,
+  businessId: string | null,
+  name: string,
+  commissionType: CommissionType,
+  agencyRate: number,
+  salespersonRate: number,
+) {
+  const rpcResult = await supabase.rpc("admin_upsert_business", {
+    target_business_id: businessId,
+    target_name: name,
+    target_commission_type: commissionType,
+    target_agency_commission_rate: agencyRate,
+    target_salesperson_commission_rate: salespersonRate,
+  });
+
+  if (!rpcResult.error) return "";
+  if (!isSchemaCacheFunctionError(rpcResult.error)) return dbMessage(rpcResult.error);
+
+  const payload = {
+    name,
+    commission_type: commissionType,
+    agency_commission_rate: agencyRate,
+    salesperson_commission_rate: salespersonRate,
+    updated_at: new Date().toISOString(),
+  };
+
+  const directResult = businessId
+    ? await supabase.from("businesses").update(payload).eq("id", businessId)
+    : await supabase.from("businesses").insert(payload);
+
+  return directResult.error ? schemaSetupMessage(directResult.error) : "";
+}
+
+async function saveApprovedUser(
+  supabase: SupabaseServer,
+  email: string,
+  role: UserRole,
+  businessId: string | null,
+  commissionType: CommissionOverride,
+  agencyRate: number | null,
+  salespersonRate: number | null,
+) {
+  const commissionOverride = commissionType === "business_default" ? null : commissionType;
+  const rpcResult = await supabase.rpc("admin_upsert_approved_user", {
+    target_email: email,
+    target_role: role,
+    target_business_id: businessId,
+    target_commission_type_override: commissionOverride,
+    target_agency_commission_rate_override: agencyRate,
+    target_salesperson_commission_rate_override: salespersonRate,
+  });
+
+  if (!rpcResult.error) return "";
+  if (!isSchemaCacheFunctionError(rpcResult.error)) return dbMessage(rpcResult.error);
+
+  const directResult = await supabase.from("approved_users").upsert(
+    {
+      email,
+      role,
+      business_id: businessId,
+      commission_type_override: commissionOverride,
+      agency_commission_rate_override: agencyRate,
+      salesperson_commission_rate_override: salespersonRate,
+    },
+    { onConflict: "email" },
+  );
+
+  return directResult.error ? schemaSetupMessage(directResult.error) : "";
+}
+
+async function deleteApprovedUser(supabase: SupabaseServer, email: string) {
+  const rpcResult = await supabase.rpc("admin_delete_approved_user", {
+    target_email: email,
+  });
+
+  if (!rpcResult.error) return "";
+  if (!isSchemaCacheFunctionError(rpcResult.error)) return dbMessage(rpcResult.error);
+
+  const directResult = await supabase.from("approved_users").delete().eq("email", email);
+  return directResult.error ? schemaSetupMessage(directResult.error) : "";
+}
+
 async function requireAdmin() {
   const supabase = await createSupabaseServerClient();
   const {
@@ -137,16 +387,17 @@ async function upsertBusiness(formData: FormData) {
     redirect("/admin/users?error=Enter a business name.");
   }
 
-  const { error } = await supabase.rpc("admin_upsert_business", {
-    target_business_id: businessId,
-    target_name: name,
-    target_commission_type: commissionType === "business_default" ? "none" : commissionType,
-    target_agency_commission_rate: agencyRate,
-    target_salesperson_commission_rate: salespersonRate,
-  });
+  const errorMessage = await saveBusiness(
+    supabase,
+    businessId,
+    name,
+    commissionType === "business_default" ? "none" : commissionType,
+    agencyRate,
+    salespersonRate,
+  );
 
-  if (error) {
-    redirect(`/admin/users?error=${encodeURIComponent(error.message)}`);
+  if (errorMessage) {
+    redirect(`/admin/users?error=${encodeURIComponent(errorMessage)}`);
   }
 
   revalidatePath("/admin/users");
@@ -168,17 +419,18 @@ async function addApprovedUser(formData: FormData) {
     redirect("/admin/users?error=Enter an email address.");
   }
 
-  const { error } = await supabase.rpc("admin_upsert_approved_user", {
-    target_email: email,
-    target_role: role,
-    target_business_id: businessId,
-    target_commission_type_override: commissionType === "business_default" ? null : commissionType,
-    target_agency_commission_rate_override: agencyRate,
-    target_salesperson_commission_rate_override: salespersonRate,
-  });
+  const errorMessage = await saveApprovedUser(
+    supabase,
+    email,
+    role,
+    businessId,
+    commissionType,
+    agencyRate,
+    salespersonRate,
+  );
 
-  if (error) {
-    redirect(`/admin/users?error=${encodeURIComponent(error.message)}`);
+  if (errorMessage) {
+    redirect(`/admin/users?error=${encodeURIComponent(errorMessage)}`);
   }
 
   revalidatePath("/admin/users");
@@ -200,17 +452,18 @@ async function updateApprovedUser(formData: FormData) {
     redirect("/admin/users?error=You cannot demote your own admin account.");
   }
 
-  const { error } = await supabase.rpc("admin_upsert_approved_user", {
-    target_email: email,
-    target_role: role,
-    target_business_id: businessId,
-    target_commission_type_override: commissionType === "business_default" ? null : commissionType,
-    target_agency_commission_rate_override: agencyRate,
-    target_salesperson_commission_rate_override: salespersonRate,
-  });
+  const errorMessage = await saveApprovedUser(
+    supabase,
+    email,
+    role,
+    businessId,
+    commissionType,
+    agencyRate,
+    salespersonRate,
+  );
 
-  if (error) {
-    redirect(`/admin/users?error=${encodeURIComponent(error.message)}`);
+  if (errorMessage) {
+    redirect(`/admin/users?error=${encodeURIComponent(errorMessage)}`);
   }
 
   revalidatePath("/admin/users");
@@ -227,12 +480,10 @@ async function removeApprovedUser(formData: FormData) {
     redirect("/admin/users?error=You cannot remove your own admin account.");
   }
 
-  const { error } = await supabase.rpc("admin_delete_approved_user", {
-    target_email: email,
-  });
+  const errorMessage = await deleteApprovedUser(supabase, email);
 
-  if (error) {
-    redirect(`/admin/users?error=${encodeURIComponent(error.message)}`);
+  if (errorMessage) {
+    redirect(`/admin/users?error=${encodeURIComponent(errorMessage)}`);
   }
 
   revalidatePath("/admin/users");
@@ -246,13 +497,11 @@ export default async function AdminUsersPage({
 }) {
   const params = await searchParams;
   const { supabase, email: currentEmail } = await requireAdmin();
-  const [businessResult, usersResult] = await Promise.all([
-    supabase.rpc("admin_list_businesses"),
-    supabase.rpc("admin_list_approved_users"),
-  ]);
+  const businessResult = await listBusinesses(supabase);
+  const usersResult = await listApprovedUsers(supabase, businessResult.data);
 
-  const businesses = (businessResult.data || []) as Business[];
-  const users = (usersResult.data || []) as ApprovedUser[];
+  const businesses = businessResult.data;
+  const users = usersResult.data;
   const firstBusinessId = businesses[0]?.id || "";
 
   return (
@@ -274,11 +523,11 @@ export default async function AdminUsersPage({
 
         {params?.message ? <div className="notice success">{params.message}</div> : null}
         {params?.error ? <div className="notice">{params.error}</div> : null}
-        {businessResult.error ? (
-          <div className="notice">Supabase business error: {businessResult.error.message}</div>
+        {businessResult.errorMessage ? (
+          <div className="notice">Supabase business setup: {businessResult.errorMessage}</div>
         ) : null}
-        {usersResult.error ? (
-          <div className="notice">Supabase user error: {usersResult.error.message}</div>
+        {usersResult.errorMessage ? (
+          <div className="notice">Supabase user setup: {usersResult.errorMessage}</div>
         ) : null}
 
         <section className="admin-section">

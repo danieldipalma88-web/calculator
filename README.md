@@ -17,6 +17,8 @@ Run the SQL in `supabase/schema.sql` in the Supabase SQL editor after each schem
 
 The schema creates the default `Green Energy Climate Control` business, upgrades user roles,
 and keeps `danieldipalma88@gmail.com` as the platform admin.
+It also reloads the Supabase API schema cache so the business-management functions are
+available to the app.
 
 Platform admin users can manage businesses, approved users, roles, and commission settings
 from `/admin/users` after the SQL policies have been run.
