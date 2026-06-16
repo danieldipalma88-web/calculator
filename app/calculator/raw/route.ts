@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { NextResponse } from "next/server";
-import { canManageUsers, canSeeCommissionDetails, canSeeProfitDetails } from "../../../lib/admin";
+import { canManageUsers, canSeeCommissionDetails, canSeeProfitDetails, isOwnerEmail } from "../../../lib/admin";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
 
 function safeScriptJson(value: unknown) {
@@ -20,6 +20,7 @@ type CalculatorUserContext = {
   canManageUsers: boolean;
   canSeeCommissionDetails: boolean;
   canSeeProfitDetails: boolean;
+  canSeeOwnerDetails: boolean;
   canSeeSalespersonCommission: boolean;
 };
 
@@ -226,6 +227,9 @@ function injectCloudStorageSync(
     }
   }
   function applyRoleUi(){
+    if (document.body) {
+      document.body.classList.toggle('restrictedOwnerDetails', !(calculatorUser && calculatorUser.canSeeOwnerDetails));
+    }
     if (calculatorUser && calculatorUser.canManageUsers) {
       var certButtonForAdmin = document.getElementById('certValuesActionBtn');
       if (certButtonForAdmin && !document.getElementById('adminUsersActionBtn')) {
@@ -422,6 +426,7 @@ export async function GET(request: Request) {
       canManageUsers: canManage,
       canSeeCommissionDetails: canSeeCommissionDetails(contextRole),
       canSeeProfitDetails: canSeeProfitDetails(contextRole),
+      canSeeOwnerDetails: isOwnerEmail(currentEmail),
       canSeeSalespersonCommission: true,
     },
   );

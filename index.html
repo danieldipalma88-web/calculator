@@ -202,6 +202,25 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
 }
 .recommendationCard.net{border-color:#b7d7f2}
 .recommendationCard.error{border-color:#fecaca;background:#fff7f7}
+.recommendationCardHead{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  margin-bottom:5px;
+}
+.recommendationCardHead .recommendationEyebrow{margin:0}
+.recommendationLoadBtn{
+  border:1px solid #bfdbfe;
+  background:#eff6ff;
+  color:#1d4ed8;
+  border-radius:10px;
+  padding:7px 9px;
+  font-size:12px;
+  font-weight:900;
+  cursor:pointer;
+}
+.recommendationLoadBtn:hover{background:#dbeafe}
 .recommendationEyebrow{
   color:#475569;
   font-size:10px;
@@ -319,6 +338,11 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
   background:#fff7f7;
 }
 .certificateBreakdown.error .certificateMetric small{color:#b91c1c}
+.restrictedOwnerDetails .ownerOnlyRebateConfig,
+.restrictedOwnerDetails #modelMeta,
+.restrictedOwnerDetails #rebateCalcMeta{display:none!important}
+.restrictedOwnerDetails #certificateBreakdown{grid-template-columns:1fr}
+.restrictedOwnerDetails #certificateBreakdown .certificateMetric:not(:last-child){display:none}
 
 .sectionTitle{font-size:19px;margin:0 0 14px}
 .tiny{font-size:12px;color:var(--muted);line-height:1.45}
@@ -990,10 +1014,10 @@ tbody tr:hover td{background:#f0f7ff}
         <div class="installTabs"><button id="newBtn" class="active" onclick="setInstall('new')">New install</button><button id="replacementBtn" onclick="setInstall('replacement')">Replacement</button></div>
         <div class="row3" style="margin-top:12px">
           <div><label>ESS postcode</label><input id="essPostcode" type="text" inputmode="numeric" value="2000" maxlength="4"></div>
-          <div class="mobileHideRebateConfig"><label>ESS climate zone</label><select id="essClimateZone"><option value="auto">Auto from postcode</option><option value="mixed">Mixed</option><option value="hot">Hot</option><option value="cold">Cold</option></select></div>
-          <div class="mobileHideRebateConfig"><label>ESS $ per ESC</label><input id="essEscRate" type="number" step="0.01" value="21.95"></div>
+          <div class="mobileHideRebateConfig ownerOnlyRebateConfig"><label>ESS climate zone</label><select id="essClimateZone"><option value="auto">Auto from postcode</option><option value="mixed">Mixed</option><option value="hot">Hot</option><option value="cold">Cold</option></select></div>
+          <div class="mobileHideRebateConfig ownerOnlyRebateConfig"><label>ESS $ per ESC</label><input id="essEscRate" type="number" step="0.01" value="21.95"></div>
         </div>
-        <div class="row2 mobileHideRebateConfig" style="margin-top:12px">
+        <div class="row2 mobileHideRebateConfig ownerOnlyRebateConfig" style="margin-top:12px">
           <div class="mobileHideRebateConfig"><label>PERC (PRC) $ per cert</label><input id="essPrcRate" type="number" step="0.01" value="2.65"></div>
           <div class="mobileHideRebateConfig"><label>Live calc source</label><input readonly value="NSW ESS/PDRS API"></div>
         </div>
@@ -1307,7 +1331,7 @@ function storageHas(key,legacySuffix){return storageGet(key,legacySuffix)!==null
 function legacyLabourRetainKey(){return 'green'+'EnergyKeepsLabour';}
 let essCache={brands:null,modelsByBrand:{},metadata:{},gemsByLookup:{},zoneByPostcode:{},requestSeq:0};
 let essRuntime={lastEsc:0,lastPrc:0,lastOfficialEsc:0,lastOfficialPrc:0,lastZone:'',lastBcaZone:'',lastBrand:'',lastModel:''};
-let essBestValueRuntime={requestSeq:0,cache:{}};
+let essBestValueRuntime={requestSeq:0,cache:{},lastEntry:null};
 let certValues={escRate:21.95,prcRate:2.65,source:'Electric Future',locked:false,updatedAt:''};
 let commissionSettings={agencyRate:25,agencyLocked:true,salespersonRate:50,salespersonLocked:true};
 const DEFAULT_COST_RULES=[
@@ -1729,11 +1753,35 @@ function recommendationMoney(value,fallback){
 function recommendationStatsHtml(items){
   return `<div class="recommendationStats">${items.map(item=>`<div class="recommendationStat"><span>${htmlEscape(item.label)}</span><strong>${htmlEscape(item.value)}</strong></div>`).join('')}</div>`;
 }
+function recommendationProductIndex(row){
+  if(!row) return -1;
+  const idx=Number(row.productIndex);
+  const list=data();
+  if(Number.isInteger(idx) && idx>=0 && idx<list.length){
+    const p=list[idx];
+    if(p && brandsEquivalent(p.brand,row.brand) && normalizeLookup(p.model)===normalizeLookup(row.model)) return idx;
+  }
+  return productLookupIndexFromState({systemType,brand:row.brand,model:row.model,productIndex:idx},list);
+}
+function loadRecommendedUnit(kind){
+  const entry=essBestValueRuntime.lastEntry;
+  const row=kind==='net'?entry&&entry.bestNetCost:entry&&entry.best;
+  if(!row){setRecommendationStatus(kind==='net'?'bestNetCostMeta':'bestValueMeta',kind==='net'?'Best net unit cost':'Best rebate','Recommended unit is not available to load yet.',true,kind==='net'?'net':''); return;}
+  const idx=recommendationProductIndex(row);
+  if(idx<0){setRecommendationStatus(kind==='net'?'bestNetCostMeta':'bestValueMeta',kind==='net'?'Best net unit cost':'Best rebate','Could not match that recommendation to a calculator unit.',true,kind==='net'?'net':''); return;}
+  const p=data()[idx];
+  $('brand').value=p.brand;
+  populateProducts();
+  $('product').value=String(idx);
+  onProductChange();
+  document.querySelector('.wrap').scrollIntoView({behavior:'smooth',block:'start'});
+}
 function renderRecommendationCard(id,kind,title,value,model,stats,delta,foot,isError){
   const el=$(id);
   if(!el) return;
   el.className=`recommendationCard${kind==='net'?' net':''}${isError?' error':''}`;
-  el.innerHTML=`<div class="recommendationEyebrow">${htmlEscape(title)}</div><div class="recommendationValue">${htmlEscape(value)}</div><div class="recommendationModel">${htmlEscape(model)}</div>${recommendationStatsHtml(stats)}${delta?`<div class="recommendationDelta">${htmlEscape(delta)}</div>`:''}${foot?`<div class="recommendationFoot">${htmlEscape(foot)}</div>`:''}`;
+  const action=!isError?`<button class="recommendationLoadBtn" type="button" onclick="loadRecommendedUnit('${kind}')">Load</button>`:'';
+  el.innerHTML=`<div class="recommendationCardHead"><div class="recommendationEyebrow">${htmlEscape(title)}</div>${action}</div><div class="recommendationValue">${htmlEscape(value)}</div><div class="recommendationModel">${htmlEscape(model)}</div>${recommendationStatsHtml(stats)}${delta?`<div class="recommendationDelta">${htmlEscape(delta)}</div>`:''}${foot?`<div class="recommendationFoot">${htmlEscape(foot)}</div>`:''}`;
 }
 function recommendationFootnote(categoryLabel,postcode,failedCount){
   return `${categoryLabel} category - ${installType}, postcode ${postcode}${failedCount?` - ${failedCount} unavailable`:''}`;
@@ -1752,6 +1800,7 @@ function netCostDeltaText(best,currentMatch){
   return `Saves ${money(diff)} vs selected`;
 }
 function renderBestRecommendationCards(entry,currentProduct,categoryLabel,postcode,failedCount){
+  essBestValueRuntime.lastEntry=entry||null;
   if(!entry || !entry.best){
     setBestValueMeta(`Best rebate unavailable for ${categoryLabel} (${installType}, postcode ${postcode}).`,true);
   }else{
@@ -1824,30 +1873,31 @@ async function refreshBestValueIndicator(){
     renderBestRecommendationCards(cached,current,categoryLabel,postcode,cached.failedCount||0);
     return;
   }
-  const allCandidates=data().filter(p=>kwCategoryValue(cap(p))===category);
+  const allCandidates=data().map((p,i)=>({p,i})).filter(item=>kwCategoryValue(cap(item.p))===category);
   const uniqueCandidates=[];
   const seenKeys=new Set();
-  allCandidates.forEach(p=>{
-    const key=`${p.brand}|${p.model}`;
+  allCandidates.forEach(item=>{
+    const key=`${item.p.brand}|${item.p.model}`;
     if(seenKeys.has(key)) return;
     seenKeys.add(key);
-    uniqueCandidates.push(p);
+    uniqueCandidates.push(item);
   });
   if(!uniqueCandidates.length){setBestValueMeta(`No models found for ${categoryLabel} category.`,true); setBestNetCostMeta(`No models found for ${categoryLabel} category.`,true); return;}
   const requestId=++essBestValueRuntime.requestSeq;
   setBestValueMeta(`Checking best rebate in ${categoryLabel} category...`,false);
   setBestNetCostMeta(`Checking best net unit cost in ${categoryLabel} category...`,false);
-  const settled=await Promise.all(uniqueCandidates.map(async p=>{
+  const settled=await Promise.all(uniqueCandidates.map(async item=>{
     try{
+      const p=item.p;
       const result=await estimateLiveEssRebate(p.brand,p.model);
       const unitCost=Number(p.unitPriceInc||p.priceIncGst||0);
-      return {ok:true,brand:p.brand,series:p.series||'',model:p.model,unitCost,rebate:result.rebate,netCost:unitCost-result.rebate};
+      return {ok:true,brand:p.brand,series:p.series||'',model:p.model,productIndex:item.i,productManagedKey:managedProductKey(systemType,item.i),unitCost,rebate:result.rebate,netCost:unitCost-result.rebate};
     }catch(e){
       return {ok:false,error:String(e && e.message ? e.message : e)};
     }
   }));
   if(requestId!==essBestValueRuntime.requestSeq) return;
-  const winners=settled.filter(r=>r.ok).map(r=>({brand:r.brand,series:r.series||'',model:r.model,unitCost:r.unitCost,rebate:r.rebate,netCost:r.netCost}));
+  const winners=settled.filter(r=>r.ok).map(r=>({brand:r.brand,series:r.series||'',model:r.model,productIndex:r.productIndex,productManagedKey:r.productManagedKey,unitCost:r.unitCost,rebate:r.rebate,netCost:r.netCost}));
   const failedCount=settled.length-winners.length;
   if(!winners.length){
     setBestValueMeta(`Best value unavailable for ${categoryLabel} (${installType}, postcode ${postcode}).`,true);
@@ -2430,9 +2480,13 @@ function formatCommissionRate(v){
   return n.toLocaleString('en-AU',{minimumFractionDigits:n%1?1:0,maximumFractionDigits:2});
 }
 function calculatorUserContext(){return window.CALCULATOR_USER||{};}
+function canSeeOwnerDetails(){const u=calculatorUserContext(); return u.canSeeOwnerDetails!==false;}
 function canSeeCommissionDetails(){const u=calculatorUserContext(); return u.canSeeCommissionDetails!==false;}
 function canSeeProfitDetails(){const u=calculatorUserContext(); return u.canSeeProfitDetails!==false;}
 function canSeeSalespersonCommission(){const u=calculatorUserContext(); return u.canSeeSalespersonCommission!==false;}
+function applyOwnerVisibility(){
+  if(document.body) document.body.classList.toggle('restrictedOwnerDetails',!canSeeOwnerDetails());
+}
 function effectiveCommissionType(){
   const t=String(calculatorUserContext().commissionType||'agency').toLowerCase();
   return ['none','standard','agency'].includes(t)?t:'agency';
@@ -2583,6 +2637,7 @@ function updatePriceLockNote(){const n=$('priceLockNote'); if(!n) return; n.text
 function resetSuggestedPrice(){finalPriceLocked=false; autoFinal(); render();}
 function render(){
   const x=calculate();
+  applyOwnerVisibility();
   const showPrivate=canSeeProfitDetails();
   const showLimitedSales=x.commissionModelOn&&!showPrivate&&canSeeSalespersonCommission();
   const showAgency=x.commissionModelOn&&x.commissionType==='agency'&&showPrivate;
@@ -2913,12 +2968,37 @@ function currentState(){
     installerRetainsLabour: $('installerRetainsLabour') ? $('installerRetainsLabour').checked : true
   };
 }
+function normalizeQuoteLocation(q){
+  if(!q || typeof q!=='object') return q;
+  const s=q.state&&typeof q.state==='object'?q.state:(q.state={});
+  const ess=s.ess&&typeof s.ess==='object'?s.ess:(s.ess={});
+  const postcode=ess.postcode ?? s.postcode ?? q.postcode;
+  const climateZone=ess.climateZone ?? ess.zone ?? s.essClimateZone ?? q.essClimateZone;
+  const savedInstallType=s.installType ?? (q.install?String(q.install).toLowerCase().startsWith('rep')?'replacement':'new':undefined);
+  if(postcode!==undefined && postcode!==null && String(postcode).trim()!==''){
+    const value=String(postcode).trim();
+    q.postcode=value;
+    s.postcode=value;
+    ess.postcode=value;
+  }
+  if(climateZone!==undefined && climateZone!==null && String(climateZone).trim()!==''){
+    const value=String(climateZone).trim().toLowerCase();
+    q.essClimateZone=value;
+    s.essClimateZone=value;
+    ess.climateZone=value;
+  }
+  if(savedInstallType){
+    s.installType=savedInstallType;
+    q.install=savedInstallType==='replacement'?'Replacement':'New';
+  }
+  return q;
+}
 function loadRecentQuotes(){
   try{
     const raw=storageGet(QUOTE_STORAGE_KEY,'MasterQuoteLogV1');
     quotes=raw?JSON.parse(raw):[];
     const cutoff=Date.now()-SEVEN_DAYS_MS;
-    quotes=quotes.filter(q=>(q.timestamp||0)>=cutoff);
+    quotes=quotes.filter(q=>(q.timestamp||0)>=cutoff).map(q=>normalizeQuoteLocation(q));
     persistQuotes();
   }catch(e){quotes=[];}
 }
@@ -2937,9 +3017,10 @@ function formatAge(ts){
 }
 function addToQuote(){
   const x=calculate();
+  const state=currentState();
   quotes.unshift({
-    id:'quote_'+Date.now(), timestamp:Date.now(), state:currentState(),
-    postcode:getEssPostcode(), essClimateZone:getEssZoneSelection(),
+    id:'quote_'+Date.now(), timestamp:Date.now(), state,
+    postcode:state.postcode, essClimateZone:state.essClimateZone,
     profitLabel:systemType==='ducted'?'Operating profit':'Cash profit',
     type:systemType==='split'?'Split':'Ducted',brand:x.p.brand,series:x.p.series||'',size:x.p.capacity||x.p.size+'kW',model:x.p.model,
     install:installType==='new'?'New':'Replacement',unitInc:x.unitInc,rebate:x.rebate,labour:x.labour,labourTreatment:x.labourTreatment,installerRetainsLabour: x.labourTreatment==='Retained',
@@ -3083,7 +3164,7 @@ function applyEvenDistribution(){
 }
 function renderQuotes(){
   const cutoff=Date.now()-SEVEN_DAYS_MS;
-  quotes=quotes.filter(q=>(q.timestamp||0)>=cutoff).map(q=>recomputeSavedQuote(q));
+  quotes=quotes.filter(q=>(q.timestamp||0)>=cutoff).map(q=>recomputeSavedQuote(normalizeQuoteLocation(q)));
   persistQuotes();
   $('quoteCount').textContent=quotes.length;
   refreshRecommendedOptions();
@@ -3441,11 +3522,12 @@ function groupTotals(rows){
 }
 function addToQuote(){
   const x=calculate();
+  const state=currentState();
   const optionId=currentAddOptionId();
   const optionName=optionNameById(optionId);
   quotes.unshift({
-    id:'quote_'+Date.now(), timestamp:Date.now(), state:currentState(), optionId, optionName,
-    postcode:getEssPostcode(), essClimateZone:getEssZoneSelection(),
+    id:'quote_'+Date.now(), timestamp:Date.now(), state, optionId, optionName,
+    postcode:state.postcode, essClimateZone:state.essClimateZone,
     profitLabel:systemType==='ducted'?'Operating profit':'Cash profit',
     type:systemType==='split'?'Split':'Ducted',brand:x.p.brand,series:x.p.series||'',size:x.p.capacity||x.p.size+'kW',model:x.p.model,
     install:installType==='new'?'New':'Replacement',unitInc:x.unitInc,rebate:x.rebate,labour:x.labour,labourTreatment:x.labourTreatment,installerRetainsLabour: x.labourTreatment==='Retained',
@@ -3458,7 +3540,7 @@ function addToQuote(){
 }
 function renderQuotes(){
   const cutoff=Date.now()-SEVEN_DAYS_MS;
-  quotes=quotes.filter(q=>(q.timestamp||0)>=cutoff).map(q=>recomputeSavedQuote(q));
+  quotes=quotes.filter(q=>(q.timestamp||0)>=cutoff).map(q=>recomputeSavedQuote(normalizeQuoteLocation(q)));
   ensureOptionDefs(); persistQuotes();
   const countEl=$('quoteCount'); if(countEl) countEl.textContent=quotes.length;
   if($('distRowsAffected')) $('distRowsAffected').textContent=String(quotes.length);
