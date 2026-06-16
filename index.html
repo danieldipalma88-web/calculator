@@ -2021,6 +2021,23 @@ function stripCertificateRatesFromEssSettingsStorage(){
     }catch(e){}
   });
 }
+function stripManagedRebateOverridesFromStorage(){
+  if(canEditManagedRebates()) return;
+  [PRICE_STORAGE_KEY,legacyStorageKey('ManagedPricesV1')].forEach(key=>{
+    try{
+      const raw=localStorage.getItem(key);
+      if(!raw) return;
+      const saved=JSON.parse(raw)||{};
+      if(!saved || typeof saved!=='object' || Array.isArray(saved)) return;
+      Object.values(saved).forEach(entry=>{
+        if(!entry || typeof entry!=='object' || Array.isArray(entry)) return;
+        delete entry.rebate;
+        delete entry.rebateManual;
+      });
+      localStorage.setItem(key,JSON.stringify(saved));
+    }catch(e){}
+  });
+}
 function saveEssSettings(){try{localStorage.setItem(ESS_SETTINGS_STORAGE_KEY, JSON.stringify({postcode:getEssPostcode(), zone:getEssZoneSelection()}));}catch(e){}}
 function loadEssSettings(){
   try{
@@ -2495,6 +2512,7 @@ function canSeeOwnerDetails(){const u=calculatorUserContext(); return u.canSeeOw
 function canSeeCommissionDetails(){const u=calculatorUserContext(); return u.canSeeCommissionDetails!==false;}
 function canSeeProfitDetails(){const u=calculatorUserContext(); return u.canSeeProfitDetails!==false;}
 function canSeeSalespersonCommission(){const u=calculatorUserContext(); return u.canSeeSalespersonCommission!==false;}
+function canEditManagedRebates(){return canSeeOwnerDetails();}
 function applyOwnerVisibility(){
   if(document.body) document.body.classList.toggle('restrictedOwnerDetails',!canSeeOwnerDetails());
 }
@@ -2731,12 +2749,12 @@ function normalizeManagedPriceEntry(saved,item){
   const entry=defaultManagedPriceEntry(item);
   if(!saved || typeof saved!=='object') return entry;
   if(saved.locked===false) entry.locked=false;
-  if(saved.rebateManual===true) entry.rebateManual=true;
+  if(saved.rebateManual===true && canEditManagedRebates()) entry.rebateManual=true;
   if(saved.unitPriceInc!==undefined){
     const n=Number(saved.unitPriceInc);
     if(Number.isFinite(n)) entry.unitPriceInc=n;
   }
-  if(saved.rebate!==undefined){
+  if(saved.rebate!==undefined && canEditManagedRebates()){
     const n=Number(saved.rebate);
     if(Number.isFinite(n)) entry.rebate=n;
   }
@@ -2889,6 +2907,7 @@ function updateManagedPrice(key,field,value){
     item.p.model=model;
   } else {
     const n=Number(value)||0;
+    if(field==='rebate' && !canEditManagedRebates()) return;
     entry[field]=n;
     if(field==='unitPriceInc'){ item.p.unitPriceInc=n; item.p.priceIncGst=n; }
     if(field==='rebate'){ item.p.rebate=n; entry.rebateManual=true; }
@@ -2928,6 +2947,7 @@ function renderPriceManager(){
     const key=item.key;
     const saved=ensureManagedEntry(key,item,true);
     const locked=saved.locked!==false;
+    const rebateLocked=locked || !canEditManagedRebates();
     const domKey=encodeKeyForDom(key);
     const price=Number(saved.unitPriceInc ?? item.p.unitPriceInc ?? item.p.priceIncGst ?? 0).toFixed(2);
     const rebate=Number(saved.rebate ?? item.p.rebate ?? 0).toFixed(2);
@@ -2938,7 +2958,7 @@ function renderPriceManager(){
       <td>${htmlEscape(item.p.capacity||item.p.size+'kW')}</td>
       <td><input class="priceInput modelInput managedPriceInput" data-field="model" type="text" value="${model}" ${locked?'disabled':''}></td>
       <td><input class="priceInput managedPriceInput" data-field="unitPriceInc" type="number" step="0.01" value="${price}" ${locked?'disabled':''}></td>
-      <td><input class="priceInput managedPriceInput" data-field="rebate" type="number" step="0.01" value="${rebate}" ${locked?'disabled':''}></td>
+      <td><input class="priceInput managedPriceInput" data-field="rebate" type="number" step="0.01" value="${rebate}" ${rebateLocked?'disabled':''}></td>
       <td><span class="pill">${locked?'Locked':'Unlocked'}</span></td>
       <td><button type="button" class="lockBtn ${locked?'':'unlocked'} managedLockBtn" onclick="event.stopPropagation(); togglePriceLock(decodeKeyFromDom(this.closest('tr[data-key]').dataset.key));">${locked?'Unlock':'Lock'}</button></td>
     </tr>`;
@@ -4166,6 +4186,7 @@ loadRecentQuotes();
 loadSavedQuoteSets();
 loadQuoteExportName();
 loadDefaultCostRules();
+stripManagedRebateOverridesFromStorage();
 loadManagedPrices();
 initEssControls();
 const defaultCostRowsEl=$('defaultCostRows');

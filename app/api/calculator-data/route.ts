@@ -12,6 +12,11 @@ const ESS_SETTINGS_STORAGE_KEYS = [
   "EssSettingsV1",
 ];
 
+const MANAGED_PRICE_STORAGE_KEYS = [
+  "installerManagedPricesV1",
+  "ManagedPricesV1",
+];
+
 async function currentApprovedUser(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   email: string,
@@ -96,7 +101,29 @@ function sanitizeIncomingCalculatorData(
     }
   }
 
+  for (const key of MANAGED_PRICE_STORAGE_KEYS) {
+    if (key in sanitized) {
+      sanitized[key] = stripManagedRebateOverrides(sanitized[key]);
+    }
+  }
+
   return sanitized;
+}
+
+function stripManagedRebateOverrides(value: unknown) {
+  if (typeof value !== "string" || !value.trim()) return value;
+  try {
+    const parsed = JSON.parse(value);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return value;
+    for (const entry of Object.values(parsed as Record<string, unknown>)) {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+      delete (entry as Record<string, unknown>).rebate;
+      delete (entry as Record<string, unknown>).rebateManual;
+    }
+    return JSON.stringify(parsed);
+  } catch {
+    return value;
+  }
 }
 
 export async function GET(request: Request) {
@@ -116,17 +143,35 @@ export async function GET(request: Request) {
     currentEmail,
     canManageUsers(currentEmail, approvedUser?.role),
   );
-  const query = supabase.from("user_calculator_data").select("data");
-  const { data, error } =
-    viewingEmail === currentEmail
-      ? await query.eq("user_id", user.id).maybeSingle()
-      : await query.eq("email", viewingEmail).maybeSingle();
+  const byEmail = await supabase
+    .from("user_calculator_data")
+    .select("data")
+    .eq("email", viewingEmail)
+    .maybeSingle();
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (byEmail.error) {
+    return NextResponse.json({ error: byEmail.error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ data: data?.data || {} });
+  if (byEmail.data?.data) {
+    return NextResponse.json({ data: byEmail.data.data || {} });
+  }
+
+  if (viewingEmail === currentEmail) {
+    const { data, error } = await supabase
+      .from("user_calculator_data")
+      .select("data")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ data: data?.data || {} });
+  }
+
+  return NextResponse.json({ data: {} });
 }
 
 async function saveCalculatorData(request: Request) {
@@ -190,11 +235,20 @@ async function saveCalculatorData(request: Request) {
     return NextResponse.json({ ok: true });
   }
 
-  const { data: existingData } = await supabase
+  let { data: existingData } = await supabase
     .from("user_calculator_data")
-    .select("data")
-    .eq("user_id", user.id)
+    .select("user_id, data")
+    .eq("email", currentEmail)
     .maybeSingle();
+
+  if (!existingData) {
+    const fallback = await supabase
+      .from("user_calculator_data")
+      .select("user_id, data")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    existingData = fallback.data;
+  }
 
   if (!incomingHasData && calculatorDataHasData(existingData?.data)) {
     return NextResponse.json({ ok: true, skipped: "empty_snapshot_ignored" });
@@ -202,12 +256,21 @@ async function saveCalculatorData(request: Request) {
 
   const mergedData = mergeCalculatorData(existingData?.data, calculatorData);
 
-  const { error } = await supabase.from("user_calculator_data").upsert({
-    user_id: user.id,
-    email: currentEmail,
-    data: mergedData,
-    updated_at: new Date().toISOString(),
-  });
+  const { error } = existingData?.user_id
+    ? await supabase
+        .from("user_calculator_data")
+        .update({
+          email: currentEmail,
+          data: mergedData,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("user_id", existingData.user_id)
+    : await supabase.from("user_calculator_data").upsert({
+        user_id: user.id,
+        email: currentEmail,
+        data: mergedData,
+        updated_at: new Date().toISOString(),
+      });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

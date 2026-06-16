@@ -51,6 +51,11 @@ const ESS_SETTINGS_STORAGE_KEYS = [
   "EssSettingsV1",
 ];
 
+const MANAGED_PRICE_STORAGE_KEYS = [
+  "installerManagedPricesV1",
+  "ManagedPricesV1",
+];
+
 const DEFAULT_CERTIFICATE_VALUES = {
   escRate: 24.39,
   prcRate: 2.85,
@@ -192,7 +197,28 @@ function stripAccountCertificateSettings(data: Record<string, unknown>) {
       output[key] = stripCertificateRatesFromEssSettings(output[key]);
     }
   }
+  for (const key of MANAGED_PRICE_STORAGE_KEYS) {
+    if (key in output) {
+      output[key] = stripManagedRebateOverrides(output[key]);
+    }
+  }
   return output;
+}
+
+function stripManagedRebateOverrides(value: unknown) {
+  if (typeof value !== "string" || !value.trim()) return value;
+  try {
+    const parsed = JSON.parse(value);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return value;
+    for (const entry of Object.values(parsed as Record<string, unknown>)) {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+      delete (entry as Record<string, unknown>).rebate;
+      delete (entry as Record<string, unknown>).rebateManual;
+    }
+    return JSON.stringify(parsed);
+  } catch {
+    return value;
+  }
 }
 
 function injectCloudStorageSync(
@@ -269,6 +295,31 @@ function injectCloudStorageSync(
       try {
         var value = localStorage.getItem(key);
         if (value !== null) localStorage.setItem(key, stripCertificateRatesFromStoredEssValue(value));
+      } catch(e) {}
+    });
+  }
+  function stripManagedRebateOverridesFromStoredValue(value){
+    if (typeof value !== 'string' || value.trim() === '') return value;
+    try {
+      var parsed = JSON.parse(value);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return value;
+      Object.keys(parsed).forEach(function(key){
+        var entry = parsed[key];
+        if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return;
+        delete entry.rebate;
+        delete entry.rebateManual;
+      });
+      return JSON.stringify(parsed);
+    } catch(e) {
+      return value;
+    }
+  }
+  function stripLocalManagedRebateOverrides(){
+    if (calculatorUser && calculatorUser.canSeeOwnerDetails) return;
+    ['installerManagedPricesV1', 'greenEnergyManagedPricesV1'].forEach(function(key){
+      try {
+        var value = localStorage.getItem(key);
+        if (value !== null) localStorage.setItem(key, stripManagedRebateOverridesFromStoredValue(value));
       } catch(e) {}
     });
   }
@@ -402,10 +453,12 @@ function injectCloudStorageSync(
     var existingProfile = localStorage.getItem(profileStorageKey) || '';
     if (existingProfile && profileEmail && existingProfile !== profileEmail) clearAppStorage();
     stripLocalCertificateRates();
+    stripLocalManagedRebateOverrides();
     Object.keys(cloudData || {}).forEach(function(key){
       setCloudValue(key, cloudData[key]);
     });
     stripLocalCertificateRates();
+    stripLocalManagedRebateOverrides();
     applyCommissionSettings();
     localStorage.setItem(profileStorageKey, profileEmail);
     var shouldBackfillCloud = !snapshotHasData(cloudData) && snapshotHasData(snapshot());
@@ -486,6 +539,14 @@ async function getSavedCalculatorData(
   currentEmail: string,
   viewingEmail: string,
 ) {
+  const byEmail = await supabase
+    .from("user_calculator_data")
+    .select("data")
+    .eq("email", viewingEmail)
+    .maybeSingle();
+
+  if (byEmail.data?.data) return byEmail.data.data as Record<string, unknown>;
+
   if (viewingEmail === currentEmail) {
     const { data } = await supabase
       .from("user_calculator_data")
@@ -495,12 +556,7 @@ async function getSavedCalculatorData(
     return (data?.data || {}) as Record<string, unknown>;
   }
 
-  const { data } = await supabase
-    .from("user_calculator_data")
-    .select("data")
-    .eq("email", viewingEmail)
-    .maybeSingle();
-  return (data?.data || {}) as Record<string, unknown>;
+  return {};
 }
 
 async function getOwnerCertificateValues(
