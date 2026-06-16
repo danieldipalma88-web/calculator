@@ -1928,8 +1928,6 @@ function applyEssState(state){
     const zone=String(climateZone||'auto').toLowerCase();
     $('essClimateZone').value=[...$('essClimateZone').options].some(o=>o.value===zone)?zone:'auto';
   }
-  if(state.escRate!==undefined && Number(state.escRate)>0 && $('essEscRate')) $('essEscRate').value=Number(state.escRate).toFixed(2);
-  if(state.prcRate!==undefined && Number(state.prcRate)>0 && $('essPrcRate')) $('essPrcRate').value=Number(state.prcRate).toFixed(2);
   saveEssSettings();
 }
 function updateCertLockUi(){
@@ -2008,7 +2006,7 @@ function closeCertDrawer(){
   $('certDrawer').classList.remove('open');
   if(!$('drawer').classList.contains('open') && !$('priceDrawer').classList.contains('open')) $('overlay').classList.remove('open');
 }
-function saveEssSettings(){try{localStorage.setItem(ESS_SETTINGS_STORAGE_KEY, JSON.stringify({postcode:getEssPostcode(), zone:getEssZoneSelection(), escRate:getEssEscRate(), prcRate:getEssPrcRate()}));}catch(e){}}
+function saveEssSettings(){try{localStorage.setItem(ESS_SETTINGS_STORAGE_KEY, JSON.stringify({postcode:getEssPostcode(), zone:getEssZoneSelection()}));}catch(e){}}
 function loadEssSettings(){
   try{
     const raw=storageGet(ESS_SETTINGS_STORAGE_KEY,'EssSettingsV1');
@@ -2016,8 +2014,6 @@ function loadEssSettings(){
     const saved=JSON.parse(raw)||{};
     if(saved.postcode!==undefined && $('essPostcode')) $('essPostcode').value=String(saved.postcode||'');
     if(saved.zone!==undefined && $('essClimateZone')) $('essClimateZone').value=String(saved.zone||'auto');
-    if(saved.escRate!==undefined && $('essEscRate')) $('essEscRate').value=(Number(saved.escRate)||0).toFixed(2);
-    if(saved.prcRate!==undefined && $('essPrcRate')) $('essPrcRate').value=(Number(saved.prcRate)||0).toFixed(2);
     return true;
   }catch(e){return false;}
 }

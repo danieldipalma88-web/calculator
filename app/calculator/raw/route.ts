@@ -46,6 +46,11 @@ const CERTIFICATE_VALUE_STORAGE_KEYS = [
   "CertificateValuesV1",
 ];
 
+const ESS_SETTINGS_STORAGE_KEYS = [
+  "installerEssSettingsV1",
+  "EssSettingsV1",
+];
+
 function stripSensitiveQuoteFields(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(stripSensitiveQuoteFields);
   if (!value || typeof value !== "object") return value;
@@ -113,6 +118,32 @@ function globalCertificateValuesFromData(data: Record<string, unknown>) {
     output.CertificateValuesV1 = output.installerCertificateValuesV1;
   }
 
+  return output;
+}
+
+function stripCertificateRatesFromEssSettings(value: unknown) {
+  if (typeof value !== "string" || !value.trim()) return value;
+  try {
+    const parsed = JSON.parse(value);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return value;
+    delete parsed.escRate;
+    delete parsed.prcRate;
+    return JSON.stringify(parsed);
+  } catch {
+    return value;
+  }
+}
+
+function stripAccountCertificateSettings(data: Record<string, unknown>) {
+  const output = { ...data };
+  for (const key of CERTIFICATE_VALUE_STORAGE_KEYS) {
+    delete output[key];
+  }
+  for (const key of ESS_SETTINGS_STORAGE_KEYS) {
+    if (key in output) {
+      output[key] = stripCertificateRatesFromEssSettings(output[key]);
+    }
+  }
   return output;
 }
 
@@ -334,7 +365,7 @@ function injectCloudStorageSync(
     setInterval(function(){ writeSnapshot(false); }, 5000);
     window.addEventListener('beforeunload', function(){
       try {
-        navigator.sendBeacon('/api/calculator-data', new Blob([JSON.stringify({data: snapshot()})], {type: 'application/json'}));
+        navigator.sendBeacon(calculatorSyncUrl, new Blob([JSON.stringify({data: snapshot()})], {type: 'application/json'}));
       } catch(e) {}
     });
     if (typeof shouldBackfillCloud !== 'undefined' && shouldBackfillCloud) {
@@ -455,12 +486,9 @@ export async function GET(request: Request) {
   );
   const contextRole = String(viewedUser.role || "user");
   const savedData = await getSavedCalculatorData(supabase, user.id, currentEmail, viewingEmail);
-  const accountScopedData = { ...savedData };
-  if (!isOwnerEmail(viewingEmail)) {
-    for (const key of CERTIFICATE_VALUE_STORAGE_KEYS) {
-      delete accountScopedData[key];
-    }
-  }
+  const accountScopedData = isOwnerEmail(viewingEmail)
+    ? { ...savedData }
+    : stripAccountCertificateSettings(savedData);
   const globalCertificateValues = await getOwnerCertificateValues(supabase);
   const effectiveSavedData = {
     ...accountScopedData,
