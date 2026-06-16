@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { NextResponse } from "next/server";
-import { canManageUsers, canSeeCommissionDetails, canSeeProfitDetails, isOwnerEmail } from "../../../lib/admin";
+import { canManageUsers, canSeeCommissionDetails, canSeeProfitDetails, isOwnerEmail, ownerEmails } from "../../../lib/admin";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
 
 function safeScriptJson(value: unknown) {
@@ -40,6 +40,11 @@ type Business = {
   agency_commission_rate: number;
   salesperson_commission_rate: number;
 };
+
+const CERTIFICATE_VALUE_STORAGE_KEYS = [
+  "installerCertificateValuesV1",
+  "CertificateValuesV1",
+];
 
 function stripSensitiveQuoteFields(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(stripSensitiveQuoteFields);
@@ -90,6 +95,25 @@ function sanitizeCalculatorData(
   });
 
   return sanitized;
+}
+
+function globalCertificateValuesFromData(data: Record<string, unknown>) {
+  const output: Record<string, unknown> = {};
+  for (const key of CERTIFICATE_VALUE_STORAGE_KEYS) {
+    const value = data[key];
+    if (typeof value === "string" && value.trim()) {
+      output[key] = value;
+    }
+  }
+
+  if (!output.installerCertificateValuesV1 && output.CertificateValuesV1) {
+    output.installerCertificateValuesV1 = output.CertificateValuesV1;
+  }
+  if (!output.CertificateValuesV1 && output.installerCertificateValuesV1) {
+    output.CertificateValuesV1 = output.installerCertificateValuesV1;
+  }
+
+  return output;
 }
 
 function injectCloudStorageSync(
@@ -251,6 +275,13 @@ function injectCloudStorageSync(
       if (certDrawer) certDrawer.style.display = 'none';
       window.openCertDrawer = function(){ return false; };
     }
+    if (!calculatorUser || !calculatorUser.canSeeOwnerDetails) {
+      var ownerCertButton = document.getElementById('certValuesActionBtn');
+      if (ownerCertButton) ownerCertButton.style.display = 'none';
+      var ownerCertDrawer = document.getElementById('certDrawer');
+      if (ownerCertDrawer) ownerCertDrawer.style.display = 'none';
+      window.openCertDrawer = function(){ return false; };
+    }
     hideProfitAndCommissionUi();
   }
   function wrapPrivacyRenderers(){
@@ -371,6 +402,21 @@ async function getSavedCalculatorData(
   return (data?.data || {}) as Record<string, unknown>;
 }
 
+async function getOwnerCertificateValues(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+) {
+  const ownerEmail = ownerEmails[0];
+  if (!ownerEmail) return {};
+
+  const { data } = await supabase
+    .from("user_calculator_data")
+    .select("data")
+    .eq("email", ownerEmail)
+    .maybeSingle();
+
+  return globalCertificateValuesFromData((data?.data || {}) as Record<string, unknown>);
+}
+
 export async function GET(request: Request) {
   const supabase = await createSupabaseServerClient();
   const {
@@ -409,11 +455,22 @@ export async function GET(request: Request) {
   );
   const contextRole = String(viewedUser.role || "user");
   const savedData = await getSavedCalculatorData(supabase, user.id, currentEmail, viewingEmail);
+  const accountScopedData = { ...savedData };
+  if (!isOwnerEmail(viewingEmail)) {
+    for (const key of CERTIFICATE_VALUE_STORAGE_KEYS) {
+      delete accountScopedData[key];
+    }
+  }
+  const globalCertificateValues = await getOwnerCertificateValues(supabase);
+  const effectiveSavedData = {
+    ...accountScopedData,
+    ...globalCertificateValues,
+  };
 
   const calculatorPath = path.join(process.cwd(), "index.html");
   const html = injectCloudStorageSync(
     await readFile(calculatorPath, "utf8"),
-    savedData,
+    effectiveSavedData,
     {
       email: currentEmail,
       viewingEmail,
@@ -426,7 +483,7 @@ export async function GET(request: Request) {
       canManageUsers: canManage,
       canSeeCommissionDetails: canSeeCommissionDetails(contextRole),
       canSeeProfitDetails: canSeeProfitDetails(contextRole),
-      canSeeOwnerDetails: isOwnerEmail(currentEmail),
+      canSeeOwnerDetails: isOwnerEmail(viewingEmail),
       canSeeSalespersonCommission: true,
     },
   );
