@@ -51,6 +51,14 @@ const ESS_SETTINGS_STORAGE_KEYS = [
   "EssSettingsV1",
 ];
 
+const DEFAULT_CERTIFICATE_VALUES = {
+  escRate: 24.39,
+  prcRate: 2.85,
+  source: "Electric Future",
+  locked: true,
+  updatedAt: "",
+};
+
 function stripSensitiveQuoteFields(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(stripSensitiveQuoteFields);
   if (!value || typeof value !== "object") return value;
@@ -102,23 +110,63 @@ function sanitizeCalculatorData(
   return sanitized;
 }
 
-function globalCertificateValuesFromData(data: Record<string, unknown>) {
-  const output: Record<string, unknown> = {};
+function parseStoredObject(value: unknown) {
+  if (!value) return null;
+  if (typeof value === "object" && !Array.isArray(value)) return value as Record<string, unknown>;
+  if (typeof value !== "string" || !value.trim()) return null;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function normalizeCertificateValues(value: unknown) {
+  const parsed = parseStoredObject(value);
+  if (!parsed) return null;
+  const escRate = Number(parsed.escRate);
+  const prcRate = Number(parsed.prcRate);
+  if (!(escRate > 0) || !(prcRate > 0)) return null;
+
+  return {
+    escRate,
+    prcRate,
+    source: String(parsed.source || DEFAULT_CERTIFICATE_VALUES.source),
+    locked: parsed.locked === undefined ? true : Boolean(parsed.locked),
+    updatedAt: String(parsed.updatedAt || ""),
+  };
+}
+
+function ownerCertificateValuesFromData(data: Record<string, unknown>) {
   for (const key of CERTIFICATE_VALUE_STORAGE_KEYS) {
-    const value = data[key];
-    if (typeof value === "string" && value.trim()) {
-      output[key] = value;
+    const values = normalizeCertificateValues(data[key]);
+    if (values) return values;
+  }
+
+  for (const key of ESS_SETTINGS_STORAGE_KEYS) {
+    const values = normalizeCertificateValues(data[key]);
+    if (values) {
+      return {
+        ...values,
+        source: DEFAULT_CERTIFICATE_VALUES.source,
+        locked: true,
+      };
     }
   }
 
-  if (!output.installerCertificateValuesV1 && output.CertificateValuesV1) {
-    output.installerCertificateValuesV1 = output.CertificateValuesV1;
-  }
-  if (!output.CertificateValuesV1 && output.installerCertificateValuesV1) {
-    output.CertificateValuesV1 = output.installerCertificateValuesV1;
-  }
+  return null;
+}
 
-  return output;
+function globalCertificateValuesFromData(data: Record<string, unknown>) {
+  const values = ownerCertificateValuesFromData(data) || DEFAULT_CERTIFICATE_VALUES;
+  const serialized = JSON.stringify(values);
+  return {
+    installerCertificateValuesV1: serialized,
+    CertificateValuesV1: serialized,
+  };
 }
 
 function stripCertificateRatesFromEssSettings(value: unknown) {
@@ -203,6 +251,26 @@ function injectCloudStorageSync(
     var localValue = localStorage.getItem(key);
     if (!storedValueHasData(value) && storedValueHasData(localValue)) return;
     localStorage.setItem(key, value);
+  }
+  function stripCertificateRatesFromStoredEssValue(value){
+    if (typeof value !== 'string' || value.trim() === '') return value;
+    try {
+      var parsed = JSON.parse(value);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return value;
+      delete parsed.escRate;
+      delete parsed.prcRate;
+      return JSON.stringify(parsed);
+    } catch(e) {
+      return value;
+    }
+  }
+  function stripLocalCertificateRates(){
+    ['installerEssSettingsV1', 'greenEnergyEssSettingsV1'].forEach(function(key){
+      try {
+        var value = localStorage.getItem(key);
+        if (value !== null) localStorage.setItem(key, stripCertificateRatesFromStoredEssValue(value));
+      } catch(e) {}
+    });
   }
   function writeSnapshot(force){
     var data = snapshot();
@@ -333,9 +401,11 @@ function injectCloudStorageSync(
     syncing = true;
     var existingProfile = localStorage.getItem(profileStorageKey) || '';
     if (existingProfile && profileEmail && existingProfile !== profileEmail) clearAppStorage();
+    stripLocalCertificateRates();
     Object.keys(cloudData || {}).forEach(function(key){
       setCloudValue(key, cloudData[key]);
     });
+    stripLocalCertificateRates();
     applyCommissionSettings();
     localStorage.setItem(profileStorageKey, profileEmail);
     var shouldBackfillCloud = !snapshotHasData(cloudData) && snapshotHasData(snapshot());

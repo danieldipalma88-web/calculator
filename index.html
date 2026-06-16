@@ -1015,10 +1015,10 @@ tbody tr:hover td{background:#f0f7ff}
         <div class="row3" style="margin-top:12px">
           <div><label>ESS postcode</label><input id="essPostcode" type="text" inputmode="numeric" value="2000" maxlength="4"></div>
           <div class="mobileHideRebateConfig ownerOnlyRebateConfig"><label>ESS climate zone</label><select id="essClimateZone"><option value="auto">Auto from postcode</option><option value="mixed">Mixed</option><option value="hot">Hot</option><option value="cold">Cold</option></select></div>
-          <div class="mobileHideRebateConfig ownerOnlyRebateConfig"><label>ESS $ per ESC</label><input id="essEscRate" type="number" step="0.01" value="21.95"></div>
+          <div class="mobileHideRebateConfig ownerOnlyRebateConfig"><label>ESS $ per ESC</label><input id="essEscRate" type="number" step="0.01" value="24.39"></div>
         </div>
         <div class="row2 mobileHideRebateConfig ownerOnlyRebateConfig" style="margin-top:12px">
-          <div class="mobileHideRebateConfig"><label>PERC (PRC) $ per cert</label><input id="essPrcRate" type="number" step="0.01" value="2.65"></div>
+          <div class="mobileHideRebateConfig"><label>PERC (PRC) $ per cert</label><input id="essPrcRate" type="number" step="0.01" value="2.85"></div>
           <div class="mobileHideRebateConfig"><label>Live calc source</label><input readonly value="NSW ESS/PDRS API"></div>
         </div>
         <div class="selected"><div class="selectedText"><div class="selectedHeader"><strong id="selectedModel"></strong><button type="button" class="copyModelBtn" onclick="copyCurrentModel()">Copy model</button></div><div class="tiny" id="modelMeta"></div><div class="tiny" id="rebateCalcMeta">Live ESS/PERC rebate status will appear here.</div><div class="certificateBreakdown" id="certificateBreakdown"><div class="certificateMetric"><span>ESC generated</span><strong id="escCertCount">-</strong><small id="escCertValue">Waiting for live lookup</small></div><div class="certificateMetric"><span>PERC generated</span><strong id="prcCertCount">-</strong><small id="prcCertValue">Waiting for live lookup</small></div><div class="certificateMetric"><span>Rebate calculation</span><strong id="certRebateValue">-</strong><small id="certRebateMeta">Waiting for live lookup</small></div></div><div class="recommendationCards"><div class="recommendationCard" id="bestValueMeta"><div class="recommendationEyebrow">Best rebate</div><div class="recommendationStatus">Best rebate indicator will appear here.</div></div><div class="recommendationCard net" id="bestNetCostMeta"><div class="recommendationEyebrow">Best net unit cost</div><div class="recommendationStatus">Best net unit cost indicator will appear here.</div></div></div></div></div>
@@ -1323,6 +1323,8 @@ const GEMS_AIRCON_RESOURCE_IDS=[
 ];
 const ESS_CALC_DATE='2021-01-01';
 const SEVEN_DAYS_MS=7*24*60*60*1000;
+const DEFAULT_ESC_RATE=24.39;
+const DEFAULT_PRC_RATE=2.85;
 const $=id=>document.getElementById(id); const money=n=>(Number(n)||0).toLocaleString('en-AU',{style:'currency',currency:'AUD'}); const pct=n=>((Number(n)||0)*100).toFixed(2)+'%'; const num=id=>Number($(id).value)||0;
 function legacyStorageKey(suffix){return 'green'+'Energy'+suffix;}
 function storageGet(key,legacySuffix){const current=localStorage.getItem(key); return current!==null?current:(legacySuffix?localStorage.getItem(legacyStorageKey(legacySuffix)):null);}
@@ -1332,7 +1334,7 @@ function legacyLabourRetainKey(){return 'green'+'EnergyKeepsLabour';}
 let essCache={brands:null,modelsByBrand:{},metadata:{},gemsByLookup:{},zoneByPostcode:{},requestSeq:0};
 let essRuntime={lastEsc:0,lastPrc:0,lastOfficialEsc:0,lastOfficialPrc:0,lastZone:'',lastBcaZone:'',lastBrand:'',lastModel:''};
 let essBestValueRuntime={requestSeq:0,cache:{},lastEntry:null};
-let certValues={escRate:21.95,prcRate:2.65,source:'Electric Future',locked:false,updatedAt:''};
+let certValues={escRate:DEFAULT_ESC_RATE,prcRate:DEFAULT_PRC_RATE,source:'Electric Future',locked:true,updatedAt:''};
 let commissionSettings={agencyRate:25,agencyLocked:true,salespersonRate:50,salespersonLocked:true};
 const DEFAULT_COST_RULES=[
   {id:'split_new_lte35',system:'split',install:'new',range:'lte35',rangeLabel:'Up to 3.5kW',labour:500,materials:150,power:500},
@@ -1960,8 +1962,8 @@ function loadCertValues(){
     if(raw){
       const saved=JSON.parse(raw)||{};
       certValues={
-        escRate:Number(saved.escRate)||21.95,
-        prcRate:Number(saved.prcRate)||2.65,
+        escRate:Number(saved.escRate)||DEFAULT_ESC_RATE,
+        prcRate:Number(saved.prcRate)||DEFAULT_PRC_RATE,
         source:String(saved.source||'Electric Future'),
         locked:!!saved.locked,
         updatedAt:String(saved.updatedAt||'')
@@ -2005,6 +2007,19 @@ function openCertDrawer(){applyLockedCertValuesToMain(); $('certDrawer').classLi
 function closeCertDrawer(){
   $('certDrawer').classList.remove('open');
   if(!$('drawer').classList.contains('open') && !$('priceDrawer').classList.contains('open')) $('overlay').classList.remove('open');
+}
+function stripCertificateRatesFromEssSettingsStorage(){
+  [ESS_SETTINGS_STORAGE_KEY,legacyStorageKey('EssSettingsV1')].forEach(key=>{
+    try{
+      const raw=localStorage.getItem(key);
+      if(!raw) return;
+      const saved=JSON.parse(raw)||{};
+      if(!saved || typeof saved!=='object' || Array.isArray(saved)) return;
+      delete saved.escRate;
+      delete saved.prcRate;
+      localStorage.setItem(key,JSON.stringify(saved));
+    }catch(e){}
+  });
 }
 function saveEssSettings(){try{localStorage.setItem(ESS_SETTINGS_STORAGE_KEY, JSON.stringify({postcode:getEssPostcode(), zone:getEssZoneSelection()}));}catch(e){}}
 function loadEssSettings(){
@@ -2263,8 +2278,8 @@ async function loadLiveCertificatePriceIfNeeded(){
     if(Number.isFinite(minPrc) && minPrc>0 && !(Number.isFinite(currentPrc) && currentPrc>0)) prcInput.value=minPrc.toFixed(2);
     saveEssSettings();
   }catch(e){
-    if(!input.value) input.value='21.95';
-    if(!prcInput.value) prcInput.value='2.65';
+    if(!input.value) input.value=DEFAULT_ESC_RATE.toFixed(2);
+    if(!prcInput.value) prcInput.value=DEFAULT_PRC_RATE.toFixed(2);
   }
 }
 async function refreshLiveRebateForCurrentProduct(){
@@ -3636,18 +3651,11 @@ Labour treatment: ${x.labourTreatment}${privateText}${limitedSalesText}${addonTe
   a.click();
 }
 function initEssControls(){
+  stripCertificateRatesFromEssSettingsStorage();
   const hadSavedSettings=loadEssSettings();
   let hadSavedCertValues=false;
   try{hadSavedCertValues=storageHas(CERT_VALUES_STORAGE_KEY,'CertificateValuesV1');}catch(e){hadSavedCertValues=false;}
   loadCertValues();
-  if(!hadSavedCertValues && hadSavedSettings){
-    const escFallback=getEssEscRate();
-    const prcFallback=getEssPrcRate();
-    if(escFallback>0) certValues.escRate=escFallback;
-    if(prcFallback>0) certValues.prcRate=prcFallback;
-    certValues.updatedAt=new Date().toISOString();
-    persistCertValues();
-  }
   const postcodeEl=$('essPostcode');
   const zoneEl=$('essClimateZone');
   const rateEl=$('essEscRate');
