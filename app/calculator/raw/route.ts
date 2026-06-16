@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { NextResponse } from "next/server";
-import { canManageUsers, canSeeCommissionDetails, canSeeProfitDetails, isOwnerEmail, ownerEmails } from "../../../lib/admin";
+import { canManageUsers, canSeeCommissionDetails, canSeeProfitDetails, isOwnerEmail } from "../../../lib/admin";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
 
 function safeScriptJson(value: unknown) {
@@ -41,28 +41,10 @@ type Business = {
   salesperson_commission_rate: number;
 };
 
-const CERTIFICATE_VALUE_STORAGE_KEYS = [
-  "installerCertificateValuesV1",
-  "CertificateValuesV1",
-];
-
-const ESS_SETTINGS_STORAGE_KEYS = [
-  "installerEssSettingsV1",
-  "EssSettingsV1",
-];
-
 const MANAGED_PRICE_STORAGE_KEYS = [
   "installerManagedPricesV1",
   "ManagedPricesV1",
 ];
-
-const DEFAULT_CERTIFICATE_VALUES = {
-  escRate: 24.39,
-  prcRate: 2.85,
-  source: "Electric Future",
-  locked: true,
-  updatedAt: "",
-};
 
 function stripSensitiveQuoteFields(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(stripSensitiveQuoteFields);
@@ -115,88 +97,8 @@ function sanitizeCalculatorData(
   return sanitized;
 }
 
-function parseStoredObject(value: unknown) {
-  if (!value) return null;
-  if (typeof value === "object" && !Array.isArray(value)) return value as Record<string, unknown>;
-  if (typeof value !== "string" || !value.trim()) return null;
-  try {
-    const parsed = JSON.parse(value);
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
-      ? (parsed as Record<string, unknown>)
-      : null;
-  } catch {
-    return null;
-  }
-}
-
-function normalizeCertificateValues(value: unknown) {
-  const parsed = parseStoredObject(value);
-  if (!parsed) return null;
-  const escRate = Number(parsed.escRate);
-  const prcRate = Number(parsed.prcRate);
-  if (!(escRate > 0) || !(prcRate > 0)) return null;
-
-  return {
-    escRate,
-    prcRate,
-    source: String(parsed.source || DEFAULT_CERTIFICATE_VALUES.source),
-    locked: parsed.locked === undefined ? true : Boolean(parsed.locked),
-    updatedAt: String(parsed.updatedAt || ""),
-  };
-}
-
-function ownerCertificateValuesFromData(data: Record<string, unknown>) {
-  for (const key of CERTIFICATE_VALUE_STORAGE_KEYS) {
-    const values = normalizeCertificateValues(data[key]);
-    if (values) return values;
-  }
-
-  for (const key of ESS_SETTINGS_STORAGE_KEYS) {
-    const values = normalizeCertificateValues(data[key]);
-    if (values) {
-      return {
-        ...values,
-        source: DEFAULT_CERTIFICATE_VALUES.source,
-        locked: true,
-      };
-    }
-  }
-
-  return null;
-}
-
-function globalCertificateValuesFromData(data: Record<string, unknown>) {
-  const values = ownerCertificateValuesFromData(data) || DEFAULT_CERTIFICATE_VALUES;
-  const serialized = JSON.stringify(values);
-  return {
-    installerCertificateValuesV1: serialized,
-    CertificateValuesV1: serialized,
-  };
-}
-
-function stripCertificateRatesFromEssSettings(value: unknown) {
-  if (typeof value !== "string" || !value.trim()) return value;
-  try {
-    const parsed = JSON.parse(value);
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return value;
-    delete parsed.escRate;
-    delete parsed.prcRate;
-    return JSON.stringify(parsed);
-  } catch {
-    return value;
-  }
-}
-
-function stripAccountCertificateSettings(data: Record<string, unknown>) {
+function stripAccountManagedRebateOverrides(data: Record<string, unknown>) {
   const output = { ...data };
-  for (const key of CERTIFICATE_VALUE_STORAGE_KEYS) {
-    delete output[key];
-  }
-  for (const key of ESS_SETTINGS_STORAGE_KEYS) {
-    if (key in output) {
-      output[key] = stripCertificateRatesFromEssSettings(output[key]);
-    }
-  }
   for (const key of MANAGED_PRICE_STORAGE_KEYS) {
     if (key in output) {
       output[key] = stripManagedRebateOverrides(output[key]);
@@ -418,19 +320,6 @@ function injectCloudStorageSync(
         };
         certButtonForAdmin.parentNode.insertBefore(usersButton, certButtonForAdmin.nextSibling);
       }
-    } else {
-      var certButton = document.getElementById('certValuesActionBtn');
-      if (certButton) certButton.style.display = 'none';
-      var certDrawer = document.getElementById('certDrawer');
-      if (certDrawer) certDrawer.style.display = 'none';
-      window.openCertDrawer = function(){ return false; };
-    }
-    if (!calculatorUser || !calculatorUser.canSeeOwnerDetails) {
-      var ownerCertButton = document.getElementById('certValuesActionBtn');
-      if (ownerCertButton) ownerCertButton.style.display = 'none';
-      var ownerCertDrawer = document.getElementById('certDrawer');
-      if (ownerCertDrawer) ownerCertDrawer.style.display = 'none';
-      window.openCertDrawer = function(){ return false; };
     }
     hideProfitAndCommissionUi();
   }
@@ -559,21 +448,6 @@ async function getSavedCalculatorData(
   return {};
 }
 
-async function getOwnerCertificateValues(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
-) {
-  const ownerEmail = ownerEmails[0];
-  if (!ownerEmail) return {};
-
-  const { data } = await supabase
-    .from("user_calculator_data")
-    .select("data")
-    .eq("email", ownerEmail)
-    .maybeSingle();
-
-  return globalCertificateValuesFromData((data?.data || {}) as Record<string, unknown>);
-}
-
 export async function GET(request: Request) {
   const supabase = await createSupabaseServerClient();
   const {
@@ -612,14 +486,9 @@ export async function GET(request: Request) {
   );
   const contextRole = String(viewedUser.role || "user");
   const savedData = await getSavedCalculatorData(supabase, user.id, currentEmail, viewingEmail);
-  const accountScopedData = isOwnerEmail(viewingEmail)
+  const effectiveSavedData = isOwnerEmail(viewingEmail)
     ? { ...savedData }
-    : stripAccountCertificateSettings(savedData);
-  const globalCertificateValues = await getOwnerCertificateValues(supabase);
-  const effectiveSavedData = {
-    ...accountScopedData,
-    ...globalCertificateValues,
-  };
+    : stripAccountManagedRebateOverrides(savedData);
 
   const calculatorPath = path.join(process.cwd(), "index.html");
   const html = injectCloudStorageSync(

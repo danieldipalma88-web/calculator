@@ -2,16 +2,6 @@ import { NextResponse } from "next/server";
 import { canManageUsers, isOwnerEmail } from "../../../lib/admin";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
 
-const CERTIFICATE_VALUE_STORAGE_KEYS = [
-  "installerCertificateValuesV1",
-  "CertificateValuesV1",
-];
-
-const ESS_SETTINGS_STORAGE_KEYS = [
-  "installerEssSettingsV1",
-  "EssSettingsV1",
-];
-
 const MANAGED_PRICE_STORAGE_KEYS = [
   "installerManagedPricesV1",
   "ManagedPricesV1",
@@ -69,37 +59,14 @@ function mergeCalculatorData(existing: unknown, incoming: unknown) {
   return merged;
 }
 
-function stripCertificateRatesFromEssSettings(value: unknown) {
-  if (typeof value !== "string" || !value.trim()) return value;
-  try {
-    const parsed = JSON.parse(value);
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return value;
-    delete parsed.escRate;
-    delete parsed.prcRate;
-    return JSON.stringify(parsed);
-  } catch {
-    return value;
-  }
-}
-
 function sanitizeIncomingCalculatorData(
   incoming: unknown,
-  canEditCertificateValues: boolean,
+  canEditManagedRebates: boolean,
 ) {
   const sanitized: Record<string, unknown> =
     incoming && typeof incoming === "object" ? { ...(incoming as Record<string, unknown>) } : {};
 
-  if (canEditCertificateValues) return sanitized;
-
-  for (const key of CERTIFICATE_VALUE_STORAGE_KEYS) {
-    delete sanitized[key];
-  }
-
-  for (const key of ESS_SETTINGS_STORAGE_KEYS) {
-    if (key in sanitized) {
-      sanitized[key] = stripCertificateRatesFromEssSettings(sanitized[key]);
-    }
-  }
+  if (canEditManagedRebates) return sanitized;
 
   for (const key of MANAGED_PRICE_STORAGE_KEYS) {
     if (key in sanitized) {
@@ -193,10 +160,10 @@ async function saveCalculatorData(request: Request) {
     currentEmail,
     canManageUsers(currentEmail, approvedUser?.role),
   );
-  const canEditCertificateValues = isOwnerEmail(currentEmail) && isOwnerEmail(viewingEmail);
+  const canEditManagedRebates = isOwnerEmail(viewingEmail);
   const calculatorData = sanitizeIncomingCalculatorData(
     rawCalculatorData,
-    canEditCertificateValues,
+    canEditManagedRebates,
   );
   const incomingHasData = calculatorDataHasData(calculatorData);
 
