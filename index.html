@@ -540,6 +540,31 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
   margin-top:12px;
 }
 .priceResetRow button{min-width:220px}
+.productSupportMeta{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+  margin-top:12px;
+}
+.productSupportChip{
+  border:1px solid #d8e3ef;
+  background:#f8fbfd;
+  border-radius:14px;
+  padding:11px 12px;
+  display:grid;
+  gap:4px;
+}
+.productSupportChip span{
+  color:#64748b;
+  font-size:10.5px;
+  font-weight:900;
+  letter-spacing:.07em;
+  text-transform:uppercase;
+}
+.productSupportChip strong{color:#0f172a;font-size:15px;line-height:1.25}
+.productSupportChip.included{border-color:#b9e7cf;background:#f3fff8}
+.productSupportChip.optional{border-color:#dbe4f0;background:#f8fbfd}
+.productSupportChip.unknown{border-color:#fde68a;background:#fffbeb}
 .addonPanel{
   border:1px solid var(--line);
   background:#f8fbfd;
@@ -769,6 +794,13 @@ tbody tr:hover td{background:#f0f7ff}
     min-height:42px;
     padding:10px 8px;
     font-size:13px;
+  }
+  .productSupportMeta{
+    grid-template-columns:1fr;
+    gap:8px;
+  }
+  .productSupportChip{
+    padding:10px;
   }
   .mobileHideRebateConfig,
   #modelMeta,
@@ -1011,6 +1043,10 @@ tbody tr:hover td{background:#f0f7ff}
       <div class="card">
         <h2 class="sectionTitle">Product and install setup</h2>
         <div class="row2"><div><label>Brand</label><select id="brand" onchange="populateProducts()"></select></div><div><label>Unit</label><select id="product" onchange="onProductChange()"></select></div></div>
+        <div class="productSupportMeta" id="productSupportMeta">
+          <div class="productSupportChip unknown" id="warrantySupportChip"><span>Warranty</span><strong id="warrantyMeta">Select a unit</strong></div>
+          <div class="productSupportChip unknown" id="wifiSupportChip"><span>Wi-Fi</span><strong id="wifiMeta">Select a unit</strong></div>
+        </div>
         <div class="installTabs"><button id="newBtn" class="active" onclick="setInstall('new')">New install</button><button id="replacementBtn" onclick="setInstall('replacement')">Replacement</button></div>
         <div class="row3" style="margin-top:12px">
           <div><label>ESS postcode</label><input id="essPostcode" type="text" inputmode="numeric" value="2000" maxlength="4"></div>
@@ -1260,8 +1296,8 @@ const DUCTED_PRODUCTS = [
   {"brand":"Daikin","size":12.5,"phase":"Single","model":"RZAS125C2V1 / FDYA125AV19","priceIncGst":4781.92,"rebate":2033.34,"capacity":"12.5kW","capacityNum":12.5,"unitPriceInc":4781.92},
   {"brand":"Daikin","size":14.0,"phase":"Single","model":"RZAS140C2V1 / FDYA140AV19","priceIncGst":5349.56,"rebate":2134.78,"capacity":"14.0kW","capacityNum":14.0,"unitPriceInc":5349.56},
   {"brand":"Daikin","size":16.0,"phase":"Single","model":"RZAS160C2V1 / FDYA160AV19","priceIncGst":5870.39,"rebate":1919.94,"capacity":"16.0kW","capacityNum":16.0,"unitPriceInc":5870.39},
-  {"brand":"Daikin","size":18.0,"phase":"Three","model":"RZAS180DY1 / FDYA180AV1","priceIncGst":6722.28,"rebate":0.0,"capacity":"18.0kW","capacityNum":18.0,"unitPriceInc":6722.28},
-  {"brand":"Daikin","size":20.0,"phase":"Three","model":"RZAS200DY1 / FDYA200AV1","priceIncGst":7212.17,"rebate":0.0,"capacity":"20.0kW","capacityNum":20.0,"unitPriceInc":7212.17},
+  {"brand":"Daikin","size":18.0,"phase":"Three","model":"RZAS180DY1 / FDYA180AV1","priceIncGst":5520.0,"rebate":0.0,"capacity":"18.0kW","capacityNum":18.0,"unitPriceInc":5520.0},
+  {"brand":"Daikin","size":20.0,"phase":"Three","model":"RZAS200DY1 / FDYA200AV1","priceIncGst":5810.0,"rebate":0.0,"capacity":"20.0kW","capacityNum":20.0,"unitPriceInc":5810.0},
   {"brand":"Fujitsu","size":7.1,"phase":"Single","model":"AOTH24KBTA/ARTH24KHTA","priceIncGst":2570.0,"rebate":889.2,"capacity":"7.1kW","capacityNum":7.1,"unitPriceInc":2570.0},
   {"brand":"Fujitsu","size":8.5,"phase":"Single","model":"AOTH30KBTA/ARTH30KHTA","priceIncGst":2970.0,"rebate":1372.86,"capacity":"8.5kW","capacityNum":8.5,"unitPriceInc":2970.0},
   {"brand":"Fujitsu","size":10.0,"phase":"Single","model":"AOTH36KBTA/ARTH36KHTA","priceIncGst":3200.0,"rebate":1743.26,"capacity":"10.0kW","capacityNum":10.0,"unitPriceInc":3200.0},
@@ -1298,6 +1334,46 @@ const DUCTED_PRODUCTS = [
   {"brand":"Actron","size":20.0,"phase":"Three","model":"CRS20AT / EVA20AS","priceIncGst":6600.0,"rebate":2788.14,"capacity":"20.0kW","capacityNum":20.0,"unitPriceInc":6600.0},
   {"brand":"Actron","size":23.0,"phase":"Three","model":"CRS23AT / EVA23AS","priceIncGst":7623.0,"rebate":3255.24,"capacity":"23.0kW","capacityNum":23.0,"unitPriceInc":7623.0}
 ];
+const PRODUCT_SUPPORT_DEFAULT={wifiStatus:'unknown',wifiLabel:'Wi-Fi TBC',warrantyYears:null,warrantyLabel:'Warranty TBC'};
+const SPLIT_PRODUCT_SUPPORT=[
+  {brand:'Fujitsu General',series:'Lifestyle',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional adaptor',warrantyYears:5,warrantyLabel:'5 yrs warranty'}},
+  {brand:'Hisense',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:7,warrantyLabel:'7 yrs warranty'}},
+  {brand:'Hitachi',series:'AirHome 600',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:6,warrantyLabel:'6 yrs warranty'}},
+  {brand:'TCL',series:'BreezeIN 2.0',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:5,warrantyLabel:'5 yrs standard / 7 yrs registered'}},
+  {brand:'Daikin',series:'Alira',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:5,warrantyLabel:'5 yrs warranty'}},
+  {brand:'Daikin',series:'Cora',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional adaptor',warrantyYears:5,warrantyLabel:'5 yrs warranty'}},
+  {brand:'Mitsubishi Heavy Industries',series:'Avanti Plus',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:5,warrantyLabel:'5 yrs warranty'}},
+  {brand:'Mitsubishi Heavy Industries',series:'Bronte',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:5,warrantyLabel:'5 yrs warranty'}},
+  {brand:'Rinnai',series:'PB Series',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:7,warrantyLabel:'7 yrs warranty'}},
+  {brand:'Rinnai',series:'PX Series',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:7,warrantyLabel:'7 yrs warranty'}},
+  {brand:'Panasonic',series:'HZ Series',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:5,warrantyLabel:'5 yrs warranty'}},
+  {brand:'Actron Air',series:'Serene DS',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:5,warrantyLabel:'5 yrs warranty'}}
+];
+const DUCTED_PRODUCT_SUPPORT=[
+  {brand:'Mitsubishi Heavy Industries',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional controller',warrantyYears:5,warrantyLabel:'5 yrs warranty'}},
+  {brand:'LG',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional control',warrantyYears:5,warrantyLabel:'5 yrs warranty'}},
+  {brand:'Daikin',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional Airbase',warrantyYears:5,warrantyLabel:'5 yrs warranty'}},
+  {brand:'Fujitsu',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional controller',warrantyYears:5,warrantyLabel:'5 yrs warranty'}},
+  {brand:'Hitachi',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional adaptor',warrantyYears:6,warrantyLabel:'6 yrs warranty'}},
+  {brand:'Rinnai',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional',warrantyYears:7,warrantyLabel:'7 yrs warranty'}},
+  {brand:'TCL',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:5,warrantyLabel:'5 yrs standard / 7 yrs registered'}},
+  {brand:'Actron',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional controller',warrantyYears:5,warrantyLabel:'5 yrs warranty'}}
+];
+function productSupportRuleMatches(rule,p){
+  if(rule.brand && rule.brand!==p.brand) return false;
+  if(rule.series && rule.series!==(p.series||'')) return false;
+  if(rule.phase && rule.phase!==(p.phase||'')) return false;
+  return true;
+}
+function applyProductSupportDetails(){
+  const apply=(list,rules)=>list.forEach(p=>{
+    const rule=rules.find(r=>productSupportRuleMatches(r,p));
+    Object.assign(p,PRODUCT_SUPPORT_DEFAULT,rule?rule.details:{});
+  });
+  apply(SPLIT_PRODUCTS,SPLIT_PRODUCT_SUPPORT);
+  apply(DUCTED_PRODUCTS,DUCTED_PRODUCT_SUPPORT);
+}
+applyProductSupportDetails();
 let systemType='split', installType='new', quotes=[];
 let finalPriceLocked=false;
 let priceLocks={};
@@ -1308,6 +1384,10 @@ const INSTALL_ADDONS=[
   {id:'addonRoofCeilingRun',label:'Roof or ceiling run',labour:200,materialsInc:200}
 ];
 const PRICE_STORAGE_KEY='installerManagedPricesV1';
+const MANAGED_PRICE_DEFAULT_MIGRATIONS=[
+  {type:'ducted',model:'RZAS180DY1 / FDYA180AV1',oldUnitPriceInc:6722.28,newUnitPriceInc:5520},
+  {type:'ducted',model:'RZAS200DY1 / FDYA200AV1',oldUnitPriceInc:7212.17,newUnitPriceInc:5810}
+];
 const QUOTE_STORAGE_KEY='installerMasterQuoteLogV1';
 const SAVED_QUOTES_STORAGE_KEY='installerSavedQuoteSetsV1';
 const ESS_SETTINGS_STORAGE_KEY='installerEssSettingsV1';
@@ -2664,6 +2744,17 @@ function autoFinal(){
 }
 function updatePriceLockNote(){const n=$('priceLockNote'); if(!n) return; n.textContent='';}
 function resetSuggestedPrice(){finalPriceLocked=false; autoFinal(); render();}
+function renderProductSupportDetails(p){
+  const warrantyChip=$('warrantySupportChip'), warrantyText=$('warrantyMeta');
+  const wifiChip=$('wifiSupportChip'), wifiText=$('wifiMeta');
+  if(!warrantyChip || !warrantyText || !wifiChip || !wifiText) return;
+  const warrantyKnown=Boolean(p&&p.warrantyLabel&&p.warrantyLabel!=='Warranty TBC');
+  warrantyChip.className=`productSupportChip ${warrantyKnown?'included':'unknown'}`;
+  warrantyText.textContent=warrantyKnown?p.warrantyLabel:'Warranty TBC';
+  const wifiStatus=(p&&p.wifiStatus)||'unknown';
+  wifiChip.className=`productSupportChip ${wifiStatus}`;
+  wifiText.textContent=(p&&p.wifiLabel)||'Wi-Fi TBC';
+}
 function render(){
   const x=calculate();
   applyOwnerVisibility();
@@ -2690,6 +2781,7 @@ function render(){
   if($('netProfitLabel')) $('netProfitLabel').textContent=x.commissionModelOn?'Installer profit after commission ex GST':'Installer profit ex GST';
 
   $('selectedModel').textContent=x.p.model;
+  renderProductSupportDetails(x.p);
   $('modelMeta').textContent=`${systemType==='split'?'Split system':'Ducted system'} - ${productDisplayName(x.p)} - ${x.p.capacity||x.p.size+'kW'} - Spreadsheet price ${money(x.p.unitPriceInc||x.p.priceIncGst)} inc GST`;
   $('unitEx').textContent=money(x.unitEx);
   $('labourOut').textContent=money(x.labour);
@@ -2813,6 +2905,15 @@ function managedIndexSavedBelongsToCurrentItem(saved,item,items){
   const owner=items.find(other=>other.type===item.type && normalizeLookup(other.p.model)===savedModel);
   return !owner;
 }
+function migrateManagedDefaultPrice(saved,item){
+  if(!saved || typeof saved!=='object') return saved;
+  const migration=MANAGED_PRICE_DEFAULT_MIGRATIONS.find(m=>m.type===item.type && normalizeLookup(m.model)===normalizeLookup(item.p.model));
+  if(!migration) return saved;
+  const current=Number(saved.unitPriceInc);
+  if(!Number.isFinite(current)) return saved;
+  if(Math.abs(current-migration.oldUnitPriceInc)>0.01) return saved;
+  return {...saved,unitPriceInc:migration.newUnitPriceInc};
+}
 function loadManagedPrices(){
   let stored={};
   try{
@@ -2828,7 +2929,7 @@ function loadManagedPrices(){
     const legacyKey=legacyProductKey(item.type,item.p);
     const indexSaved=stored[stableKey];
     const modelSaved=storedByModel[item.type][normalizeLookup(item.p.model)]||null;
-    const saved=(managedIndexSavedBelongsToCurrentItem(indexSaved,item,items)?indexSaved:null)||stored[legacyKey]||modelSaved||null;
+    const saved=migrateManagedDefaultPrice((managedIndexSavedBelongsToCurrentItem(indexSaved,item,items)?indexSaved:null)||stored[legacyKey]||modelSaved||null,item);
     const normalized=normalizeManagedPriceEntry(saved,item);
     applyManagedEntryToProduct(item,normalized);
     migrated[stableKey]=normalized;
