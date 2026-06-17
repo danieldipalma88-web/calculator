@@ -1281,6 +1281,15 @@ SPLIT_PRODUCTS.push(
   {"brand":"Actron Air","capacity":"8.0kW","capacityNum":8.0,"unitPriceInc":1725.64,"model":"WRC-080DS / WRE-080DS","rebate":0.0,"series":"Serene DS"},
   {"brand":"Actron Air","capacity":"9.0kW","capacityNum":9.0,"unitPriceInc":2003.14,"model":"WRC-090DS / WRE-090DS","rebate":0.0,"series":"Serene DS"}
 );
+SPLIT_PRODUCTS.push(
+  {"brand":"Midea","capacity":"2.0kW","capacityNum":2.0,"unitPriceInc":546.70,"model":"MFEZ20VA-W/MFEZ20VA-N","rebate":0.0,"series":"Athena"},
+  {"brand":"Midea","capacity":"2.6kW","capacityNum":2.6,"unitPriceInc":625.90,"model":"MFEZ26VA-W/MFEZ26VA-N","rebate":0.0,"series":"Athena"},
+  {"brand":"Midea","capacity":"3.5kW","capacityNum":3.5,"unitPriceInc":740.30,"model":"MFEZ35VA-W/MFEZ35VA-N","rebate":0.0,"series":"Athena"},
+  {"brand":"Midea","capacity":"5.0kW","capacityNum":5.0,"unitPriceInc":1059.30,"model":"MFEZ50VA-W/MFEZ50VA-N","rebate":0.0,"series":"Athena"},
+  {"brand":"Midea","capacity":"6.0kW","capacityNum":6.0,"unitPriceInc":1139.60,"model":"MFEZ60VA-W/MFEZ60VA-N","rebate":0.0,"series":"Athena"},
+  {"brand":"Midea","capacity":"7.0kW","capacityNum":7.0,"unitPriceInc":1252.90,"model":"MFEZ70VA-W/MFEZ70VA-N","rebate":0.0,"series":"Athena"},
+  {"brand":"Midea","capacity":"8.0kW","capacityNum":8.0,"unitPriceInc":1481.70,"model":"MFEZ80VA-W/MFEZ80VA-N","rebate":0.0,"series":"Athena"}
+);
 const DUCTED_PRODUCTS = [
   {"brand":"Mitsubishi Heavy Industries","size":7.1,"phase":"Single","model":"FDCA71VNX-W / FDU71VH","priceIncGst":2524.0,"rebate":1380.0,"capacity":"7.1kW","capacityNum":7.1,"unitPriceInc":2524.0},
   {"brand":"Mitsubishi Heavy Industries","size":10.0,"phase":"Single","model":"FDC100VNP-W / FDU100VH","priceIncGst":2464.44,"rebate":1823.5,"capacity":"10.0kW","capacityNum":10.0,"unitPriceInc":2464.44},
@@ -1334,6 +1343,14 @@ const DUCTED_PRODUCTS = [
   {"brand":"Actron","size":20.0,"phase":"Three","model":"CRS20AT / EVA20AS","priceIncGst":6600.0,"rebate":2788.14,"capacity":"20.0kW","capacityNum":20.0,"unitPriceInc":6600.0},
   {"brand":"Actron","size":23.0,"phase":"Three","model":"CRS23AT / EVA23AS","priceIncGst":7623.0,"rebate":3255.24,"capacity":"23.0kW","capacityNum":23.0,"unitPriceInc":7623.0}
 ];
+DUCTED_PRODUCTS.push(
+  {"brand":"Midea","series":"Vesta","size":7.0,"phase":"Single","model":"UCMI70OC/DUCMI70IC","priceIncGst":1584.00,"rebate":0.0,"capacity":"7.0kW","capacityNum":7.0,"unitPriceInc":1584.00},
+  {"brand":"Midea","series":"Vesta","size":9.0,"phase":"Single","model":"UCMI90OC/DUCMI90IC","priceIncGst":2061.40,"rebate":0.0,"capacity":"9.0kW","capacityNum":9.0,"unitPriceInc":2061.40},
+  {"brand":"Midea","series":"Vesta","size":10.5,"phase":"Single","model":"UCMI105OC/DUCMI105IHC","priceIncGst":2274.80,"rebate":0.0,"capacity":"10.5kW","capacityNum":10.5,"unitPriceInc":2274.80},
+  {"brand":"Midea","series":"Vesta","size":12.5,"phase":"Single","model":"UCMI125OC/DUCMI125IHC","priceIncGst":2624.60,"rebate":0.0,"capacity":"12.5kW","capacityNum":12.5,"unitPriceInc":2624.60},
+  {"brand":"Midea","series":"Vesta","size":14.0,"phase":"Single","model":"UCMI140OC/DUCMI140IHC","priceIncGst":2955.70,"rebate":0.0,"capacity":"14.0kW","capacityNum":14.0,"unitPriceInc":2955.70},
+  {"brand":"Midea","series":"Vesta","size":17.0,"phase":"Single","model":"UCMI170OC/DUCMI170IHC","priceIncGst":3369.30,"rebate":0.0,"capacity":"17.0kW","capacityNum":17.0,"unitPriceInc":3369.30}
+);
 const PRODUCT_SUPPORT_DEFAULT={wifiStatus:'unknown',wifiLabel:'Wi-Fi TBC',warrantyYears:null,warrantyLabel:'Warranty TBC'};
 const SPLIT_PRODUCT_SUPPORT=[
   {brand:'Fujitsu General',series:'Lifestyle',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional adaptor',warrantyYears:5,warrantyLabel:'5 yrs warranty'}},
@@ -1347,7 +1364,8 @@ const SPLIT_PRODUCT_SUPPORT=[
   {brand:'Rinnai',series:'PB Series',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:7,warrantyLabel:'7 yrs warranty'}},
   {brand:'Rinnai',series:'PX Series',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:7,warrantyLabel:'7 yrs warranty'}},
   {brand:'Panasonic',series:'HZ Series',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:5,warrantyLabel:'5 yrs warranty'}},
-  {brand:'Actron Air',series:'Serene DS',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:5,warrantyLabel:'5 yrs warranty'}}
+  {brand:'Actron Air',series:'Serene DS',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:5,warrantyLabel:'5 yrs warranty'}},
+  {brand:'Midea',series:'Athena',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:10,warrantyLabel:'10 yrs warranty'}}
 ];
 const DUCTED_PRODUCT_SUPPORT=[
   {brand:'Mitsubishi Heavy Industries',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional controller',warrantyYears:5,warrantyLabel:'5 yrs warranty'}},
@@ -1357,7 +1375,8 @@ const DUCTED_PRODUCT_SUPPORT=[
   {brand:'Hitachi',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional adaptor',warrantyYears:6,warrantyLabel:'6 yrs warranty'}},
   {brand:'Rinnai',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional',warrantyYears:7,warrantyLabel:'7 yrs warranty'}},
   {brand:'TCL',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:5,warrantyLabel:'5 yrs standard / 7 yrs registered'}},
-  {brand:'Actron',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional controller',warrantyYears:5,warrantyLabel:'5 yrs warranty'}}
+  {brand:'Actron',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional controller',warrantyYears:5,warrantyLabel:'5 yrs warranty'}},
+  {brand:'Midea',series:'Vesta',details:{wifiStatus:'optional',wifiLabel:'Controller required',warrantyYears:7,warrantyLabel:'7 yrs warranty'}}
 ];
 function productSupportRuleMatches(rule,p){
   if(rule.brand && rule.brand!==p.brand) return false;
