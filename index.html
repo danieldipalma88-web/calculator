@@ -1064,7 +1064,7 @@ tbody tr:hover td{background:#f0f7ff}
         <div class="row3"><div><label>Unit price inc GST</label><input id="unitPriceInc" type="number" step="0.01"></div><div><label>Labour ex GST</label><input id="labour" type="number" step="0.01"></div><div><label>Rebate</label><input id="rebate" type="number" step="0.01"></div></div>
         <div class="row3" style="margin-top:14px"><div><label>Materials inc GST</label><input id="materials" type="number" step="0.01"></div><div><label>Misc cost inc GST</label><input id="misc" type="number" step="0.01" value="0"></div><div><label>Final customer price inc GST</label><input id="finalInc" type="number" step="0.01"></div></div>
         <div id="splitOnly" style="margin-top:14px"><div class="row2"><div><label>Power circuit ex GST</label><input id="powerCircuit" type="number" step="0.01" value="500"></div><div><label>Power circuit rule</label><select id="powerMode"><option value="auto">Auto above 3.5kW</option><option value="on">Force on</option><option value="off">Force off</option></select></div></div><div class="checkbox" style="margin-top:12px"><input id="installerRetainsLabour" type="checkbox" checked><label for="installerRetainsLabour" style="margin:0;text-transform:none;letter-spacing:0;font-size:13px;color:#0f172a">Installer retains labour profit</label></div><div class="tiny">When turned on, split-system labour is treated as owner-retained value. When turned off, split-system labour is treated as a paid expense.</div></div>
-        <div id="ductedOnly" class="hidden" style="margin-top:14px"><div class="note" style="margin-bottom:12px">Ducted labour is treated as a paid labour expense and is not added back into cash profit.</div><div class="row3"><div><label>Electrician ex GST</label><input id="electrician" type="number" step="0.01" value="500"></div><div><label>Airtouch</label><select id="airtouch"><option value="no">No</option><option value="yes">Yes</option></select></div><div><label>Zones</label><input id="zones" type="number" value="0"></div></div><div class="row2" style="margin-top:14px"><div><label>Sensors</label><input id="sensors" type="number" value="0"></div><div><label>Airtouch cost rule</label><input readonly value="$1,100 + $82/sensor + $65/zone"></div></div></div>
+        <div id="ductedOnly" class="hidden" style="margin-top:14px"><div class="row3"><div><label>Electrician ex GST</label><input id="electrician" type="number" step="0.01" value="500"></div><div><label>Airtouch</label><select id="airtouch"><option value="no">No</option><option value="yes">Yes</option></select></div><div><label>Zones</label><input id="zones" type="number" value="0"></div></div><div class="row2" style="margin-top:14px"><div><label>Sensors</label><input id="sensors" type="number" value="0"></div><div><label>Airtouch cost rule</label><input readonly value="$1,100 + $82/sensor + $65/zone"></div></div><div class="checkbox" style="margin-top:12px"><input id="ductedInstallerRetainsLabour" type="checkbox"><label for="ductedInstallerRetainsLabour" style="margin:0;text-transform:none;letter-spacing:0;font-size:13px;color:#0f172a">Installer retains labour profit</label></div><div class="tiny">When turned on, ducted labour is treated as owner-retained value. When turned off, ducted labour is treated as a paid expense.</div></div>
         <div class="priceResetRow"><button class="secondary" type="button" onclick="resetSuggestedPrice()">Reset suggested price</button></div>
         <div class="addonPanel">
           <div class="addonPanelHead"><div><div class="kicker">Installation add-ons</div><div class="addonPanelTitle">Optional install extras</div></div><div class="addonSummary" id="installAddonSummary">No add-ons selected</div></div>
@@ -2731,10 +2731,12 @@ function calculate(){
   const service=systemType==='split'?powerCost(c):num('electrician'), addons=airCost();
   const rebate=num('rebate'), finalInc=num('finalInc'), sellEx=finalInc/1.1;
   const splitLabourRetained=systemType==='split' && $('installerRetainsLabour') && $('installerRetainsLabour').checked;
+  const ductedLabourRetained=systemType==='ducted' && $('ductedInstallerRetainsLabour') && $('ductedInstallerRetainsLabour').checked;
+  const labourRetained=splitLabourRetained||ductedLabourRetained;
   const trueCost=unitEx+labour+matsEx+miscEx+service+addons;
   const profit=sellEx-trueCost, dealProfit=profit+rebate;
-  const retainedLabour=splitLabourRetained?labour:0;
-  const labourTreatment=systemType==='ducted'?'Expense':(splitLabourRetained?'Retained':'Expense');
+  const retainedLabour=labourRetained?labour:0;
+  const labourTreatment=labourRetained?'Retained':'Expense';
   const cashProfit=dealProfit+retainedLabour;
   const commissionType=effectiveCommissionType();
   const commissionModelOn=shouldUseCommissionModel();
@@ -3116,7 +3118,11 @@ function currentState(){
     agencyCommissionRateLocked:includeCommission?commissionSettings.agencyLocked:undefined,
     salespersonCommissionRate:includeCommission?commissionRatePercent('salesperson'):undefined,
     salespersonCommissionRateLocked:includeCommission?commissionSettings.salespersonLocked:undefined,
-    installerRetainsLabour: $('installerRetainsLabour') ? $('installerRetainsLabour').checked : true
+    installerRetainsLabour: systemType==='ducted'
+      ? ($('ductedInstallerRetainsLabour') ? $('ductedInstallerRetainsLabour').checked : false)
+      : ($('installerRetainsLabour') ? $('installerRetainsLabour').checked : true),
+    splitInstallerRetainsLabour: $('installerRetainsLabour') ? $('installerRetainsLabour').checked : true,
+    ductedInstallerRetainsLabour: $('ductedInstallerRetainsLabour') ? $('ductedInstallerRetainsLabour').checked : false
   };
 }
 function normalizeQuoteLocation(q){
@@ -3214,7 +3220,7 @@ function recomputeSavedQuote(r){
   const profit=sellEx-trueCost;
   const dealProfit=profit+rebate;
   const labourTreatment=r.labourTreatment || (isSplit?'Retained':'Expense');
-  const retainedLabour=(isSplit && labourTreatment==='Retained')?labour:0;
+  const retainedLabour=labourTreatment==='Retained'?labour:0;
   const cashProfit=dealProfit+retainedLabour;
   const commissionType=savedQuoteCommissionType(r);
   const commissionModelOn=commissionType!=='none' && (!r.state || r.state.commissionModelOn !== false);
@@ -3404,7 +3410,8 @@ function loadQuote(i){
   const fieldIds=['unitPriceInc','labour','rebate','materials','misc','finalInc','powerCircuit','powerMode','electrician','airtouch','zones','sensors'];
   fieldIds.forEach(id=>{ if(s[id]!==undefined && $(id)) $(id).value=s[id]; });
   setInstallAddonState(s.installAddons||[], s.installAddonQuantities||{});
-  if($('installerRetainsLabour')) $('installerRetainsLabour').checked = s.installerRetainsLabour !== undefined ? !!s.installerRetainsLabour : (s[legacyLabourRetainKey()] !== undefined ? !!s[legacyLabourRetainKey()] : true);
+  if($('installerRetainsLabour')) $('installerRetainsLabour').checked = s.splitInstallerRetainsLabour !== undefined ? !!s.splitInstallerRetainsLabour : (s.installerRetainsLabour !== undefined ? !!s.installerRetainsLabour : (s[legacyLabourRetainKey()] !== undefined ? !!s[legacyLabourRetainKey()] : true));
+  if($('ductedInstallerRetainsLabour')) $('ductedInstallerRetainsLabour').checked = s.ductedInstallerRetainsLabour !== undefined ? !!s.ductedInstallerRetainsLabour : (s.systemType==='ducted' && s.installerRetainsLabour !== undefined ? !!s.installerRetainsLabour : (q.installerRetainsLabour !== undefined && (s.systemType||'split')==='ducted' ? !!q.installerRetainsLabour : false));
   if($('commissionModelOn')) $('commissionModelOn').checked=s.commissionModelOn !== false;
   if(s.commissionType===undefined) s.commissionType=q.commissionType||effectiveCommissionType();
   if(s.agencyCommissionRate===undefined && s.commissionRate===undefined) s.agencyCommissionRate=q.agencyCommissionRate!==undefined?q.agencyCommissionRate:(q.commissionRate!==undefined?q.commissionRate:25);
@@ -4285,7 +4292,7 @@ function setupMobileHorizontalDragLock(){
   },{passive:false});
   window.addEventListener('scroll',resetHorizontalScroll,{passive:true});
 }
-['unitPriceInc','labour','rebate','materials','misc','powerCircuit','powerMode','installerRetainsLabour','electrician','airtouch','zones','sensors','commissionModelOn'].forEach(id=>{const el=$(id); if(el){ el.addEventListener('input',()=>{ if(!finalPriceLocked) autoFinal(); render(); }); el.addEventListener('change',()=>{ if(!finalPriceLocked) autoFinal(); render(); }); }});
+['unitPriceInc','labour','rebate','materials','misc','powerCircuit','powerMode','installerRetainsLabour','ductedInstallerRetainsLabour','electrician','airtouch','zones','sensors','commissionModelOn'].forEach(id=>{const el=$(id); if(el){ el.addEventListener('input',()=>{ if(!finalPriceLocked) autoFinal(); render(); }); el.addEventListener('change',()=>{ if(!finalPriceLocked) autoFinal(); render(); }); }});
 INSTALL_ADDONS.map(a=>a.type==='quantity'?a.qtyId:a.id).forEach(id=>{const el=$(id); if(el){ el.addEventListener('input',()=>{ render(); }); el.addEventListener('change',()=>{ if(el.type==='number') el.value=String(Math.max(0,Math.floor(Number(el.value)||0))); render(); }); }});
 const finalInput=$('finalInc');
 if(finalInput){ finalInput.addEventListener('input',()=>{ finalPriceLocked=true; render(); }); finalInput.addEventListener('change',()=>{ finalPriceLocked=true; render(); }); }
