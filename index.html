@@ -409,6 +409,10 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
   border-radius:14px;
   background:#f8fbfd;
   padding:11px 12px;
+  min-height:76px;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
 }
 .currentOptionMetric span{
   display:block;
@@ -427,18 +431,17 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
 }
 .currentOptionMetric input{
   width:100%;
-  margin-top:6px;
-  border-radius:10px;
-  padding:8px 10px;
+  margin-top:4px;
+  border:1px solid #cbd5e1;
+  border-radius:9px;
+  padding:6px 8px;
   font-size:15px;
   font-weight:900;
   color:#0f172a;
-  background:#fff;
+  background:rgba(255,255,255,.78);
   font-variant-numeric:tabular-nums;
 }
-.currentOptionMetric.editable{
-  background:#fff;
-}
+.currentOptionMetric input:focus{outline:2px solid rgba(37,99,235,.18);border-color:#93c5fd;background:#fff}
 .currentOptionEditActions{
   display:flex;
   justify-content:flex-end;
@@ -3847,7 +3850,7 @@ function currentOptionSelection(){
 function setCurrentOptionEditHint(message){
   currentOptionEditMessage=message||'';
   const hint=$('currentOptionEditHint');
-  if(hint) hint.textContent=currentOptionEditMessage||'Adjust these totals, then apply them evenly across only the systems in this option.';
+  if(hint) hint.textContent=currentOptionEditMessage||'Adjust customer, labour, materials or misc, then apply them evenly across only the systems in this option.';
 }
 function fillCurrentOptionTotals(){
   const {rows}=currentOptionSelection();
@@ -3856,6 +3859,7 @@ function fillCurrentOptionTotals(){
   if($('currentOptionCustomerTotal')) $('currentOptionCustomerTotal').value=t.customer.toFixed(2);
   if($('currentOptionLabourTotal')) $('currentOptionLabourTotal').value=t.labour.toFixed(2);
   if($('currentOptionMaterialsTotal')) $('currentOptionMaterialsTotal').value=t.materials.toFixed(2);
+  if($('currentOptionMiscTotal')) $('currentOptionMiscTotal').value=t.misc.toFixed(2);
   setCurrentOptionEditHint(`Loaded current totals from ${rows.length} system${rows.length===1?'':'s'} in this option.`);
 }
 function applyCurrentOptionDistribution(){
@@ -3865,7 +3869,8 @@ function applyCurrentOptionDistribution(){
   const customerEntered=entered('currentOptionCustomerTotal');
   const labourEntered=entered('currentOptionLabourTotal');
   const materialsEntered=entered('currentOptionMaterialsTotal');
-  if(!customerEntered&&!labourEntered&&!materialsEntered){
+  const miscEntered=entered('currentOptionMiscTotal');
+  if(!customerEntered&&!labourEntered&&!materialsEntered&&!miscEntered){
     setCurrentOptionEditHint('Enter at least one total to apply.');
     return;
   }
@@ -3873,18 +3878,21 @@ function applyCurrentOptionDistribution(){
   const customerEach=customerEntered?(Number($('currentOptionCustomerTotal').value)||0)/count:null;
   const labourEach=labourEntered?(Number($('currentOptionLabourTotal').value)||0)/count:null;
   const materialsEach=materialsEntered?(Number($('currentOptionMaterialsTotal').value)||0)/count:null;
+  const miscEach=miscEntered?(Number($('currentOptionMiscTotal').value)||0)/count:null;
   rows.forEach(row=>{
     const r=quotes[row._index];
     if(!r) return;
     if(customerEach!==null){r.finalInc=customerEach;if(r.state) r.state.finalInc=String(customerEach.toFixed(2));}
     if(labourEach!==null){r.labour=labourEach;if(r.state) r.state.labour=String(labourEach.toFixed(2));}
     if(materialsEach!==null){r.materialsInc=materialsEach;r.matsEx=materialsEach/1.1;if(r.state) r.state.materials=String(materialsEach.toFixed(2));}
+    if(miscEach!==null){r.miscInc=miscEach;if(r.state) r.state.misc=String(miscEach.toFixed(2));}
     recomputeSavedQuote(r);
   });
   const details=[];
   if(customerEntered) details.push(`customer total ${money(customerEach)} inc GST each`);
   if(labourEntered) details.push(`labour ${money(labourEach)} ex GST each`);
   if(materialsEntered) details.push(`materials ${money(materialsEach)} inc GST each`);
+  if(miscEntered) details.push(`misc ${money(miscEach)} inc GST each`);
   currentOptionEditMessage='Applied to this option: '+details.join(', ')+'.';
   persistQuotes();
   renderQuotes();
@@ -3911,7 +3919,7 @@ function renderCurrentOptionPanel(){
     const privateCells=showPrivate?`<td class="money">${money(r.commissionInc)}</td><td class="money">${money(r.salespersonCommissionInc)}</td><td class="money">${money(r.netProfit)}</td>`:(showLimitedSales?`<td class="money">${money(r.salespersonCommissionInc)}</td><td class="money">${money(r.netProfit)}</td>`:'');
     return `<tr><td>${htmlEscape(r.type)}</td><td>${htmlEscape(r.brand)}</td><td>${htmlEscape(r.size)}</td><td>${htmlEscape(r.model)}</td><td>${htmlEscape(r.install)}</td><td class="money">${money(r.finalInc)}</td><td class="money">${money(r.rebate)}</td><td class="money">${money(r.labour)}</td><td class="money">${money(materialsInc)}</td><td class="money">${power}</td>${privateCells}<td><button class="load" onclick="loadQuote(${r._index})">Load</button> <button class="danger" onclick="removeQuote(${r._index})">Remove</button></td></tr>`;
   }).join('');
-  body.innerHTML=`<div class="currentOptionSummaryGrid"><div class="currentOptionMetric editable"><span>Customer total inc GST</span><input id="currentOptionCustomerTotal" type="number" step="0.01" value="${t.customer.toFixed(2)}"></div><div class="currentOptionMetric"><span>Rebate</span><strong>${money(t.rebate)}</strong></div><div class="currentOptionMetric editable"><span>Labour ex GST</span><input id="currentOptionLabourTotal" type="number" step="0.01" value="${t.labour.toFixed(2)}"></div><div class="currentOptionMetric editable"><span>Materials inc GST</span><input id="currentOptionMaterialsTotal" type="number" step="0.01" value="${t.materials.toFixed(2)}"></div>${commissionMetrics}</div><div class="currentOptionEditActions"><button class="secondary" type="button" onclick="fillCurrentOptionTotals()">Load option totals</button><button class="orange" type="button" onclick="applyCurrentOptionDistribution()">Apply to current option</button></div><div class="currentOptionEditHint" id="currentOptionEditHint">${htmlEscape(currentOptionEditMessage||'Adjust these totals, then apply them evenly across only the systems in this option.')}</div><div class="tableWrap" style="margin-top:12px"><table><thead><tr><th>Type</th><th>Brand</th><th>Size</th><th>Model</th><th>Install</th><th>Customer inc</th><th>Rebate</th><th>Labour ex</th><th>Materials inc</th><th>Power</th>${privateHeads}<th>Actions</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
+  body.innerHTML=`<div class="currentOptionSummaryGrid"><div class="currentOptionMetric editable"><span>Customer total inc GST</span><input id="currentOptionCustomerTotal" type="number" step="0.01" value="${t.customer.toFixed(2)}"></div><div class="currentOptionMetric"><span>Rebate</span><strong>${money(t.rebate)}</strong></div><div class="currentOptionMetric editable"><span>Labour ex GST</span><input id="currentOptionLabourTotal" type="number" step="0.01" value="${t.labour.toFixed(2)}"></div><div class="currentOptionMetric editable"><span>Materials inc GST</span><input id="currentOptionMaterialsTotal" type="number" step="0.01" value="${t.materials.toFixed(2)}"></div><div class="currentOptionMetric editable"><span>Misc inc GST</span><input id="currentOptionMiscTotal" type="number" step="0.01" value="${t.misc.toFixed(2)}"></div>${commissionMetrics}</div><div class="currentOptionEditActions"><button class="secondary" type="button" onclick="fillCurrentOptionTotals()">Load option totals</button><button class="orange" type="button" onclick="applyCurrentOptionDistribution()">Apply to current option</button></div><div class="currentOptionEditHint" id="currentOptionEditHint">${htmlEscape(currentOptionEditMessage||'Adjust customer, labour, materials or misc, then apply them evenly across only the systems in this option.')}</div><div class="tableWrap" style="margin-top:12px"><table><thead><tr><th>Type</th><th>Brand</th><th>Size</th><th>Model</th><th>Install</th><th>Customer inc</th><th>Rebate</th><th>Labour ex</th><th>Materials inc</th><th>Power</th>${privateHeads}<th>Actions</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
 }
 function addToQuote(){
   const x=calculate();
