@@ -400,7 +400,7 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
 }
 .currentOptionSummaryGrid{
   display:grid;
-  grid-template-columns:repeat(5,minmax(0,1fr));
+  grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
   gap:10px;
   margin-top:12px;
 }
@@ -424,6 +424,31 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
   color:#0f172a;
   font-size:15px;
   font-variant-numeric:tabular-nums;
+}
+.currentOptionEditor{
+  border:1px solid #dbe5ef;
+  border-radius:16px;
+  background:#f8fbfd;
+  padding:14px;
+  margin-top:12px;
+}
+.currentOptionEditGrid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:10px;
+}
+.currentOptionEditActions{
+  display:flex;
+  justify-content:flex-end;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-top:12px;
+}
+.currentOptionEditHint{
+  color:#64748b;
+  font-size:12px;
+  line-height:1.35;
+  margin-top:8px;
 }
 .cash{background:#effcf4;border-radius:14px;padding:12px!important;margin:6px 0;border:1px solid #b9ebc9!important}
 .summaryCostBreakdown{
@@ -586,7 +611,7 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
 .priceResetRow button{min-width:220px}
 .productSupportMeta{
   display:grid;
-  grid-template-columns:repeat(2,minmax(0,1fr));
+  grid-template-columns:repeat(3,minmax(0,1fr));
   gap:10px;
   margin-top:12px;
 }
@@ -968,6 +993,18 @@ tbody tr:hover td{background:#f0f7ff}
     grid-template-columns:repeat(2,minmax(0,1fr));
     gap:8px;
   }
+  .currentOptionEditGrid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px;
+  }
+  .currentOptionEditActions{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px;
+  }
+  .currentOptionEditActions button{
+    width:100%;
+  }
   .commissionRatePanel{
     grid-template-columns:1fr;
     gap:8px;
@@ -1118,6 +1155,7 @@ tbody tr:hover td{background:#f0f7ff}
         <div class="productSupportMeta" id="productSupportMeta">
           <div class="productSupportChip unknown" id="warrantySupportChip"><span>Warranty</span><strong id="warrantyMeta">Select a unit</strong></div>
           <div class="productSupportChip unknown" id="wifiSupportChip"><span>Wi-Fi</span><strong id="wifiMeta">Select a unit</strong></div>
+          <div class="productSupportChip unknown" id="originSupportChip"><span>Company origin</span><strong id="originMeta">Select a unit</strong></div>
         </div>
         <div class="installTabs"><button id="newBtn" class="active" onclick="setInstall('new')">New install</button><button id="replacementBtn" onclick="setInstall('replacement')">Replacement</button></div>
         <div class="row3" style="margin-top:12px">
@@ -1432,7 +1470,25 @@ DUCTED_PRODUCTS.push(
   {"brand":"Midea","series":"Vesta","size":14.0,"phase":"Single","model":"UCMI140OC/DUCMI140IHC","priceIncGst":2955.70,"rebate":0.0,"capacity":"14.0kW","capacityNum":14.0,"unitPriceInc":2955.70},
   {"brand":"Midea","series":"Vesta","size":17.0,"phase":"Single","model":"UCMI170OC/DUCMI170IHC","priceIncGst":3369.30,"rebate":0.0,"capacity":"17.0kW","capacityNum":17.0,"unitPriceInc":3369.30}
 );
-const PRODUCT_SUPPORT_DEFAULT={wifiStatus:'unknown',wifiLabel:'Wi-Fi TBC',warrantyYears:null,warrantyLabel:'Warranty TBC'};
+const PRODUCT_SUPPORT_DEFAULT={wifiStatus:'unknown',wifiLabel:'Wi-Fi TBC',warrantyYears:null,warrantyLabel:'Warranty TBC',originLabel:'Origin TBC'};
+const BRAND_ORIGIN_LABELS={
+  'Actron':'Australian',
+  'Actron Air':'Australian',
+  'Daikin':'Japanese',
+  'Fujitsu':'Japanese',
+  'Fujitsu General':'Japanese',
+  'Hisense':'Chinese',
+  'Hitachi':'Japanese',
+  'LG':'South Korean',
+  'Midea':'Chinese',
+  'Mitsubishi Heavy Industries':'Japanese',
+  'Panasonic':'Japanese',
+  'Rinnai':'Japanese',
+  'TCL':'Chinese'
+};
+function productOriginLabelForBrand(brand){
+  return BRAND_ORIGIN_LABELS[brand] || PRODUCT_SUPPORT_DEFAULT.originLabel;
+}
 const SPLIT_PRODUCT_SUPPORT=[
   {brand:'Fujitsu General',series:'Lifestyle',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional adaptor',warrantyYears:5,warrantyLabel:'5 yrs warranty'}},
   {brand:'Hisense',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:7,warrantyLabel:'7 yrs warranty'}},
@@ -1469,12 +1525,14 @@ function applyProductSupportDetails(){
   const apply=(list,rules)=>list.forEach(p=>{
     const rule=rules.find(r=>productSupportRuleMatches(r,p));
     Object.assign(p,PRODUCT_SUPPORT_DEFAULT,rule?rule.details:{});
+    p.originLabel=(rule&&rule.details&&rule.details.originLabel)||productOriginLabelForBrand(p.brand);
   });
   apply(SPLIT_PRODUCTS,SPLIT_PRODUCT_SUPPORT);
   apply(DUCTED_PRODUCTS,DUCTED_PRODUCT_SUPPORT);
 }
 applyProductSupportDetails();
 let systemType='split', installType='new', quotes=[];
+let currentOptionEditMessage='';
 let finalPriceLocked=false;
 let priceLocks={};
 const INSTALL_ADDONS=[
@@ -2856,6 +2914,7 @@ function resetSuggestedPrice(){finalPriceLocked=false; autoFinal(); render();}
 function renderProductSupportDetails(p){
   const warrantyChip=$('warrantySupportChip'), warrantyText=$('warrantyMeta');
   const wifiChip=$('wifiSupportChip'), wifiText=$('wifiMeta');
+  const originChip=$('originSupportChip'), originText=$('originMeta');
   if(!warrantyChip || !warrantyText || !wifiChip || !wifiText) return;
   const warrantyKnown=Boolean(p&&p.warrantyLabel&&p.warrantyLabel!=='Warranty TBC');
   warrantyChip.className=`productSupportChip ${warrantyKnown?'included':'unknown'}`;
@@ -2863,6 +2922,11 @@ function renderProductSupportDetails(p){
   const wifiStatus=(p&&p.wifiStatus)||'unknown';
   wifiChip.className=`productSupportChip ${wifiStatus}`;
   wifiText.textContent=(p&&p.wifiLabel)||'Wi-Fi TBC';
+  if(originChip && originText){
+    const originKnown=Boolean(p&&p.originLabel&&p.originLabel!=='Origin TBC');
+    originChip.className=`productSupportChip ${originKnown?'optional':'unknown'}`;
+    originText.textContent=originKnown?p.originLabel:'Origin TBC';
+  }
 }
 function render(){
   const x=calculate();
@@ -3775,13 +3839,63 @@ function groupTotals(rows){
   return {customer:sum(r=>r.finalInc), rebate:sum(r=>r.rebate), unit:sum(r=>r.unitInc), labour:sum(r=>r.labour), materials:sum(r=>savedMaterialsInc(r)), misc:sum(r=>savedMiscInc(r)), power:sum(r=>r.type==='Split'?(Number(r.powerCost)||0):0), commission:sum(r=>r.commissionInc), salespersonCommission:sum(r=>r.salespersonCommissionInc), profit:sum(r=>r.netProfit)};
 }
 function quoteLabourTreatment(r){return r.labourTreatment || (r.type==='Split' ? 'Retained' : 'Expense');}
-function renderCurrentOptionPanel(){
-  const title=$('currentOptionTitle'), summary=$('currentOptionSummary'), body=$('currentOptionBody');
-  if(!title || !summary || !body) return;
+function currentOptionSelection(){
   ensureOptionDefs();
   const id=currentAddOptionId();
   const def=quoteOptionDefs.find(o=>o.id===id)||quoteOptionDefs[0]||{id:'option_1',name:'Option 1'};
   const rows=quotes.map((q,i)=>({...q,_index:i})).filter(q=>q.optionId===def.id);
+  return {id:def.id,def,rows};
+}
+function setCurrentOptionEditHint(message){
+  currentOptionEditMessage=message||'';
+  const hint=$('currentOptionEditHint');
+  if(hint) hint.textContent=currentOptionEditMessage||'Adjust these totals, then apply them evenly across only the systems in this option.';
+}
+function fillCurrentOptionTotals(){
+  const {rows}=currentOptionSelection();
+  if(!rows.length){setCurrentOptionEditHint('Add systems to this option before loading totals.');return;}
+  const t=groupTotals(rows);
+  if($('currentOptionCustomerTotal')) $('currentOptionCustomerTotal').value=t.customer.toFixed(2);
+  if($('currentOptionLabourTotal')) $('currentOptionLabourTotal').value=t.labour.toFixed(2);
+  if($('currentOptionMaterialsTotal')) $('currentOptionMaterialsTotal').value=t.materials.toFixed(2);
+  if($('currentOptionSalespersonTotal')) $('currentOptionSalespersonTotal').value=t.salespersonCommission.toFixed(2);
+  setCurrentOptionEditHint(`Loaded current totals from ${rows.length} system${rows.length===1?'':'s'} in this option.`);
+}
+function applyCurrentOptionDistribution(){
+  const {rows}=currentOptionSelection();
+  if(!rows.length){setCurrentOptionEditHint('Add systems to this option before applying totals.');return;}
+  const entered=id=>{const el=$(id); return el&&String(el.value).trim()!=='';};
+  const customerEntered=entered('currentOptionCustomerTotal');
+  const labourEntered=entered('currentOptionLabourTotal');
+  const materialsEntered=entered('currentOptionMaterialsTotal');
+  if(!customerEntered&&!labourEntered&&!materialsEntered){
+    setCurrentOptionEditHint('Enter at least one total to apply.');
+    return;
+  }
+  const count=rows.length;
+  const customerEach=customerEntered?(Number($('currentOptionCustomerTotal').value)||0)/count:null;
+  const labourEach=labourEntered?(Number($('currentOptionLabourTotal').value)||0)/count:null;
+  const materialsEach=materialsEntered?(Number($('currentOptionMaterialsTotal').value)||0)/count:null;
+  rows.forEach(row=>{
+    const r=quotes[row._index];
+    if(!r) return;
+    if(customerEach!==null){r.finalInc=customerEach;if(r.state) r.state.finalInc=String(customerEach.toFixed(2));}
+    if(labourEach!==null){r.labour=labourEach;if(r.state) r.state.labour=String(labourEach.toFixed(2));}
+    if(materialsEach!==null){r.materialsInc=materialsEach;r.matsEx=materialsEach/1.1;if(r.state) r.state.materials=String(materialsEach.toFixed(2));}
+    recomputeSavedQuote(r);
+  });
+  const details=[];
+  if(customerEntered) details.push(`customer total ${money(customerEach)} inc GST each`);
+  if(labourEntered) details.push(`labour ${money(labourEach)} ex GST each`);
+  if(materialsEntered) details.push(`materials ${money(materialsEach)} inc GST each`);
+  currentOptionEditMessage='Applied to this option: '+details.join(', ')+'.';
+  persistQuotes();
+  renderQuotes();
+}
+function renderCurrentOptionPanel(){
+  const title=$('currentOptionTitle'), summary=$('currentOptionSummary'), body=$('currentOptionBody');
+  if(!title || !summary || !body) return;
+  const {def,rows}=currentOptionSelection();
   title.textContent=def.name;
   if(!rows.length){
     summary.textContent='No systems in this option yet.';
@@ -3792,15 +3906,16 @@ function renderCurrentOptionPanel(){
   const showPrivate=canSeeProfitDetails();
   const showLimitedSales=!showPrivate&&canSeeSalespersonCommission();
   summary.textContent=`${rows.length} system${rows.length===1?'':'s'} in this option. Customer total ${money(t.customer)} inc GST.`;
-  const privateMetric=(showPrivate||showLimitedSales)?`<div class="currentOptionMetric"><span>Installer profit ex</span><strong>${money(t.profit)}</strong></div>`:'';
+  const commissionMetrics=(showPrivate||showLimitedSales)?`<div class="currentOptionMetric"><span>Salesperson commission inc</span><strong>${money(t.salespersonCommission)}</strong></div><div class="currentOptionMetric"><span>Installer profit ex</span><strong>${money(t.profit)}</strong></div>`:'';
   const privateHeads=showPrivate?'<th>Agency comm inc</th><th>Salesperson comm inc</th><th>Installer profit ex</th>':(showLimitedSales?'<th>Salesperson commission</th><th>Installer profit ex</th>':'');
+  const salespersonField=(showPrivate||showLimitedSales)?`<div><label>Salesperson commission inc GST</label><input id="currentOptionSalespersonTotal" type="number" step="0.01" value="${t.salespersonCommission.toFixed(2)}" readonly></div>`:'';
   const rowsHtml=rows.map(r=>{
     const materialsInc=savedMaterialsInc(r);
     const power=(r.type==='Split')?money(r.powerCost!==undefined?r.powerCost:0):'N/A';
     const privateCells=showPrivate?`<td class="money">${money(r.commissionInc)}</td><td class="money">${money(r.salespersonCommissionInc)}</td><td class="money">${money(r.netProfit)}</td>`:(showLimitedSales?`<td class="money">${money(r.salespersonCommissionInc)}</td><td class="money">${money(r.netProfit)}</td>`:'');
-    return `<tr><td>${htmlEscape(r.type)}</td><td>${htmlEscape(r.brand)}</td><td>${htmlEscape(r.size)}</td><td>${htmlEscape(r.model)}</td><td>${htmlEscape(r.install)}</td><td class="money">${money(r.finalInc)}</td><td class="money">${money(r.rebate)}</td><td class="money">${money(r.labour)}</td><td>${htmlEscape(quoteLabourTreatment(r))}</td><td class="money">${money(materialsInc)}</td><td class="money">${power}</td>${privateCells}<td><button class="load" onclick="loadQuote(${r._index})">Load</button> <button class="danger" onclick="removeQuote(${r._index})">Remove</button></td></tr>`;
+    return `<tr><td>${htmlEscape(r.type)}</td><td>${htmlEscape(r.brand)}</td><td>${htmlEscape(r.size)}</td><td>${htmlEscape(r.model)}</td><td>${htmlEscape(r.install)}</td><td class="money">${money(r.finalInc)}</td><td class="money">${money(r.rebate)}</td><td class="money">${money(r.labour)}</td><td class="money">${money(materialsInc)}</td><td class="money">${power}</td>${privateCells}<td><button class="load" onclick="loadQuote(${r._index})">Load</button> <button class="danger" onclick="removeQuote(${r._index})">Remove</button></td></tr>`;
   }).join('');
-  body.innerHTML=`<div class="currentOptionSummaryGrid"><div class="currentOptionMetric"><span>Customer total</span><strong>${money(t.customer)}</strong></div><div class="currentOptionMetric"><span>Rebate</span><strong>${money(t.rebate)}</strong></div><div class="currentOptionMetric"><span>Labour ex</span><strong>${money(t.labour)}</strong></div><div class="currentOptionMetric"><span>Materials inc</span><strong>${money(t.materials)}</strong></div>${privateMetric}</div><div class="tableWrap" style="margin-top:12px"><table><thead><tr><th>Type</th><th>Brand</th><th>Size</th><th>Model</th><th>Install</th><th>Customer inc</th><th>Rebate</th><th>Labour ex</th><th>Installer Labour</th><th>Materials inc</th><th>Power</th>${privateHeads}<th>Actions</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
+  body.innerHTML=`<div class="currentOptionSummaryGrid"><div class="currentOptionMetric"><span>Customer total</span><strong>${money(t.customer)}</strong></div><div class="currentOptionMetric"><span>Rebate</span><strong>${money(t.rebate)}</strong></div><div class="currentOptionMetric"><span>Labour ex</span><strong>${money(t.labour)}</strong></div><div class="currentOptionMetric"><span>Materials inc</span><strong>${money(t.materials)}</strong></div>${commissionMetrics}</div><div class="currentOptionEditor"><div class="currentOptionEditGrid"><div><label>Total customer inc GST</label><input id="currentOptionCustomerTotal" type="number" step="0.01" value="${t.customer.toFixed(2)}"></div><div><label>Total labour ex GST</label><input id="currentOptionLabourTotal" type="number" step="0.01" value="${t.labour.toFixed(2)}"></div><div><label>Total materials inc GST</label><input id="currentOptionMaterialsTotal" type="number" step="0.01" value="${t.materials.toFixed(2)}"></div>${salespersonField}</div><div class="currentOptionEditActions"><button class="secondary" type="button" onclick="fillCurrentOptionTotals()">Load option totals</button><button class="orange" type="button" onclick="applyCurrentOptionDistribution()">Apply to current option</button></div><div class="currentOptionEditHint" id="currentOptionEditHint">${htmlEscape(currentOptionEditMessage||'Adjust these totals, then apply them evenly across only the systems in this option.')}</div></div><div class="tableWrap" style="margin-top:12px"><table><thead><tr><th>Type</th><th>Brand</th><th>Size</th><th>Model</th><th>Install</th><th>Customer inc</th><th>Rebate</th><th>Labour ex</th><th>Materials inc</th><th>Power</th>${privateHeads}<th>Actions</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
 }
 function addToQuote(){
   const x=calculate();
