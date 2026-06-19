@@ -369,6 +369,7 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
 .finalCopy{min-width:0}
 .final span{display:block;color:#d9e5fb;font-size:12px;text-transform:uppercase;font-weight:800;letter-spacing:.06em}
 .final strong{font-size:33px;line-height:1.15}
+.finalBumpGroup{display:grid;gap:8px;flex:0 0 auto}
 .finalBumpBtn{
   border:1px solid rgba(255,255,255,.35);
   background:rgba(255,255,255,.14);
@@ -381,6 +382,49 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
   cursor:pointer;
 }
 .finalBumpBtn:hover{background:rgba(255,255,255,.22)}
+.currentOptionPanel{margin-top:18px}
+.currentOptionHead{
+  display:flex;
+  justify-content:space-between;
+  gap:16px;
+  align-items:flex-start;
+  margin-bottom:14px;
+}
+.currentOptionHead h2{margin:4px 0 0;font-size:22px}
+.currentOptionBodyEmpty{
+  border:1px dashed #cbd5e1;
+  border-radius:16px;
+  background:#f8fafc;
+  padding:18px;
+  color:#475569;
+}
+.currentOptionSummaryGrid{
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:10px;
+  margin-top:12px;
+}
+.currentOptionMetric{
+  border:1px solid #dbe5ef;
+  border-radius:14px;
+  background:#f8fbfd;
+  padding:11px 12px;
+}
+.currentOptionMetric span{
+  display:block;
+  color:#64748b;
+  font-size:10.5px;
+  font-weight:900;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+.currentOptionMetric strong{
+  display:block;
+  margin-top:4px;
+  color:#0f172a;
+  font-size:15px;
+  font-variant-numeric:tabular-nums;
+}
 .cash{background:#effcf4;border-radius:14px;padding:12px!important;margin:6px 0;border:1px solid #b9ebc9!important}
 .summaryCostBreakdown{
   border:1px solid #e2e8f0;
@@ -896,6 +940,34 @@ tbody tr:hover td{background:#f0f7ff}
     border-radius:11px;
     font-size:12px;
   }
+  .final{
+    align-items:stretch;
+  }
+  .finalBumpGroup{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+  .currentOptionPanel{
+    margin-top:12px;
+  }
+  .currentOptionHead{
+    display:grid;
+    gap:10px;
+  }
+  .currentOptionHead .actions{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px;
+  }
+  .currentOptionHead .actions button{
+    width:100%;
+    min-height:42px;
+    padding:10px 8px;
+    font-size:12px;
+  }
+  .currentOptionSummaryGrid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px;
+  }
   .commissionRatePanel{
     grid-template-columns:1fr;
     gap:8px;
@@ -1076,13 +1148,9 @@ tbody tr:hover td{background:#f0f7ff}
           </div>
         </div>
       </div>
-      <div class="card">
-        <h2 class="sectionTitle">Live cost breakdown</h2>
-        <div class="row2"><div><div class="costLine"><span>Unit ex GST</span><strong id="unitEx"></strong></div><div class="costLine"><span>Labour ex GST</span><strong id="labourOut"></strong></div><div class="costLine"><span>Materials ex GST</span><strong id="materialsEx"></strong></div><div class="costLine"><span>Misc ex GST</span><strong id="miscEx"></strong></div></div><div><div class="costLine"><span>Power / electrician ex GST</span><strong id="serviceEx"></strong></div><div class="costLine"><span>Airtouch / add-ons</span><strong id="addonsEx"></strong></div><div class="costLine"><span>True cost ex GST</span><strong id="trueCost"></strong></div><div class="costLine"><span>Rebate retained</span><strong id="rebateOut"></strong></div></div></div>
-      </div>
     </main>
     <aside class="summary card">
-      <div class="final"><div class="finalCopy"><span>Final customer price inc GST</span><strong id="finalBig"></strong></div><button class="finalBumpBtn" type="button" onclick="applyMoneyStep('finalInc',50)">+ $50</button></div>
+      <div class="final"><div class="finalCopy"><span>Final customer price inc GST</span><strong id="finalBig"></strong></div><div class="finalBumpGroup"><button class="finalBumpBtn" type="button" onclick="applyMoneyStep('finalInc',-50)">- $50</button><button class="finalBumpBtn" type="button" onclick="applyMoneyStep('finalInc',50)">+ $50</button></div></div>
       <label class="toggleRow">
         <span><strong>Commission model</strong><small>Use when a sales commission is payable</small></span>
         <input id="commissionModelOn" type="checkbox" checked>
@@ -1117,8 +1185,15 @@ tbody tr:hover td{background:#f0f7ff}
       <div id="netProfitRow" class="summaryLine cash profitHighlight"><span id="netProfitLabel">Installer profit after commission ex GST</span><strong><span id="netProfit"></span><small id="netProfitMargin"></small></strong></div>
       <div id="summaryInstallAddons" class="summaryAddons hidden"><div class="summaryAddonsHead"><strong>Install add-ons</strong><span>Cost only</span></div><div id="summaryInstallAddonRows" class="summaryAddonRows"></div><div id="summaryInstallAddonFoot" class="summaryAddonFoot"></div></div>
       <div class="actions"><button class="orange" onclick="addToQuote()">Add to Quote</button><button class="secondary" onclick="openDrawer()">View Options (<span id="quoteCount">0</span>)</button><button class="secondary" onclick="openProposalDrawer('current')">Export Proposal PDF</button><button class="secondary" onclick="openPriceDrawer()">Price Manager</button><button id="certValuesActionBtn" class="secondary" onclick="openCertDrawer()">Certificate Values</button><button class="secondary" onclick="downloadTxt()">Download Summary</button></div>
-      <div style="margin-top:12px"><label>Add current unit to option</label><div class="row2"><select id="addOptionSelect" onchange="syncAddOptionSelects(this.value); updateMainOptionNameInput();"></select><button class="secondary" type="button" onclick="createNewOption(true)">+ New Option</button></div><div style="margin-top:10px"><label>Selected option name</label><input id="mainOptionName" placeholder="Option name" onchange="renameCurrentMainOption(this.value)"></div></div>
+      <div style="margin-top:12px"><label>Add current unit to option</label><div class="row2"><select id="addOptionSelect" onchange="onOptionSelectionChange(this.value)"></select><button class="secondary" type="button" onclick="createNewOption(true)">+ New Option</button></div><div style="margin-top:10px"><label>Selected option name</label><input id="mainOptionName" placeholder="Option name" onchange="renameCurrentMainOption(this.value)"></div></div>
     </aside>
+  </div>
+  <div class="currentOptionPanel card">
+    <div class="currentOptionHead">
+      <div><div class="kicker">Current option</div><h2 id="currentOptionTitle">Option 1</h2><div class="sub" id="currentOptionSummary">Add systems to the selected option to build the quote.</div></div>
+      <div class="actions"><button class="secondary" type="button" onclick="openDrawer()">View all options</button><button class="orange" type="button" onclick="addToQuote()">Add Current Unit</button></div>
+    </div>
+    <div id="currentOptionBody"></div>
   </div>
 
 </div>
@@ -1166,7 +1241,7 @@ tbody tr:hover td{background:#f0f7ff}
       <div class="actions" style="margin-top:0"><button class="secondary" onclick="createNewOption(true)">+ New Option</button></div>
     </div>
     <div class="optionControls">
-      <div><label>Add current unit to</label><select id="drawerAddOptionSelect" onchange="syncAddOptionSelects(this.value)"></select></div>
+      <div><label>Add current unit to</label><select id="drawerAddOptionSelect" onchange="onOptionSelectionChange(this.value)"></select></div>
       <button class="orange" onclick="addToQuote()">Add Current Unit</button>
     </div>
     <div id="optionGroups" class="optionCards"></div>
@@ -2804,14 +2879,14 @@ function render(){
   $('selectedModel').textContent=x.p.model;
   renderProductSupportDetails(x.p);
   $('modelMeta').textContent=`${systemType==='split'?'Split system':'Ducted system'} - ${productDisplayName(x.p)} - ${x.p.capacity||x.p.size+'kW'} - Spreadsheet price ${money(x.p.unitPriceInc||x.p.priceIncGst)} inc GST`;
-  $('unitEx').textContent=money(x.unitEx);
-  $('labourOut').textContent=money(x.labour);
-  $('materialsEx').textContent=money(x.matsEx);
-  $('miscEx').textContent=money(x.miscEx);
-  $('serviceEx').textContent=money(x.service);
-  $('addonsEx').textContent=money(x.addons);
-  $('trueCost').textContent=money(x.trueCost);
-  $('rebateOut').textContent=money(x.rebate);
+  if($('unitEx')) $('unitEx').textContent=money(x.unitEx);
+  if($('labourOut')) $('labourOut').textContent=money(x.labour);
+  if($('materialsEx')) $('materialsEx').textContent=money(x.matsEx);
+  if($('miscEx')) $('miscEx').textContent=money(x.miscEx);
+  if($('serviceEx')) $('serviceEx').textContent=money(x.service);
+  if($('addonsEx')) $('addonsEx').textContent=money(x.addons);
+  if($('trueCost')) $('trueCost').textContent=money(x.trueCost);
+  if($('rebateOut')) $('rebateOut').textContent=money(x.rebate);
   $('summaryUnitEx').textContent=money(x.unitEx);
   $('summaryLabourEx').textContent=money(x.labour);
   $('summaryMaterialsEx').textContent=money(x.matsEx);
@@ -3600,6 +3675,11 @@ function optionNameById(id){const o=quoteOptionDefs.find(x=>x.id===id); return o
 function syncAddOptionSelects(value){
   ['addOptionSelect','drawerAddOptionSelect'].forEach(id=>{const el=$(id); if(el && value) el.value=value;});
 }
+function onOptionSelectionChange(value){
+  syncAddOptionSelects(value);
+  updateMainOptionNameInput();
+  renderCurrentOptionPanel();
+}
 function updateMainOptionNameInput(){
   const input=$('mainOptionName');
   if(!input) return;
@@ -3678,6 +3758,34 @@ function groupTotals(rows){
   const sum=(fn)=>rows.reduce((a,r)=>a+(Number(fn(r))||0),0);
   return {customer:sum(r=>r.finalInc), rebate:sum(r=>r.rebate), unit:sum(r=>r.unitInc), labour:sum(r=>r.labour), materials:sum(r=>savedMaterialsInc(r)), misc:sum(r=>savedMiscInc(r)), power:sum(r=>r.type==='Split'?(Number(r.powerCost)||0):0), commission:sum(r=>r.commissionInc), salespersonCommission:sum(r=>r.salespersonCommissionInc), profit:sum(r=>r.netProfit)};
 }
+function quoteLabourTreatment(r){return r.labourTreatment || (r.type==='Split' ? 'Retained' : 'Expense');}
+function renderCurrentOptionPanel(){
+  const title=$('currentOptionTitle'), summary=$('currentOptionSummary'), body=$('currentOptionBody');
+  if(!title || !summary || !body) return;
+  ensureOptionDefs();
+  const id=currentAddOptionId();
+  const def=quoteOptionDefs.find(o=>o.id===id)||quoteOptionDefs[0]||{id:'option_1',name:'Option 1'};
+  const rows=quotes.map((q,i)=>({...q,_index:i})).filter(q=>q.optionId===def.id);
+  title.textContent=def.name;
+  if(!rows.length){
+    summary.textContent='No systems in this option yet.';
+    body.innerHTML='<div class="currentOptionBodyEmpty"><strong>No systems added to this option yet.</strong><div class="sub" style="margin-top:6px">Select a system above, then add it to this option.</div></div>';
+    return;
+  }
+  const t=groupTotals(rows);
+  const showPrivate=canSeeProfitDetails();
+  const showLimitedSales=!showPrivate&&canSeeSalespersonCommission();
+  summary.textContent=`${rows.length} system${rows.length===1?'':'s'} in this option. Customer total ${money(t.customer)} inc GST.`;
+  const privateMetric=(showPrivate||showLimitedSales)?`<div class="currentOptionMetric"><span>Installer profit ex</span><strong>${money(t.profit)}</strong></div>`:'';
+  const privateHeads=showPrivate?'<th>Agency comm inc</th><th>Salesperson comm inc</th><th>Installer profit ex</th>':(showLimitedSales?'<th>Salesperson commission</th><th>Installer profit ex</th>':'');
+  const rowsHtml=rows.map(r=>{
+    const materialsInc=savedMaterialsInc(r);
+    const power=(r.type==='Split')?money(r.powerCost!==undefined?r.powerCost:0):'N/A';
+    const privateCells=showPrivate?`<td class="money">${money(r.commissionInc)}</td><td class="money">${money(r.salespersonCommissionInc)}</td><td class="money">${money(r.netProfit)}</td>`:(showLimitedSales?`<td class="money">${money(r.salespersonCommissionInc)}</td><td class="money">${money(r.netProfit)}</td>`:'');
+    return `<tr><td>${htmlEscape(r.type)}</td><td>${htmlEscape(r.brand)}</td><td>${htmlEscape(r.size)}</td><td>${htmlEscape(r.model)}</td><td>${htmlEscape(r.install)}</td><td class="money">${money(r.finalInc)}</td><td class="money">${money(r.rebate)}</td><td class="money">${money(r.labour)}</td><td>${htmlEscape(quoteLabourTreatment(r))}</td><td class="money">${money(materialsInc)}</td><td class="money">${power}</td>${privateCells}<td><button class="load" onclick="loadQuote(${r._index})">Load</button> <button class="danger" onclick="removeQuote(${r._index})">Remove</button></td></tr>`;
+  }).join('');
+  body.innerHTML=`<div class="currentOptionSummaryGrid"><div class="currentOptionMetric"><span>Customer total</span><strong>${money(t.customer)}</strong></div><div class="currentOptionMetric"><span>Rebate</span><strong>${money(t.rebate)}</strong></div><div class="currentOptionMetric"><span>Labour ex</span><strong>${money(t.labour)}</strong></div><div class="currentOptionMetric"><span>Materials inc</span><strong>${money(t.materials)}</strong></div>${privateMetric}</div><div class="tableWrap" style="margin-top:12px"><table><thead><tr><th>Type</th><th>Brand</th><th>Size</th><th>Model</th><th>Install</th><th>Customer inc</th><th>Rebate</th><th>Labour ex</th><th>Installer Labour</th><th>Materials inc</th><th>Power</th>${privateHeads}<th>Actions</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
+}
 function addToQuote(){
   const x=calculate();
   const state=currentState();
@@ -3751,6 +3859,7 @@ function renderQuotes(){
           : `<tr><td>Total customer inc</td><td class="money">${money(all.customer)}</td><td>Total rebate</td><td class="money">${money(all.rebate)}</td><td>Total labour ex</td><td class="money">${money(all.labour)}</td></tr><tr><td>Total unit inc</td><td class="money">${money(all.unit)}</td><td>Total materials inc</td><td class="money">${money(all.materials)}</td><td>Total misc inc</td><td class="money">${money(all.misc)}</td></tr><tr><td>Total power ex</td><td class="money">${money(all.power)}</td><td></td><td></td><td></td><td></td></tr>`);
     }
   }
+  renderCurrentOptionPanel();
 }
 function removeQuote(i){quotes.splice(i,1); persistQuotes(); renderQuotes();}
 function clearQuotes(){quotes=[]; quoteOptionDefs=[{id:'option_1',name:'Option 1'}]; recommendedOptionId=''; persistOptionDefs(); persistQuotes(); renderQuotes();}
