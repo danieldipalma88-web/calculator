@@ -425,17 +425,19 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
   font-size:15px;
   font-variant-numeric:tabular-nums;
 }
-.currentOptionEditor{
-  border:1px solid #dbe5ef;
-  border-radius:16px;
-  background:#f8fbfd;
-  padding:14px;
-  margin-top:12px;
+.currentOptionMetric input{
+  width:100%;
+  margin-top:6px;
+  border-radius:10px;
+  padding:8px 10px;
+  font-size:15px;
+  font-weight:900;
+  color:#0f172a;
+  background:#fff;
+  font-variant-numeric:tabular-nums;
 }
-.currentOptionEditGrid{
-  display:grid;
-  grid-template-columns:repeat(4,minmax(0,1fr));
-  gap:10px;
+.currentOptionMetric.editable{
+  background:#fff;
 }
 .currentOptionEditActions{
   display:flex;
@@ -990,10 +992,6 @@ tbody tr:hover td{background:#f0f7ff}
     font-size:12px;
   }
   .currentOptionSummaryGrid{
-    grid-template-columns:repeat(2,minmax(0,1fr));
-    gap:8px;
-  }
-  .currentOptionEditGrid{
     grid-template-columns:repeat(2,minmax(0,1fr));
     gap:8px;
   }
@@ -3858,7 +3856,6 @@ function fillCurrentOptionTotals(){
   if($('currentOptionCustomerTotal')) $('currentOptionCustomerTotal').value=t.customer.toFixed(2);
   if($('currentOptionLabourTotal')) $('currentOptionLabourTotal').value=t.labour.toFixed(2);
   if($('currentOptionMaterialsTotal')) $('currentOptionMaterialsTotal').value=t.materials.toFixed(2);
-  if($('currentOptionSalespersonTotal')) $('currentOptionSalespersonTotal').value=t.salespersonCommission.toFixed(2);
   setCurrentOptionEditHint(`Loaded current totals from ${rows.length} system${rows.length===1?'':'s'} in this option.`);
 }
 function applyCurrentOptionDistribution(){
@@ -3908,14 +3905,13 @@ function renderCurrentOptionPanel(){
   summary.textContent=`${rows.length} system${rows.length===1?'':'s'} in this option. Customer total ${money(t.customer)} inc GST.`;
   const commissionMetrics=(showPrivate||showLimitedSales)?`<div class="currentOptionMetric"><span>Salesperson commission inc</span><strong>${money(t.salespersonCommission)}</strong></div><div class="currentOptionMetric"><span>Installer profit ex</span><strong>${money(t.profit)}</strong></div>`:'';
   const privateHeads=showPrivate?'<th>Agency comm inc</th><th>Salesperson comm inc</th><th>Installer profit ex</th>':(showLimitedSales?'<th>Salesperson commission</th><th>Installer profit ex</th>':'');
-  const salespersonField=(showPrivate||showLimitedSales)?`<div><label>Salesperson commission inc GST</label><input id="currentOptionSalespersonTotal" type="number" step="0.01" value="${t.salespersonCommission.toFixed(2)}" readonly></div>`:'';
   const rowsHtml=rows.map(r=>{
     const materialsInc=savedMaterialsInc(r);
     const power=(r.type==='Split')?money(r.powerCost!==undefined?r.powerCost:0):'N/A';
     const privateCells=showPrivate?`<td class="money">${money(r.commissionInc)}</td><td class="money">${money(r.salespersonCommissionInc)}</td><td class="money">${money(r.netProfit)}</td>`:(showLimitedSales?`<td class="money">${money(r.salespersonCommissionInc)}</td><td class="money">${money(r.netProfit)}</td>`:'');
     return `<tr><td>${htmlEscape(r.type)}</td><td>${htmlEscape(r.brand)}</td><td>${htmlEscape(r.size)}</td><td>${htmlEscape(r.model)}</td><td>${htmlEscape(r.install)}</td><td class="money">${money(r.finalInc)}</td><td class="money">${money(r.rebate)}</td><td class="money">${money(r.labour)}</td><td class="money">${money(materialsInc)}</td><td class="money">${power}</td>${privateCells}<td><button class="load" onclick="loadQuote(${r._index})">Load</button> <button class="danger" onclick="removeQuote(${r._index})">Remove</button></td></tr>`;
   }).join('');
-  body.innerHTML=`<div class="currentOptionSummaryGrid"><div class="currentOptionMetric"><span>Customer total</span><strong>${money(t.customer)}</strong></div><div class="currentOptionMetric"><span>Rebate</span><strong>${money(t.rebate)}</strong></div><div class="currentOptionMetric"><span>Labour ex</span><strong>${money(t.labour)}</strong></div><div class="currentOptionMetric"><span>Materials inc</span><strong>${money(t.materials)}</strong></div>${commissionMetrics}</div><div class="currentOptionEditor"><div class="currentOptionEditGrid"><div><label>Total customer inc GST</label><input id="currentOptionCustomerTotal" type="number" step="0.01" value="${t.customer.toFixed(2)}"></div><div><label>Total labour ex GST</label><input id="currentOptionLabourTotal" type="number" step="0.01" value="${t.labour.toFixed(2)}"></div><div><label>Total materials inc GST</label><input id="currentOptionMaterialsTotal" type="number" step="0.01" value="${t.materials.toFixed(2)}"></div>${salespersonField}</div><div class="currentOptionEditActions"><button class="secondary" type="button" onclick="fillCurrentOptionTotals()">Load option totals</button><button class="orange" type="button" onclick="applyCurrentOptionDistribution()">Apply to current option</button></div><div class="currentOptionEditHint" id="currentOptionEditHint">${htmlEscape(currentOptionEditMessage||'Adjust these totals, then apply them evenly across only the systems in this option.')}</div></div><div class="tableWrap" style="margin-top:12px"><table><thead><tr><th>Type</th><th>Brand</th><th>Size</th><th>Model</th><th>Install</th><th>Customer inc</th><th>Rebate</th><th>Labour ex</th><th>Materials inc</th><th>Power</th>${privateHeads}<th>Actions</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
+  body.innerHTML=`<div class="currentOptionSummaryGrid"><div class="currentOptionMetric editable"><span>Customer total inc GST</span><input id="currentOptionCustomerTotal" type="number" step="0.01" value="${t.customer.toFixed(2)}"></div><div class="currentOptionMetric"><span>Rebate</span><strong>${money(t.rebate)}</strong></div><div class="currentOptionMetric editable"><span>Labour ex GST</span><input id="currentOptionLabourTotal" type="number" step="0.01" value="${t.labour.toFixed(2)}"></div><div class="currentOptionMetric editable"><span>Materials inc GST</span><input id="currentOptionMaterialsTotal" type="number" step="0.01" value="${t.materials.toFixed(2)}"></div>${commissionMetrics}</div><div class="currentOptionEditActions"><button class="secondary" type="button" onclick="fillCurrentOptionTotals()">Load option totals</button><button class="orange" type="button" onclick="applyCurrentOptionDistribution()">Apply to current option</button></div><div class="currentOptionEditHint" id="currentOptionEditHint">${htmlEscape(currentOptionEditMessage||'Adjust these totals, then apply them evenly across only the systems in this option.')}</div><div class="tableWrap" style="margin-top:12px"><table><thead><tr><th>Type</th><th>Brand</th><th>Size</th><th>Model</th><th>Install</th><th>Customer inc</th><th>Rebate</th><th>Labour ex</th><th>Materials inc</th><th>Power</th>${privateHeads}<th>Actions</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
 }
 function addToQuote(){
   const x=calculate();
