@@ -1754,7 +1754,21 @@ function brands(){return [...new Set(data().map(p=>p.brand))]}
 function setSystem(t){systemType=t; $('splitTab').classList.toggle('active',t==='split'); $('ductedTab').classList.toggle('active',t==='ducted'); $('splitOnly').classList.toggle('hidden',t!=='split'); $('ductedOnly').classList.toggle('hidden',t!=='ducted'); populateBrands();}
 function setInstall(t){installType=t; $('newBtn').classList.toggle('active',t==='new'); $('replacementBtn').classList.toggle('active',t==='replacement'); applyDefaults(); refreshLiveRebateForCurrentProduct(); refreshBestValueIndicator();}
 function populateBrands(){$('brand').innerHTML=brands().map(b=>`<option>${b}</option>`).join(''); populateProducts();}
-function populateProducts(){const b=$('brand').value; const list=data().map((p,i)=>({p,i})).filter(x=>x.p.brand===b); $('product').innerHTML=list.map(x=>`<option value="${x.i}">${unitSelectLabel(x.p)}</option>`).join(''); onProductChange();}
+function sortedProductOptions(list){
+  const seriesOrder={};
+  list.forEach(x=>{
+    const key=x.p.series||'';
+    if(seriesOrder[key]===undefined) seriesOrder[key]=Object.keys(seriesOrder).length;
+  });
+  return list.slice().sort((a,b)=>{
+    const seriesDiff=(seriesOrder[a.p.series||'']||0)-(seriesOrder[b.p.series||'']||0);
+    if(seriesDiff) return seriesDiff;
+    const capDiff=cap(a.p)-cap(b.p);
+    if(capDiff) return capDiff;
+    return a.i-b.i;
+  });
+}
+function populateProducts(){const b=$('brand').value; const list=sortedProductOptions(data().map((p,i)=>({p,i})).filter(x=>x.p.brand===b)); $('product').innerHTML=list.map(x=>`<option value="${x.i}">${unitSelectLabel(x.p)}</option>`).join(''); onProductChange();}
 function unitSelectLabel(p){return `${p.capacity||p.size+'kW'}${p.series?' - '+p.series:''}${p.phase?' - '+p.phase:''}`;}
 function label(p){return `${unitSelectLabel(p)} - ${p.model}`;}
 function product(){return data()[Number($('product').value)||0]||data()[0]}
