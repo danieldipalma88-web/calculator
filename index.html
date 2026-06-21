@@ -1436,6 +1436,24 @@ function applyDaikinSplitPriceUpdates(){
   });
 }
 applyDaikinSplitPriceUpdates();
+const HITACHI_AIRHOME_400_SPLIT_UPDATES=[
+  {capacity:"2.5kW",capacityNum:2.5,model:"RAC-DJ25PHAT/RAK-DJ25PHAT",unitPriceInc:744.70},
+  {capacity:"3.5kW",capacityNum:3.5,model:"RAC-DJ35PHAT/RAK-DJ35PHAT",unitPriceInc:902.00},
+  {capacity:"5.0kW",capacityNum:5.0,model:"RAC-DJ50PHAT/RAK-DJ50PHAT",unitPriceInc:1235.30},
+  {capacity:"6.0kW",capacityNum:6.0,model:"RAC-DJ60PHAT/RAK-DJ60PHAT",unitPriceInc:1382.70},
+  {capacity:"7.0kW",capacityNum:7.0,model:"RAC-DJ70PHAT/RAK-DJ70PHAT",unitPriceInc:1543.30}
+];
+function applyHitachiAirHome400SplitUpdates(){
+  const modelKey=model=>String(model||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  HITACHI_AIRHOME_400_SPLIT_UPDATES.forEach(update=>{
+    const existing=SPLIT_PRODUCTS.find(p=>p.brand==="Hitachi" && modelKey(p.model)===modelKey(update.model));
+    const rebate=existing?Number(existing.rebate)||0:0;
+    const entry={brand:"Hitachi",capacity:update.capacity,capacityNum:update.capacityNum,unitPriceInc:update.unitPriceInc,priceIncGst:update.unitPriceInc,model:update.model,rebate,series:"AirHome 400"};
+    if(existing) Object.assign(existing,entry);
+    else SPLIT_PRODUCTS.push(entry);
+  });
+}
+applyHitachiAirHome400SplitUpdates();
 const DUCTED_PRODUCTS = [
   {"brand":"Mitsubishi Heavy Industries","size":7.1,"phase":"Single","model":"FDCA71VNX-W / FDU71VH","priceIncGst":2524.0,"rebate":1380.0,"capacity":"7.1kW","capacityNum":7.1,"unitPriceInc":2524.0},
   {"brand":"Mitsubishi Heavy Industries","size":10.0,"phase":"Single","model":"FDC100VNP-W / FDU100VH","priceIncGst":2464.44,"rebate":1823.5,"capacity":"10.0kW","capacityNum":10.0,"unitPriceInc":2464.44},
@@ -1468,15 +1486,15 @@ const DUCTED_PRODUCTS = [
   {"brand":"Fujitsu","size":14.0,"phase":"Single","model":"AOTH54KBTA/ARTH54KHTA","priceIncGst":4200.0,"rebate":1167.22,"capacity":"14.0kW","capacityNum":14.0,"unitPriceInc":4200.0},
   {"brand":"Fujitsu","size":15.5,"phase":"Single","model":"AOTH60KBTA/ARTH60KHTA","priceIncGst":4600.0,"rebate":1580.08,"capacity":"15.5kW","capacityNum":15.5,"unitPriceInc":4600.0},
   {"brand":"Fujitsu","size":15.5,"phase":"Three","model":"AOTH60KRTA/ARTH60KHTA","priceIncGst":4760.0,"rebate":1580.08,"capacity":"15.5kW","capacityNum":15.5,"unitPriceInc":4760.0},
-  {"brand":"Hitachi","size":7.2,"phase":"Single","model":"PAS-3.0UFASNQ1 / PPIH-3.0UFA1NQ","priceIncGst":2310.0,"rebate":1191.24,"capacity":"7.2kW","capacityNum":7.2,"unitPriceInc":2310.0},
-  {"brand":"Hitachi","size":10.0,"phase":"Single","model":"PAS-4.0UFASNQ1 / PPIH-4.0UFA1NQ","priceIncGst":2825.9,"rebate":1505.68,"capacity":"10.0kW","capacityNum":10.0,"unitPriceInc":2825.9},
-  {"brand":"Hitachi","size":12.5,"phase":"Single","model":"PAS-5.0UFASNQ1 / PPIH-5.0UFA1NQ","priceIncGst":3286.8,"rebate":2229.24,"capacity":"12.5kW","capacityNum":12.5,"unitPriceInc":3286.8},
-  {"brand":"Hitachi","size":14.0,"phase":"Single","model":"PAS-6.0UFASNQ1 / PPIH-6.0UFA1NQ","priceIncGst":3668.5,"rebate":1818.52,"capacity":"14.0kW","capacityNum":14.0,"unitPriceInc":3668.5},
-  {"brand":"Hitachi","size":16.0,"phase":"Single","model":"PAS-6.5UFASNQ1 / PPIH-6.5UFA1NQ","priceIncGst":4040.3,"rebate":1856.16,"capacity":"16.0kW","capacityNum":16.0,"unitPriceInc":4040.3},
-  {"brand":"Hitachi","size":10.0,"phase":"Three","model":"PAS-4.0UFASMQ1 / PPIH-4.0UFA1NQ","priceIncGst":3183.4,"rebate":1243.72,"capacity":"10.0kW","capacityNum":10.0,"unitPriceInc":3183.4},
-  {"brand":"Hitachi","size":12.5,"phase":"Three","model":"PAS-5.0UFASMQ1 / PPIH-5.0UFA1NQ","priceIncGst":3600.3,"rebate":2203.32,"capacity":"12.5kW","capacityNum":12.5,"unitPriceInc":3600.3},
-  {"brand":"Hitachi","size":14.0,"phase":"Three","model":"PAS-6.0UFASMQ1 / PPIH-6.0UFA1NQ","priceIncGst":3918.2,"rebate":2307.1,"capacity":"14.0kW","capacityNum":14.0,"unitPriceInc":3918.2},
-  {"brand":"Hitachi","size":16.0,"phase":"Three","model":"PAS-6.5UFASMQ1 / PPIH-6.5UFA1NQ","priceIncGst":4159.1,"rebate":1856.16,"capacity":"16.0kW","capacityNum":16.0,"unitPriceInc":4159.1},
+  {"brand":"Hitachi","series":"AirCore 700","size":7.1,"phase":"Single","model":"PAS-3.0UFASNQ1 / PPIH-3.0UFA1NQ","priceIncGst":2536.60,"rebate":1191.24,"capacity":"7.1kW","capacityNum":7.1,"unitPriceInc":2536.60},
+  {"brand":"Hitachi","series":"AirCore 700","size":10.0,"phase":"Single","model":"PAS-4.0UFASNQ1 / PPIH-4.0UFA1NQ","priceIncGst":3161.40,"rebate":1505.68,"capacity":"10.0kW","capacityNum":10.0,"unitPriceInc":3161.40},
+  {"brand":"Hitachi","series":"AirCore 700","size":12.0,"phase":"Single","model":"PAS-5.0UFASNQ1 / PPIH-5.0UFA1NQ","priceIncGst":3600.30,"rebate":2229.24,"capacity":"12.0kW","capacityNum":12.0,"unitPriceInc":3600.30},
+  {"brand":"Hitachi","series":"AirCore 700","size":14.0,"phase":"Single","model":"PAS-6.0UFASNQ1 / PPIH-6.0UFA1NQ","priceIncGst":4071.10,"rebate":1818.52,"capacity":"14.0kW","capacityNum":14.0,"unitPriceInc":4071.10},
+  {"brand":"Hitachi","series":"AirCore 700","size":16.0,"phase":"Single","model":"PAS-6.5UFASNQ1 / PPIH-6.5UFA1NQ","priceIncGst":4578.20,"rebate":1856.16,"capacity":"16.0kW","capacityNum":16.0,"unitPriceInc":4578.20},
+  {"brand":"Hitachi","series":"AirCore 700","size":10.0,"phase":"Three","model":"PAS-4.0UFASMQ1 / PPIH-4.0UFA1NQ","priceIncGst":3578.30,"rebate":1243.72,"capacity":"10.0kW","capacityNum":10.0,"unitPriceInc":3578.30},
+  {"brand":"Hitachi","series":"AirCore 700","size":12.0,"phase":"Three","model":"PAS-5.0UFASMQ1 / PPIH-5.0UFA1NQ","priceIncGst":4024.90,"rebate":2203.32,"capacity":"12.0kW","capacityNum":12.0,"unitPriceInc":4024.90},
+  {"brand":"Hitachi","series":"AirCore 700","size":14.0,"phase":"Three","model":"PAS-6.0UFASMQ1 / PPIH-6.0UFA1NQ","priceIncGst":4406.60,"rebate":2307.1,"capacity":"14.0kW","capacityNum":14.0,"unitPriceInc":4406.60},
+  {"brand":"Hitachi","series":"AirCore 700","size":16.0,"phase":"Three","model":"PAS-6.5UFASMQ1 / PPIH-6.5UFA1NQ","priceIncGst":4716.80,"rebate":1856.16,"capacity":"16.0kW","capacityNum":16.0,"unitPriceInc":4716.80},
   {"brand":"Rinnai","size":9.0,"phase":"Single","model":"DONSR09B1/DINLR09B1","priceIncGst":2193.15,"rebate":945.0,"capacity":"9.0kW","capacityNum":9.0,"unitPriceInc":2193.15},
   {"brand":"Rinnai","size":11.0,"phase":"Single","model":"DONSR11B1LA/DINLR11B1A","priceIncGst":2405.35,"rebate":1044.0,"capacity":"11.0kW","capacityNum":11.0,"unitPriceInc":2405.35},
   {"brand":"Rinnai","size":13.0,"phase":"Single","model":"DONSR13B1LA/DINLR13B1A","priceIncGst":2817.03,"rebate":1247.0,"capacity":"13.0kW","capacityNum":13.0,"unitPriceInc":2817.03},
@@ -1525,6 +1543,7 @@ function productOriginLabelForBrand(brand){
 const SPLIT_PRODUCT_SUPPORT=[
   {brand:'Fujitsu General',series:'Lifestyle',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional adaptor',warrantyYears:5,warrantyLabel:'5 yrs warranty'}},
   {brand:'Hisense',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:7,warrantyLabel:'7 yrs warranty'}},
+  {brand:'Hitachi',series:'AirHome 400',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:6,warrantyLabel:'6 yrs warranty'}},
   {brand:'Hitachi',series:'AirHome 600',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:6,warrantyLabel:'6 yrs warranty'}},
   {brand:'TCL',series:'BreezeIN 2.0',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:5,warrantyLabel:'5 yrs standard / 7 yrs registered'}},
   {brand:'Daikin',series:'Alira',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:5,warrantyLabel:'5 yrs warranty'}},
@@ -1588,6 +1607,15 @@ const MANAGED_PRICE_DEFAULT_MIGRATIONS=[
   {type:'split',model:'RXV50WVMA / FTXV50WVMA',oldUnitPriceInc:1345.34,newUnitPriceInc:1335},
   {type:'split',model:'RXV60WVMA / FTXV60WVMA',oldUnitPriceInc:1507.04,newUnitPriceInc:1495},
   {type:'split',model:'RXV71WVMA / FTXV71WVMA',oldUnitPriceInc:1650,newUnitPriceInc:1665},
+  {type:'ducted',model:'PAS-3.0UFASNQ1 / PPIH-3.0UFA1NQ',oldUnitPriceInc:2310,newUnitPriceInc:2536.60},
+  {type:'ducted',model:'PAS-4.0UFASNQ1 / PPIH-4.0UFA1NQ',oldUnitPriceInc:2825.9,newUnitPriceInc:3161.40},
+  {type:'ducted',model:'PAS-5.0UFASNQ1 / PPIH-5.0UFA1NQ',oldUnitPriceInc:3286.8,newUnitPriceInc:3600.30},
+  {type:'ducted',model:'PAS-6.0UFASNQ1 / PPIH-6.0UFA1NQ',oldUnitPriceInc:3668.5,newUnitPriceInc:4071.10},
+  {type:'ducted',model:'PAS-6.5UFASNQ1 / PPIH-6.5UFA1NQ',oldUnitPriceInc:4040.3,newUnitPriceInc:4578.20},
+  {type:'ducted',model:'PAS-4.0UFASMQ1 / PPIH-4.0UFA1NQ',oldUnitPriceInc:3183.4,newUnitPriceInc:3578.30},
+  {type:'ducted',model:'PAS-5.0UFASMQ1 / PPIH-5.0UFA1NQ',oldUnitPriceInc:3600.3,newUnitPriceInc:4024.90},
+  {type:'ducted',model:'PAS-6.0UFASMQ1 / PPIH-6.0UFA1NQ',oldUnitPriceInc:3918.2,newUnitPriceInc:4406.60},
+  {type:'ducted',model:'PAS-6.5UFASMQ1 / PPIH-6.5UFA1NQ',oldUnitPriceInc:4159.1,newUnitPriceInc:4716.80},
   {type:'ducted',model:'RZAS71C2V1 / FDYA71AV19',oldUnitPriceInc:3150,newUnitPriceInc:3205},
   {type:'ducted',model:'RZAS100C2V1 / FDYA100AV19',oldUnitPriceInc:4150.74,newUnitPriceInc:3980},
   {type:'ducted',model:'RZAS125C2V1 / FDYA125AV19',oldUnitPriceInc:4781.92,newUnitPriceInc:4585},
