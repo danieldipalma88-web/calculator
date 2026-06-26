@@ -1886,13 +1886,16 @@ function modelCandidateVariants(model){
   variants.push(value.replace(/\s*\/\s*/g,'/'));
   variants.push(value.replace(/\s*\/\s*/g,' / '));
   variants.push(value.replace(/\s*\/\s*/g,'-'));
+  variants.push(value.replace(/\s*\/\s*/g,' - '));
   variants.push(value.replace(/\s*-\s*/g,'/'));
   variants.push(value.replace(/\s*-\s*/g,' / '));
+  variants.push(value.replace(/\s*-\s*/g,' - '));
   const slashParts=value.split('/').map(v=>v.trim()).filter(Boolean);
   if(slashParts.length===2){
     variants.push(`${slashParts[1]}/${slashParts[0]}`);
     variants.push(`${slashParts[1]} / ${slashParts[0]}`);
     variants.push(`${slashParts[1]}-${slashParts[0]}`);
+    variants.push(`${slashParts[1]} - ${slashParts[0]}`);
   }
   return variants;
 }
@@ -1977,9 +1980,11 @@ async function fetchGemsRecordsForQuery(query){
   const all=[];
   for(const resourceId of GEMS_AIRCON_RESOURCE_IDS){
     const url=`${GEMS_DATASTORE_API}?resource_id=${encodeURIComponent(resourceId)}&q=${encodeURIComponent(query)}&limit=50`;
-    const data=await fetchJson(url);
-    const records=((data||{}).result||{}).records;
-    if(Array.isArray(records)) all.push(...records);
+    try{
+      const data=await fetchJson(url);
+      const records=((data||{}).result||{}).records;
+      if(Array.isArray(records)) all.push(...records);
+    }catch(e){}
   }
   return all;
 }
