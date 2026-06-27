@@ -18,6 +18,7 @@ type Business = {
 
 type ApprovedUser = {
   email: string;
+  display_name: string;
   role: UserRole;
   business_id: string | null;
   business_name: string | null;
@@ -28,6 +29,36 @@ type ApprovedUser = {
   effective_agency_commission_rate: number;
   effective_salesperson_commission_rate: number;
   created_at: string;
+};
+
+type CalculatorDataRow = {
+  email: string | null;
+  data: Record<string, unknown> | null;
+  updated_at?: string | null;
+};
+
+type WonOption = {
+  userEmail: string;
+  userName: string;
+  businessName: string;
+  optionId: string;
+  optionName: string;
+  wonAt: string;
+  systemCount: number;
+  customerTotal: number;
+  rebateTotal: number;
+  agencyCommissionTotal: number;
+  salespersonCommissionTotal: number;
+  installerProfitTotal: number;
+  rows: {
+    label: string;
+    install: string;
+    finalInc: number;
+    rebate: number;
+    agencyCommissionInc: number;
+    salespersonCommissionInc: number;
+    netProfit: number;
+  }[];
 };
 
 type SupabaseServer = Awaited<ReturnType<typeof createSupabaseServerClient>>;
@@ -57,6 +88,10 @@ function normalizeEmail(value: FormDataEntryValue | null) {
 
 function normalizeText(value: FormDataEntryValue | null) {
   return String(value || "").trim();
+}
+
+function displayNameFor(user: Pick<ApprovedUser, "display_name" | "email">) {
+  return user.display_name || user.email;
 }
 
 function normalizeRole(value: FormDataEntryValue | null): UserRole {
@@ -155,6 +190,7 @@ function normalizeApprovedUser(
 
   return {
     email: String(row.email || ""),
+    display_name: String(row.display_name || ""),
     role,
     business_id: businessId,
     business_name: String(row.business_name || business?.name || ""),
@@ -233,7 +269,7 @@ async function listApprovedUsers(supabase: SupabaseServer, businesses: Business[
   const directResult = await supabase
     .from("approved_users")
     .select(
-      "email, role, business_id, commission_type_override, agency_commission_rate_override, salesperson_commission_rate_override, created_at",
+      "email, display_name, role, business_id, commission_type_override, agency_commission_rate_override, salesperson_commission_rate_override, created_at",
     )
     .order("created_at", { ascending: false });
 
@@ -243,6 +279,22 @@ async function listApprovedUsers(supabase: SupabaseServer, businesses: Business[
         normalizeApprovedUser(row, businesses),
       ),
       errorMessage: "",
+    };
+  }
+
+  const preNameResult = await supabase
+    .from("approved_users")
+    .select(
+      "email, role, business_id, commission_type_override, agency_commission_rate_override, salesperson_commission_rate_override, created_at",
+    )
+    .order("created_at", { ascending: false });
+
+  if (!preNameResult.error) {
+    return {
+      data: ((preNameResult.data || []) as Record<string, unknown>[]).map((row) =>
+        normalizeApprovedUser(row, businesses),
+      ),
+      errorMessage: schemaSetupMessage(directResult.error),
     };
   }
 
@@ -303,6 +355,7 @@ async function saveBusiness(
 async function saveApprovedUser(
   supabase: SupabaseServer,
   email: string,
+  displayName: string,
   role: UserRole,
   businessId: string | null,
   commissionType: CommissionOverride,
@@ -313,6 +366,7 @@ async function saveApprovedUser(
   const rpcResult = await supabase.rpc("admin_upsert_approved_user", {
     target_email: email,
     target_role: role,
+    target_display_name: displayName,
     target_business_id: businessId,
     target_commission_type_override: commissionOverride,
     target_agency_commission_rate_override: agencyRate,
@@ -325,6 +379,7 @@ async function saveApprovedUser(
   const directResult = await supabase.from("approved_users").upsert(
     {
       email,
+      display_name: displayName || null,
       role,
       business_id: businessId,
       commission_type_override: commissionOverride,
@@ -334,7 +389,21 @@ async function saveApprovedUser(
     { onConflict: "email" },
   );
 
-  return directResult.error ? schemaSetupMessage(directResult.error) : "";
+  if (!directResult.error) return "";
+
+  const preNameResult = await supabase.from("approved_users").upsert(
+    {
+      email,
+      role,
+      business_id: businessId,
+      commission_type_override: commissionOverride,
+      agency_commission_rate_override: agencyRate,
+      salesperson_commission_rate_override: salespersonRate,
+    },
+    { onConflict: "email" },
+  );
+
+  return preNameResult.error ? schemaSetupMessage(directResult.error) : schemaSetupMessage(directResult.error);
 }
 
 async function deleteApprovedUser(supabase: SupabaseServer, email: string) {
@@ -347,6 +416,107 @@ async function deleteApprovedUser(supabase: SupabaseServer, email: string) {
 
   const directResult = await supabase.from("approved_users").delete().eq("email", email);
   return directResult.error ? schemaSetupMessage(directResult.error) : "";
+}
+
+function parseStoredJson<T>(value: unknown, fallback: T): T {
+  if (Array.isArray(value) || (value && typeof value === "object")) return value as T;
+  if (typeof value !== "string" || !value.trim()) return fallback;
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+function moneyValue(value: unknown) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function quoteMaterialsInc(row: Record<string, unknown>) {
+  if (row.materialsInc !== undefined) return moneyValue(row.materialsInc);
+  return moneyValue(row.matsEx) * 1.1;
+}
+
+function optionRowLabel(row: Record<string, unknown>) {
+  return [row.size, row.brand, row.series, row.type].filter(Boolean).join(" ");
+}
+
+function formatMoney(value: number) {
+  return value.toLocaleString("en-AU", { style: "currency", currency: "AUD" });
+}
+
+async function listWonOptions(supabase: SupabaseServer, users: ApprovedUser[]) {
+  const dataResult = await supabase
+    .from("user_calculator_data")
+    .select("email, data, updated_at")
+    .not("email", "is", null);
+
+  if (dataResult.error) {
+    return { data: [] as WonOption[], errorMessage: dbMessage(dataResult.error) };
+  }
+
+  const usersByEmail = new Map(users.map((user) => [user.email.toLowerCase(), user]));
+  const wonOptions: WonOption[] = [];
+
+  ((dataResult.data || []) as CalculatorDataRow[]).forEach((row) => {
+    const email = String(row.email || "").toLowerCase();
+    if (!email) return;
+
+    const data = row.data || {};
+    const optionDefs = parseStoredJson<Record<string, unknown>[]>(
+      data.installerQuoteOptionDefsV1 || data.greenEnergyQuoteOptionDefsV1 || data.QuoteOptionDefsV1,
+      [],
+    );
+    const quotes = parseStoredJson<Record<string, unknown>[]>(
+      data.installerMasterQuoteLogV1 || data.greenEnergyMasterQuoteLogV1 || data.MasterQuoteLogV1,
+      [],
+    );
+    const user = usersByEmail.get(email);
+
+    optionDefs
+      .filter((option) => option && option.wonAt)
+      .forEach((option) => {
+        const optionId = String(option.id || "");
+        const rows = quotes.filter((quote) => String(quote.optionId || "option_1") === optionId);
+        const wonRows = rows.map((quote) => ({
+          label: optionRowLabel(quote) || String(quote.model || "System"),
+          install: String(quote.install || ""),
+          finalInc: moneyValue(quote.finalInc),
+          rebate: moneyValue(quote.rebate),
+          agencyCommissionInc: moneyValue(quote.agencyCommissionInc ?? quote.commissionInc),
+          salespersonCommissionInc: moneyValue(quote.salespersonCommissionInc),
+          netProfit: moneyValue(quote.netProfit),
+        }));
+
+        wonOptions.push({
+          userEmail: email,
+          userName: user ? displayNameFor(user) : email,
+          businessName: user?.business_name || "No business",
+          optionId,
+          optionName: String(option.name || "Option"),
+          wonAt: String(option.wonAt || row.updated_at || ""),
+          systemCount: rows.length,
+          customerTotal: rows.reduce((sum, quote) => sum + moneyValue(quote.finalInc), 0),
+          rebateTotal: rows.reduce((sum, quote) => sum + moneyValue(quote.rebate), 0),
+          agencyCommissionTotal: rows.reduce(
+            (sum, quote) => sum + moneyValue(quote.agencyCommissionInc ?? quote.commissionInc),
+            0,
+          ),
+          salespersonCommissionTotal: rows.reduce(
+            (sum, quote) => sum + moneyValue(quote.salespersonCommissionInc),
+            0,
+          ),
+          installerProfitTotal: rows.reduce((sum, quote) => sum + moneyValue(quote.netProfit), 0),
+          rows: wonRows,
+        });
+      });
+  });
+
+  return {
+    data: wonOptions.sort((a, b) => Number(new Date(b.wonAt)) - Number(new Date(a.wonAt))),
+    errorMessage: "",
+  };
 }
 
 async function requireAdmin() {
@@ -409,6 +579,7 @@ async function addApprovedUser(formData: FormData) {
 
   const { supabase } = await requireAdmin();
   const email = normalizeEmail(formData.get("email"));
+  const displayName = normalizeText(formData.get("displayName"));
   const role = normalizeRole(formData.get("role"));
   const businessId = nullableUuid(formData.get("businessId"));
   const commissionType = normalizeCommissionOverride(formData.get("commissionType"));
@@ -422,6 +593,7 @@ async function addApprovedUser(formData: FormData) {
   const errorMessage = await saveApprovedUser(
     supabase,
     email,
+    displayName,
     role,
     businessId,
     commissionType,
@@ -434,7 +606,7 @@ async function addApprovedUser(formData: FormData) {
   }
 
   revalidatePath("/admin/users");
-  redirect(`/admin/users?message=${encodeURIComponent(`${email} is approved.`)}`);
+  redirect(`/admin/users?message=${encodeURIComponent(`${displayName || email} is approved.`)}`);
 }
 
 async function updateApprovedUser(formData: FormData) {
@@ -442,6 +614,7 @@ async function updateApprovedUser(formData: FormData) {
 
   const { supabase, email: currentEmail } = await requireAdmin();
   const email = normalizeEmail(formData.get("email"));
+  const displayName = normalizeText(formData.get("displayName"));
   const role = normalizeRole(formData.get("role"));
   const businessId = nullableUuid(formData.get("businessId"));
   const commissionType = normalizeCommissionOverride(formData.get("commissionType"));
@@ -455,6 +628,7 @@ async function updateApprovedUser(formData: FormData) {
   const errorMessage = await saveApprovedUser(
     supabase,
     email,
+    displayName,
     role,
     businessId,
     commissionType,
@@ -467,7 +641,7 @@ async function updateApprovedUser(formData: FormData) {
   }
 
   revalidatePath("/admin/users");
-  redirect(`/admin/users?message=${encodeURIComponent(`${email} was updated.`)}`);
+  redirect(`/admin/users?message=${encodeURIComponent(`${displayName || email} was updated.`)}`);
 }
 
 async function removeApprovedUser(formData: FormData) {
@@ -502,6 +676,8 @@ export default async function AdminUsersPage({
 
   const businesses = businessResult.data;
   const users = usersResult.data;
+  const wonResult = await listWonOptions(supabase, users);
+  const wonOptions = wonResult.data;
   const firstBusinessId = businesses[0]?.id || "";
 
   return (
@@ -528,6 +704,9 @@ export default async function AdminUsersPage({
         ) : null}
         {usersResult.errorMessage ? (
           <div className="notice">Supabase user setup: {usersResult.errorMessage}</div>
+        ) : null}
+        {wonResult.errorMessage ? (
+          <div className="notice">Won options setup: {wonResult.errorMessage}</div>
         ) : null}
 
         <section className="admin-section">
@@ -571,32 +750,25 @@ export default async function AdminUsersPage({
 
           <div className="business-grid">
             {businesses.map((business) => (
-              <form action={upsertBusiness} className="business-card" key={business.id}>
-                <input type="hidden" name="businessId" value={business.id} />
+              <div className="business-card locked-card" key={business.id}>
                 <div>
                   <label>Business</label>
-                  <input name="businessName" defaultValue={business.name} />
+                  <strong>{business.name}</strong>
                 </div>
                 <div>
                   <label>Commission</label>
-                  <select name="commissionType" defaultValue={business.commission_type}>
-                    <option value="none">No commission</option>
-                    <option value="standard">Standard</option>
-                    <option value="agency">Agency</option>
-                  </select>
+                  <strong>{commissionLabel(business.commission_type)}</strong>
                 </div>
                 <div>
                   <label>Agency / standard %</label>
-                  <input name="agencyCommissionRate" type="number" min="0" max="100" step="0.1" defaultValue={formatRate(business.agency_commission_rate)} />
+                  <strong>{formatRate(business.agency_commission_rate)}%</strong>
                 </div>
                 <div>
                   <label>Salesperson %</label>
-                  <input name="salespersonCommissionRate" type="number" min="0" max="100" step="0.1" defaultValue={formatRate(business.salesperson_commission_rate)} />
+                  <strong>{formatRate(business.salesperson_commission_rate)}%</strong>
                 </div>
-                <button className="secondary" type="submit">
-                  Save business
-                </button>
-              </form>
+                <span className="locked-pill">Locked</span>
+              </div>
             ))}
             {!businesses.length ? <div className="empty-card">No businesses yet.</div> : null}
           </div>
@@ -611,6 +783,10 @@ export default async function AdminUsersPage({
           </div>
 
           <form action={addApprovedUser} className="admin-form user-form">
+            <div>
+              <label htmlFor="displayName">Name</label>
+              <input id="displayName" name="displayName" placeholder="Alex Quinn" />
+            </div>
             <div>
               <label htmlFor="email">Email</label>
               <input id="email" name="email" type="email" placeholder="installer@example.com" required />
@@ -658,7 +834,119 @@ export default async function AdminUsersPage({
             </button>
           </form>
 
-          <div className="table-wrap">
+          <div className="user-card-grid">
+            {users.map((approvedUser) => {
+              const isSelf = approvedUser.email.toLowerCase() === currentEmail;
+              const commissionOverride = approvedUser.commission_type_override || "business_default";
+              return (
+                <article className="user-card" key={approvedUser.email}>
+                  <div className="user-card-head">
+                    <div>
+                      <strong>{displayNameFor(approvedUser)}</strong>
+                      {isSelf ? <span className="self-pill">You</span> : null}
+                      <span className="muted-line">{approvedUser.email}</span>
+                    </div>
+                    <div className="action-stack">
+                      <a className="button secondary" href={`/calculator?as=${encodeURIComponent(approvedUser.email)}`}>
+                        Open
+                      </a>
+                      <form action={removeApprovedUser}>
+                        <input type="hidden" name="email" value={approvedUser.email} />
+                        <button className="danger" type="submit" disabled={isSelf}>
+                          Remove
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+
+                  <div className="user-facts">
+                    <div><span>Business</span><strong>{approvedUser.business_name || "No business"}</strong></div>
+                    <div><span>Role</span><strong>{roleOptions.find((option) => option.value === approvedUser.role)?.label || approvedUser.role}</strong></div>
+                    <div><span>Commission</span><strong>{commissionLabel(approvedUser.effective_commission_type)}</strong></div>
+                    <div><span>Rates</span><strong>{formatRate(approvedUser.effective_agency_commission_rate)}% / {formatRate(approvedUser.effective_salesperson_commission_rate)}%</strong></div>
+                  </div>
+
+                  <form action={updateApprovedUser} className="user-edit-grid">
+                    <input type="hidden" name="email" value={approvedUser.email} />
+                    {isSelf ? <input type="hidden" name="role" value={approvedUser.role} /> : null}
+                    <div>
+                      <label>Name</label>
+                      <input name="displayName" defaultValue={approvedUser.display_name} placeholder="Name" />
+                    </div>
+                    <div>
+                      <label>Role</label>
+                      <select name="role" defaultValue={approvedUser.role} disabled={isSelf}>
+                        {roleOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label>Business</label>
+                      <select name="businessId" defaultValue={approvedUser.business_id || ""}>
+                        <option value="">No business</option>
+                        {businesses.map((business) => (
+                          <option key={business.id} value={business.id}>
+                            {business.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label>Override</label>
+                      <select name="commissionType" defaultValue={commissionOverride}>
+                        {commissionOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label>Primary %</label>
+                      <input
+                        name="agencyCommissionRate"
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.1"
+                        placeholder="Default"
+                        defaultValue={
+                          approvedUser.agency_commission_rate_override === null
+                            ? ""
+                            : formatRate(approvedUser.agency_commission_rate_override)
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label>Salesperson %</label>
+                      <input
+                        name="salespersonCommissionRate"
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.1"
+                        placeholder="Default"
+                        defaultValue={
+                          approvedUser.salesperson_commission_rate_override === null
+                            ? ""
+                            : formatRate(approvedUser.salesperson_commission_rate_override)
+                        }
+                      />
+                    </div>
+                    <button className="secondary" type="submit" disabled={isSelf}>
+                      Save user
+                    </button>
+                  </form>
+                </article>
+              );
+            })}
+            {!users.length ? <div className="empty-card">No approved users found.</div> : null}
+          </div>
+
+          <div className="table-wrap legacy-users-table">
             <table className="admin-table">
               <thead>
                 <tr>
@@ -773,9 +1061,55 @@ export default async function AdminUsersPage({
           </div>
 
           <div className="admin-help">
-            <strong>Commission shown in table:</strong> a user with “Use business default” inherits
-            the selected business setup. Standard commission uses the agency / standard percentage.
-            Agency commission uses both percentages.
+            <strong>Commission shown above:</strong> a user with Use business default inherits the
+            selected business setup. Standard commission uses the primary percentage. Agency
+            commission uses both percentages.
+          </div>
+        </section>
+
+        <section className="admin-section">
+          <div className="section-heading">
+            <div>
+              <h2>Won options</h2>
+              <p>Options marked as won in each calculator, including Daniel's full commission view.</p>
+            </div>
+          </div>
+
+          <div className="won-grid">
+            {wonOptions.map((option) => (
+              <article className="won-card" key={`${option.userEmail}-${option.optionId}-${option.wonAt}`}>
+                <div className="won-card-head">
+                  <div>
+                    <strong>{option.optionName}</strong>
+                    <span className="muted-line">
+                      {option.userName} - {option.businessName} - {option.userEmail}
+                    </span>
+                  </div>
+                  <span className="locked-pill">
+                    {option.wonAt ? new Date(option.wonAt).toLocaleDateString("en-AU") : "Won"}
+                  </span>
+                </div>
+                <div className="won-metrics">
+                  <div><span>Systems</span><strong>{option.systemCount}</strong></div>
+                  <div><span>Customer total</span><strong>{formatMoney(option.customerTotal)}</strong></div>
+                  <div><span>Rebate</span><strong>{formatMoney(option.rebateTotal)}</strong></div>
+                  <div><span>Agency comm inc</span><strong>{formatMoney(option.agencyCommissionTotal)}</strong></div>
+                  <div><span>Salesperson comm inc</span><strong>{formatMoney(option.salespersonCommissionTotal)}</strong></div>
+                  <div><span>Installer profit ex</span><strong>{formatMoney(option.installerProfitTotal)}</strong></div>
+                </div>
+                <div className="won-lines">
+                  {option.rows.map((row, index) => (
+                    <div className="won-line" key={`${row.label}-${index}`}>
+                      <strong>{row.label}</strong>
+                      <span>
+                        {row.install} - {formatMoney(row.finalInc)} customer - {formatMoney(row.netProfit)} installer profit
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </article>
+            ))}
+            {!wonOptions.length ? <div className="empty-card">No won options yet.</div> : null}
           </div>
         </section>
       </section>

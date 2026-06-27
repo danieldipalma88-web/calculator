@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from "../../lib/supabase/server";
 
 type ApprovedUser = {
   email: string;
+  display_name?: string | null;
   role: string;
   business_id?: string | null;
 };
@@ -11,13 +12,38 @@ type ApprovedUser = {
 async function getApprovedUser(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>, email: string) {
   const upgraded = await supabase
     .from("approved_users")
-    .select("email, role, business_id")
+    .select("email, display_name, role, business_id")
     .eq("email", email)
     .maybeSingle();
 
   if (!upgraded.error) return upgraded;
 
   return supabase.from("approved_users").select("email, role").eq("email", email).maybeSingle();
+}
+
+async function listApprovedUsers(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+) {
+  const upgraded = await supabase
+    .from("approved_users")
+    .select("email, display_name, role")
+    .order("display_name", { ascending: true });
+
+  if (!upgraded.error) return (upgraded.data || []) as ApprovedUser[];
+
+  const legacy = await supabase
+    .from("approved_users")
+    .select("email, role")
+    .order("email", { ascending: true });
+
+  return ((legacy.data || []) as ApprovedUser[]).map((item) => ({
+    ...item,
+    display_name: "",
+  }));
+}
+
+function displayName(user: Pick<ApprovedUser, "email" | "display_name">) {
+  return String(user.display_name || user.email);
 }
 
 export default async function CalculatorPage({
@@ -62,6 +88,13 @@ export default async function CalculatorPage({
   const requestedEmail = String(params?.as || "").trim().toLowerCase();
   const viewingEmail = canManage && requestedEmail ? requestedEmail : user.email.toLowerCase();
   const isViewingAnotherUser = viewingEmail !== user.email.toLowerCase();
+  const approvedUsers = canManage ? await listApprovedUsers(supabase) : [];
+  const viewedApprovedUser =
+    approvedUsers.find((item) => item.email.toLowerCase() === viewingEmail) || {
+      email: viewingEmail,
+      display_name: "",
+      role: "user",
+    };
   const rawSrc = isViewingAnotherUser
     ? `/calculator/raw?as=${encodeURIComponent(viewingEmail)}`
     : "/calculator/raw";
@@ -72,14 +105,35 @@ export default async function CalculatorPage({
         <div className="topbar-title">
           <strong>Quote Calculator</strong>
           <span>
-            {isViewingAnotherUser ? `Viewing ${viewingEmail} as ${user.email}` : user.email}
+            {isViewingAnotherUser
+              ? `Viewing ${displayName(viewedApprovedUser)} as ${user.email}`
+              : displayName(approved)}
           </span>
         </div>
         <div className="topbar-actions">
           {canManage ? (
-            <a className="button secondary" href="/admin/users">
-              Users
-            </a>
+            <>
+              <a className="button secondary" href="/admin/users">
+                Users
+              </a>
+              <form action="/calculator" method="get" className="account-switcher">
+                <select name="as" defaultValue={viewingEmail} aria-label="Open user account">
+                  {approvedUsers.map((approvedUser) => (
+                    <option key={approvedUser.email} value={approvedUser.email}>
+                      {displayName(approvedUser)}
+                    </option>
+                  ))}
+                </select>
+                <button className="secondary" type="submit">
+                  Open
+                </button>
+              </form>
+              {isViewingAnotherUser ? (
+                <a className="button orange" href="/calculator">
+                  Return to My Account
+                </a>
+              ) : null}
+            </>
           ) : null}
           <form action="/auth/signout" method="post">
             <button className="secondary" type="submit">

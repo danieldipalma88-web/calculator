@@ -151,7 +151,21 @@ button.danger {
 .topbar-actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 10px;
+}
+
+.account-switcher {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.account-switcher select {
+  min-width: 210px;
+  max-width: 280px;
+  min-height: 44px;
 }
 
 .calculator-frame {
@@ -234,7 +248,7 @@ button.danger {
 
 .business-form,
 .user-form {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .user-form {
@@ -261,6 +275,31 @@ button.danger {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fff;
+}
+
+.locked-card {
+  align-items: center;
+}
+
+.locked-card strong {
+  display: block;
+  color: var(--ink);
+  font-size: 15px;
+}
+
+.locked-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid #fed7aa;
+  border-radius: 999px;
+  background: #fff7ed;
+  color: #9a3412;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
 }
 
 .empty-card {
@@ -338,6 +377,10 @@ select {
   min-width: 0;
 }
 
+.legacy-users-table {
+  display: none;
+}
+
 .action-stack {
   display: flex;
   gap: 8px;
@@ -377,6 +420,115 @@ select {
   line-height: 1.35;
 }
 
+.user-card-grid,
+.won-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.user-card,
+.won-card {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.user-card-head,
+.won-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #edf1f5;
+}
+
+.user-card-head strong,
+.won-card-head strong {
+  color: var(--ink);
+  font-size: 16px;
+}
+
+.user-facts,
+.won-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.user-facts div,
+.won-metrics div {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #e4ebf2;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.user-facts span,
+.won-metrics span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.user-facts strong,
+.won-metrics strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--ink);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.user-edit-grid {
+  display: grid;
+  grid-template-columns: minmax(140px, 1.1fr) minmax(120px, 0.8fr) minmax(160px, 1fr) minmax(160px, 1fr) minmax(110px, 0.6fr) minmax(120px, 0.7fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.user-edit-grid button {
+  white-space: nowrap;
+}
+
+.won-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.won-metrics {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.won-lines {
+  display: grid;
+  gap: 8px;
+}
+
+.won-line {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.9fr) minmax(0, 1.1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 10px 0;
+  border-top: 1px solid #edf1f5;
+}
+
+.won-line strong,
+.won-line span {
+  overflow-wrap: anywhere;
+}
+
+.won-line span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
 @media (max-width: 760px) {
   .topbar {
     gap: 10px;
@@ -395,6 +547,17 @@ select {
   .topbar-actions {
     gap: 6px;
     justify-content: flex-end;
+  }
+
+  .account-switcher {
+    flex: 1 1 100%;
+    order: 4;
+  }
+
+  .account-switcher select {
+    min-width: 0;
+    max-width: none;
+    flex: 1 1 auto;
   }
 
   .topbar-actions .button,
@@ -421,7 +584,17 @@ select {
   .business-form,
   .user-form,
   .business-card,
-  .wide-inline-form {
+  .wide-inline-form,
+  .user-facts,
+  .user-edit-grid,
+  .won-grid,
+  .won-metrics,
+  .won-line {
     grid-template-columns: 1fr;
+  }
+
+  .user-card-head,
+  .won-card-head {
+    flex-direction: column;
   }
 }

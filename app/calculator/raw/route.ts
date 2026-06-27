@@ -10,7 +10,9 @@ function safeScriptJson(value: unknown) {
 
 type CalculatorUserContext = {
   email: string;
+  displayName: string;
   viewingEmail: string;
+  viewingDisplayName: string;
   role: string;
   businessId: string | null;
   businessName: string;
@@ -26,6 +28,7 @@ type CalculatorUserContext = {
 
 type ApprovedUser = {
   email: string;
+  display_name?: string | null;
   role: string;
   business_id?: string | null;
   commission_type_override?: string | null;
@@ -399,7 +402,7 @@ async function getApprovedUser(
   const upgraded = await supabase
     .from("approved_users")
     .select(
-      "email, role, business_id, commission_type_override, agency_commission_rate_override, salesperson_commission_rate_override",
+      "email, display_name, role, business_id, commission_type_override, agency_commission_rate_override, salesperson_commission_rate_override",
     )
     .eq("email", email)
     .maybeSingle();
@@ -407,6 +410,10 @@ async function getApprovedUser(
   if (!upgraded.error) return upgraded;
 
   return supabase.from("approved_users").select("email, role").eq("email", email).maybeSingle();
+}
+
+function accountDisplayName(user: ApprovedUser | null | undefined, fallbackEmail: string) {
+  return String(user?.display_name || user?.email || fallbackEmail);
 }
 
 async function getBusiness(
@@ -489,6 +496,7 @@ export async function GET(request: Request) {
   const effectiveSavedData = isOwnerEmail(viewingEmail)
     ? { ...savedData }
     : stripAccountManagedRebateOverrides(savedData);
+  const currentUserIsOwner = isOwnerEmail(currentEmail);
 
   const calculatorPath = path.join(process.cwd(), "index.html");
   const html = injectCloudStorageSync(
@@ -496,7 +504,9 @@ export async function GET(request: Request) {
     effectiveSavedData,
     {
       email: currentEmail,
+      displayName: accountDisplayName(approved as ApprovedUser, currentEmail),
       viewingEmail,
+      viewingDisplayName: accountDisplayName(viewedUser, viewingEmail),
       role: contextRole,
       businessId: business?.id || null,
       businessName: business?.name || "",
@@ -504,9 +514,9 @@ export async function GET(request: Request) {
       agencyCommissionRate,
       salespersonCommissionRate,
       canManageUsers: canManage,
-      canSeeCommissionDetails: canSeeCommissionDetails(contextRole),
-      canSeeProfitDetails: canSeeProfitDetails(contextRole),
-      canSeeOwnerDetails: isOwnerEmail(viewingEmail),
+      canSeeCommissionDetails: currentUserIsOwner || canSeeCommissionDetails(contextRole),
+      canSeeProfitDetails: currentUserIsOwner || canSeeProfitDetails(contextRole),
+      canSeeOwnerDetails: currentUserIsOwner,
       canSeeSalespersonCommission: true,
     },
   );

@@ -815,6 +815,12 @@ tbody tr:hover td{background:#f0f7ff}
 .optionTools{display:flex;gap:8px;flex-wrap:wrap}
 .smallBtn{padding:8px 10px;border-radius:10px;font-size:12px}
 .recommendedBadge{background:#fff2cc;color:#935f00;border-radius:999px;padding:4px 9px;font-size:11px;font-weight:900}
+.wonOption{border-color:#bbf7d0;box-shadow:0 6px 18px rgba(22,101,52,.1)}
+.wonOption .optionHeader{background:#f0fdf4}
+.wonBadge{background:#dcfce7;color:#166534;border:1px solid #bbf7d0;border-radius:999px;padding:4px 9px;font-size:11px;font-weight:900}
+.wonNotice{display:flex;justify-content:space-between;gap:12px;align-items:center;border:1px solid #bbf7d0;background:#f0fdf4;border-radius:14px;padding:12px 14px;margin-bottom:12px;color:#166534}
+.wonNotice strong{font-size:13px}
+.wonNotice span{font-size:12px;color:#3f6b4b}
 .proposalDrawer .proposalGrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .proposalDrawer .proposalWide{grid-column:1 / -1}
 .proposalDrawer .proposalChecks{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
@@ -1223,7 +1229,7 @@ tbody tr:hover td{background:#f0f7ff}
       <div id="salespersonCommissionIncRow" class="summaryLine"><span>Salesperson commission payable inc GST</span><strong id="salespersonCommissionInc"></strong></div>
       <div id="netProfitRow" class="summaryLine cash profitHighlight"><span id="netProfitLabel">Installer profit after commission ex GST</span><strong><span id="netProfit"></span><small id="netProfitMargin"></small></strong></div>
       <div id="summaryInstallAddons" class="summaryAddons hidden"><div class="summaryAddonsHead"><strong>Install add-ons</strong><span>Cost only</span></div><div id="summaryInstallAddonRows" class="summaryAddonRows"></div><div id="summaryInstallAddonFoot" class="summaryAddonFoot"></div></div>
-      <div class="actions"><button class="orange" onclick="addToQuote()">Add to Quote</button><button class="secondary" onclick="openDrawer()">View Options (<span id="quoteCount">0</span>)</button><button class="secondary" onclick="openProposalDrawer('current')">Export Proposal PDF</button><button class="secondary" onclick="openPriceDrawer()">Price Manager</button><button id="certValuesActionBtn" class="secondary" onclick="openCertDrawer()">Certificate Values</button><button class="secondary" onclick="downloadTxt()">Download Summary</button></div>
+      <div class="actions"><button class="orange" onclick="addToQuote()">Add to Quote</button><button class="secondary" onclick="openDrawer()">View Options (<span id="quoteCount">0</span>)</button><button class="secondary" onclick="openPriceDrawer()">Price Manager</button><button id="certValuesActionBtn" class="secondary" onclick="openCertDrawer()">Certificate Values</button></div>
       <div style="margin-top:12px"><label>Add current unit to option</label><div class="row2"><select id="addOptionSelect" onchange="onOptionSelectionChange(this.value)"></select><button class="secondary" type="button" onclick="createNewOption(true)">+ New Option</button></div><div style="margin-top:10px"><label>Selected option name</label><input id="mainOptionName" placeholder="Option name" onchange="renameCurrentMainOption(this.value)"></div></div>
     </aside>
   </div>
@@ -1238,7 +1244,7 @@ tbody tr:hover td{background:#f0f7ff}
 </div>
 <div class="floatingActionBar"><button class="floatingAction floatingAdd" onclick="addToQuote()">+ Add to Quote</button><button class="floatingAction floatingView" onclick="openDrawer()">View Options</button></div>
 <div id="overlay" class="drawerOverlay" onclick="closeAllDrawers()"></div>
-<div id="drawer" class="quoteDrawer quoteBuilderDrawer"><div class="drawerHead"><div><div class="kicker">Quote builder</div><h2 style="margin:4px 0">Saved options</h2><div class="sub drawerIntro">Compare split and ducted options. Working options are stored for 7 days. Use Save Quote to store permanent snapshots in this browser.</div><div class="quoteExportField" style="margin-top:14px;max-width:420px"><label>Quote / customer export name</label><input id="quoteExportName" placeholder="Example: Ash Macquarie Links" oninput="saveQuoteExportName()"></div></div><div class="actions"><button class="orange" onclick="saveCurrentQuoteSet()">Save Quote</button><button class="secondary" onclick="openProposalDrawer('quote')">Export Proposal PDF</button><button class="secondary" onclick="downloadCsv()">Download CSV</button><button class="danger" onclick="clearQuotes()">Clear</button><button class="secondary" onclick="closeDrawer()">Close</button></div></div>
+<div id="drawer" class="quoteDrawer quoteBuilderDrawer"><div class="drawerHead"><div><div class="kicker">Quote builder</div><h2 style="margin:4px 0">Saved options</h2><div class="sub drawerIntro">Compare split and ducted options. Working options are stored for 7 days. Use Save Quote to store permanent snapshots in this browser.</div><div class="quoteExportField" style="margin-top:14px;max-width:420px"><label>Quote / customer export name</label><input id="quoteExportName" placeholder="Example: Ash Macquarie Links" oninput="saveQuoteExportName()"></div></div><div class="actions"><button class="orange" onclick="saveCurrentQuoteSet()">Save Quote</button><button class="secondary" onclick="downloadCsv()">Download CSV</button><button class="danger" onclick="clearQuotes()">Clear</button><button class="secondary" onclick="closeDrawer()">Close</button></div></div>
   <div class="drawerFloatingActions"><button class="orange" onclick="saveCurrentQuoteSet()">Save Quote</button><button class="secondary" onclick="closeDrawer()">Close</button></div>
   <div class="totalsManager" style="margin-top:14px">
     <div class="drawerHead" style="margin-bottom:10px;align-items:flex-end">
@@ -3428,7 +3434,7 @@ function loadRecentQuotes(){
     const raw=storageGet(QUOTE_STORAGE_KEY,'MasterQuoteLogV1');
     quotes=raw?JSON.parse(raw):[];
     const cutoff=Date.now()-SEVEN_DAYS_MS;
-    quotes=quotes.filter(q=>(q.timestamp||0)>=cutoff).map(q=>normalizeQuoteLocation(q));
+    quotes=quotes.filter(q=>quoteRowIsWon(q)||(q.timestamp||0)>=cutoff).map(q=>normalizeQuoteLocation(q));
     persistQuotes();
   }catch(e){quotes=[];}
 }
@@ -3561,6 +3567,11 @@ function fillCurrentQuoteTotals(){
 }
 function applyEvenDistribution(){
   if(!quotes.length){ if($('distHint')) $('distHint').textContent='Add at least one quote option before distributing totals.'; return; }
+  const lockedOptions=quoteOptionDefs.filter(def=>def.wonAt&&quotes.some(q=>q.optionId===def.id));
+  if(lockedOptions.length){
+    if($('distHint')) $('distHint').textContent='Won options are locked. Unlock them before applying even distribution.';
+    return;
+  }
   const count=quotes.length;
   const splitRows=quotes.filter(r=>r.type==='Split');
   const applyIfEntered=(id)=>{ const el=$(id); return el && String(el.value).trim()!==''; };
@@ -3594,7 +3605,7 @@ function applyEvenDistribution(){
 }
 function renderQuotes(){
   const cutoff=Date.now()-SEVEN_DAYS_MS;
-  quotes=quotes.filter(q=>(q.timestamp||0)>=cutoff).map(q=>recomputeSavedQuote(normalizeQuoteLocation(q)));
+  quotes=quotes.filter(q=>quoteRowIsWon(q)||(q.timestamp||0)>=cutoff).map(q=>recomputeSavedQuote(normalizeQuoteLocation(q)));
   persistQuotes();
   $('quoteCount').textContent=quotes.length;
   refreshRecommendedOptions();
@@ -3865,11 +3876,73 @@ function ensureOptionDefs(){
   let changed=false;
   quotes.forEach((q,idx)=>{
     if(!q.optionId){q.optionId='option_1'; q.optionName='Option 1'; changed=true;}
-    if(!quoteOptionDefs.some(o=>o.id===q.optionId)){quoteOptionDefs.push({id:q.optionId,name:q.optionName||('Option '+(quoteOptionDefs.length+1))}); changed=true;}
+    let def=quoteOptionDefs.find(o=>o.id===q.optionId);
+    if(!def){
+      def={id:q.optionId,name:q.optionName||('Option '+(quoteOptionDefs.length+1))};
+      quoteOptionDefs.push(def);
+      changed=true;
+    }
+    if(q.wonAt&&!def.wonAt){
+      def.wonAt=q.wonAt;
+      def.wonByEmail=q.wonByEmail||'';
+      def.wonByName=q.wonByName||'';
+      changed=true;
+    }
   });
   if(changed){persistOptionDefs(); persistQuotes();}
 }
 function optionNameById(id){const o=quoteOptionDefs.find(x=>x.id===id); return o?o.name:'Option';}
+function optionDefById(id){return quoteOptionDefs.find(x=>x.id===id)||null;}
+function optionIsWon(id){const o=optionDefById(id); return !!(o&&o.wonAt);}
+function quoteRowIsWon(row){return !!(row&&(row.wonAt||optionIsWon(row.optionId)));}
+function canUnlockWonOptions(){return canSeeOwnerDetails();}
+function wonOptionOwnerName(){
+  const u=calculatorUserContext();
+  return String(u.viewingDisplayName||u.displayName||u.viewingEmail||u.email||'');
+}
+function optionWonLabel(def){
+  if(!def||!def.wonAt) return '';
+  const date=new Date(def.wonAt);
+  const stamp=Number.isNaN(date.getTime())?'':date.toLocaleDateString('en-AU');
+  return stamp?`Won ${stamp}`:'Won';
+}
+function assertOptionEditable(id){
+  if(!optionIsWon(id)) return true;
+  alert('This option is marked as won and locked. Ask Daniel to unlock it before making changes.');
+  return false;
+}
+function markOptionWon(id){
+  ensureOptionDefs();
+  const def=optionDefById(id);
+  if(!def) return;
+  if(def.wonAt){alert('This option is already marked as won.');return;}
+  const rows=quotes.filter(q=>q.optionId===id);
+  if(!rows.length){alert('Add at least one system to this option before marking it as won.');return;}
+  if(!confirm("Please confirm that all of the details are correct. Once you've marked this as won, it will be locked and you'll need to get permission to edit it again.")) return;
+  const now=new Date().toISOString();
+  const u=calculatorUserContext();
+  def.wonAt=now;
+  def.wonByEmail=String(u.viewingEmail||u.email||'');
+  def.wonByName=wonOptionOwnerName();
+  quotes.forEach(q=>{if(q.optionId===id){q.wonAt=now;q.wonByEmail=def.wonByEmail;q.wonByName=def.wonByName;}});
+  persistOptionDefs();
+  persistQuotes();
+  renderQuotes();
+}
+function unlockWonOption(id){
+  ensureOptionDefs();
+  if(!canUnlockWonOptions()){alert('Only Daniel can unlock a won option.');return;}
+  const def=optionDefById(id);
+  if(!def||!def.wonAt) return;
+  if(!confirm(`Unlock "${def.name}" so it can be edited again?`)) return;
+  delete def.wonAt;
+  delete def.wonByEmail;
+  delete def.wonByName;
+  quotes.forEach(q=>{if(q.optionId===id){delete q.wonAt;delete q.wonByEmail;delete q.wonByName;}});
+  persistOptionDefs();
+  persistQuotes();
+  renderQuotes();
+}
 function syncAddOptionSelects(value){
   ['addOptionSelect','drawerAddOptionSelect'].forEach(id=>{const el=$(id); if(el && value) el.value=value;});
 }
@@ -3885,6 +3958,7 @@ function updateMainOptionNameInput(){
   const selector=$('addOptionSelect')||$('drawerAddOptionSelect');
   const id=selector&&selector.value?selector.value:quoteOptionDefs[0].id;
   input.value=optionNameById(id);
+  input.disabled=optionIsWon(id);
 }
 function renameCurrentMainOption(value){
   const id=currentAddOptionId();
@@ -3922,12 +3996,14 @@ function createNewOption(selectIt){
 }
 function renameOption(id,value){
   const o=quoteOptionDefs.find(x=>x.id===id); if(!o) return;
+  if(!assertOptionEditable(id)){updateMainOptionNameInput();renderQuotes();return;}
   o.name=(value||'').trim()||o.name;
   quotes.forEach(q=>{if(q.optionId===id) q.optionName=o.name;});
   persistOptionDefs(); persistQuotes(); renderOptionSelectors(); renderQuotes();
 }
 function deleteOptionGroup(id){
   const name=optionNameById(id);
+  if(!assertOptionEditable(id)) return;
   if(!confirm('Delete '+name+' and all units inside it?')) return;
   quotes=quotes.filter(q=>q.optionId!==id);
   quoteOptionDefs=quoteOptionDefs.filter(o=>o.id!==id);
@@ -3935,6 +4011,7 @@ function deleteOptionGroup(id){
   persistOptionDefs(); persistQuotes(); renderQuotes();
 }
 function duplicateOptionGroup(id){
+  if(!assertOptionEditable(id)) return;
   const rows=quotes.filter(q=>q.optionId===id);
   if(!rows.length) return;
   const newOpt={id:'option_'+Date.now()+'_'+Math.floor(Math.random()*1000),name:optionNameById(id)+' Copy'};
@@ -3980,7 +4057,8 @@ function fillCurrentOptionTotals(){
   setCurrentOptionEditHint(`Loaded current totals from ${rows.length} system${rows.length===1?'':'s'} in this option.`);
 }
 function applyCurrentOptionDistribution(){
-  const {rows}=currentOptionSelection();
+  const {id,rows}=currentOptionSelection();
+  if(!assertOptionEditable(id)){setCurrentOptionEditHint('This option is marked as won and locked. Ask Daniel to unlock it before making changes.');return;}
   if(!rows.length){setCurrentOptionEditHint('Add systems to this option before applying totals.');return;}
   const entered=id=>{const el=$(id); return el&&String(el.value).trim()!=='';};
   const customerEntered=entered('currentOptionCustomerTotal');
@@ -4018,6 +4096,7 @@ function renderCurrentOptionPanel(){
   const title=$('currentOptionTitle'), summary=$('currentOptionSummary'), body=$('currentOptionBody');
   if(!title || !summary || !body) return;
   const {def,rows}=currentOptionSelection();
+  const isWon=!!def.wonAt;
   title.textContent=def.name;
   if(!rows.length){
     summary.textContent='No systems in this option yet.';
@@ -4027,21 +4106,26 @@ function renderCurrentOptionPanel(){
   const t=groupTotals(rows);
   const showPrivate=canSeeProfitDetails();
   const showLimitedSales=!showPrivate&&canSeeSalespersonCommission();
-  summary.textContent=`${rows.length} system${rows.length===1?'':'s'} in this option. Customer total ${money(t.customer)} inc GST.`;
+  summary.textContent=`${rows.length} system${rows.length===1?'':'s'} in this option. Customer total ${money(t.customer)} inc GST.${isWon?' Marked as won and locked.':''}`;
   const commissionMetrics=(showPrivate||showLimitedSales)?`<div class="currentOptionMetric"><span>Salesperson commission inc</span><strong>${money(t.salespersonCommission)}</strong></div><div class="currentOptionMetric"><span>Installer profit ex</span><strong>${money(t.profit)}</strong></div>`:'';
   const privateHeads=showPrivate?'<th>Agency comm inc</th><th>Salesperson comm inc</th><th>Installer profit ex</th>':(showLimitedSales?'<th>Salesperson commission</th><th>Installer profit ex</th>':'');
   const rowsHtml=rows.map(r=>{
     const materialsInc=savedMaterialsInc(r);
     const power=(r.type==='Split')?money(r.powerCost!==undefined?r.powerCost:0):'N/A';
     const privateCells=showPrivate?`<td class="money">${money(r.commissionInc)}</td><td class="money">${money(r.salespersonCommissionInc)}</td><td class="money">${money(r.netProfit)}</td>`:(showLimitedSales?`<td class="money">${money(r.salespersonCommissionInc)}</td><td class="money">${money(r.netProfit)}</td>`:'');
-    return `<tr><td>${htmlEscape(r.type)}</td><td>${htmlEscape(r.brand)}</td><td>${htmlEscape(r.size)}</td><td>${htmlEscape(r.model)}</td><td>${htmlEscape(r.install)}</td><td class="money">${money(r.finalInc)}</td><td class="money">${money(r.rebate)}</td><td class="money">${money(r.labour)}</td><td class="money">${money(materialsInc)}</td><td class="money">${power}</td>${privateCells}<td><button class="load" onclick="loadQuote(${r._index})">Load</button> <button class="danger" onclick="removeQuote(${r._index})">Remove</button></td></tr>`;
+    const actionCell=isWon?`<button class="load" onclick="loadQuote(${r._index})">Load</button> <button class="secondary smallBtn" disabled>Locked</button>`:`<button class="load" onclick="loadQuote(${r._index})">Load</button> <button class="danger" onclick="removeQuote(${r._index})">Remove</button>`;
+    return `<tr><td>${htmlEscape(r.type)}</td><td>${htmlEscape(r.brand)}</td><td>${htmlEscape(r.size)}</td><td>${htmlEscape(r.model)}</td><td>${htmlEscape(r.install)}</td><td class="money">${money(r.finalInc)}</td><td class="money">${money(r.rebate)}</td><td class="money">${money(r.labour)}</td><td class="money">${money(materialsInc)}</td><td class="money">${power}</td>${privateCells}<td>${actionCell}</td></tr>`;
   }).join('');
-  body.innerHTML=`<div class="currentOptionSummaryGrid"><div class="currentOptionMetric editable"><span>Customer total inc GST</span><input id="currentOptionCustomerTotal" type="number" step="0.01" value="${t.customer.toFixed(2)}"></div><div class="currentOptionMetric"><span>Rebate</span><strong>${money(t.rebate)}</strong></div><div class="currentOptionMetric editable"><span>Labour ex GST</span><input id="currentOptionLabourTotal" type="number" step="0.01" value="${t.labour.toFixed(2)}"></div><div class="currentOptionMetric editable"><span>Materials inc GST</span><input id="currentOptionMaterialsTotal" type="number" step="0.01" value="${t.materials.toFixed(2)}"></div><div class="currentOptionMetric editable"><span>Misc inc GST</span><input id="currentOptionMiscTotal" type="number" step="0.01" value="${t.misc.toFixed(2)}"></div>${commissionMetrics}</div><div class="currentOptionEditActions"><button class="secondary" type="button" onclick="fillCurrentOptionTotals()">Load option totals</button><button class="orange" type="button" onclick="applyCurrentOptionDistribution()">Apply to current option</button></div><div class="currentOptionEditHint" id="currentOptionEditHint">${htmlEscape(currentOptionEditMessage||'Adjust customer, labour, materials or misc, then apply them evenly across only the systems in this option.')}</div><div class="tableWrap" style="margin-top:12px"><table><thead><tr><th>Type</th><th>Brand</th><th>Size</th><th>Model</th><th>Install</th><th>Customer inc</th><th>Rebate</th><th>Labour ex</th><th>Materials inc</th><th>Power</th>${privateHeads}<th>Actions</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
+  const lockedAttr=isWon?' disabled':'';
+  const lockNotice=isWon?`<div class="wonNotice"><strong>${htmlEscape(optionWonLabel(def))}</strong><span>This option is locked. Ask Daniel to unlock it before making changes.</span></div>`:'';
+  const unlockAction=isWon&&canUnlockWonOptions()?`<button class="secondary" type="button" onclick="unlockWonOption('${def.id}')">Unlock won option</button>`:'';
+  body.innerHTML=`${lockNotice}<div class="currentOptionSummaryGrid"><div class="currentOptionMetric editable"><span>Customer total inc GST</span><input id="currentOptionCustomerTotal" type="number" step="0.01" value="${t.customer.toFixed(2)}"${lockedAttr}></div><div class="currentOptionMetric"><span>Rebate</span><strong>${money(t.rebate)}</strong></div><div class="currentOptionMetric editable"><span>Labour ex GST</span><input id="currentOptionLabourTotal" type="number" step="0.01" value="${t.labour.toFixed(2)}"${lockedAttr}></div><div class="currentOptionMetric editable"><span>Materials inc GST</span><input id="currentOptionMaterialsTotal" type="number" step="0.01" value="${t.materials.toFixed(2)}"${lockedAttr}></div><div class="currentOptionMetric editable"><span>Misc inc GST</span><input id="currentOptionMiscTotal" type="number" step="0.01" value="${t.misc.toFixed(2)}"${lockedAttr}></div>${commissionMetrics}</div><div class="currentOptionEditActions"><button class="secondary" type="button" onclick="fillCurrentOptionTotals()"${lockedAttr}>Load option totals</button><button class="orange" type="button" onclick="applyCurrentOptionDistribution()"${lockedAttr}>Apply to current option</button>${unlockAction}</div><div class="currentOptionEditHint" id="currentOptionEditHint">${htmlEscape(isWon?'This option is marked as won and locked.':(currentOptionEditMessage||'Adjust customer, labour, materials or misc, then apply them evenly across only the systems in this option.'))}</div><div class="tableWrap" style="margin-top:12px"><table><thead><tr><th>Type</th><th>Brand</th><th>Size</th><th>Model</th><th>Install</th><th>Customer inc</th><th>Rebate</th><th>Labour ex</th><th>Materials inc</th><th>Power</th>${privateHeads}<th>Actions</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
 }
 function addToQuote(){
+  const optionId=currentAddOptionId();
+  if(!assertOptionEditable(optionId)) return;
   const x=calculate();
   const state=currentState();
-  const optionId=currentAddOptionId();
   const optionName=optionNameById(optionId);
   quotes.unshift({
     id:'quote_'+Date.now(), timestamp:Date.now(), state, optionId, optionName,
@@ -4058,7 +4142,7 @@ function addToQuote(){
 }
 function renderQuotes(){
   const cutoff=Date.now()-SEVEN_DAYS_MS;
-  quotes=quotes.filter(q=>(q.timestamp||0)>=cutoff).map(q=>recomputeSavedQuote(normalizeQuoteLocation(q)));
+  quotes=quotes.filter(q=>quoteRowIsWon(q)||(q.timestamp||0)>=cutoff).map(q=>recomputeSavedQuote(normalizeQuoteLocation(q)));
   ensureOptionDefs(); persistQuotes();
   const countEl=$('quoteCount'); if(countEl) countEl.textContent=quotes.length;
   if($('distRowsAffected')) $('distRowsAffected').textContent=String(quotes.length);
@@ -4074,22 +4158,28 @@ function renderQuotes(){
       container.innerHTML=groups.map(g=>{
         const t=groupTotals(g.rows);
         const rec=recommendedOptionId===g.def.id;
+        const isWon=!!g.def.wonAt;
         const bodyRows=g.rows.length?g.rows.map(r=>{
           const materialsInc=savedMaterialsInc(r);
           const power=(r.type==='Split')?money(r.powerCost!==undefined?r.powerCost:0):'N/A';
           const privateCells=showPrivate?`<td class="money">${money(r.commissionInc)}</td><td class="money">${money(r.salespersonCommissionInc)}</td><td class="money">${money(r.netProfit)}</td>`:(showLimitedSales?`<td class="money">${money(r.salespersonCommissionInc)}</td><td class="money">${money(r.netProfit)}</td>`:'');
-          return `<tr><td>${htmlEscape(r.type)}</td><td>${htmlEscape(r.brand)}</td><td>${htmlEscape(r.size)}</td><td>${htmlEscape(r.model)}</td><td>${htmlEscape(r.install)}</td><td class="money">${money(r.finalInc)}</td><td class="money">${money(r.rebate)}</td><td class="money">${money(r.unitInc)}</td><td class="money">${money(r.labour)}</td><td>${htmlEscape(r.labourTreatment || (r.type==='Split' ? 'Retained' : 'Expense'))}</td><td class="money">${money(materialsInc)}</td><td class="money">${power}</td>${privateCells}<td><button class="load" onclick="loadQuote(${r._index})">Load</button> <button class="danger" onclick="removeQuote(${r._index})">Remove</button></td></tr>`;
+          const actionCell=isWon?`<button class="load" onclick="loadQuote(${r._index})">Load</button> <button class="secondary smallBtn" disabled>Locked</button>`:`<button class="load" onclick="loadQuote(${r._index})">Load</button> <button class="danger" onclick="removeQuote(${r._index})">Remove</button>`;
+          return `<tr><td>${htmlEscape(r.type)}</td><td>${htmlEscape(r.brand)}</td><td>${htmlEscape(r.size)}</td><td>${htmlEscape(r.model)}</td><td>${htmlEscape(r.install)}</td><td class="money">${money(r.finalInc)}</td><td class="money">${money(r.rebate)}</td><td class="money">${money(r.unitInc)}</td><td class="money">${money(r.labour)}</td><td>${htmlEscape(r.labourTreatment || (r.type==='Split' ? 'Retained' : 'Expense'))}</td><td class="money">${money(materialsInc)}</td><td class="money">${power}</td>${privateCells}<td>${actionCell}</td></tr>`;
         }).join(''):`<tr><td colspan="${showPrivate?16:(showLimitedSales?15:13)}">No units in this option yet.</td></tr>`;
         const privateSummary=(showPrivate||showLimitedSales)?` | Installer profit ${money(t.profit)} ex GST`:'';
         const privateHeads=showPrivate?'<th>Agency comm inc</th><th>Salesperson comm inc</th><th>Installer Profit ex</th>':(showLimitedSales?'<th>Salesperson commission</th><th>Installer Profit ex</th>':'');
         const privateTotals=showPrivate?`<span>Agency commission inc<strong>${money(t.commission)}</strong></span><span>Salesperson commission inc<strong>${money(t.salespersonCommission)}</strong></span><span>Installer profit ex<strong>${money(t.profit)}</strong></span>`:(showLimitedSales?`<span>Salesperson commission<strong>${money(t.salespersonCommission)}</strong></span><span>Installer profit ex<strong>${money(t.profit)}</strong></span>`:'');
-        return `<div class="optionCard">
+        const wonBadge=isWon?`<span class="wonBadge">${htmlEscape(optionWonLabel(g.def))}</span>`:'';
+        const wonTools=isWon
+          ? (canUnlockWonOptions()?`<button class="smallBtn secondary" onclick="unlockWonOption('${g.def.id}')">Unlock won</button>`:`<button class="smallBtn secondary" disabled>Locked</button>`)
+          : `<button class="smallBtn orange" onclick="markOptionWon('${g.def.id}')">Mark won</button>`;
+        return `<div class="optionCard${isWon?' wonOption':''}">
           <div class="optionHeader">
             <div class="optionHeaderLeft">
-              <div class="optionNameRow"><input class="optionNameInput" value="${htmlEscape(g.def.name)}" onchange="renameOption('${g.def.id}', this.value)">${rec?'<span class="recommendedBadge">Recommended</span>':''}</div>
+              <div class="optionNameRow"><input class="optionNameInput" value="${htmlEscape(g.def.name)}" onchange="renameOption('${g.def.id}', this.value)"${isWon?' disabled':''}>${rec?'<span class="recommendedBadge">Recommended</span>':''}${wonBadge}</div>
               <div class="optionSummary">${g.rows.length} system${g.rows.length===1?'':'s'} | Customer total ${money(t.customer)} inc GST | Misc total ${money(t.misc)} inc GST${privateSummary}</div>
             </div>
-            <div class="optionTools"><button class="smallBtn secondary" onclick="markRecommendedOption('${g.def.id}')">Recommend</button><button class="smallBtn secondary" onclick="duplicateOptionGroup('${g.def.id}')">Duplicate</button><button class="smallBtn danger" onclick="deleteOptionGroup('${g.def.id}')">Delete option</button></div>
+            <div class="optionTools">${wonTools}<button class="smallBtn secondary" onclick="markRecommendedOption('${g.def.id}')">Recommend</button><button class="smallBtn secondary" onclick="duplicateOptionGroup('${g.def.id}')">Duplicate</button><button class="smallBtn danger" onclick="deleteOptionGroup('${g.def.id}')">Delete option</button></div>
           </div>
           <div class="optionBody">
             <div class="tableWrap"><table><thead><tr><th>Type</th><th>Brand</th><th>Size</th><th>Model</th><th>Install</th><th>Customer inc</th><th>Rebate</th><th>Unit inc</th><th>Labour ex</th><th>Installer Labour</th><th>Materials inc</th><th>Power</th>${privateHeads}<th>Actions</th></tr></thead><tbody>${bodyRows}</tbody></table></div>
@@ -4113,8 +4203,15 @@ function renderQuotes(){
   }
   renderCurrentOptionPanel();
 }
-function removeQuote(i){quotes.splice(i,1); persistQuotes(); renderQuotes();}
-function clearQuotes(){quotes=[]; quoteOptionDefs=[{id:'option_1',name:'Option 1'}]; recommendedOptionId=''; persistOptionDefs(); persistQuotes(); renderQuotes();}
+function removeQuote(i){
+  const q=quotes[i];
+  if(q&&optionIsWon(q.optionId)){alert('This option is marked as won and locked. Ask Daniel to unlock it before removing systems.');return;}
+  quotes.splice(i,1); persistQuotes(); renderQuotes();
+}
+function clearQuotes(){
+  if(quoteOptionDefs.some(def=>def.wonAt&&quotes.some(q=>q.optionId===def.id))){alert('Won options are locked. Unlock them before clearing the quote builder.');return;}
+  quotes=[]; quoteOptionDefs=[{id:'option_1',name:'Option 1'}]; recommendedOptionId=''; persistOptionDefs(); persistQuotes(); renderQuotes();
+}
 function refreshRecommendedOptions(){}
 function downloadCsv(){
   const quoteName=($('quoteExportName') && $('quoteExportName').value.trim()) || ($('customer') && $('customer').value.trim()) || 'Quote Builder';

@@ -218,6 +218,7 @@ alter table public.approved_users
 
 alter table public.approved_users
   add column if not exists business_id uuid references public.businesses(id) on delete set null,
+  add column if not exists display_name text,
   add column if not exists commission_type_override text,
   add column if not exists agency_commission_rate_override numeric,
   add column if not exists salesperson_commission_rate_override numeric;
@@ -353,9 +354,11 @@ execute function public.backup_user_calculator_data();
 
 drop function if exists public.admin_upsert_approved_user(text, text);
 drop function if exists public.admin_upsert_approved_user(text, text, uuid, text, numeric, numeric);
+drop function if exists public.admin_upsert_approved_user(text, text, text, uuid, text, numeric, numeric);
 create or replace function public.admin_upsert_approved_user(
   target_email text,
   target_role text default 'user',
+  target_display_name text default '',
   target_business_id uuid default null,
   target_commission_type_override text default null,
   target_agency_commission_rate_override numeric default null,
@@ -368,6 +371,7 @@ set search_path = public
 as $$
 declare
   normalized_email text := lower(trim(coalesce(target_email, '')));
+  normalized_display_name text := nullif(trim(coalesce(target_display_name, '')), '');
   normalized_role text := case
     when target_role in ('admin', 'business_owner', 'agency', 'salesperson', 'user') then target_role
     else 'user'
@@ -399,6 +403,7 @@ begin
 
   insert into public.approved_users (
     email,
+    display_name,
     role,
     business_id,
     commission_type_override,
@@ -407,6 +412,7 @@ begin
   )
   values (
     normalized_email,
+    normalized_display_name,
     normalized_role,
     target_business_id,
     normalized_commission_type,
@@ -414,6 +420,7 @@ begin
     normalized_salesperson_rate
   )
   on conflict (email) do update set
+    display_name = excluded.display_name,
     role = excluded.role,
     business_id = excluded.business_id,
     commission_type_override = excluded.commission_type_override,
@@ -422,8 +429,8 @@ begin
 end;
 $$;
 
-revoke all on function public.admin_upsert_approved_user(text, text, uuid, text, numeric, numeric) from public;
-grant execute on function public.admin_upsert_approved_user(text, text, uuid, text, numeric, numeric) to authenticated;
+revoke all on function public.admin_upsert_approved_user(text, text, text, uuid, text, numeric, numeric) from public;
+grant execute on function public.admin_upsert_approved_user(text, text, text, uuid, text, numeric, numeric) to authenticated;
 
 drop function if exists public.admin_upsert_business(uuid, text, text, numeric, numeric);
 create or replace function public.admin_upsert_business(
@@ -511,6 +518,7 @@ drop function if exists public.admin_list_approved_users();
 create or replace function public.admin_list_approved_users()
 returns table (
   email text,
+  display_name text,
   role text,
   business_id uuid,
   business_name text,
@@ -534,6 +542,7 @@ begin
   return query
   select
     au.email,
+    au.display_name,
     au.role,
     au.business_id,
     b.name as business_name,
