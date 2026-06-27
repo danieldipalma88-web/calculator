@@ -97,6 +97,7 @@ $$;
 revoke all on function public.admin_delete_approved_user(text) from public;
 grant execute on function public.admin_delete_approved_user(text) to authenticated;
 
+drop function if exists public.admin_list_approved_users();
 create or replace function public.admin_list_approved_users()
 returns table (
   email text,
