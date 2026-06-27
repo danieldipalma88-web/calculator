@@ -49,7 +49,7 @@ function displayName(user: Pick<ApprovedUser, "email" | "display_name">) {
 export default async function CalculatorPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ as?: string }>;
+  searchParams?: Promise<{ as?: string; preview?: string }>;
 }) {
   const params = await searchParams;
   const supabase = await createSupabaseServerClient();
@@ -88,6 +88,7 @@ export default async function CalculatorPage({
   const requestedEmail = String(params?.as || "").trim().toLowerCase();
   const viewingEmail = canManage && requestedEmail ? requestedEmail : user.email.toLowerCase();
   const isViewingAnotherUser = viewingEmail !== user.email.toLowerCase();
+  const isPreviewingAsUser = isViewingAnotherUser && params?.preview === "1";
   const approvedUsers = canManage ? await listApprovedUsers(supabase) : [];
   const viewedApprovedUser =
     approvedUsers.find((item) => item.email.toLowerCase() === viewingEmail) || {
@@ -96,17 +97,18 @@ export default async function CalculatorPage({
       role: "user",
     };
   const rawSrc = isViewingAnotherUser
-    ? `/calculator/raw?as=${encodeURIComponent(viewingEmail)}`
+    ? `/calculator/raw?as=${encodeURIComponent(viewingEmail)}${isPreviewingAsUser ? "&preview=1" : ""}`
     : "/calculator/raw";
+  const viewingName = displayName(viewedApprovedUser);
 
   return (
-    <>
+    <div className="calculator-shell">
       <header className="topbar">
         <div className="topbar-title">
           <strong>Quote Calculator</strong>
           <span>
             {isViewingAnotherUser
-              ? `Viewing ${displayName(viewedApprovedUser)} as ${user.email}`
+              ? `${isPreviewingAsUser ? "Previewing" : "Viewing"} ${viewingName} as ${user.email}`
               : displayName(approved)}
           </span>
         </div>
@@ -129,9 +131,20 @@ export default async function CalculatorPage({
                 </button>
               </form>
               {isViewingAnotherUser ? (
-                <a className="button orange" href="/calculator">
-                  Return to My Account
-                </a>
+                <>
+                  {isPreviewingAsUser ? (
+                    <a className="button secondary" href={`/calculator?as=${encodeURIComponent(viewingEmail)}`}>
+                      Show Admin Details
+                    </a>
+                  ) : (
+                    <a className="button secondary" href={`/calculator?as=${encodeURIComponent(viewingEmail)}&preview=1`}>
+                      Preview as {viewingName}
+                    </a>
+                  )}
+                  <a className="button orange" href="/calculator">
+                    Return to My Account
+                  </a>
+                </>
               ) : null}
             </>
           ) : null}
@@ -142,7 +155,17 @@ export default async function CalculatorPage({
           </form>
         </div>
       </header>
+      {isViewingAnotherUser ? (
+        <div className={`view-mode-banner ${isPreviewingAsUser ? "preview" : "admin"}`}>
+          <strong>{isPreviewingAsUser ? `Previewing what ${viewingName} sees` : "Admin details visible"}</strong>
+          <span>
+            {isPreviewingAsUser
+              ? "Agency/admin-only figures are hidden in this preview."
+              : `You are viewing ${viewingName}'s saved calculator with Daniel/admin visibility.`}
+          </span>
+        </div>
+      ) : null}
       <iframe className="calculator-frame" src={rawSrc} title="Quote calculator" />
-    </>
+    </div>
   );
 }

@@ -24,6 +24,7 @@ type CalculatorUserContext = {
   canSeeProfitDetails: boolean;
   canSeeOwnerDetails: boolean;
   canSeeSalespersonCommission: boolean;
+  isPreviewMode: boolean;
 };
 
 type ApprovedUser = {
@@ -468,6 +469,7 @@ export async function GET(request: Request) {
   const currentEmail = user.email.toLowerCase();
   const { searchParams } = new URL(request.url);
   const requestedEmail = String(searchParams.get("as") || "").trim().toLowerCase();
+  const requestedPreview = searchParams.get("preview") === "1";
   const { data: approvedUser } = await getApprovedUser(supabase, currentEmail);
 
   if (!approvedUser) {
@@ -477,6 +479,7 @@ export async function GET(request: Request) {
   const approved = approvedUser as ApprovedUser;
   const canManage = canManageUsers(currentEmail, approved.role);
   const viewingEmail = canManage && requestedEmail ? requestedEmail : currentEmail;
+  const previewAsViewedUser = canManage && requestedPreview && viewingEmail !== currentEmail;
   const { data: viewedApprovedUser } =
     viewingEmail === currentEmail
       ? { data: approved }
@@ -497,6 +500,10 @@ export async function GET(request: Request) {
     ? { ...savedData }
     : stripAccountManagedRebateOverrides(savedData);
   const currentUserIsOwner = isOwnerEmail(currentEmail);
+  const useAdminVisibility = currentUserIsOwner && !previewAsViewedUser;
+  const effectiveCanManageUsers = previewAsViewedUser
+    ? canManageUsers(viewingEmail, contextRole)
+    : canManage;
 
   const calculatorPath = path.join(process.cwd(), "index.html");
   const html = injectCloudStorageSync(
@@ -513,11 +520,12 @@ export async function GET(request: Request) {
       commissionType,
       agencyCommissionRate,
       salespersonCommissionRate,
-      canManageUsers: canManage,
-      canSeeCommissionDetails: currentUserIsOwner || canSeeCommissionDetails(contextRole),
-      canSeeProfitDetails: currentUserIsOwner || canSeeProfitDetails(contextRole),
-      canSeeOwnerDetails: currentUserIsOwner,
+      canManageUsers: effectiveCanManageUsers,
+      canSeeCommissionDetails: useAdminVisibility || canSeeCommissionDetails(contextRole),
+      canSeeProfitDetails: useAdminVisibility || canSeeProfitDetails(contextRole),
+      canSeeOwnerDetails: useAdminVisibility,
       canSeeSalespersonCommission: true,
+      isPreviewMode: previewAsViewedUser,
     },
   );
 

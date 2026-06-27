@@ -130,6 +130,14 @@ button.danger {
   gap: 16px;
 }
 
+.calculator-shell {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .topbar-title {
   min-width: 0;
 }
@@ -172,9 +180,41 @@ button.danger {
   width: 100%;
   height: calc(100vh - 56px - env(safe-area-inset-top, 0px));
   height: calc(100dvh - 56px - env(safe-area-inset-top, 0px));
+  flex: 1 1 auto;
+  min-height: 0;
   border: 0;
   display: block;
   background: #fff;
+}
+
+.calculator-shell .calculator-frame {
+  height: auto;
+}
+
+.view-mode-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 8px 18px;
+  border-bottom: 1px solid var(--line);
+  background: #fff7ed;
+  color: #7c2d12;
+  text-align: center;
+}
+
+.view-mode-banner.preview {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.view-mode-banner strong {
+  font-size: 13px;
+}
+
+.view-mode-banner span {
+  font-size: 12px;
 }
 
 .notice {
@@ -565,6 +605,13 @@ select {
     min-height: 38px;
     padding: 0 10px;
     font-size: 12px;
+  }
+
+  .view-mode-banner {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+    text-align: left;
   }
 
   .admin-shell {
