@@ -1236,7 +1236,7 @@ tbody tr:hover td{background:#f0f7ff}
   <div class="currentOptionPanel card">
     <div class="currentOptionHead">
       <div><div class="kicker">Current option</div><h2 id="currentOptionTitle">Option 1</h2><div class="sub" id="currentOptionSummary">Add systems to the selected option to build the quote.</div></div>
-      <div class="actions"><button class="secondary" type="button" onclick="openDrawer()">View all options</button><button class="orange" type="button" onclick="addToQuote()">Add Current Unit</button></div>
+      <div class="actions"><button class="secondary" type="button" onclick="openDrawer()">View all options</button><button class="orange" type="button" onclick="addToQuote()">Add Current Unit</button><button id="currentOptionWonBtn" class="secondary" type="button" onclick="toggleCurrentOptionWon()">Mark won</button></div>
     </div>
     <div id="currentOptionBody"></div>
   </div>
@@ -3943,6 +3943,31 @@ function unlockWonOption(id){
   persistQuotes();
   renderQuotes();
 }
+function toggleCurrentOptionWon(){
+  const {id,def}=currentOptionSelection();
+  if(def&&def.wonAt){
+    if(canUnlockWonOptions()) unlockWonOption(id);
+    else alert('This option is already marked as won and locked.');
+    return;
+  }
+  markOptionWon(id);
+}
+function updateCurrentOptionWonButton(def,rows){
+  const btn=$('currentOptionWonBtn');
+  if(!btn) return;
+  const isWon=!!(def&&def.wonAt);
+  btn.classList.toggle('orange',!isWon);
+  btn.classList.toggle('secondary',isWon);
+  if(isWon){
+    btn.textContent=canUnlockWonOptions()?'Unlock won':optionWonLabel(def);
+    btn.disabled=!canUnlockWonOptions();
+    btn.title=canUnlockWonOptions()?'Unlock this won option so it can be edited again.':'This option is marked as won and locked.';
+    return;
+  }
+  btn.textContent='Mark won';
+  btn.disabled=!rows||!rows.length;
+  btn.title=rows&&rows.length?'Mark the selected option as won.':'Add at least one system before marking this option as won.';
+}
 function syncAddOptionSelects(value){
   ['addOptionSelect','drawerAddOptionSelect'].forEach(id=>{const el=$(id); if(el && value) el.value=value;});
 }
@@ -4096,6 +4121,7 @@ function renderCurrentOptionPanel(){
   const title=$('currentOptionTitle'), summary=$('currentOptionSummary'), body=$('currentOptionBody');
   if(!title || !summary || !body) return;
   const {def,rows}=currentOptionSelection();
+  updateCurrentOptionWonButton(def,rows);
   const isWon=!!def.wonAt;
   title.textContent=def.name;
   if(!rows.length){
