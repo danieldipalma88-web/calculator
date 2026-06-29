@@ -197,6 +197,23 @@ create table if not exists public.businesses (
 
 alter table public.businesses enable row level security;
 
+create table if not exists public.approved_user_businesses (
+  email text not null,
+  business_id uuid not null references public.businesses(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (email, business_id)
+);
+
+alter table public.approved_user_businesses enable row level security;
+
+create table if not exists public.business_calculator_data (
+  business_id uuid primary key references public.businesses(id) on delete cascade,
+  data jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.business_calculator_data enable row level security;
+
 alter table public.businesses drop constraint if exists businesses_commission_type_check;
 alter table public.businesses
   add constraint businesses_commission_type_check
@@ -256,6 +273,12 @@ from public.businesses b
 where au.business_id is null
   and b.name = 'Green Energy Climate Control';
 
+insert into public.approved_user_businesses (email, business_id)
+select lower(au.email), au.business_id
+from public.approved_users au
+where au.business_id is not null
+on conflict (email, business_id) do nothing;
+
 create or replace function public.is_approved_admin()
 returns boolean
 language sql
@@ -285,6 +308,12 @@ using (
     where au.business_id = businesses.id
       and lower(au.email) = lower(coalesce(auth.jwt() ->> 'email', ''))
   )
+  or exists (
+    select 1
+    from public.approved_user_businesses aub
+    where aub.business_id = businesses.id
+      and lower(aub.email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+  )
 );
 
 drop policy if exists "admins can manage businesses" on public.businesses;
@@ -294,6 +323,81 @@ for all
 to authenticated
 using (public.is_approved_admin())
 with check (public.is_approved_admin());
+
+drop policy if exists "users can read own business memberships" on public.approved_user_businesses;
+create policy "users can read own business memberships"
+on public.approved_user_businesses
+for select
+to authenticated
+using (
+  public.is_approved_admin()
+  or lower(email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+);
+
+drop policy if exists "admins can manage business memberships" on public.approved_user_businesses;
+create policy "admins can manage business memberships"
+on public.approved_user_businesses
+for all
+to authenticated
+using (public.is_approved_admin())
+with check (public.is_approved_admin());
+
+drop policy if exists "users can read assigned business calculator data" on public.business_calculator_data;
+create policy "users can read assigned business calculator data"
+on public.business_calculator_data
+for select
+to authenticated
+using (
+  public.is_approved_admin()
+  or exists (
+    select 1
+    from public.approved_users au
+    where au.business_id = business_calculator_data.business_id
+      and lower(au.email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+  )
+  or exists (
+    select 1
+    from public.approved_user_businesses aub
+    where aub.business_id = business_calculator_data.business_id
+      and lower(aub.email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+  )
+);
+
+drop policy if exists "users can upsert assigned business calculator data" on public.business_calculator_data;
+create policy "users can upsert assigned business calculator data"
+on public.business_calculator_data
+for all
+to authenticated
+using (
+  public.is_approved_admin()
+  or exists (
+    select 1
+    from public.approved_users au
+    where au.business_id = business_calculator_data.business_id
+      and lower(au.email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+  )
+  or exists (
+    select 1
+    from public.approved_user_businesses aub
+    where aub.business_id = business_calculator_data.business_id
+      and lower(aub.email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+  )
+)
+with check (
+  public.is_approved_admin()
+  or exists (
+    select 1
+    from public.approved_users au
+    where au.business_id = business_calculator_data.business_id
+      and lower(au.email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+  )
+  or exists (
+    select 1
+    from public.approved_user_businesses aub
+    where aub.business_id = business_calculator_data.business_id
+      and lower(aub.email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+  )
+);
 
 drop policy if exists "admins can read calculator data" on public.user_calculator_data;
 create policy "admins can read calculator data"

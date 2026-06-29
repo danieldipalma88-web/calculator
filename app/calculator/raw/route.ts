@@ -50,6 +50,18 @@ const MANAGED_PRICE_STORAGE_KEYS = [
   "ManagedPricesV1",
 ];
 
+const BUSINESS_SHARED_STORAGE_KEYS = new Set([
+  "installerManagedPricesV1",
+  "greenEnergyManagedPricesV1",
+  "ManagedPricesV1",
+  "installerDefaultCostRulesV1",
+  "greenEnergyDefaultCostRulesV1",
+  "DefaultCostRulesV1",
+  "installerCertificateValuesV1",
+  "greenEnergyCertificateValuesV1",
+  "CertificateValuesV1",
+]);
+
 function stripSensitiveQuoteFields(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(stripSensitiveQuoteFields);
   if (!value || typeof value !== "object") return value;
@@ -111,6 +123,14 @@ function stripAccountManagedRebateOverrides(data: Record<string, unknown>) {
   return output;
 }
 
+function sharedBusinessDataFromUserData(data: Record<string, unknown>) {
+  const output: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (BUSINESS_SHARED_STORAGE_KEYS.has(key)) output[key] = value;
+  }
+  return output;
+}
+
 function stripManagedRebateOverrides(value: unknown) {
   if (typeof value !== "string" || !value.trim()) return value;
   try {
@@ -134,8 +154,8 @@ function injectCloudStorageSync(
 ) {
   const syncUrl =
     userContext.viewingEmail && userContext.viewingEmail !== userContext.email
-      ? `/api/calculator-data?as=${encodeURIComponent(userContext.viewingEmail)}`
-      : "/api/calculator-data";
+      ? `/api/calculator-data?as=${encodeURIComponent(userContext.viewingEmail)}${userContext.businessId ? `&businessId=${encodeURIComponent(userContext.businessId)}` : ""}`
+      : `/api/calculator-data${userContext.businessId ? `?businessId=${encodeURIComponent(userContext.businessId)}` : ""}`;
   const sanitizedData = sanitizeCalculatorData(data, userContext);
   const bootstrap = `
 <script>
@@ -144,7 +164,7 @@ function injectCloudStorageSync(
   var calculatorUser = ${safeScriptJson(userContext)};
   var calculatorSyncUrl = ${safeScriptJson(syncUrl)};
   var profileStorageKey = '__calculatorProfileEmail';
-  var profileEmail = (calculatorUser && (calculatorUser.viewingEmail || calculatorUser.email)) || '';
+  var profileEmail = ((calculatorUser && (calculatorUser.viewingEmail || calculatorUser.email)) || '') + '|' + ((calculatorUser && calculatorUser.businessId) || '');
   var syncing = false;
   var timer = null;
   var lastSnapshotJson = '';
@@ -430,11 +450,57 @@ async function getBusiness(
   return (data || null) as Business | null;
 }
 
+async function businessIdsForEmail(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  email: string,
+  fallbackBusinessId?: string | null,
+) {
+  const ids = new Set<string>();
+  if (fallbackBusinessId) ids.add(fallbackBusinessId);
+
+  const memberships = await supabase
+    .from("approved_user_businesses")
+    .select("business_id")
+    .eq("email", email);
+
+  if (!memberships.error) {
+    (memberships.data || []).forEach((row: { business_id?: string | null }) => {
+      if (row.business_id) ids.add(row.business_id);
+    });
+  }
+
+  return [...ids];
+}
+
+async function resolveActiveBusiness(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  viewedUser: ApprovedUser,
+  requestedBusinessId: string,
+  allowAnyBusiness: boolean,
+) {
+  if (allowAnyBusiness && requestedBusinessId) {
+    return getBusiness(supabase, requestedBusinessId);
+  }
+
+  const businessIds = await businessIdsForEmail(
+    supabase,
+    String(viewedUser.email || "").toLowerCase(),
+    viewedUser.business_id,
+  );
+  const selectedBusinessId =
+    requestedBusinessId && businessIds.includes(requestedBusinessId)
+      ? requestedBusinessId
+      : businessIds[0] || viewedUser.business_id || null;
+
+  return getBusiness(supabase, selectedBusinessId);
+}
+
 async function getSavedCalculatorData(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   currentUserId: string,
   currentEmail: string,
   viewingEmail: string,
+  businessId?: string | null,
 ) {
   const byEmail = await supabase
     .from("user_calculator_data")
@@ -442,7 +508,7 @@ async function getSavedCalculatorData(
     .eq("email", viewingEmail)
     .maybeSingle();
 
-  if (byEmail.data?.data) return byEmail.data.data as Record<string, unknown>;
+  let userData: Record<string, unknown> = (byEmail.data?.data || {}) as Record<string, unknown>;
 
   if (viewingEmail === currentEmail) {
     const { data } = await supabase
@@ -450,10 +516,23 @@ async function getSavedCalculatorData(
       .select("data")
       .eq("user_id", currentUserId)
       .maybeSingle();
-    return (data?.data || {}) as Record<string, unknown>;
+    if (!byEmail.data?.data) userData = (data?.data || {}) as Record<string, unknown>;
   }
 
-  return {};
+  let businessData: Record<string, unknown> = {};
+  if (businessId) {
+    const businessResult = await supabase
+      .from("business_calculator_data")
+      .select("data")
+      .eq("business_id", businessId)
+      .maybeSingle();
+
+    if (!businessResult.error) {
+      businessData = (businessResult.data?.data || {}) as Record<string, unknown>;
+    }
+  }
+
+  return { ...userData, ...sharedBusinessDataFromUserData(userData), ...businessData };
 }
 
 export async function GET(request: Request) {
@@ -470,6 +549,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const requestedEmail = String(searchParams.get("as") || "").trim().toLowerCase();
   const requestedPreview = searchParams.get("preview") === "1";
+  const requestedBusinessId = String(searchParams.get("businessId") || "").trim();
   const { data: approvedUser } = await getApprovedUser(supabase, currentEmail);
 
   if (!approvedUser) {
@@ -485,7 +565,13 @@ export async function GET(request: Request) {
       ? { data: approved }
       : await getApprovedUser(supabase, viewingEmail);
   const viewedUser = (viewedApprovedUser || approved) as ApprovedUser;
-  const business = await getBusiness(supabase, viewedUser.business_id);
+  const currentUserIsOwner = isOwnerEmail(currentEmail);
+  const business = await resolveActiveBusiness(
+    supabase,
+    viewedUser,
+    requestedBusinessId,
+    currentUserIsOwner,
+  );
   const commissionType =
     viewedUser.commission_type_override || business?.commission_type || "none";
   const agencyCommissionRate = Number(
@@ -495,11 +581,16 @@ export async function GET(request: Request) {
     viewedUser.salesperson_commission_rate_override ?? business?.salesperson_commission_rate ?? 0,
   );
   const contextRole = String(viewedUser.role || "user");
-  const savedData = await getSavedCalculatorData(supabase, user.id, currentEmail, viewingEmail);
+  const savedData = await getSavedCalculatorData(
+    supabase,
+    user.id,
+    currentEmail,
+    viewingEmail,
+    business?.id || null,
+  );
   const effectiveSavedData = isOwnerEmail(viewingEmail)
     ? { ...savedData }
     : stripAccountManagedRebateOverrides(savedData);
-  const currentUserIsOwner = isOwnerEmail(currentEmail);
   const useAdminVisibility = currentUserIsOwner && !previewAsViewedUser;
   const effectiveCanManageUsers = previewAsViewedUser
     ? canManageUsers(viewingEmail, contextRole)

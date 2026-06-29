@@ -9,6 +9,11 @@ type ApprovedUser = {
   business_id?: string | null;
 };
 
+type Business = {
+  id: string;
+  name: string;
+};
+
 async function getApprovedUser(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>, email: string) {
   const upgraded = await supabase
     .from("approved_users")
@@ -26,7 +31,7 @@ async function listApprovedUsers(
 ) {
   const upgraded = await supabase
     .from("approved_users")
-    .select("email, display_name, role")
+    .select("email, display_name, role, business_id")
     .order("display_name", { ascending: true });
 
   if (!upgraded.error) return (upgraded.data || []) as ApprovedUser[];
@@ -42,6 +47,49 @@ async function listApprovedUsers(
   }));
 }
 
+async function listBusinessesForEmail(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  email: string,
+  fallbackBusinessId?: string | null,
+) {
+  const ids = new Set<string>();
+  if (fallbackBusinessId) ids.add(fallbackBusinessId);
+
+  const memberships = await supabase
+    .from("approved_user_businesses")
+    .select("business_id")
+    .eq("email", email.toLowerCase());
+
+  if (!memberships.error) {
+    (memberships.data || []).forEach((row: { business_id?: string | null }) => {
+      if (row.business_id) ids.add(row.business_id);
+    });
+  }
+
+  if (!ids.size) return [] as Business[];
+
+  const businesses = await supabase
+    .from("businesses")
+    .select("id, name")
+    .in("id", [...ids])
+    .order("name", { ascending: true });
+
+  if (businesses.error) return [] as Business[];
+  return (businesses.data || []) as Business[];
+}
+
+async function listAllBusinesses(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+) {
+  const businesses = await supabase
+    .from("businesses")
+    .select("id, name")
+    .order("name", { ascending: true });
+
+  if (businesses.error) return [] as Business[];
+  return (businesses.data || []) as Business[];
+}
+
 function displayName(user: Pick<ApprovedUser, "email" | "display_name">) {
   return String(user.display_name || user.email);
 }
@@ -49,7 +97,7 @@ function displayName(user: Pick<ApprovedUser, "email" | "display_name">) {
 export default async function CalculatorPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ as?: string; preview?: string }>;
+  searchParams?: Promise<{ as?: string; preview?: string; businessId?: string }>;
 }) {
   const params = await searchParams;
   const supabase = await createSupabaseServerClient();
@@ -86,6 +134,7 @@ export default async function CalculatorPage({
   const approved = approvedUser as ApprovedUser;
   const canManage = canManageUsers(user.email, approved.role);
   const requestedEmail = String(params?.as || "").trim().toLowerCase();
+  const requestedBusinessId = String(params?.businessId || "").trim();
   const viewingEmail = canManage && requestedEmail ? requestedEmail : user.email.toLowerCase();
   const isViewingAnotherUser = viewingEmail !== user.email.toLowerCase();
   const isPreviewingAsUser = isViewingAnotherUser && params?.preview === "1";
@@ -95,11 +144,25 @@ export default async function CalculatorPage({
       email: viewingEmail,
       display_name: "",
       role: "user",
+      business_id: null,
     };
+  const businessOptions =
+    canManage && !isViewingAnotherUser
+      ? await listAllBusinesses(supabase)
+      : await listBusinessesForEmail(
+          supabase,
+          viewingEmail,
+          (viewedApprovedUser as ApprovedUser).business_id,
+        );
+  const selectedBusiness =
+    businessOptions.find((business) => business.id === requestedBusinessId) || businessOptions[0] || null;
+  const businessQuery = selectedBusiness ? `businessId=${encodeURIComponent(selectedBusiness.id)}` : "";
   const rawSrc = isViewingAnotherUser
-    ? `/calculator/raw?as=${encodeURIComponent(viewingEmail)}${isPreviewingAsUser ? "&preview=1" : ""}`
-    : "/calculator/raw";
+    ? `/calculator/raw?as=${encodeURIComponent(viewingEmail)}${isPreviewingAsUser ? "&preview=1" : ""}${businessQuery ? `&${businessQuery}` : ""}`
+    : `/calculator/raw${businessQuery ? `?${businessQuery}` : ""}`;
   const viewingName = displayName(viewedApprovedUser);
+  const selectedBusinessName = selectedBusiness?.name || "";
+  const selectedBusinessParam = selectedBusiness ? `&businessId=${encodeURIComponent(selectedBusiness.id)}` : "";
 
   return (
     <div className="calculator-shell">
@@ -133,11 +196,11 @@ export default async function CalculatorPage({
               {isViewingAnotherUser ? (
                 <>
                   {isPreviewingAsUser ? (
-                    <a className="button secondary" href={`/calculator?as=${encodeURIComponent(viewingEmail)}`}>
+                    <a className="button secondary" href={`/calculator?as=${encodeURIComponent(viewingEmail)}${selectedBusinessParam}`}>
                       Show Admin Details
                     </a>
                   ) : (
-                    <a className="button secondary" href={`/calculator?as=${encodeURIComponent(viewingEmail)}&preview=1`}>
+                    <a className="button secondary" href={`/calculator?as=${encodeURIComponent(viewingEmail)}&preview=1${selectedBusinessParam}`}>
                       Preview as {viewingName}
                     </a>
                   )}
@@ -147,6 +210,22 @@ export default async function CalculatorPage({
                 </>
               ) : null}
             </>
+          ) : null}
+          {businessOptions.length > 1 ? (
+            <form action="/calculator" method="get" className="business-switcher">
+              {isViewingAnotherUser ? <input type="hidden" name="as" value={viewingEmail} /> : null}
+              {isPreviewingAsUser ? <input type="hidden" name="preview" value="1" /> : null}
+              <select name="businessId" defaultValue={selectedBusiness?.id || ""} aria-label="Business workspace">
+                {businessOptions.map((business) => (
+                  <option key={business.id} value={business.id}>
+                    {business.name}
+                  </option>
+                ))}
+              </select>
+              <button className="secondary" type="submit">
+                Switch
+              </button>
+            </form>
           ) : null}
           <form action="/auth/signout" method="post">
             <button className="secondary" type="submit">
@@ -162,6 +241,7 @@ export default async function CalculatorPage({
             {isPreviewingAsUser
               ? "Agency/admin-only figures are hidden in this preview."
               : `You are viewing ${viewingName}'s saved calculator with Daniel/admin visibility.`}
+            {selectedBusinessName ? ` Active business: ${selectedBusinessName}.` : ""}
           </span>
         </div>
       ) : null}

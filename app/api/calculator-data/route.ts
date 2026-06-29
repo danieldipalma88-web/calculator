@@ -7,16 +7,28 @@ const MANAGED_PRICE_STORAGE_KEYS = [
   "ManagedPricesV1",
 ];
 
+const BUSINESS_SHARED_STORAGE_KEYS = new Set([
+  "installerManagedPricesV1",
+  "greenEnergyManagedPricesV1",
+  "ManagedPricesV1",
+  "installerDefaultCostRulesV1",
+  "greenEnergyDefaultCostRulesV1",
+  "DefaultCostRulesV1",
+  "installerCertificateValuesV1",
+  "greenEnergyCertificateValuesV1",
+  "CertificateValuesV1",
+]);
+
 async function currentApprovedUser(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   email: string,
 ) {
   const { data } = await supabase
     .from("approved_users")
-    .select("role")
+    .select("role, business_id")
     .eq("email", email)
     .maybeSingle();
-  return data as { role?: string } | null;
+  return data as { role?: string; business_id?: string | null } | null;
 }
 
 function targetEmailFromRequest(request: Request, currentEmail: string, canManage: boolean) {
@@ -57,6 +69,56 @@ function mergeCalculatorData(existing: unknown, incoming: unknown) {
   }
 
   return merged;
+}
+
+function splitCalculatorDataByScope(data: Record<string, unknown>) {
+  const userData: Record<string, unknown> = {};
+  const businessData: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(data)) {
+    if (BUSINESS_SHARED_STORAGE_KEYS.has(key)) businessData[key] = value;
+    else userData[key] = value;
+  }
+
+  return { userData, businessData };
+}
+
+async function businessIdsForEmail(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  email: string,
+  fallbackBusinessId?: string | null,
+) {
+  const ids = new Set<string>();
+  if (fallbackBusinessId) ids.add(fallbackBusinessId);
+
+  const memberships = await supabase
+    .from("approved_user_businesses")
+    .select("business_id")
+    .eq("email", email);
+
+  if (!memberships.error) {
+    (memberships.data || []).forEach((row: { business_id?: string | null }) => {
+      if (row.business_id) ids.add(row.business_id);
+    });
+  }
+
+  return [...ids];
+}
+
+async function resolveBusinessId(
+  request: Request,
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  viewingEmail: string,
+  canManage: boolean,
+) {
+  const { searchParams } = new URL(request.url);
+  const requestedBusinessId = String(searchParams.get("businessId") || "").trim();
+  if (!requestedBusinessId) return null;
+  if (canManage) return requestedBusinessId;
+
+  const approvedUser = await currentApprovedUser(supabase, viewingEmail);
+  const businessIds = await businessIdsForEmail(supabase, viewingEmail, approvedUser?.business_id);
+  return businessIds.includes(requestedBusinessId) ? requestedBusinessId : null;
 }
 
 function sanitizeIncomingCalculatorData(
@@ -105,11 +167,13 @@ export async function GET(request: Request) {
 
   const currentEmail = String(user.email || "").toLowerCase();
   const approvedUser = await currentApprovedUser(supabase, currentEmail);
+  const canManage = canManageUsers(currentEmail, approvedUser?.role);
   const viewingEmail = targetEmailFromRequest(
     request,
     currentEmail,
-    canManageUsers(currentEmail, approvedUser?.role),
+    canManage,
   );
+  const businessId = await resolveBusinessId(request, supabase, viewingEmail, canManage);
   const byEmail = await supabase
     .from("user_calculator_data")
     .select("data")
@@ -120,9 +184,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: byEmail.error.message }, { status: 500 });
   }
 
-  if (byEmail.data?.data) {
-    return NextResponse.json({ data: byEmail.data.data || {} });
-  }
+  let userData: Record<string, unknown> = (byEmail.data?.data || {}) as Record<string, unknown>;
 
   if (viewingEmail === currentEmail) {
     const { data, error } = await supabase
@@ -135,10 +197,23 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ data: data?.data || {} });
+    if (!byEmail.data?.data) userData = (data?.data || {}) as Record<string, unknown>;
   }
 
-  return NextResponse.json({ data: {} });
+  let businessData: Record<string, unknown> = {};
+  if (businessId) {
+    const businessResult = await supabase
+      .from("business_calculator_data")
+      .select("data")
+      .eq("business_id", businessId)
+      .maybeSingle();
+
+    if (!businessResult.error) {
+      businessData = (businessResult.data?.data || {}) as Record<string, unknown>;
+    }
+  }
+
+  return NextResponse.json({ data: { ...userData, ...businessData } });
 }
 
 async function saveCalculatorData(request: Request) {
@@ -155,17 +230,40 @@ async function saveCalculatorData(request: Request) {
   const rawCalculatorData = body && typeof body.data === "object" ? body.data : {};
   const currentEmail = String(user.email || "").toLowerCase();
   const approvedUser = await currentApprovedUser(supabase, currentEmail);
+  const canManage = canManageUsers(currentEmail, approvedUser?.role);
   const viewingEmail = targetEmailFromRequest(
     request,
     currentEmail,
-    canManageUsers(currentEmail, approvedUser?.role),
+    canManage,
   );
+  const businessId = await resolveBusinessId(request, supabase, viewingEmail, canManage);
   const canEditManagedRebates = isOwnerEmail(viewingEmail);
   const calculatorData = sanitizeIncomingCalculatorData(
     rawCalculatorData,
     canEditManagedRebates,
   );
-  const incomingHasData = calculatorDataHasData(calculatorData);
+  const { userData, businessData } = splitCalculatorDataByScope(calculatorData);
+  const incomingHasData = calculatorDataHasData(userData);
+  const incomingBusinessHasData = calculatorDataHasData(businessData);
+
+  if (businessId && incomingBusinessHasData) {
+    const existingBusiness = await supabase
+      .from("business_calculator_data")
+      .select("data")
+      .eq("business_id", businessId)
+      .maybeSingle();
+
+    const mergedBusinessData = mergeCalculatorData(existingBusiness.data?.data, businessData);
+    const businessSave = await supabase.from("business_calculator_data").upsert({
+      business_id: businessId,
+      data: mergedBusinessData,
+      updated_at: new Date().toISOString(),
+    });
+
+    if (businessSave.error) {
+      return NextResponse.json({ error: businessSave.error.message }, { status: 500 });
+    }
+  }
 
   if (viewingEmail !== currentEmail) {
     const { data: existingData } = await supabase
@@ -185,7 +283,7 @@ async function saveCalculatorData(request: Request) {
       return NextResponse.json({ ok: true, skipped: "empty_snapshot_ignored" });
     }
 
-    const mergedData = mergeCalculatorData(existingData.data, calculatorData);
+    const mergedData = mergeCalculatorData(existingData.data, userData);
 
     const { error } = await supabase
       .from("user_calculator_data")
@@ -221,7 +319,7 @@ async function saveCalculatorData(request: Request) {
     return NextResponse.json({ ok: true, skipped: "empty_snapshot_ignored" });
   }
 
-  const mergedData = mergeCalculatorData(existingData?.data, calculatorData);
+  const mergedData = mergeCalculatorData(existingData?.data, userData);
 
   const { error } = existingData?.user_id
     ? await supabase

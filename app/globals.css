@@ -164,13 +164,15 @@ button.danger {
   gap: 10px;
 }
 
-.account-switcher {
+.account-switcher,
+.business-switcher {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.account-switcher select {
+.account-switcher select,
+.business-switcher select {
   min-width: 210px;
   max-width: 280px;
   min-height: 44px;
@@ -298,6 +300,36 @@ button.danger {
 .business-form button,
 .user-form button {
   width: 100%;
+}
+
+.business-checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+}
+
+.business-checkbox-grid.compact {
+  grid-template-columns: 1fr;
+}
+
+.checkbox-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #f8fafc;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.checkbox-pill input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
 }
 
 .business-grid {
@@ -680,12 +712,14 @@ select {
     justify-content: flex-end;
   }
 
-  .account-switcher {
+  .account-switcher,
+  .business-switcher {
     flex: 1 1 100%;
     order: 4;
   }
 
-  .account-switcher select {
+  .account-switcher select,
+  .business-switcher select {
     min-width: 0;
     max-width: none;
     flex: 1 1 auto;

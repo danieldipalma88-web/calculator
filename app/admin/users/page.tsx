@@ -22,6 +22,8 @@ type ApprovedUser = {
   role: UserRole;
   business_id: string | null;
   business_name: string | null;
+  business_ids: string[];
+  business_names: string[];
   commission_type_override: CommissionType | null;
   agency_commission_rate_override: number | null;
   salesperson_commission_rate_override: number | null;
@@ -123,6 +125,14 @@ function nullableUuid(value: FormDataEntryValue | null) {
   return normalized ? normalized : null;
 }
 
+function uniqueStrings(values: string[]) {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
+function businessIdsFromForm(formData: FormData) {
+  return uniqueStrings(formData.getAll("businessIds").map((value) => String(value || "")));
+}
+
 function nullableRate(value: FormDataEntryValue | null) {
   const raw = normalizeText(value);
   if (!raw) return null;
@@ -206,6 +216,8 @@ function normalizeApprovedUser(
     role,
     business_id: businessId,
     business_name: String(row.business_name || business?.name || ""),
+    business_ids: businessId ? [businessId] : [],
+    business_names: business?.name ? [business.name] : [],
     commission_type_override: commissionOverride,
     agency_commission_rate_override:
       agencyOverride === null || agencyOverride === undefined ? null : asNumber(agencyOverride, 0),
@@ -330,6 +342,50 @@ async function listApprovedUsers(supabase: SupabaseServer, businesses: Business[
   };
 }
 
+async function listUserBusinessMemberships(supabase: SupabaseServer, businesses: Business[]) {
+  const result = await supabase
+    .from("approved_user_businesses")
+    .select("email, business_id");
+
+  if (result.error) {
+    return {
+      data: new Map<string, { ids: string[]; names: string[] }>(),
+      errorMessage: schemaSetupMessage(result.error),
+    };
+  }
+
+  const businessById = new Map(businesses.map((business) => [business.id, business]));
+  const memberships = new Map<string, { ids: string[]; names: string[] }>();
+
+  ((result.data || []) as { email?: string | null; business_id?: string | null }[]).forEach((row) => {
+    const email = String(row.email || "").toLowerCase();
+    const businessId = String(row.business_id || "");
+    if (!email || !businessId) return;
+    const entry = memberships.get(email) || { ids: [], names: [] };
+    if (!entry.ids.includes(businessId)) entry.ids.push(businessId);
+    const businessName = businessById.get(businessId)?.name;
+    if (businessName && !entry.names.includes(businessName)) entry.names.push(businessName);
+    memberships.set(email, entry);
+  });
+
+  return { data: memberships, errorMessage: "" };
+}
+
+function applyMembershipsToUsers(
+  users: ApprovedUser[],
+  memberships: Map<string, { ids: string[]; names: string[] }>,
+) {
+  return users.map((user) => {
+    const membership = memberships.get(user.email.toLowerCase());
+    if (!membership || !membership.ids.length) return user;
+    return {
+      ...user,
+      business_ids: membership.ids,
+      business_names: membership.names,
+    };
+  });
+}
+
 async function saveBusiness(
   supabase: SupabaseServer,
   businessId: string | null,
@@ -369,23 +425,24 @@ async function saveApprovedUser(
   email: string,
   displayName: string,
   role: UserRole,
-  businessId: string | null,
+  businessIds: string[],
   commissionType: CommissionOverride,
   agencyRate: number | null,
   salespersonRate: number | null,
 ) {
   const commissionOverride = commissionType === "business_default" ? null : commissionType;
+  const primaryBusinessId = businessIds[0] || null;
   const rpcResult = await supabase.rpc("admin_upsert_approved_user", {
     target_email: email,
     target_role: role,
     target_display_name: displayName,
-    target_business_id: businessId,
+    target_business_id: primaryBusinessId,
     target_commission_type_override: commissionOverride,
     target_agency_commission_rate_override: agencyRate,
     target_salesperson_commission_rate_override: salespersonRate,
   });
 
-  if (!rpcResult.error) return "";
+  if (!rpcResult.error) return saveUserBusinessMemberships(supabase, email, businessIds);
   if (!isSchemaCacheFunctionError(rpcResult.error)) return dbMessage(rpcResult.error);
 
   const directResult = await supabase.from("approved_users").upsert(
@@ -393,7 +450,7 @@ async function saveApprovedUser(
       email,
       display_name: displayName || null,
       role,
-      business_id: businessId,
+      business_id: primaryBusinessId,
       commission_type_override: commissionOverride,
       agency_commission_rate_override: agencyRate,
       salesperson_commission_rate_override: salespersonRate,
@@ -401,13 +458,13 @@ async function saveApprovedUser(
     { onConflict: "email" },
   );
 
-  if (!directResult.error) return "";
+  if (!directResult.error) return saveUserBusinessMemberships(supabase, email, businessIds);
 
   const preNameResult = await supabase.from("approved_users").upsert(
     {
       email,
       role,
-      business_id: businessId,
+      business_id: primaryBusinessId,
       commission_type_override: commissionOverride,
       agency_commission_rate_override: agencyRate,
       salesperson_commission_rate_override: salespersonRate,
@@ -415,7 +472,32 @@ async function saveApprovedUser(
     { onConflict: "email" },
   );
 
-  return preNameResult.error ? schemaSetupMessage(directResult.error) : schemaSetupMessage(directResult.error);
+  if (preNameResult.error) return schemaSetupMessage(directResult.error);
+  return saveUserBusinessMemberships(supabase, email, businessIds);
+}
+
+async function saveUserBusinessMemberships(
+  supabase: SupabaseServer,
+  email: string,
+  businessIds: string[],
+) {
+  const normalizedEmail = email.toLowerCase();
+  const deleteResult = await supabase
+    .from("approved_user_businesses")
+    .delete()
+    .eq("email", normalizedEmail);
+
+  if (deleteResult.error) return schemaSetupMessage(deleteResult.error);
+  if (!businessIds.length) return "";
+
+  const insertResult = await supabase.from("approved_user_businesses").insert(
+    businessIds.map((businessId) => ({
+      email: normalizedEmail,
+      business_id: businessId,
+    })),
+  );
+
+  return insertResult.error ? schemaSetupMessage(insertResult.error) : "";
 }
 
 async function deleteApprovedUser(supabase: SupabaseServer, email: string) {
@@ -664,7 +746,7 @@ async function addApprovedUser(formData: FormData) {
   const email = normalizeEmail(formData.get("email"));
   const displayName = normalizeText(formData.get("displayName"));
   const role = normalizeRole(formData.get("role"));
-  const businessId = nullableUuid(formData.get("businessId"));
+  const businessIds = businessIdsFromForm(formData);
   const commissionType = normalizeCommissionOverride(formData.get("commissionType"));
   const agencyRate = nullableRate(formData.get("agencyCommissionRate"));
   const salespersonRate = nullableRate(formData.get("salespersonCommissionRate"));
@@ -678,7 +760,7 @@ async function addApprovedUser(formData: FormData) {
     email,
     displayName,
     role,
-    businessId,
+    businessIds,
     commissionType,
     agencyRate,
     salespersonRate,
@@ -699,7 +781,7 @@ async function updateApprovedUser(formData: FormData) {
   const email = normalizeEmail(formData.get("email"));
   const displayName = normalizeText(formData.get("displayName"));
   const role = normalizeRole(formData.get("role"));
-  const businessId = nullableUuid(formData.get("businessId"));
+  const businessIds = businessIdsFromForm(formData);
   const commissionType = normalizeCommissionOverride(formData.get("commissionType"));
   const agencyRate = nullableRate(formData.get("agencyCommissionRate"));
   const salespersonRate = nullableRate(formData.get("salespersonCommissionRate"));
@@ -713,7 +795,7 @@ async function updateApprovedUser(formData: FormData) {
     email,
     displayName,
     role,
-    businessId,
+    businessIds,
     commissionType,
     agencyRate,
     salespersonRate,
@@ -798,9 +880,10 @@ export default async function AdminUsersPage({
   const { supabase, email: currentEmail } = await requireAdmin();
   const businessResult = await listBusinesses(supabase);
   const usersResult = await listApprovedUsers(supabase, businessResult.data);
+  const membershipsResult = await listUserBusinessMemberships(supabase, businessResult.data);
 
   const businesses = businessResult.data;
-  const users = usersResult.data;
+  const users = applyMembershipsToUsers(usersResult.data, membershipsResult.data);
   const wonResult = await listWonOptions(supabase, users);
   const wonOptions = wonResult.data;
   const firstBusinessId = businesses[0]?.id || "";
@@ -829,6 +912,9 @@ export default async function AdminUsersPage({
         ) : null}
         {usersResult.errorMessage ? (
           <div className="notice">Supabase user setup: {usersResult.errorMessage}</div>
+        ) : null}
+        {membershipsResult.errorMessage ? (
+          <div className="notice">Supabase membership setup: {membershipsResult.errorMessage}</div>
         ) : null}
         {wonResult.errorMessage ? (
           <div className="notice">Won options setup: {wonResult.errorMessage}</div>
@@ -970,14 +1056,20 @@ export default async function AdminUsersPage({
               </select>
             </div>
             <div>
-              <label htmlFor="businessId">Business</label>
-              <select id="businessId" name="businessId" defaultValue={firstBusinessId}>
+              <label>Businesses</label>
+              <div className="business-checkbox-grid">
                 {businesses.map((business) => (
-                  <option key={business.id} value={business.id}>
-                    {business.name}
-                  </option>
+                  <label className="checkbox-pill" key={business.id}>
+                    <input
+                      type="checkbox"
+                      name="businessIds"
+                      value={business.id}
+                      defaultChecked={business.id === firstBusinessId}
+                    />
+                    <span>{business.name}</span>
+                  </label>
                 ))}
-              </select>
+              </div>
             </div>
             <div>
               <label htmlFor="commissionType">Commission override</label>
@@ -1028,7 +1120,7 @@ export default async function AdminUsersPage({
                   </div>
 
                   <div className="user-facts">
-                    <div><span>Business</span><strong>{approvedUser.business_name || "No business"}</strong></div>
+                    <div><span>Businesses</span><strong>{approvedUser.business_names.join(", ") || approvedUser.business_name || "No business"}</strong></div>
                     <div><span>Role</span><strong>{roleOptions.find((option) => option.value === approvedUser.role)?.label || approvedUser.role}</strong></div>
                     <div><span>Commission</span><strong>{commissionLabel(approvedUser.effective_commission_type)}</strong></div>
                     <div><span>Rates</span><strong>{formatRate(approvedUser.effective_agency_commission_rate)}% / {formatRate(approvedUser.effective_salesperson_commission_rate)}%</strong></div>
@@ -1052,15 +1144,20 @@ export default async function AdminUsersPage({
                       </select>
                     </div>
                     <div>
-                      <label>Business</label>
-                      <select name="businessId" defaultValue={approvedUser.business_id || ""}>
-                        <option value="">No business</option>
+                      <label>Businesses</label>
+                      <div className="business-checkbox-grid compact">
                         {businesses.map((business) => (
-                          <option key={business.id} value={business.id}>
-                            {business.name}
-                          </option>
+                          <label className="checkbox-pill" key={business.id}>
+                            <input
+                              type="checkbox"
+                              name="businessIds"
+                              value={business.id}
+                              defaultChecked={approvedUser.business_ids.includes(business.id)}
+                            />
+                            <span>{business.name}</span>
+                          </label>
                         ))}
-                      </select>
+                      </div>
                     </div>
                     <div>
                       <label>Override</label>
