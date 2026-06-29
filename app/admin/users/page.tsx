@@ -79,6 +79,18 @@ const commissionOptions: { value: CommissionOverride; label: string }[] = [
   { value: "agency", label: "Agency commission" },
 ];
 
+const OPTION_DEF_STORAGE_KEYS = [
+  "installerQuoteOptionDefsV1",
+  "greenEnergyQuoteOptionDefsV1",
+  "QuoteOptionDefsV1",
+];
+
+const QUOTE_STORAGE_KEYS = [
+  "installerMasterQuoteLogV1",
+  "greenEnergyMasterQuoteLogV1",
+  "MasterQuoteLogV1",
+];
+
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
@@ -428,6 +440,14 @@ function parseStoredJson<T>(value: unknown, fallback: T): T {
   }
 }
 
+function storedJsonKey(data: Record<string, unknown>, keys: string[]) {
+  return keys.find((key) => key in data) || keys[0];
+}
+
+function serializeLikeStoredValue(original: unknown, value: unknown) {
+  return typeof original === "string" || original === undefined ? JSON.stringify(value) : value;
+}
+
 function moneyValue(value: unknown) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -517,6 +537,69 @@ async function listWonOptions(supabase: SupabaseServer, users: ApprovedUser[]) {
     data: wonOptions.sort((a, b) => Number(new Date(b.wonAt)) - Number(new Date(a.wonAt))),
     errorMessage: "",
   };
+}
+
+async function updateWonOptionState(
+  supabase: SupabaseServer,
+  userEmail: string,
+  optionId: string,
+  mode: "unlock" | "delete",
+) {
+  const email = userEmail.toLowerCase();
+  const dataResult = await supabase
+    .from("user_calculator_data")
+    .select("data")
+    .eq("email", email)
+    .maybeSingle();
+
+  if (dataResult.error) return dbMessage(dataResult.error);
+  if (!dataResult.data?.data) return "Could not find saved calculator data for this user.";
+
+  const data = { ...(dataResult.data.data as Record<string, unknown>) };
+  const optionDefsKey = storedJsonKey(data, OPTION_DEF_STORAGE_KEYS);
+  const quotesKey = storedJsonKey(data, QUOTE_STORAGE_KEYS);
+  const optionDefs = parseStoredJson<Record<string, unknown>[]>(data[optionDefsKey], []);
+  const quotes = parseStoredJson<Record<string, unknown>[]>(data[quotesKey], []);
+
+  if (!optionDefs.some((option) => String(option.id || "") === optionId)) {
+    return "Could not find that won option in the saved calculator data.";
+  }
+
+  let nextOptionDefs: Record<string, unknown>[];
+  let nextQuotes: Record<string, unknown>[];
+
+  if (mode === "delete") {
+    nextOptionDefs = optionDefs.filter((option) => String(option.id || "") !== optionId);
+    nextQuotes = quotes.filter((quote) => String(quote.optionId || "option_1") !== optionId);
+    if (!nextOptionDefs.length) nextOptionDefs = [{ id: "option_1", name: "Option 1" }];
+  } else {
+    nextOptionDefs = optionDefs.map((option) => {
+      if (String(option.id || "") !== optionId) return option;
+      const { wonAt, wonByEmail, wonByName, ...rest } = option;
+      void wonAt;
+      void wonByEmail;
+      void wonByName;
+      return rest;
+    });
+    nextQuotes = quotes.map((quote) => {
+      if (String(quote.optionId || "option_1") !== optionId) return quote;
+      const { wonAt, wonByEmail, wonByName, ...rest } = quote;
+      void wonAt;
+      void wonByEmail;
+      void wonByName;
+      return rest;
+    });
+  }
+
+  data[optionDefsKey] = serializeLikeStoredValue(data[optionDefsKey], nextOptionDefs);
+  data[quotesKey] = serializeLikeStoredValue(data[quotesKey], nextQuotes);
+
+  const updateResult = await supabase
+    .from("user_calculator_data")
+    .update({ data, updated_at: new Date().toISOString() })
+    .eq("email", email);
+
+  return updateResult.error ? dbMessage(updateResult.error) : "";
 }
 
 async function requireAdmin() {
@@ -664,6 +747,48 @@ async function removeApprovedUser(formData: FormData) {
   redirect(`/admin/users?message=${encodeURIComponent(`${email} was removed.`)}`);
 }
 
+async function unlockWonOption(formData: FormData) {
+  "use server";
+
+  const { supabase } = await requireAdmin();
+  const userEmail = normalizeEmail(formData.get("userEmail"));
+  const optionId = normalizeText(formData.get("optionId"));
+
+  if (!userEmail || !optionId) {
+    redirect("/admin/users?error=Could not identify the won option to unlock.");
+  }
+
+  const errorMessage = await updateWonOptionState(supabase, userEmail, optionId, "unlock");
+
+  if (errorMessage) {
+    redirect(`/admin/users?error=${encodeURIComponent(errorMessage)}`);
+  }
+
+  revalidatePath("/admin/users");
+  redirect("/admin/users?message=Won option was unlocked.");
+}
+
+async function deleteWonOption(formData: FormData) {
+  "use server";
+
+  const { supabase } = await requireAdmin();
+  const userEmail = normalizeEmail(formData.get("userEmail"));
+  const optionId = normalizeText(formData.get("optionId"));
+
+  if (!userEmail || !optionId) {
+    redirect("/admin/users?error=Could not identify the won option to delete.");
+  }
+
+  const errorMessage = await updateWonOptionState(supabase, userEmail, optionId, "delete");
+
+  if (errorMessage) {
+    redirect(`/admin/users?error=${encodeURIComponent(errorMessage)}`);
+  }
+
+  revalidatePath("/admin/users");
+  redirect("/admin/users?message=Won option was deleted.");
+}
+
 export default async function AdminUsersPage({
   searchParams,
 }: {
@@ -750,25 +875,68 @@ export default async function AdminUsersPage({
 
           <div className="business-grid">
             {businesses.map((business) => (
-              <div className="business-card locked-card" key={business.id}>
-                <div>
-                  <label>Business</label>
-                  <strong>{business.name}</strong>
-                </div>
-                <div>
-                  <label>Commission</label>
-                  <strong>{commissionLabel(business.commission_type)}</strong>
-                </div>
-                <div>
-                  <label>Agency / standard %</label>
-                  <strong>{formatRate(business.agency_commission_rate)}%</strong>
-                </div>
-                <div>
-                  <label>Salesperson %</label>
-                  <strong>{formatRate(business.salesperson_commission_rate)}%</strong>
-                </div>
-                <span className="locked-pill">Locked</span>
-              </div>
+              <details className="business-card business-edit-card locked-card" key={business.id}>
+                <summary className="business-summary">
+                  <div>
+                    <label>Business</label>
+                    <strong>{business.name}</strong>
+                  </div>
+                  <div>
+                    <label>Commission</label>
+                    <strong>{commissionLabel(business.commission_type)}</strong>
+                  </div>
+                  <div>
+                    <label>Agency / standard %</label>
+                    <strong>{formatRate(business.agency_commission_rate)}%</strong>
+                  </div>
+                  <div>
+                    <label>Salesperson %</label>
+                    <strong>{formatRate(business.salesperson_commission_rate)}%</strong>
+                  </div>
+                  <span className="locked-pill locked-state">Locked</span>
+                  <span className="locked-pill unlocked-state">Unlocked</span>
+                </summary>
+                <form action={upsertBusiness} className="business-edit-form">
+                  <input type="hidden" name="businessId" value={business.id} />
+                  <div>
+                    <label>Business name</label>
+                    <input name="businessName" defaultValue={business.name} required />
+                  </div>
+                  <div>
+                    <label>Default commission</label>
+                    <select name="commissionType" defaultValue={business.commission_type}>
+                      <option value="none">No commission</option>
+                      <option value="standard">Standard</option>
+                      <option value="agency">Agency</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label>Agency / standard %</label>
+                    <input
+                      name="agencyCommissionRate"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.1"
+                      defaultValue={formatRate(business.agency_commission_rate)}
+                    />
+                  </div>
+                  <div>
+                    <label>Salesperson %</label>
+                    <input
+                      name="salespersonCommissionRate"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.1"
+                      defaultValue={formatRate(business.salesperson_commission_rate)}
+                    />
+                  </div>
+                  <button className="orange" type="submit">
+                    Save business
+                  </button>
+                </form>
+              </details>
             ))}
             {!businesses.length ? <div className="empty-card">No businesses yet.</div> : null}
           </div>
@@ -1085,9 +1253,28 @@ export default async function AdminUsersPage({
                       {option.userName} - {option.businessName} - {option.userEmail}
                     </span>
                   </div>
-                  <span className="locked-pill">
-                    {option.wonAt ? new Date(option.wonAt).toLocaleDateString("en-AU") : "Won"}
-                  </span>
+                  <div className="won-actions">
+                    <span className="locked-pill">
+                      {option.wonAt ? new Date(option.wonAt).toLocaleDateString("en-AU") : "Won"}
+                    </span>
+                    <form action={unlockWonOption}>
+                      <input type="hidden" name="userEmail" value={option.userEmail} />
+                      <input type="hidden" name="optionId" value={option.optionId} />
+                      <button className="secondary" type="submit">
+                        Unlock
+                      </button>
+                    </form>
+                    <details className="delete-confirm">
+                      <summary>Delete</summary>
+                      <form action={deleteWonOption}>
+                        <input type="hidden" name="userEmail" value={option.userEmail} />
+                        <input type="hidden" name="optionId" value={option.optionId} />
+                        <button className="danger" type="submit">
+                          Confirm delete
+                        </button>
+                      </form>
+                    </details>
+                  </div>
                 </div>
                 <div className="won-metrics">
                   <div><span>Systems</span><strong>{option.systemCount}</strong></div>

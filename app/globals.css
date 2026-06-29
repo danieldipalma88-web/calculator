@@ -317,6 +317,47 @@ button.danger {
   background: #fff;
 }
 
+.business-edit-card {
+  display: block;
+  padding: 0;
+  overflow: hidden;
+}
+
+.business-edit-card summary {
+  list-style: none;
+}
+
+.business-edit-card summary::-webkit-details-marker {
+  display: none;
+}
+
+.business-summary {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.4fr) minmax(150px, 0.8fr) minmax(140px, 0.7fr) minmax(140px, 0.7fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 16px;
+  cursor: pointer;
+}
+
+.business-summary:hover {
+  background: #f8fafc;
+}
+
+.business-edit-form {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.4fr) minmax(150px, 0.8fr) minmax(140px, 0.7fr) minmax(140px, 0.7fr) auto;
+  gap: 12px;
+  align-items: end;
+  padding: 16px;
+  border-top: 1px solid var(--line);
+  background: #fbfdff;
+}
+
+.business-edit-form button {
+  width: 100%;
+}
+
 .locked-card {
   align-items: center;
 }
@@ -340,6 +381,20 @@ button.danger {
   font-size: 12px;
   font-weight: 900;
   white-space: nowrap;
+}
+
+.unlocked-state {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.business-edit-card[open] .locked-state {
+  display: none;
+}
+
+.business-edit-card:not([open]) .unlocked-state {
+  display: none;
 }
 
 .empty-card {
@@ -538,7 +593,7 @@ select {
 }
 
 .won-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
 }
 
 .won-metrics {
@@ -567,6 +622,42 @@ select {
 .won-line span {
   color: var(--muted);
   font-size: 13px;
+}
+
+.won-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.delete-confirm {
+  position: relative;
+}
+
+.delete-confirm summary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 8px;
+  background: #fee2e2;
+  color: #991b1b;
+  cursor: pointer;
+  font-weight: 800;
+  list-style: none;
+}
+
+.delete-confirm summary::-webkit-details-marker {
+  display: none;
+}
+
+.delete-confirm form {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
 }
 
 @media (max-width: 760px) {
@@ -631,6 +722,8 @@ select {
   .business-form,
   .user-form,
   .business-card,
+  .business-summary,
+  .business-edit-form,
   .wide-inline-form,
   .user-facts,
   .user-edit-grid,
@@ -643,5 +736,9 @@ select {
   .user-card-head,
   .won-card-head {
     flex-direction: column;
+  }
+
+  .won-actions {
+    justify-content: flex-start;
   }
 }
