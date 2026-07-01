@@ -6,6 +6,8 @@ import { createSupabaseServerClient } from "../../../lib/supabase/server";
 type UserRole = "admin" | "business_owner" | "agency" | "salesperson" | "user";
 type CommissionType = "none" | "standard" | "agency";
 type CommissionOverride = CommissionType | "business_default";
+type WonPaymentStatus = "not_paid_in" | "paid_in" | "paid_out";
+type WonOptionUpdateMode = "unlock" | "delete" | "paid_in" | "paid_out" | "reset_payment";
 
 type Business = {
   id: string;
@@ -46,6 +48,10 @@ type WonOption = {
   optionId: string;
   optionName: string;
   wonAt: string;
+  paidInAt: string;
+  paidOutAt: string;
+  paymentStatus: WonPaymentStatus;
+  paymentStatusLabel: string;
   systemCount: number;
   customerTotal: number;
   rebateTotal: number;
@@ -61,6 +67,19 @@ type WonOption = {
     salespersonCommissionInc: number;
     netProfit: number;
   }[];
+};
+
+type SalespersonSalesSummary = {
+  userEmail: string;
+  userName: string;
+  businessNames: string;
+  saleCount: number;
+  customerTotal: number;
+  agencyCommissionTotal: number;
+  salespersonCommissionTotal: number;
+  notPaidInCount: number;
+  paidInCount: number;
+  paidOutCount: number;
 };
 
 type SupabaseServer = Awaited<ReturnType<typeof createSupabaseServerClient>>;
@@ -91,6 +110,17 @@ const QUOTE_STORAGE_KEYS = [
   "installerMasterQuoteLogV1",
   "greenEnergyMasterQuoteLogV1",
   "MasterQuoteLogV1",
+];
+
+const WON_PAYMENT_KEYS = [
+  "agencyPaidInAt",
+  "agencyPaidInByEmail",
+  "paidInAt",
+  "paidInByEmail",
+  "salespersonPaidOutAt",
+  "salespersonPaidOutByEmail",
+  "paidOutAt",
+  "paidOutByEmail",
 ];
 
 export const dynamic = "force-dynamic";
@@ -548,6 +578,177 @@ function formatMoney(value: number) {
   return value.toLocaleString("en-AU", { style: "currency", currency: "AUD" });
 }
 
+function formatShortDate(value: string) {
+  return value ? new Date(value).toLocaleDateString("en-AU") : "";
+}
+
+function wonPaymentStatus(paidInAt: string, paidOutAt: string): WonPaymentStatus {
+  if (paidOutAt) return "paid_out";
+  if (paidInAt) return "paid_in";
+  return "not_paid_in";
+}
+
+function wonPaymentStatusLabel(status: WonPaymentStatus) {
+  if (status === "paid_out") return "Paid out";
+  if (status === "paid_in") return "Paid in, not paid out";
+  return "Not paid in";
+}
+
+function wonOptionDomKey(option: Pick<WonOption, "userEmail" | "optionId" | "wonAt">) {
+  return `${option.userEmail}-${option.optionId}-${option.wonAt}`;
+}
+
+function clearWonPaymentFields(record: Record<string, unknown>) {
+  const next = { ...record };
+  WON_PAYMENT_KEYS.forEach((key) => {
+    delete next[key];
+  });
+  return next;
+}
+
+function applyWonPaymentFields(
+  record: Record<string, unknown>,
+  mode: Exclude<WonOptionUpdateMode, "unlock" | "delete">,
+  adminEmail: string,
+) {
+  const next = { ...record };
+  const now = new Date().toISOString();
+
+  if (mode === "reset_payment") return clearWonPaymentFields(next);
+
+  if (mode === "paid_in") {
+    delete next.salespersonPaidOutAt;
+    delete next.salespersonPaidOutByEmail;
+    delete next.paidOutAt;
+    delete next.paidOutByEmail;
+  }
+
+  next.agencyPaidInAt = String(next.agencyPaidInAt || next.paidInAt || now);
+  next.agencyPaidInByEmail = String(next.agencyPaidInByEmail || next.paidInByEmail || adminEmail);
+  next.paidInAt = String(next.paidInAt || next.agencyPaidInAt || now);
+  next.paidInByEmail = String(next.paidInByEmail || next.agencyPaidInByEmail || adminEmail);
+
+  if (mode === "paid_out") {
+    next.salespersonPaidOutAt = now;
+    next.salespersonPaidOutByEmail = adminEmail;
+    next.paidOutAt = now;
+    next.paidOutByEmail = adminEmail;
+  }
+
+  return next;
+}
+
+function wonExportRow(option: WonOption) {
+  return {
+    Salesperson: option.userName,
+    Email: option.userEmail,
+    Business: option.businessName,
+    Option: option.optionName,
+    "Won date": formatShortDate(option.wonAt),
+    Status: option.paymentStatusLabel,
+    "Paid in date": formatShortDate(option.paidInAt),
+    "Paid out date": formatShortDate(option.paidOutAt),
+    Systems: String(option.systemCount),
+    "Customer total inc GST": option.customerTotal.toFixed(2),
+    Rebate: option.rebateTotal.toFixed(2),
+    "Agency commission inc GST": option.agencyCommissionTotal.toFixed(2),
+    "Salesperson commission inc GST": option.salespersonCommissionTotal.toFixed(2),
+    "Installer profit ex GST": option.installerProfitTotal.toFixed(2),
+    "System details": option.rows
+      .map((row) => `${row.label} | ${row.install} | ${formatMoney(row.finalInc)} customer`)
+      .join(" ; "),
+  };
+}
+
+function summarizeSalesBySalesperson(wonOptions: WonOption[]) {
+  const summaries = new Map<string, SalespersonSalesSummary>();
+
+  wonOptions.forEach((option) => {
+    const existing =
+      summaries.get(option.userEmail) ||
+      ({
+        userEmail: option.userEmail,
+        userName: option.userName,
+        businessNames: option.businessName,
+        saleCount: 0,
+        customerTotal: 0,
+        agencyCommissionTotal: 0,
+        salespersonCommissionTotal: 0,
+        notPaidInCount: 0,
+        paidInCount: 0,
+        paidOutCount: 0,
+      } satisfies SalespersonSalesSummary);
+
+    existing.saleCount += 1;
+    existing.customerTotal += option.customerTotal;
+    existing.agencyCommissionTotal += option.agencyCommissionTotal;
+    existing.salespersonCommissionTotal += option.salespersonCommissionTotal;
+    if (option.paymentStatus === "paid_out") existing.paidOutCount += 1;
+    else if (option.paymentStatus === "paid_in") existing.paidInCount += 1;
+    else existing.notPaidInCount += 1;
+
+    const businessNames = new Set(
+      `${existing.businessNames},${option.businessName}`
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean),
+    );
+    existing.businessNames = [...businessNames].join(", ");
+    summaries.set(option.userEmail, existing);
+  });
+
+  return [...summaries.values()].sort((a, b) => b.customerTotal - a.customerTotal);
+}
+
+function wonExportScript() {
+  return `
+(function(){
+  function csvEscape(value) {
+    var text = String(value == null ? "" : value);
+    return /[",\\r\\n]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
+  }
+  function parseCard(card) {
+    if (!card) return null;
+    try { return JSON.parse(card.getAttribute("data-export-row") || "{}"); }
+    catch (error) { return null; }
+  }
+  var selectAll = document.querySelector("[data-select-all-won]");
+  if (selectAll) {
+    selectAll.addEventListener("click", function(){
+      var boxes = Array.prototype.slice.call(document.querySelectorAll(".won-sale-select"));
+      var shouldCheck = boxes.some(function(box){ return !box.checked; });
+      boxes.forEach(function(box){ box.checked = shouldCheck; });
+      selectAll.textContent = shouldCheck ? "Clear selection" : "Select all";
+    });
+  }
+  var exportButton = document.querySelector("[data-export-won-selected]");
+  if (exportButton) {
+    exportButton.addEventListener("click", function(){
+      var checked = Array.prototype.slice.call(document.querySelectorAll(".won-sale-select:checked"));
+      var cards = checked.length
+        ? checked.map(function(box){ return box.closest(".won-card"); })
+        : Array.prototype.slice.call(document.querySelectorAll(".won-card"));
+      var rows = cards.map(parseCard).filter(Boolean);
+      if (!rows.length) return;
+      var headers = Object.keys(rows[0]);
+      var csv = [headers.map(csvEscape).join(",")].concat(rows.map(function(row){
+        return headers.map(function(header){ return csvEscape(row[header]); }).join(",");
+      })).join("\\r\\n");
+      var blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      var url = URL.createObjectURL(blob);
+      var link = document.createElement("a");
+      link.href = url;
+      link.download = "won-sales-export.csv";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    });
+  }
+})();
+`;
+}
+
 async function listWonOptions(supabase: SupabaseServer, users: ApprovedUser[]) {
   const dataResult = await supabase
     .from("user_calculator_data")
@@ -581,6 +782,12 @@ async function listWonOptions(supabase: SupabaseServer, users: ApprovedUser[]) {
       .forEach((option) => {
         const optionId = String(option.id || "");
         const rows = quotes.filter((quote) => String(quote.optionId || "option_1") === optionId);
+        const paidInAt = String(option.agencyPaidInAt || option.paidInAt || "");
+        const paidOutAt = String(option.salespersonPaidOutAt || option.paidOutAt || "");
+        const paymentStatus = wonPaymentStatus(paidInAt, paidOutAt);
+        const firstBusinessName = rows
+          .map((quote) => String(quote.businessName || ""))
+          .find(Boolean);
         const wonRows = rows.map((quote) => ({
           label: optionRowLabel(quote) || String(quote.model || "System"),
           install: String(quote.install || ""),
@@ -594,10 +801,18 @@ async function listWonOptions(supabase: SupabaseServer, users: ApprovedUser[]) {
         wonOptions.push({
           userEmail: email,
           userName: user ? displayNameFor(user) : email,
-          businessName: user?.business_name || "No business",
+          businessName:
+            String(option.businessName || firstBusinessName || "") ||
+            user?.business_names.join(", ") ||
+            user?.business_name ||
+            "No business",
           optionId,
           optionName: String(option.name || "Option"),
           wonAt: String(option.wonAt || row.updated_at || ""),
+          paidInAt,
+          paidOutAt,
+          paymentStatus,
+          paymentStatusLabel: wonPaymentStatusLabel(paymentStatus),
           systemCount: rows.length,
           customerTotal: rows.reduce((sum, quote) => sum + moneyValue(quote.finalInc), 0),
           rebateTotal: rows.reduce((sum, quote) => sum + moneyValue(quote.rebate), 0),
@@ -625,7 +840,8 @@ async function updateWonOptionState(
   supabase: SupabaseServer,
   userEmail: string,
   optionId: string,
-  mode: "unlock" | "delete",
+  mode: WonOptionUpdateMode,
+  adminEmail = "",
 ) {
   const email = userEmail.toLowerCase();
   const dataResult = await supabase
@@ -654,23 +870,32 @@ async function updateWonOptionState(
     nextOptionDefs = optionDefs.filter((option) => String(option.id || "") !== optionId);
     nextQuotes = quotes.filter((quote) => String(quote.optionId || "option_1") !== optionId);
     if (!nextOptionDefs.length) nextOptionDefs = [{ id: "option_1", name: "Option 1" }];
-  } else {
+  } else if (mode === "unlock") {
     nextOptionDefs = optionDefs.map((option) => {
       if (String(option.id || "") !== optionId) return option;
-      const { wonAt, wonByEmail, wonByName, ...rest } = option;
-      void wonAt;
-      void wonByEmail;
-      void wonByName;
-      return rest;
+      const next = clearWonPaymentFields(option);
+      delete next.wonAt;
+      delete next.wonByEmail;
+      delete next.wonByName;
+      return next;
     });
     nextQuotes = quotes.map((quote) => {
       if (String(quote.optionId || "option_1") !== optionId) return quote;
-      const { wonAt, wonByEmail, wonByName, ...rest } = quote;
-      void wonAt;
-      void wonByEmail;
-      void wonByName;
-      return rest;
+      const next = clearWonPaymentFields(quote);
+      delete next.wonAt;
+      delete next.wonByEmail;
+      delete next.wonByName;
+      return next;
     });
+  } else {
+    nextOptionDefs = optionDefs.map((option) =>
+      String(option.id || "") === optionId ? applyWonPaymentFields(option, mode, adminEmail) : option,
+    );
+    nextQuotes = quotes.map((quote) =>
+      String(quote.optionId || "option_1") === optionId
+        ? applyWonPaymentFields(quote, mode, adminEmail)
+        : quote,
+    );
   }
 
   data[optionDefsKey] = serializeLikeStoredValue(data[optionDefsKey], nextOptionDefs);
@@ -871,6 +1096,45 @@ async function deleteWonOption(formData: FormData) {
   redirect("/admin/users?message=Won option was deleted.");
 }
 
+async function updateWonPaymentStatus(formData: FormData) {
+  "use server";
+
+  const { supabase, email: adminEmail } = await requireAdmin();
+  const userEmail = normalizeEmail(formData.get("userEmail"));
+  const optionId = normalizeText(formData.get("optionId"));
+  const mode = String(formData.get("paymentMode") || "");
+
+  if (!userEmail || !optionId) {
+    redirect("/admin/users?error=Could not identify the won option to update.");
+  }
+
+  if (mode !== "paid_in" && mode !== "paid_out" && mode !== "reset_payment") {
+    redirect("/admin/users?error=Choose a valid payment status.");
+  }
+
+  const errorMessage = await updateWonOptionState(
+    supabase,
+    userEmail,
+    optionId,
+    mode,
+    adminEmail,
+  );
+
+  if (errorMessage) {
+    redirect(`/admin/users?error=${encodeURIComponent(errorMessage)}`);
+  }
+
+  const message =
+    mode === "paid_out"
+      ? "Sale was marked as paid out."
+      : mode === "paid_in"
+        ? "Sale was marked as paid in."
+        : "Sale payment status was reset.";
+
+  revalidatePath("/admin/users");
+  redirect(`/admin/users?message=${encodeURIComponent(message)}`);
+}
+
 export default async function AdminUsersPage({
   searchParams,
 }: {
@@ -886,6 +1150,7 @@ export default async function AdminUsersPage({
   const users = applyMembershipsToUsers(usersResult.data, membershipsResult.data);
   const wonResult = await listWonOptions(supabase, users);
   const wonOptions = wonResult.data;
+  const salespersonSales = summarizeSalesBySalesperson(wonOptions);
   const firstBusinessId = businesses[0]?.id || "";
 
   return (
@@ -1338,22 +1603,95 @@ export default async function AdminUsersPage({
               <h2>Won options</h2>
               <p>Options marked as won in each calculator, including Daniel's full commission view.</p>
             </div>
+            <div className="won-toolbar">
+              <button className="secondary" type="button" data-select-all-won>
+                Select all
+              </button>
+              <button className="orange" type="button" data-export-won-selected>
+                Export selected CSV
+              </button>
+            </div>
           </div>
+
+          {salespersonSales.length ? (
+            <div className="sales-summary-grid">
+              {salespersonSales.map((summary) => (
+                <article className="sales-summary-card" key={summary.userEmail}>
+                  <div>
+                    <strong>{summary.userName}</strong>
+                    <span>{summary.businessNames || summary.userEmail}</span>
+                  </div>
+                  <div className="sales-summary-metrics">
+                    <div><span>Sales</span><strong>{summary.saleCount}</strong></div>
+                    <div><span>Customer total</span><strong>{formatMoney(summary.customerTotal)}</strong></div>
+                    <div><span>Agency comm</span><strong>{formatMoney(summary.agencyCommissionTotal)}</strong></div>
+                    <div><span>Salesperson comm</span><strong>{formatMoney(summary.salespersonCommissionTotal)}</strong></div>
+                  </div>
+                  <div className="sales-status-strip">
+                    <span className="status-dot red">{summary.notPaidInCount} unpaid</span>
+                    <span className="status-dot orange">{summary.paidInCount} paid in</span>
+                    <span className="status-dot green">{summary.paidOutCount} paid out</span>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : null}
 
           <div className="won-grid">
             {wonOptions.map((option) => (
-              <article className="won-card" key={`${option.userEmail}-${option.optionId}-${option.wonAt}`}>
+              <article
+                className={`won-card won-card-${option.paymentStatus}`}
+                data-export-row={JSON.stringify(wonExportRow(option))}
+                key={wonOptionDomKey(option)}
+              >
                 <div className="won-card-head">
-                  <div>
+                  <label className="won-select">
+                    <input className="won-sale-select" type="checkbox" value={wonOptionDomKey(option)} />
+                    <span>Select</span>
+                  </label>
+                  <div className="won-title">
                     <strong>{option.optionName}</strong>
                     <span className="muted-line">
                       {option.userName} - {option.businessName} - {option.userEmail}
                     </span>
                   </div>
                   <div className="won-actions">
-                    <span className="locked-pill">
-                      {option.wonAt ? new Date(option.wonAt).toLocaleDateString("en-AU") : "Won"}
+                    <span className={`payment-pill payment-pill-${option.paymentStatus}`}>
+                      {option.paymentStatusLabel}
                     </span>
+                    <span className="locked-pill">
+                      {option.wonAt ? formatShortDate(option.wonAt) : "Won"}
+                    </span>
+                    {option.paymentStatus === "not_paid_in" ? (
+                      <form action={updateWonPaymentStatus}>
+                        <input type="hidden" name="userEmail" value={option.userEmail} />
+                        <input type="hidden" name="optionId" value={option.optionId} />
+                        <input type="hidden" name="paymentMode" value="paid_in" />
+                        <button className="secondary" type="submit">
+                          Mark paid in
+                        </button>
+                      </form>
+                    ) : null}
+                    {option.paymentStatus !== "paid_out" ? (
+                      <form action={updateWonPaymentStatus}>
+                        <input type="hidden" name="userEmail" value={option.userEmail} />
+                        <input type="hidden" name="optionId" value={option.optionId} />
+                        <input type="hidden" name="paymentMode" value="paid_out" />
+                        <button className="secondary" type="submit">
+                          Mark paid out
+                        </button>
+                      </form>
+                    ) : null}
+                    {option.paymentStatus !== "not_paid_in" ? (
+                      <form action={updateWonPaymentStatus}>
+                        <input type="hidden" name="userEmail" value={option.userEmail} />
+                        <input type="hidden" name="optionId" value={option.optionId} />
+                        <input type="hidden" name="paymentMode" value="reset_payment" />
+                        <button className="secondary" type="submit">
+                          Reset payment
+                        </button>
+                      </form>
+                    ) : null}
                     <form action={unlockWonOption}>
                       <input type="hidden" name="userEmail" value={option.userEmail} />
                       <input type="hidden" name="optionId" value={option.optionId} />
@@ -1380,6 +1718,8 @@ export default async function AdminUsersPage({
                   <div><span>Agency comm inc</span><strong>{formatMoney(option.agencyCommissionTotal)}</strong></div>
                   <div><span>Salesperson comm inc</span><strong>{formatMoney(option.salespersonCommissionTotal)}</strong></div>
                   <div><span>Installer profit ex</span><strong>{formatMoney(option.installerProfitTotal)}</strong></div>
+                  <div><span>Paid in</span><strong>{option.paidInAt ? formatShortDate(option.paidInAt) : "Not yet"}</strong></div>
+                  <div><span>Paid out</span><strong>{option.paidOutAt ? formatShortDate(option.paidOutAt) : "Not yet"}</strong></div>
                 </div>
                 <div className="won-lines">
                   {option.rows.map((row, index) => (
@@ -1397,6 +1737,7 @@ export default async function AdminUsersPage({
           </div>
         </section>
       </section>
+      <script dangerouslySetInnerHTML={{ __html: wonExportScript() }} />
     </main>
   );
 }
