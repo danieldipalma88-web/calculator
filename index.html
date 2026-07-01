@@ -2532,7 +2532,31 @@ async function getClimateContext(){
   return {postcode, climateZone, bcaZone:resolved.bcaZone};
 }
 function activityValue(){return installType==='new'?'new_installation_activity':'replacement_activity';}
-function airTypeValue(){return systemType==='ducted'?'ducted_split_system':'non_ducted_split_system';}
+const HVAC_AIR_CONDITIONER_TYPES={
+  split:'non_ducted_single_split_system',
+  ducted:'ducted_single_split_system'
+};
+const HVAC_AIR_CONDITIONER_TYPE_ALIASES={
+  non_ducted_split_system:'non_ducted_single_split_system',
+  ducted_split_system:'ducted_single_split_system'
+};
+const HVAC_AIR_CONDITIONER_TYPE_VALUES=[
+  'non_ducted_single_split_system',
+  'ducted_single_split_system',
+  'non_ducted_multi_split_system',
+  'ducted_multi_split_system',
+  'non_ducted_unitary_system',
+  'ducted_unitary_system'
+];
+function normalizeAirConditionerType(value){
+  const raw=String(value||'').trim();
+  const normalized=HVAC_AIR_CONDITIONER_TYPE_ALIASES[raw]||raw;
+  if(HVAC_AIR_CONDITIONER_TYPE_VALUES.includes(normalized)) return normalized;
+  throw new Error(`Unsupported air conditioner type for rebate calculation: ${raw || 'blank'}`);
+}
+function airTypeValue(){
+  return normalizeAirConditionerType(HVAC_AIR_CONDITIONER_TYPES[systemType]||HVAC_AIR_CONDITIONER_TYPES.split);
+}
 const CERTIFICATE_OUTPUT_FIELDS=[
   'HVAC1_PDRSAug24_electricity_savings',
   'HVAC1_PDRSAug24_PDRS__regional_network_factor',
@@ -2561,6 +2585,10 @@ function certificateProxyPostcodeForClimateZone(zone){
 }
 function certificatePayload(baseBuilding,fields,postcode){
   const building={...baseBuilding};
+  const airType=building.HVAC1_PDRSAug24_Air_Conditioner_type;
+  if(airType && Object.prototype.hasOwnProperty.call(airType,ESS_CALC_DATE)){
+    building.HVAC1_PDRSAug24_Air_Conditioner_type={...airType,[ESS_CALC_DATE]:normalizeAirConditionerType(airType[ESS_CALC_DATE])};
+  }
   building.HVAC1_PDRSAug24_PDRS__postcode={[ESS_CALC_DATE]:postcode};
   fields.forEach(field=>{building[field]={[ESS_CALC_DATE]:null};});
   return {buildings:{building_1:building},persons:{person1:{}}};
