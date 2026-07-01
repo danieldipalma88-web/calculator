@@ -578,6 +578,49 @@ function formatMoney(value: number) {
   return value.toLocaleString("en-AU", { style: "currency", currency: "AUD" });
 }
 
+function businessSelectionLabel(businesses: Business[], selectedIds: string[]) {
+  if (!businesses.length) return "No businesses available";
+  const selected = businesses.filter((business) => selectedIds.includes(business.id));
+  if (!selected.length) return "No business selected";
+  if (selected.length === 1) return selected[0].name;
+  return `${selected.length} businesses selected`;
+}
+
+function BusinessMultiSelect({
+  businesses,
+  selectedIds,
+}: {
+  businesses: Business[];
+  selectedIds: string[];
+}) {
+  const selectedSet = new Set(selectedIds);
+
+  return (
+    <details className="business-multiselect">
+      <summary className="business-multiselect-summary">
+        <span className="business-multiselect-label">
+          {businessSelectionLabel(businesses, selectedIds)}
+        </span>
+        <span aria-hidden="true">v</span>
+      </summary>
+      <div className="business-multiselect-menu">
+        {businesses.map((business) => (
+          <label className="checkbox-pill" key={business.id}>
+            <input
+              type="checkbox"
+              name="businessIds"
+              value={business.id}
+              defaultChecked={selectedSet.has(business.id)}
+            />
+            <span>{business.name}</span>
+          </label>
+        ))}
+        {!businesses.length ? <span className="empty-select-note">Add a business first.</span> : null}
+      </div>
+    </details>
+  );
+}
+
 function formatShortDate(value: string) {
   return value ? new Date(value).toLocaleDateString("en-AU") : "";
 }
@@ -745,6 +788,40 @@ function wonExportScript() {
       URL.revokeObjectURL(url);
     });
   }
+})();
+`;
+}
+
+function businessMultiSelectScript() {
+  return `
+(function(){
+  function updateLabel(details) {
+    var label = details.querySelector(".business-multiselect-label");
+    var checked = Array.prototype.slice.call(details.querySelectorAll("input[type='checkbox']:checked"));
+    if (!label) return;
+    if (!checked.length) {
+      label.textContent = "No business selected";
+      return;
+    }
+    if (checked.length === 1) {
+      var text = checked[0].closest("label");
+      label.textContent = text ? text.innerText.trim() : "1 business selected";
+      return;
+    }
+    label.textContent = checked.length + " businesses selected";
+  }
+  Array.prototype.slice.call(document.querySelectorAll(".business-multiselect")).forEach(function(details){
+    updateLabel(details);
+    details.addEventListener("toggle", function(){
+      if (!details.open) return;
+      Array.prototype.slice.call(document.querySelectorAll(".business-multiselect[open]")).forEach(function(other){
+        if (other !== details) other.open = false;
+      });
+    });
+    Array.prototype.slice.call(details.querySelectorAll("input[type='checkbox']")).forEach(function(input){
+      input.addEventListener("change", function(){ updateLabel(details); });
+    });
+  });
 })();
 `;
 }
@@ -1322,19 +1399,7 @@ export default async function AdminUsersPage({
             </div>
             <div>
               <label>Businesses</label>
-              <div className="business-checkbox-grid">
-                {businesses.map((business) => (
-                  <label className="checkbox-pill" key={business.id}>
-                    <input
-                      type="checkbox"
-                      name="businessIds"
-                      value={business.id}
-                      defaultChecked={business.id === firstBusinessId}
-                    />
-                    <span>{business.name}</span>
-                  </label>
-                ))}
-              </div>
+              <BusinessMultiSelect businesses={businesses} selectedIds={firstBusinessId ? [firstBusinessId] : []} />
             </div>
             <div>
               <label htmlFor="commissionType">Commission override</label>
@@ -1410,19 +1475,7 @@ export default async function AdminUsersPage({
                     </div>
                     <div>
                       <label>Businesses</label>
-                      <div className="business-checkbox-grid compact">
-                        {businesses.map((business) => (
-                          <label className="checkbox-pill" key={business.id}>
-                            <input
-                              type="checkbox"
-                              name="businessIds"
-                              value={business.id}
-                              defaultChecked={approvedUser.business_ids.includes(business.id)}
-                            />
-                            <span>{business.name}</span>
-                          </label>
-                        ))}
-                      </div>
+                      <BusinessMultiSelect businesses={businesses} selectedIds={approvedUser.business_ids} />
                     </div>
                     <div>
                       <label>Override</label>
@@ -1737,7 +1790,7 @@ export default async function AdminUsersPage({
           </div>
         </section>
       </section>
-      <script dangerouslySetInnerHTML={{ __html: wonExportScript() }} />
+      <script dangerouslySetInnerHTML={{ __html: `${businessMultiSelectScript()}\n${wonExportScript()}` }} />
     </main>
   );
 }
