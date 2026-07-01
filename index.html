@@ -639,6 +639,139 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
 .productSupportChip.included{border-color:#b9e7cf;background:#f3fff8}
 .productSupportChip.optional{border-color:#dbe4f0;background:#f8fbfd}
 .productSupportChip.unknown{border-color:#fde68a;background:#fffbeb}
+.energySavingsCard{
+  padding:0;
+  overflow:hidden;
+}
+.energySavingsToggle{
+  width:100%;
+  min-height:72px;
+  border-radius:0;
+  background:#ffffff;
+  color:#0f172a;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding:18px 22px;
+  text-align:left;
+  box-shadow:none;
+}
+.energySavingsToggle:hover{
+  transform:none;
+  box-shadow:none;
+  background:#f8fbfd;
+}
+.energySavingsToggle span{
+  display:block;
+  color:#64748b;
+  font-size:12px;
+  font-weight:700;
+  line-height:1.35;
+  margin-top:3px;
+}
+.energySavingsToggle div strong{
+  display:block;
+  color:#0f172a;
+  font-size:15px;
+}
+.energySavingsToggle > strong{
+  flex:0 0 auto;
+  border:1px solid #d8e3ef;
+  border-radius:999px;
+  background:#eef7f4;
+  color:#0f766e;
+  padding:7px 12px;
+  font-size:12px;
+  white-space:nowrap;
+}
+.energySavingsCard.open .energySavingsToggle > strong{background:#0f766e;color:#fff;border-color:#0f766e}
+.energySavingsBody{
+  display:none;
+  border-top:1px solid var(--line);
+  background:#fbfdff;
+  padding:18px 22px 22px;
+}
+.energySavingsCard.open .energySavingsBody{display:block}
+.energySavingsGrid{
+  display:grid;
+  grid-template-columns:1.1fr .9fr .9fr;
+  gap:12px;
+  align-items:end;
+}
+.energyBasisButtons{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:7px;
+}
+.energyBasisButtons button{
+  min-height:44px;
+  background:#eaf1f6;
+  color:#0f172a;
+  border-radius:12px;
+  padding:9px 8px;
+  font-size:12px;
+  box-shadow:none;
+}
+.energyBasisButtons button.active{
+  background:#0f172a;
+  color:#fff;
+}
+.energySavingsResults{
+  display:grid;
+  grid-template-columns:1.1fr .9fr .9fr;
+  gap:10px;
+  margin-top:14px;
+}
+.energyMetric{
+  border:1px solid #dbe5ef;
+  border-radius:14px;
+  background:#ffffff;
+  padding:12px;
+}
+.energyMetric.primary{
+  border-color:#b9e7cf;
+  background:#f3fff8;
+}
+.energyMetric span{
+  display:block;
+  color:#64748b;
+  font-size:10.5px;
+  font-weight:900;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+.energyMetric strong{
+  display:block;
+  color:#0f172a;
+  font-family:'Space Grotesk','Manrope','Segoe UI',sans-serif;
+  font-size:24px;
+  line-height:1.1;
+  margin-top:5px;
+  font-variant-numeric:tabular-nums;
+}
+.energyMetric.primary strong{color:#0f766e}
+.energyMetric small{
+  display:block;
+  color:#64748b;
+  font-size:11px;
+  line-height:1.35;
+  margin-top:5px;
+}
+.energySavingsNote{
+  color:#64748b;
+  font-size:12px;
+  line-height:1.45;
+  margin-top:10px;
+}
+.energySavingsStatus{
+  color:#64748b;
+  font-size:12px;
+  line-height:1.45;
+  margin-top:10px;
+}
+.energySavingsStatus.error{color:#b91c1c}
+.energySavingsStatus.loading{color:#0f766e}
 .addonPanel{
   border:1px solid var(--line);
   background:#f8fbfd;
@@ -882,6 +1015,19 @@ tbody tr:hover td{background:#f0f7ff}
   .productSupportChip{
     padding:10px;
   }
+  .energySavingsToggle{
+    min-height:66px;
+    padding:14px;
+  }
+  .energySavingsBody{padding:14px}
+  .energySavingsGrid,
+  .energySavingsResults{
+    grid-template-columns:1fr;
+  }
+  .energyBasisButtons{
+    grid-template-columns:1fr;
+  }
+  .energyMetric strong{font-size:22px}
   .mobileHideRebateConfig,
   #modelMeta,
   #rebateCalcMeta{display:none!important}
@@ -1175,6 +1321,26 @@ tbody tr:hover td{background:#f0f7ff}
           <div class="mobileHideRebateConfig"><label>Live calc source</label><input readonly value="NSW ESS/PDRS API"></div>
         </div>
         <div class="selected"><div class="selectedText"><div class="selectedHeader"><strong id="selectedModel"></strong><button type="button" class="copyModelBtn" onclick="copyCurrentModel()">Copy model</button></div><div class="tiny" id="modelMeta"></div><div class="tiny" id="rebateCalcMeta">Live ESS/PERC rebate status will appear here.</div><div class="certificateBreakdown" id="certificateBreakdown"><div class="certificateMetric"><span>ESC generated</span><strong id="escCertCount">-</strong><small id="escCertValue">Waiting for live lookup</small></div><div class="certificateMetric"><span>PERC generated</span><strong id="prcCertCount">-</strong><small id="prcCertValue">Waiting for live lookup</small></div><div class="certificateMetric"><span>Rebate calculation</span><strong id="certRebateValue">-</strong><small id="certRebateMeta">Waiting for live lookup</small></div></div><div class="recommendationCards"><div class="recommendationCard" id="bestValueMeta"><div class="recommendationEyebrow">Best rebate</div><div class="recommendationStatus">Best rebate indicator will appear here.</div></div><div class="recommendationCard net" id="bestNetCostMeta"><div class="recommendationEyebrow">Best net unit cost</div><div class="recommendationStatus">Best net unit cost indicator will appear here.</div></div></div></div></div>
+      </div>
+      <div class="card energySavingsCard" id="energySavingsCard">
+        <button type="button" class="energySavingsToggle" id="energySavingsToggle" onclick="toggleEnergySavingsPanel()" aria-expanded="false">
+          <div><strong>Estimated energy savings</strong><span>Compare the selected unit against the customer's current setup.</span></div>
+          <strong id="energySavingsToggleLabel">Show</strong>
+        </button>
+        <div class="energySavingsBody" id="energySavingsBody">
+          <div class="energySavingsGrid">
+            <div><label>Existing setup</label><select id="energyExistingSystem"><option value="radiant">Radiant / bar heater</option><option value="fan">Small fan heater</option><option value="split">Existing split system</option><option value="ducted">Existing ducted system</option></select></div>
+            <div><label>Electricity rate $/kWh</label><input id="energyElectricityRate" type="number" min="0" step="0.01" value="0.33"></div>
+            <div><label>Calculation basis</label><div class="energyBasisButtons"><button type="button" id="energyBasisBoth" class="active" onclick="setEnergySavingsBasis('both')">Heat + cool</button><button type="button" id="energyBasisHeating" onclick="setEnergySavingsBasis('heating')">Heating</button><button type="button" id="energyBasisCooling" onclick="setEnergySavingsBasis('cooling')">Cooling</button></div></div>
+          </div>
+          <div class="energySavingsResults">
+            <div class="energyMetric primary"><span>Estimated annual saving</span><strong id="energySavingValue">-</strong><small id="energySavingPercent">Open to calculate</small></div>
+            <div class="energyMetric"><span>Current setup cost</span><strong id="energyOldCost">-</strong><small id="energyOldMeta">Waiting for selected unit</small></div>
+            <div class="energyMetric"><span>Selected unit cost</span><strong id="energyNewCost">-</strong><small id="energyNewMeta">Waiting for GEMS data</small></div>
+          </div>
+          <div class="energySavingsStatus" id="energySavingsStatus">Open this panel to calculate an estimate using GEMS efficiency data and the assumptions below.</div>
+          <div class="energySavingsNote" id="energySavingsNote">Estimate only. Actual savings vary based on home size, insulation, zoning, thermostat settings, tariff, climate and usage.</div>
+        </div>
       </div>
       <div class="card">
         <h2 class="sectionTitle">Costs</h2>
@@ -1646,6 +1812,7 @@ const ESS_SETTINGS_STORAGE_KEY='installerEssSettingsV1';
 const CERT_VALUES_STORAGE_KEY='installerCertificateValuesV1';
 const DEFAULT_COST_STORAGE_KEY='installerDefaultCostRulesV1';
 const COMMISSION_SETTINGS_STORAGE_KEY='installerCommissionSettingsV1';
+const ENERGY_SAVINGS_STORAGE_KEY='installerEnergySavingsSettingsV1';
 const ESS_ESTIMATOR_API='https://estimator-sfg-rac-prd.energy.nsw.gov.au';
 const ESS_CALCULATE_API='https://of-sfg-rac-prd.energy.nsw.gov.au/calculate';
 const GEMS_DATASTORE_API='https://data.gov.au/data/api/3/action/datastore_search';
@@ -1667,6 +1834,17 @@ let essCache={brands:null,modelsByBrand:{},metadata:{},gemsByLookup:{},zoneByPos
 let essRuntime={lastEsc:0,lastPrc:0,lastOfficialEsc:0,lastOfficialPrc:0,lastZone:'',lastBcaZone:'',lastBrand:'',lastModel:''};
 let essBestValueRuntime={requestSeq:0,cache:{},lastEntry:null};
 let certValues={escRate:DEFAULT_ESC_RATE,prcRate:DEFAULT_PRC_RATE,source:'Electric Future',locked:true,updatedAt:''};
+const ENERGY_HEATING_HOURS=543;
+const ENERGY_COOLING_HOURS=350;
+const ENERGY_DEFAULT_ELECTRICITY_RATE=0.33;
+const ENERGY_EXISTING_SYSTEMS={
+  radiant:{label:'Radiant / bar heater',heatingEfficiency:1,coolingEfficiency:null,assumption:'electric resistance heating'},
+  fan:{label:'Small fan heater',heatingEfficiency:1,coolingEfficiency:null,assumption:'electric resistance fan heating'},
+  split:{label:'Existing split system',heatingEfficiency:3,coolingEfficiency:3,assumption:'older split system seasonal efficiency'},
+  ducted:{label:'Existing ducted system',heatingEfficiency:2.7,coolingEfficiency:2.7,assumption:'older ducted system seasonal efficiency'}
+};
+let energySavingsSettings={existingSystem:'radiant',electricityRate:ENERGY_DEFAULT_ELECTRICITY_RATE,basis:'both'};
+let energySavingsRequestSeq=0;
 let commissionSettings={agencyRate:25,agencyLocked:true,salespersonRate:50,salespersonLocked:true};
 const DEFAULT_COST_RULES=[
   {id:'split_new_lte35',system:'split',install:'new',range:'lte35',rangeLabel:'Up to 3.5kW',labour:500,materials:150,power:500},
@@ -2779,6 +2957,8 @@ function onProductChange(){
   $('unitPriceInc').value=(p.unitPriceInc||p.priceIncGst||0).toFixed(2);
   $('rebate').value=(p.rebate||0).toFixed(2);
   applyDefaults();
+  resetEnergySavingsResults();
+  refreshEnergySavingsEstimate();
   refreshLiveRebateForCurrentProduct();
   refreshBestValueIndicator();
 }
@@ -3119,6 +3299,203 @@ function renderProductSupportDetails(p){
     const originKnown=Boolean(p&&p.originLabel&&p.originLabel!=='Origin TBC');
     originChip.className=`productSupportChip ${originKnown?'optional':'unknown'}`;
     originText.textContent=originKnown?p.originLabel:'Origin TBC';
+  }
+}
+function energyPanelOpen(){
+  const card=$('energySavingsCard');
+  return !!(card && card.classList.contains('open'));
+}
+function updateEnergySavingsToggle(){
+  const open=energyPanelOpen();
+  const toggle=$('energySavingsToggle');
+  const label=$('energySavingsToggleLabel');
+  if(toggle) toggle.setAttribute('aria-expanded',open?'true':'false');
+  if(label) label.textContent=open?'Hide':'Show';
+}
+function toggleEnergySavingsPanel(forceOpen){
+  const card=$('energySavingsCard');
+  if(!card) return;
+  const next=forceOpen===undefined?!card.classList.contains('open'):!!forceOpen;
+  card.classList.toggle('open',next);
+  updateEnergySavingsToggle();
+  if(next) refreshEnergySavingsEstimate(true);
+}
+function saveEnergySavingsSettings(){
+  try{localStorage.setItem(ENERGY_SAVINGS_STORAGE_KEY,JSON.stringify(energySavingsSettings));}catch(e){}
+}
+function loadEnergySavingsSettings(){
+  try{
+    const raw=storageGet(ENERGY_SAVINGS_STORAGE_KEY,'EnergySavingsSettingsV1');
+    if(!raw) return;
+    const saved=JSON.parse(raw)||{};
+    const existing=ENERGY_EXISTING_SYSTEMS[saved.existingSystem]?saved.existingSystem:'radiant';
+    const rate=Number(saved.electricityRate);
+    const basis=['both','heating','cooling'].includes(saved.basis)?saved.basis:'both';
+    energySavingsSettings={
+      existingSystem:existing,
+      electricityRate:Number.isFinite(rate)&&rate>0?rate:ENERGY_DEFAULT_ELECTRICITY_RATE,
+      basis
+    };
+  }catch(e){}
+}
+function updateEnergySavingsBasisUi(){
+  [['energyBasisBoth','both'],['energyBasisHeating','heating'],['energyBasisCooling','cooling']].forEach(([id,basis])=>{
+    const btn=$(id);
+    if(btn) btn.classList.toggle('active',energySavingsSettings.basis===basis);
+  });
+}
+function setEnergySavingsBasis(basis){
+  if(!['both','heating','cooling'].includes(basis)) return;
+  energySavingsSettings.basis=basis;
+  updateEnergySavingsBasisUi();
+  saveEnergySavingsSettings();
+  refreshEnergySavingsEstimate(true);
+}
+function readEnergySavingsInputs(){
+  const existingEl=$('energyExistingSystem');
+  const rateEl=$('energyElectricityRate');
+  if(existingEl && ENERGY_EXISTING_SYSTEMS[existingEl.value]) energySavingsSettings.existingSystem=existingEl.value;
+  const rate=Number(rateEl&&rateEl.value);
+  energySavingsSettings.electricityRate=Number.isFinite(rate)&&rate>0?rate:ENERGY_DEFAULT_ELECTRICITY_RATE;
+  saveEnergySavingsSettings();
+  return {...energySavingsSettings};
+}
+function setEnergySavingsStatus(message,type){
+  const el=$('energySavingsStatus');
+  if(!el) return;
+  el.textContent=message||'';
+  el.className=`energySavingsStatus${type?` ${type}`:''}`;
+}
+function resetEnergySavingsResults(message){
+  if($('energySavingValue')) $('energySavingValue').textContent='-';
+  if($('energySavingPercent')) $('energySavingPercent').textContent='Waiting for calculation';
+  if($('energyOldCost')) $('energyOldCost').textContent='-';
+  if($('energyOldMeta')) $('energyOldMeta').textContent='Current setup estimate';
+  if($('energyNewCost')) $('energyNewCost').textContent='-';
+  if($('energyNewMeta')) $('energyNewMeta').textContent='Selected unit estimate';
+  setEnergySavingsStatus(message||'Open this panel to calculate an estimate using GEMS efficiency data and the assumptions below.','');
+}
+function firstFiniteEnergyValue(meta,fields){
+  for(const field of fields){
+    const n=toNumber(meta&&meta[field]);
+    if(Number.isFinite(n) && n>0) return n;
+  }
+  return NaN;
+}
+async function energySavingsClimateZone(){
+  const selected=getEssZoneSelection();
+  if(['hot','mixed','cold'].includes(selected)) return selected;
+  try{
+    if(/^\d{4}$/.test(getEssPostcode())){
+      const climate=await getClimateContext();
+      if(['hot','mixed','cold'].includes(climate.climateZone)) return climate.climateZone;
+    }
+  }catch(e){}
+  return 'mixed';
+}
+function energyBasisLabel(basis){
+  if(basis==='heating') return 'Heating';
+  if(basis==='cooling') return 'Cooling';
+  return 'Heating + cooling';
+}
+function calculateEnergySavings(meta,settings,zone){
+  const existing=ENERGY_EXISTING_SYSTEMS[settings.existingSystem]||ENERGY_EXISTING_SYSTEMS.radiant;
+  const rate=Number(settings.electricityRate)||ENERGY_DEFAULT_ELECTRICITY_RATE;
+  const heatingCapacity=firstFiniteEnergyValue(meta,['Heating Capacity'])||cap(product());
+  const coolingCapacity=firstFiniteEnergyValue(meta,['Cooling Capacity'])||cap(product());
+  const selectedHeatingEfficiency=firstFiniteEnergyValue(meta,[`Residential HSPF_${zone}`,'Residential HSPF_mixed','Rated ACOP']);
+  const selectedCoolingEfficiency=firstFiniteEnergyValue(meta,[`Residential TCSPF_${zone}`,'Residential TCSPF_mixed','Rated AEER']);
+  const basis=settings.basis;
+  const parts=[];
+  const skipped=[];
+  if((basis==='both'||basis==='heating') && Number.isFinite(selectedHeatingEfficiency) && existing.heatingEfficiency>0 && heatingCapacity>0){
+    const usefulKwh=heatingCapacity*ENERGY_HEATING_HOURS;
+    parts.push({
+      label:'heating',
+      hours:ENERGY_HEATING_HOURS,
+      oldKwh:usefulKwh/existing.heatingEfficiency,
+      newKwh:usefulKwh/selectedHeatingEfficiency,
+      selectedEfficiency:selectedHeatingEfficiency,
+      existingEfficiency:existing.heatingEfficiency
+    });
+  }else if(basis==='both'||basis==='heating'){
+    skipped.push('heating');
+  }
+  if((basis==='both'||basis==='cooling') && existing.coolingEfficiency>0){
+    if(Number.isFinite(selectedCoolingEfficiency) && coolingCapacity>0){
+      const usefulKwh=coolingCapacity*ENERGY_COOLING_HOURS;
+      parts.push({
+        label:'cooling',
+        hours:ENERGY_COOLING_HOURS,
+        oldKwh:usefulKwh/existing.coolingEfficiency,
+        newKwh:usefulKwh/selectedCoolingEfficiency,
+        selectedEfficiency:selectedCoolingEfficiency,
+        existingEfficiency:existing.coolingEfficiency
+      });
+    }else{
+      skipped.push('cooling');
+    }
+  }else if(basis==='both'||basis==='cooling'){
+    skipped.push('cooling');
+  }
+  if(!parts.length){
+    if(basis==='cooling' && !existing.coolingEfficiency) throw new Error(`${existing.label} does not provide cooling, so choose Heating or select an existing system that provides cooling.`);
+    throw new Error(`Unable to calculate ${energyBasisLabel(basis).toLowerCase()} savings from the selected unit's GEMS efficiency data.`);
+  }
+  const oldKwh=parts.reduce((sum,p)=>sum+p.oldKwh,0);
+  const newKwh=parts.reduce((sum,p)=>sum+p.newKwh,0);
+  const oldCost=oldKwh*rate;
+  const newCost=newKwh*rate;
+  return {existing,rate,zone,parts,skipped,oldKwh,newKwh,oldCost,newCost,saving:oldCost-newCost,savingPercent:oldCost?((oldCost-newCost)/oldCost)*100:0};
+}
+function renderEnergySavingsEstimate(result,productRow){
+  const savingText=money(result.saving);
+  const percentText=Number.isFinite(result.savingPercent)?`${Math.round(result.savingPercent)}% estimated reduction`:'Estimate ready';
+  if($('energySavingValue')) $('energySavingValue').textContent=savingText;
+  if($('energySavingPercent')) $('energySavingPercent').textContent=result.saving>=0?percentText:'Estimated running cost is higher on this assumption';
+  if($('energyOldCost')) $('energyOldCost').textContent=money(result.oldCost);
+  if($('energyOldMeta')) $('energyOldMeta').textContent=`${result.existing.label}, ${Math.round(result.oldKwh).toLocaleString('en-AU')} kWh/yr`;
+  if($('energyNewCost')) $('energyNewCost').textContent=money(result.newCost);
+  if($('energyNewMeta')) $('energyNewMeta').textContent=`${productDisplayName(productRow)}, ${Math.round(result.newKwh).toLocaleString('en-AU')} kWh/yr`;
+  const partText=result.parts.map(p=>`${p.label} ${p.hours} hrs`).join(', ');
+  const skipText=result.skipped.length?` ${result.skipped.map(v=>v.charAt(0).toUpperCase()+v.slice(1)).join(' and ')} excluded because it is not comparable for the selected existing setup.`:'';
+  setEnergySavingsStatus(`Estimate based on ${partText}, ${money(result.rate)}/kWh, ${result.zone} climate GEMS HSPF/TCSPF data and ${result.existing.assumption}.${skipText}`,'');
+}
+async function refreshEnergySavingsEstimate(force){
+  if(!force && !energyPanelOpen()) return;
+  const p=product();
+  if(!p){resetEnergySavingsResults('Select a unit to calculate energy savings.'); return;}
+  const requestId=++energySavingsRequestSeq;
+  const settings=readEnergySavingsInputs();
+  resetEnergySavingsResults('Calculating estimated annual energy savings...');
+  setEnergySavingsStatus('Calculating estimated annual energy savings from GEMS efficiency data...','loading');
+  try{
+    const [resolved,zone]=await Promise.all([
+      resolveModelMetadataForRebate(p.brand,p.model),
+      energySavingsClimateZone()
+    ]);
+    if(requestId!==energySavingsRequestSeq) return;
+    const result=calculateEnergySavings(resolved.meta,settings,zone);
+    renderEnergySavingsEstimate(result,p);
+  }catch(e){
+    if(requestId!==energySavingsRequestSeq) return;
+    resetEnergySavingsResults('');
+    setEnergySavingsStatus(`Unable to calculate estimated energy savings. ${String(e.message||'GEMS efficiency data unavailable')}`,'error');
+  }
+}
+function initEnergySavingsControls(){
+  loadEnergySavingsSettings();
+  if($('energyExistingSystem')) $('energyExistingSystem').value=energySavingsSettings.existingSystem;
+  if($('energyElectricityRate')) $('energyElectricityRate').value=Number(energySavingsSettings.electricityRate||ENERGY_DEFAULT_ELECTRICITY_RATE).toFixed(2);
+  updateEnergySavingsBasisUi();
+  updateEnergySavingsToggle();
+  resetEnergySavingsResults();
+  const existingEl=$('energyExistingSystem');
+  const rateEl=$('energyElectricityRate');
+  if(existingEl) existingEl.addEventListener('change',()=>refreshEnergySavingsEstimate(true));
+  if(rateEl){
+    rateEl.addEventListener('input',()=>refreshEnergySavingsEstimate());
+    rateEl.addEventListener('change',()=>refreshEnergySavingsEstimate(true));
   }
 }
 function render(){
@@ -4364,10 +4741,10 @@ function initEssControls(){
   if(prcRateEl && !hadSavedSettings && !certValues.locked) prcRateEl.value='';
   applyLockedCertValuesToMain();
   if(postcodeEl){
-    postcodeEl.addEventListener('change',()=>{saveEssSettings(); refreshLiveRebateForCurrentProduct(); refreshBestValueIndicator();});
+    postcodeEl.addEventListener('change',()=>{saveEssSettings(); refreshEnergySavingsEstimate(); refreshLiveRebateForCurrentProduct(); refreshBestValueIndicator();});
   }
   if(zoneEl){
-    zoneEl.addEventListener('change',()=>{saveEssSettings(); refreshLiveRebateForCurrentProduct(); refreshBestValueIndicator();});
+    zoneEl.addEventListener('change',()=>{saveEssSettings(); refreshEnergySavingsEstimate(); refreshLiveRebateForCurrentProduct(); refreshBestValueIndicator();});
   }
   if(rateEl){
     rateEl.addEventListener('input',()=>{
@@ -4869,6 +5246,7 @@ loadDefaultCostRules();
 stripManagedRebateOverridesFromStorage();
 loadManagedPrices();
 initEssControls();
+initEnergySavingsControls();
 const defaultCostRowsEl=$('defaultCostRows');
 if(defaultCostRowsEl){
   defaultCostRowsEl.addEventListener('input', function(e){
