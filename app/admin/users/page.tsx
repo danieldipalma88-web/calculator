@@ -755,22 +755,90 @@ function wonExportScript() {
     try { return JSON.parse(card.getAttribute("data-export-row") || "{}"); }
     catch (error) { return null; }
   }
+  function attrEscape(value) {
+    return window.CSS && CSS.escape ? CSS.escape(value) : String(value).replace(/"/g, "\\\\\"");
+  }
   var selectAll = document.querySelector("[data-select-all-won]");
+  function visibleWonCards() {
+    return Array.prototype.slice.call(document.querySelectorAll(".won-card")).filter(function(card){
+      return !card.hidden;
+    });
+  }
+  function updateSelectAllLabel() {
+    if (!selectAll) return;
+    var visibleBoxes = visibleWonCards()
+      .map(function(card){ return card.querySelector(".won-sale-select"); })
+      .filter(Boolean);
+    var hasVisibleUnchecked = visibleBoxes.some(function(box){ return !box.checked; });
+    selectAll.textContent = visibleBoxes.length && !hasVisibleUnchecked ? "Clear visible" : "Select visible";
+  }
+  function updateWonFilterStatus(activeEmails) {
+    var status = document.querySelector("[data-won-filter-status]");
+    if (!status) return;
+    var visibleCount = visibleWonCards().length;
+    if (!activeEmails.length) {
+      status.textContent = "Showing all " + visibleCount + " won options.";
+      return;
+    }
+    var names = activeEmails.map(function(email){
+      var card = document.querySelector('[data-salesperson-filter="' + attrEscape(email) + '"]');
+      return card ? String(card.getAttribute("data-salesperson-name") || email) : email;
+    });
+    status.textContent = "Showing " + visibleCount + " won options for " + names.join(", ") + ".";
+  }
+  function activeSalespersonEmails() {
+    return Array.prototype.slice.call(document.querySelectorAll(".sales-summary-card.is-active"))
+      .map(function(card){ return String(card.getAttribute("data-salesperson-filter") || "").toLowerCase(); })
+      .filter(Boolean);
+  }
+  function applyWonSalespersonFilter() {
+    var activeEmails = activeSalespersonEmails();
+    var hasFilter = activeEmails.length > 0;
+    Array.prototype.slice.call(document.querySelectorAll(".won-card")).forEach(function(card){
+      var email = String(card.getAttribute("data-won-user-email") || "").toLowerCase();
+      var show = !hasFilter || activeEmails.indexOf(email) >= 0;
+      card.hidden = !show;
+      if (!show) {
+        var box = card.querySelector(".won-sale-select");
+        if (box) box.checked = false;
+      }
+    });
+    updateSelectAllLabel();
+    updateWonFilterStatus(activeEmails);
+  }
+  Array.prototype.slice.call(document.querySelectorAll("[data-salesperson-filter]")).forEach(function(card){
+    function toggleCard() {
+      card.classList.toggle("is-active");
+      card.setAttribute("aria-pressed", card.classList.contains("is-active") ? "true" : "false");
+      applyWonSalespersonFilter();
+    }
+    card.addEventListener("click", toggleCard);
+    card.addEventListener("keydown", function(event){
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      toggleCard();
+    });
+  });
   if (selectAll) {
     selectAll.addEventListener("click", function(){
-      var boxes = Array.prototype.slice.call(document.querySelectorAll(".won-sale-select"));
+      var boxes = visibleWonCards()
+        .map(function(card){ return card.querySelector(".won-sale-select"); })
+        .filter(Boolean);
       var shouldCheck = boxes.some(function(box){ return !box.checked; });
       boxes.forEach(function(box){ box.checked = shouldCheck; });
-      selectAll.textContent = shouldCheck ? "Clear selection" : "Select all";
+      updateSelectAllLabel();
     });
   }
   var exportButton = document.querySelector("[data-export-won-selected]");
   if (exportButton) {
     exportButton.addEventListener("click", function(){
-      var checked = Array.prototype.slice.call(document.querySelectorAll(".won-sale-select:checked"));
+      var visibleCards = visibleWonCards();
+      var checked = visibleCards
+        .map(function(card){ return card.querySelector(".won-sale-select:checked"); })
+        .filter(Boolean);
       var cards = checked.length
         ? checked.map(function(box){ return box.closest(".won-card"); })
-        : Array.prototype.slice.call(document.querySelectorAll(".won-card"));
+        : visibleCards;
       var rows = cards.map(parseCard).filter(Boolean);
       if (!rows.length) return;
       var headers = Object.keys(rows[0]);
@@ -788,6 +856,7 @@ function wonExportScript() {
       URL.revokeObjectURL(url);
     });
   }
+  applyWonSalespersonFilter();
 })();
 `;
 }
@@ -1658,7 +1727,7 @@ export default async function AdminUsersPage({
             </div>
             <div className="won-toolbar">
               <button className="secondary" type="button" data-select-all-won>
-                Select all
+                Select visible
               </button>
               <button className="orange" type="button" data-export-won-selected>
                 Export selected CSV
@@ -1669,7 +1738,15 @@ export default async function AdminUsersPage({
           {salespersonSales.length ? (
             <div className="sales-summary-grid">
               {salespersonSales.map((summary) => (
-                <article className="sales-summary-card" key={summary.userEmail}>
+                <article
+                  aria-pressed="false"
+                  className="sales-summary-card"
+                  data-salesperson-filter={summary.userEmail.toLowerCase()}
+                  data-salesperson-name={summary.userName}
+                  key={summary.userEmail}
+                  role="button"
+                  tabIndex={0}
+                >
                   <div>
                     <strong>{summary.userName}</strong>
                     <span>{summary.businessNames || summary.userEmail}</span>
@@ -1690,11 +1767,16 @@ export default async function AdminUsersPage({
             </div>
           ) : null}
 
+          <div className="won-filter-status" data-won-filter-status>
+            Showing all {wonOptions.length} won options.
+          </div>
+
           <div className="won-grid">
             {wonOptions.map((option) => (
               <article
                 className={`won-card won-card-${option.paymentStatus}`}
                 data-export-row={JSON.stringify(wonExportRow(option))}
+                data-won-user-email={option.userEmail.toLowerCase()}
                 key={wonOptionDomKey(option)}
               >
                 <div className="won-card-head">

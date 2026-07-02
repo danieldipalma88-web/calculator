@@ -649,6 +649,22 @@ select {
   border: 1px solid #dbe6ef;
   border-radius: 8px;
   background: #f8fafc;
+  cursor: pointer;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, background-color 0.16s ease;
+}
+
+.sales-summary-card:hover,
+.sales-summary-card:focus-visible {
+  border-color: #93c5fd;
+  background: #f8fbff;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.1);
+  outline: none;
+}
+
+.sales-summary-card.is-active {
+  border-color: #2563eb;
+  background: #eff6ff;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
 }
 
 .sales-summary-card strong {
@@ -692,6 +708,17 @@ select {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.won-filter-status {
+  margin: 4px 0 12px;
+  padding: 10px 12px;
+  border: 1px solid #dbe6ef;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .status-dot {
