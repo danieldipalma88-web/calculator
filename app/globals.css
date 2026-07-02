@@ -661,10 +661,12 @@ select {
   outline: none;
 }
 
-.sales-summary-card.is-active {
-  border-color: #2563eb;
-  background: #eff6ff;
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+.sales-summary-card.is-active,
+.sales-summary-card.is-active:hover,
+.sales-summary-card.is-active:focus-visible {
+  border-color: #1d4ed8;
+  background: #dbeafe;
+  box-shadow: 0 0 0 2px rgba(29, 78, 216, 0.2), 0 12px 26px rgba(37, 99, 235, 0.14);
 }
 
 .sales-summary-card strong {
@@ -764,6 +766,10 @@ select {
 .won-card-paid_out {
   border-color: #86efac;
   background: #f0fdf4;
+}
+
+.won-card[hidden] {
+  display: none !important;
 }
 
 .user-card-head,

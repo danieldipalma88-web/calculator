@@ -1,5 +1,6 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import Script from "next/script";
 import { canManageUsers } from "../../../lib/admin";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
 
@@ -755,8 +756,10 @@ function wonExportScript() {
     try { return JSON.parse(card.getAttribute("data-export-row") || "{}"); }
     catch (error) { return null; }
   }
-  function attrEscape(value) {
-    return window.CSS && CSS.escape ? CSS.escape(value) : String(value).replace(/"/g, "\\\\\"");
+  function salespersonCardForEmail(email) {
+    return Array.prototype.slice.call(document.querySelectorAll("[data-salesperson-filter]")).find(function(card){
+      return String(card.getAttribute("data-salesperson-filter") || "").toLowerCase() === email;
+    });
   }
   var selectAll = document.querySelector("[data-select-all-won]");
   function visibleWonCards() {
@@ -781,7 +784,7 @@ function wonExportScript() {
       return;
     }
     var names = activeEmails.map(function(email){
-      var card = document.querySelector('[data-salesperson-filter="' + attrEscape(email) + '"]');
+      var card = salespersonCardForEmail(email);
       return card ? String(card.getAttribute("data-salesperson-name") || email) : email;
     });
     status.textContent = "Showing " + visibleCount + " won options for " + names.join(", ") + ".";
@@ -807,6 +810,8 @@ function wonExportScript() {
     updateWonFilterStatus(activeEmails);
   }
   Array.prototype.slice.call(document.querySelectorAll("[data-salesperson-filter]")).forEach(function(card){
+    if (card.getAttribute("data-won-filter-ready") === "true") return;
+    card.setAttribute("data-won-filter-ready", "true");
     function toggleCard() {
       card.classList.toggle("is-active");
       card.setAttribute("aria-pressed", card.classList.contains("is-active") ? "true" : "false");
@@ -1872,7 +1877,9 @@ export default async function AdminUsersPage({
           </div>
         </section>
       </section>
-      <script dangerouslySetInnerHTML={{ __html: `${businessMultiSelectScript()}\n${wonExportScript()}` }} />
+      <Script id="admin-users-page-actions" strategy="afterInteractive">
+        {`${businessMultiSelectScript()}\n${wonExportScript()}`}
+      </Script>
     </main>
   );
 }
