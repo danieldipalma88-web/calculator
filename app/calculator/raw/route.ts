@@ -16,6 +16,9 @@ type CalculatorUserContext = {
   role: string;
   businessId: string | null;
   businessName: string;
+  businessOperatingState: string;
+  rebateScheme: string;
+  rebatesEnabled: boolean;
   commissionType: string;
   agencyCommissionRate: number;
   salespersonCommissionRate: number;
@@ -40,10 +43,28 @@ type ApprovedUser = {
 type Business = {
   id: string;
   name: string;
+  operating_state?: string | null;
   commission_type: string;
   agency_commission_rate: number;
   salesperson_commission_rate: number;
 };
+
+function normalizeOperatingState(value: unknown) {
+  const operatingState = String(value || "NSW").trim().toUpperCase();
+  return ["NSW", "VIC", "QLD", "SA", "WA", "TAS", "ACT", "NT"].includes(operatingState)
+    ? operatingState
+    : "NSW";
+}
+
+function rebateSchemeForState(operatingState: string) {
+  if (operatingState === "NSW") return "nsw_ess";
+  if (operatingState === "VIC") return "veu";
+  return "none";
+}
+
+function rebatesEnabledForScheme(rebateScheme: string) {
+  return rebateScheme === "nsw_ess";
+}
 
 const MANAGED_PRICE_STORAGE_KEYS = [
   "installerManagedPricesV1",
@@ -442,6 +463,14 @@ async function getBusiness(
   businessId?: string | null,
 ) {
   if (!businessId) return null;
+  const upgraded = await supabase
+    .from("businesses")
+    .select("id, name, operating_state, commission_type, agency_commission_rate, salesperson_commission_rate")
+    .eq("id", businessId)
+    .maybeSingle();
+
+  if (!upgraded.error) return (upgraded.data || null) as Business | null;
+
   const { data } = await supabase
     .from("businesses")
     .select("id, name, commission_type, agency_commission_rate, salesperson_commission_rate")
@@ -572,6 +601,8 @@ export async function GET(request: Request) {
     requestedBusinessId,
     currentUserIsOwner,
   );
+  const businessOperatingState = normalizeOperatingState(business?.operating_state);
+  const rebateScheme = rebateSchemeForState(businessOperatingState);
   const commissionType =
     viewedUser.commission_type_override || business?.commission_type || "none";
   const agencyCommissionRate = Number(
@@ -608,6 +639,9 @@ export async function GET(request: Request) {
       role: contextRole,
       businessId: business?.id || null,
       businessName: business?.name || "",
+      businessOperatingState,
+      rebateScheme,
+      rebatesEnabled: rebatesEnabledForScheme(rebateScheme),
       commissionType,
       agencyCommissionRate,
       salespersonCommissionRate,

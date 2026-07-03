@@ -4,6 +4,7 @@
 create table if not exists public.businesses (
   id uuid primary key default gen_random_uuid(),
   name text not null unique,
+  operating_state text not null default 'NSW',
   commission_type text not null default 'none',
   agency_commission_rate numeric not null default 25,
   salesperson_commission_rate numeric not null default 50,
@@ -13,10 +14,18 @@ create table if not exists public.businesses (
 
 alter table public.businesses enable row level security;
 
+alter table public.businesses
+  add column if not exists operating_state text not null default 'NSW';
+
 alter table public.businesses drop constraint if exists businesses_commission_type_check;
 alter table public.businesses
   add constraint businesses_commission_type_check
   check (commission_type in ('none', 'standard', 'agency'));
+
+alter table public.businesses drop constraint if exists businesses_operating_state_check;
+alter table public.businesses
+  add constraint businesses_operating_state_check
+  check (operating_state in ('NSW', 'VIC', 'QLD', 'SA', 'WA', 'TAS', 'ACT', 'NT'));
 
 alter table public.businesses drop constraint if exists businesses_agency_commission_rate_check;
 alter table public.businesses
@@ -203,9 +212,11 @@ revoke all on function public.admin_upsert_approved_user(text, text, uuid, text,
 grant execute on function public.admin_upsert_approved_user(text, text, uuid, text, numeric, numeric) to authenticated;
 
 drop function if exists public.admin_upsert_business(uuid, text, text, numeric, numeric);
+drop function if exists public.admin_upsert_business(uuid, text, text, text, numeric, numeric);
 create or replace function public.admin_upsert_business(
   target_business_id uuid default null,
   target_name text default '',
+  target_operating_state text default 'NSW',
   target_commission_type text default 'none',
   target_agency_commission_rate numeric default 25,
   target_salesperson_commission_rate numeric default 50
@@ -214,6 +225,7 @@ returns uuid
 as $$
 declare
   normalized_name text := trim(coalesce(target_name, ''));
+  normalized_operating_state text := upper(trim(coalesce(target_operating_state, 'NSW')));
   normalized_commission_type text := case
     when target_commission_type in ('none', 'standard', 'agency') then target_commission_type
     else 'none'
@@ -230,13 +242,18 @@ begin
     raise exception 'Business name is required';
   end if;
 
+  if normalized_operating_state not in ('NSW', 'VIC', 'QLD', 'SA', 'WA', 'TAS', 'ACT', 'NT') then
+    normalized_operating_state := 'NSW';
+  end if;
+
   if target_business_id is null then
-    insert into public.businesses (name, commission_type, agency_commission_rate, salesperson_commission_rate)
-    values (normalized_name, normalized_commission_type, normalized_agency_rate, normalized_salesperson_rate)
+    insert into public.businesses (name, operating_state, commission_type, agency_commission_rate, salesperson_commission_rate)
+    values (normalized_name, normalized_operating_state, normalized_commission_type, normalized_agency_rate, normalized_salesperson_rate)
     returning id into output_id;
   else
     update public.businesses
     set name = normalized_name,
+        operating_state = normalized_operating_state,
         commission_type = normalized_commission_type,
         agency_commission_rate = normalized_agency_rate,
         salesperson_commission_rate = normalized_salesperson_rate,
@@ -252,14 +269,15 @@ language plpgsql
 security definer
 set search_path = public;
 
-revoke all on function public.admin_upsert_business(uuid, text, text, numeric, numeric) from public;
-grant execute on function public.admin_upsert_business(uuid, text, text, numeric, numeric) to authenticated;
+revoke all on function public.admin_upsert_business(uuid, text, text, text, numeric, numeric) from public;
+grant execute on function public.admin_upsert_business(uuid, text, text, text, numeric, numeric) to authenticated;
 
 drop function if exists public.admin_list_businesses();
 create or replace function public.admin_list_businesses()
 returns table (
   id uuid,
   name text,
+  operating_state text,
   commission_type text,
   agency_commission_rate numeric,
   salesperson_commission_rate numeric,
@@ -272,7 +290,7 @@ begin
   end if;
 
   return query
-  select b.id, b.name, b.commission_type, b.agency_commission_rate, b.salesperson_commission_rate, b.created_at
+  select b.id, b.name, b.operating_state, b.commission_type, b.agency_commission_rate, b.salesperson_commission_rate, b.created_at
   from public.businesses b
   order by b.name asc;
 end;

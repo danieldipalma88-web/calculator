@@ -7,12 +7,14 @@ import { createSupabaseServerClient } from "../../../lib/supabase/server";
 type UserRole = "admin" | "business_owner" | "agency" | "salesperson" | "user";
 type CommissionType = "none" | "standard" | "agency";
 type CommissionOverride = CommissionType | "business_default";
+type OperatingState = "NSW" | "VIC" | "QLD" | "SA" | "WA" | "TAS" | "ACT" | "NT";
 type WonPaymentStatus = "not_paid_in" | "paid_in" | "paid_out";
 type WonOptionUpdateMode = "unlock" | "delete" | "paid_in" | "paid_out" | "reset_payment";
 
 type Business = {
   id: string;
   name: string;
+  operating_state: OperatingState;
   commission_type: CommissionType;
   agency_commission_rate: number;
   salesperson_commission_rate: number;
@@ -101,6 +103,17 @@ const commissionOptions: { value: CommissionOverride; label: string }[] = [
   { value: "agency", label: "Agency commission" },
 ];
 
+const operatingStateOptions: { value: OperatingState; label: string; rebateLabel: string }[] = [
+  { value: "NSW", label: "New South Wales", rebateLabel: "NSW ESS/PDRS" },
+  { value: "VIC", label: "Victoria", rebateLabel: "VEU not configured" },
+  { value: "QLD", label: "Queensland", rebateLabel: "No rebates" },
+  { value: "SA", label: "South Australia", rebateLabel: "No rebates" },
+  { value: "WA", label: "Western Australia", rebateLabel: "No rebates" },
+  { value: "TAS", label: "Tasmania", rebateLabel: "No rebates" },
+  { value: "ACT", label: "ACT", rebateLabel: "No rebates" },
+  { value: "NT", label: "Northern Territory", rebateLabel: "No rebates" },
+];
+
 const OPTION_DEF_STORAGE_KEYS = [
   "installerQuoteOptionDefsV1",
   "greenEnergyQuoteOptionDefsV1",
@@ -151,6 +164,13 @@ function normalizeCommissionOverride(value: FormDataEntryValue | null): Commissi
     : "business_default";
 }
 
+function normalizeOperatingState(value: FormDataEntryValue | unknown): OperatingState {
+  const operatingState = String(value || "NSW").trim().toUpperCase();
+  return operatingStateOptions.some((option) => option.value === operatingState)
+    ? (operatingState as OperatingState)
+    : "NSW";
+}
+
 function nullableUuid(value: FormDataEntryValue | null) {
   const normalized = normalizeText(value);
   return normalized ? normalized : null;
@@ -190,6 +210,14 @@ function commissionLabel(type: string | null | undefined) {
   return "None";
 }
 
+function operatingStateLabel(value: OperatingState) {
+  return operatingStateOptions.find((option) => option.value === value)?.label || value;
+}
+
+function rebateSchemeLabel(value: OperatingState) {
+  return operatingStateOptions.find((option) => option.value === value)?.rebateLabel || "No rebates";
+}
+
 function dbMessage(error: DbError) {
   return String(error?.message || "");
 }
@@ -221,6 +249,7 @@ function normalizeBusiness(row: Record<string, unknown>): Business {
   return {
     id: String(row.id || ""),
     name: String(row.name || "Unnamed business"),
+    operating_state: normalizeOperatingState(row.operating_state),
     commission_type: isCommissionType(row.commission_type) ? row.commission_type : "none",
     agency_commission_rate: asNumber(row.agency_commission_rate, 0),
     salesperson_commission_rate: asNumber(row.salesperson_commission_rate, 0),
@@ -290,7 +319,7 @@ async function listBusinesses(supabase: SupabaseServer) {
 
   const directResult = await supabase
     .from("businesses")
-    .select("id, name, commission_type, agency_commission_rate, salesperson_commission_rate, created_at")
+    .select("id, name, operating_state, commission_type, agency_commission_rate, salesperson_commission_rate, created_at")
     .order("name", { ascending: true });
 
   if (directResult.error) {
@@ -421,6 +450,7 @@ async function saveBusiness(
   supabase: SupabaseServer,
   businessId: string | null,
   name: string,
+  operatingState: OperatingState,
   commissionType: CommissionType,
   agencyRate: number,
   salespersonRate: number,
@@ -428,6 +458,7 @@ async function saveBusiness(
   const rpcResult = await supabase.rpc("admin_upsert_business", {
     target_business_id: businessId,
     target_name: name,
+    target_operating_state: operatingState,
     target_commission_type: commissionType,
     target_agency_commission_rate: agencyRate,
     target_salesperson_commission_rate: salespersonRate,
@@ -438,6 +469,7 @@ async function saveBusiness(
 
   const payload = {
     name,
+    operating_state: operatingState,
     commission_type: commissionType,
     agency_commission_rate: agencyRate,
     salesperson_commission_rate: salespersonRate,
@@ -1090,6 +1122,7 @@ async function upsertBusiness(formData: FormData) {
   const { supabase } = await requireAdmin();
   const businessId = nullableUuid(formData.get("businessId"));
   const name = normalizeText(formData.get("businessName"));
+  const operatingState = normalizeOperatingState(formData.get("operatingState"));
   const commissionType = normalizeCommissionOverride(formData.get("commissionType"));
   const agencyRate = rateValue(formData.get("agencyCommissionRate"), 25);
   const salespersonRate = rateValue(formData.get("salespersonCommissionRate"), 50);
@@ -1102,6 +1135,7 @@ async function upsertBusiness(formData: FormData) {
     supabase,
     businessId,
     name,
+    operatingState,
     commissionType === "business_default" ? "none" : commissionType,
     agencyRate,
     salespersonRate,
@@ -1355,6 +1389,16 @@ export default async function AdminUsersPage({
               />
             </div>
             <div>
+              <label htmlFor="businessOperatingState">Operating state</label>
+              <select id="businessOperatingState" name="operatingState" defaultValue="NSW">
+                {operatingStateOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
               <label htmlFor="businessCommissionType">Default commission</label>
               <select id="businessCommissionType" name="commissionType" defaultValue="agency">
                 <option value="none">No commission</option>
@@ -1384,6 +1428,11 @@ export default async function AdminUsersPage({
                     <strong>{business.name}</strong>
                   </div>
                   <div>
+                    <label>State / rebate</label>
+                    <strong>{business.operating_state}</strong>
+                    <span>{rebateSchemeLabel(business.operating_state)}</span>
+                  </div>
+                  <div>
                     <label>Commission</label>
                     <strong>{commissionLabel(business.commission_type)}</strong>
                   </div>
@@ -1403,6 +1452,16 @@ export default async function AdminUsersPage({
                   <div>
                     <label>Business name</label>
                     <input name="businessName" defaultValue={business.name} required />
+                  </div>
+                  <div>
+                    <label>Operating state</label>
+                    <select name="operatingState" defaultValue={business.operating_state}>
+                      {operatingStateOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {operatingStateLabel(option.value)}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div>
                     <label>Default commission</label>

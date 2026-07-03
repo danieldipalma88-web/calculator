@@ -12,7 +12,13 @@ type ApprovedUser = {
 type Business = {
   id: string;
   name: string;
+  operating_state?: string | null;
 };
+
+function businessOptionLabel(business: Business) {
+  const operatingState = String(business.operating_state || "").trim().toUpperCase();
+  return operatingState ? `${business.name} (${operatingState})` : business.name;
+}
 
 async function getApprovedUser(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>, email: string) {
   const upgraded = await supabase
@@ -70,11 +76,18 @@ async function listBusinessesForEmail(
 
   const businesses = await supabase
     .from("businesses")
-    .select("id, name")
+    .select("id, name, operating_state")
     .in("id", [...ids])
     .order("name", { ascending: true });
 
-  if (businesses.error) return [] as Business[];
+  if (businesses.error) {
+    const legacyBusinesses = await supabase
+      .from("businesses")
+      .select("id, name")
+      .in("id", [...ids])
+      .order("name", { ascending: true });
+    return ((legacyBusinesses.data || []) as Business[]);
+  }
   return (businesses.data || []) as Business[];
 }
 
@@ -83,10 +96,16 @@ async function listAllBusinesses(
 ) {
   const businesses = await supabase
     .from("businesses")
-    .select("id, name")
+    .select("id, name, operating_state")
     .order("name", { ascending: true });
 
-  if (businesses.error) return [] as Business[];
+  if (businesses.error) {
+    const legacyBusinesses = await supabase
+      .from("businesses")
+      .select("id, name")
+      .order("name", { ascending: true });
+    return ((legacyBusinesses.data || []) as Business[]);
+  }
   return (businesses.data || []) as Business[];
 }
 
@@ -161,7 +180,7 @@ export default async function CalculatorPage({
     ? `/calculator/raw?as=${encodeURIComponent(viewingEmail)}${isPreviewingAsUser ? "&preview=1" : ""}${businessQuery ? `&${businessQuery}` : ""}`
     : `/calculator/raw${businessQuery ? `?${businessQuery}` : ""}`;
   const viewingName = displayName(viewedApprovedUser);
-  const selectedBusinessName = selectedBusiness?.name || "";
+  const selectedBusinessName = selectedBusiness ? businessOptionLabel(selectedBusiness) : "";
   const selectedBusinessParam = selectedBusiness ? `&businessId=${encodeURIComponent(selectedBusiness.id)}` : "";
 
   return (
@@ -216,9 +235,9 @@ export default async function CalculatorPage({
               {isViewingAnotherUser ? <input type="hidden" name="as" value={viewingEmail} /> : null}
               {isPreviewingAsUser ? <input type="hidden" name="preview" value="1" /> : null}
               <select name="businessId" defaultValue={selectedBusiness?.id || ""} aria-label="Business workspace">
-                {businessOptions.map((business) => (
+                  {businessOptions.map((business) => (
                   <option key={business.id} value={business.id}>
-                    {business.name}
+                    {businessOptionLabel(business)}
                   </option>
                 ))}
               </select>

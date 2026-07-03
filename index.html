@@ -343,6 +343,14 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
 .restrictedOwnerDetails #rebateCalcMeta{display:none!important}
 .restrictedOwnerDetails #certificateBreakdown{grid-template-columns:1fr}
 .restrictedOwnerDetails #certificateBreakdown .certificateMetric:not(:last-child){display:none}
+.noRebateScheme .rebateSchemeUi,
+.noRebateScheme #rebateCostField,
+.noRebateScheme #originalPriceRow,
+.noRebateScheme #summaryRebateRow,
+.noRebateScheme #rebateOut,
+.noRebateScheme #certValuesActionBtn,
+.noRebateScheme .managedRebateColumn,
+.noRebateScheme .proposalRebateOption{display:none!important}
 
 .sectionTitle{font-size:19px;margin:0 0 14px}
 .tiny{font-size:12px;color:var(--muted);line-height:1.45}
@@ -1311,16 +1319,16 @@ tbody tr:hover td{background:#f0f7ff}
           <div class="productSupportChip unknown" id="originSupportChip"><span>Company origin</span><strong id="originMeta">Select a unit</strong></div>
         </div>
         <div class="installTabs"><button id="newBtn" class="active" onclick="setInstall('new')">New install</button><button id="replacementBtn" onclick="setInstall('replacement')">Replacement</button></div>
-        <div class="row3" style="margin-top:12px">
+        <div class="row3 rebateSchemeUi" style="margin-top:12px">
           <div><label>ESS postcode</label><input id="essPostcode" type="text" inputmode="numeric" value="2000" maxlength="4"></div>
           <div class="mobileHideRebateConfig ownerOnlyRebateConfig"><label>ESS climate zone</label><select id="essClimateZone"><option value="auto">Auto from postcode</option><option value="mixed">Mixed</option><option value="hot">Hot</option><option value="cold">Cold</option></select></div>
           <div class="mobileHideRebateConfig ownerOnlyRebateConfig"><label>ESS $ per ESC</label><input id="essEscRate" type="number" step="0.01" value="24.39"></div>
         </div>
-        <div class="row2 mobileHideRebateConfig ownerOnlyRebateConfig" style="margin-top:12px">
+        <div class="row2 mobileHideRebateConfig ownerOnlyRebateConfig rebateSchemeUi" style="margin-top:12px">
           <div class="mobileHideRebateConfig"><label>PERC (PRC) $ per cert</label><input id="essPrcRate" type="number" step="0.01" value="2.85"></div>
           <div class="mobileHideRebateConfig"><label>Live calc source</label><input readonly value="NSW ESS/PDRS API"></div>
         </div>
-        <div class="selected"><div class="selectedText"><div class="selectedHeader"><strong id="selectedModel"></strong><button type="button" class="copyModelBtn" onclick="copyCurrentModel()">Copy model</button></div><div class="tiny" id="modelMeta"></div><div class="tiny" id="rebateCalcMeta">Live ESS/PERC rebate status will appear here.</div><div class="certificateBreakdown" id="certificateBreakdown"><div class="certificateMetric"><span>ESC generated</span><strong id="escCertCount">-</strong><small id="escCertValue">Waiting for live lookup</small></div><div class="certificateMetric"><span>PERC generated</span><strong id="prcCertCount">-</strong><small id="prcCertValue">Waiting for live lookup</small></div><div class="certificateMetric"><span>Rebate calculation</span><strong id="certRebateValue">-</strong><small id="certRebateMeta">Waiting for live lookup</small></div></div><div class="recommendationCards"><div class="recommendationCard" id="bestValueMeta"><div class="recommendationEyebrow">Best rebate</div><div class="recommendationStatus">Best rebate indicator will appear here.</div></div><div class="recommendationCard net" id="bestNetCostMeta"><div class="recommendationEyebrow">Best net unit cost</div><div class="recommendationStatus">Best net unit cost indicator will appear here.</div></div></div></div></div>
+        <div class="selected"><div class="selectedText"><div class="selectedHeader"><strong id="selectedModel"></strong><button type="button" class="copyModelBtn" onclick="copyCurrentModel()">Copy model</button></div><div class="tiny" id="modelMeta"></div><div class="tiny rebateSchemeUi" id="rebateCalcMeta">Live ESS/PERC rebate status will appear here.</div><div class="certificateBreakdown rebateSchemeUi" id="certificateBreakdown"><div class="certificateMetric"><span>ESC generated</span><strong id="escCertCount">-</strong><small id="escCertValue">Waiting for live lookup</small></div><div class="certificateMetric"><span>PERC generated</span><strong id="prcCertCount">-</strong><small id="prcCertValue">Waiting for live lookup</small></div><div class="certificateMetric"><span>Rebate calculation</span><strong id="certRebateValue">-</strong><small id="certRebateMeta">Waiting for live lookup</small></div></div><div class="recommendationCards rebateSchemeUi"><div class="recommendationCard" id="bestValueMeta"><div class="recommendationEyebrow">Best rebate</div><div class="recommendationStatus">Best rebate indicator will appear here.</div></div><div class="recommendationCard net" id="bestNetCostMeta"><div class="recommendationEyebrow">Best net unit cost</div><div class="recommendationStatus">Best net unit cost indicator will appear here.</div></div></div></div></div>
       </div>
       <div class="card energySavingsCard" id="energySavingsCard">
         <button type="button" class="energySavingsToggle" id="energySavingsToggle" onclick="toggleEnergySavingsPanel()" aria-expanded="false">
@@ -1344,7 +1352,7 @@ tbody tr:hover td{background:#f0f7ff}
       </div>
       <div class="card">
         <h2 class="sectionTitle">Costs</h2>
-        <div class="row3"><div><label>Unit price inc GST</label><input id="unitPriceInc" type="number" step="0.01"></div><div><label>Labour ex GST</label><input id="labour" type="number" step="0.01"></div><div><label>Rebate</label><input id="rebate" type="number" step="0.01"></div></div>
+        <div class="row3"><div><label>Unit price inc GST</label><input id="unitPriceInc" type="number" step="0.01"></div><div><label>Labour ex GST</label><input id="labour" type="number" step="0.01"></div><div id="rebateCostField"><label>Rebate</label><input id="rebate" type="number" step="0.01"></div></div>
         <div class="row3" style="margin-top:14px"><div><label>Materials inc GST</label><input id="materials" type="number" step="0.01"></div><div><label>Misc cost inc GST</label><input id="misc" type="number" step="0.01" value="0"></div><div><label>Final customer price inc GST</label><input id="finalInc" type="number" step="0.01"></div></div>
         <div id="splitOnly" style="margin-top:14px"><div class="row2"><div><label>Power circuit ex GST</label><input id="powerCircuit" type="number" step="0.01" value="500"></div><div><label>Power circuit rule</label><select id="powerMode"><option value="auto">Auto above 3.5kW</option><option value="on">Force on</option><option value="off">Force off</option></select></div></div><div class="checkbox" style="margin-top:12px"><input id="installerRetainsLabour" type="checkbox" checked><label for="installerRetainsLabour" style="margin:0;text-transform:none;letter-spacing:0;font-size:13px;color:#0f172a">Installer retains labour profit</label></div><div class="tiny">When turned on, split-system labour is treated as owner-retained value. When turned off, split-system labour is treated as a paid expense.</div></div>
         <div id="ductedOnly" class="hidden" style="margin-top:14px"><div class="row3"><div><label>Electrician ex GST</label><input id="electrician" type="number" step="0.01" value="500"></div><div><label>Airtouch</label><select id="airtouch"><option value="no">No</option><option value="yes">Yes</option></select></div><div><label>Zones</label><input id="zones" type="number" value="0"></div></div><div class="row2" style="margin-top:14px"><div><label>Sensors</label><input id="sensors" type="number" value="0"></div><div><label>Airtouch cost rule</label><input readonly value="$1,100 + $82/sensor + $65/zone"></div></div><div class="checkbox" style="margin-top:12px"><input id="ductedInstallerRetainsLabour" type="checkbox"><label for="ductedInstallerRetainsLabour" style="margin:0;text-transform:none;letter-spacing:0;font-size:13px;color:#0f172a">Installer retains labour profit</label></div><div class="tiny">When turned on, ducted labour is treated as owner-retained value. When turned off, ducted labour is treated as a paid expense.</div></div>
@@ -1374,7 +1382,7 @@ tbody tr:hover td{background:#f0f7ff}
         <button id="salespersonCommissionRateLockBtn" class="lockBtn" type="button" onclick="toggleCommissionRateLock('salesperson')">Unlock</button>
       </div>
       <div class="summaryLine"><span>Sell price ex GST</span><strong id="sellEx"></strong></div>
-      <div class="summaryLine"><span>Original price before rebate inc GST</span><strong id="originalInc"></strong></div>
+      <div id="originalPriceRow" class="summaryLine"><span>Original price before rebate inc GST</span><strong id="originalInc"></strong></div>
       <div class="summaryCostBreakdown" id="summaryCostBreakdown">
         <div class="summaryLine"><span>Unit ex GST</span><strong id="summaryUnitEx"></strong></div>
         <div class="summaryLine"><span>Labour ex GST</span><strong id="summaryLabourEx"></strong></div>
@@ -1383,7 +1391,7 @@ tbody tr:hover td{background:#f0f7ff}
         <div class="summaryLine"><span>Power / electrician ex GST</span><strong id="summaryServiceEx"></strong></div>
         <div class="summaryLine"><span>Airtouch / add-ons</span><strong id="summaryAddonsEx"></strong></div>
         <div class="summaryLine"><span>True cost ex GST</span><strong id="summaryTrueCost"></strong></div>
-        <div class="summaryLine"><span>Rebate retained</span><strong id="summaryRebateOut"></strong></div>
+        <div id="summaryRebateRow" class="summaryLine"><span>Rebate retained</span><strong id="summaryRebateOut"></strong></div>
       </div>
       <div id="marginRow" class="summaryLine"><span>Margin incl rebate</span><strong id="margin"></strong></div>
       <div id="cashProfitRow" class="summaryLine cash"><span id="profitBeforeLabel">Cash profit before commission ex GST</span><strong id="cashProfit"></strong></div>
@@ -1491,7 +1499,7 @@ tbody tr:hover td{background:#f0f7ff}
     <div><label>Filter system type</label><select id="priceTypeFilter" onchange="renderPriceManager()"><option value="all">All</option><option value="split">Split only</option><option value="ducted">Ducted only</option></select></div>
     <div><label>Search brand / model</label><input id="priceSearch" placeholder="Search model, brand, size" oninput="renderPriceManager()"></div>
   </div>
-  <div class="tableWrap"><table><thead><tr><th>Type</th><th>Brand</th><th>Size</th><th>Model</th><th>Unit price inc GST</th><th>Rebate</th><th>Status</th><th>Actions</th></tr></thead><tbody id="priceRows"><tr><td colspan="8">Loading prices...</td></tr></tbody></table></div>
+  <div class="tableWrap"><table><thead><tr><th>Type</th><th>Brand</th><th>Size</th><th>Model</th><th>Unit price inc GST</th><th class="managedRebateColumn">Rebate</th><th>Status</th><th>Actions</th></tr></thead><tbody id="priceRows"><tr><td colspan="8">Loading prices...</td></tr></tbody></table></div>
 </div>
 <div id="certDrawer" class="quoteDrawer priceDrawer">
   <div class="drawerHead">
@@ -1543,7 +1551,7 @@ tbody tr:hover td{background:#f0f7ff}
     <div class="proposalChecks">
       <div class="proposalCheck"><input id="proposalIncludeScopes" type="checkbox" checked><label for="proposalIncludeScopes">Include scope, inclusions and exclusions</label></div>
       <div class="proposalCheck"><input id="proposalIncludeTerms" type="checkbox" checked><label for="proposalIncludeTerms">Include terms and conditions</label></div>
-      <div class="proposalCheck"><input id="proposalIncludeRebateNote" type="checkbox" checked><label for="proposalIncludeRebateNote">Show rebate note when applicable</label></div>
+      <div class="proposalCheck proposalRebateOption"><input id="proposalIncludeRebateNote" type="checkbox" checked><label for="proposalIncludeRebateNote">Show rebate note when applicable</label></div>
       <div class="proposalCheck"><input id="proposalIncludeAcceptance" type="checkbox" checked><label for="proposalIncludeAcceptance">Include customer acceptance page</label></div>
     </div>
     <div id="proposalSourceSummary" class="proposalStatus">Choose a source to preview proposal contents.</div>
@@ -2271,6 +2279,10 @@ function clearCertificateRuntime(){
   essRuntime.lastModel='';
 }
 function updateCertificateBreakdownFromRuntime(){
+  if(!rebatesEnabled()){
+    applyRebateSchemeUi();
+    return 0;
+  }
   const escRate=getEssEscRate();
   const prcRate=getEssPrcRate();
   if(!((essRuntime.lastEsc>0 || essRuntime.lastPrc>0) && escRate>0 && prcRate>0)){
@@ -2409,6 +2421,12 @@ function formatBestNetCostMessage(entry,currentProduct,categoryLabel,postcode,fa
   return `${prefix}: ${bestText}${failedCount?` (${failedCount} unavailable).`:'.'}`;
 }
 async function refreshBestValueIndicator(){
+  if(!rebatesEnabled()){
+    essBestValueRuntime.lastEntry=null;
+    setBestValueMeta(rebateSchemeStatusText(),false);
+    setBestNetCostMeta(rebateSchemeStatusText(),false);
+    return;
+  }
   const current=product();
   if(!current){setBestValueMeta('Best rebate indicator unavailable.',true); setBestNetCostMeta('Best net unit cost indicator unavailable.',true); return;}
   const postcode=getEssPostcode();
@@ -2894,6 +2912,7 @@ async function estimateLiveEssRebate(localBrand,localModel){
   return {apiBrand:resolved.brand,apiModel:resolved.model,lookupSource:resolved.source,esc:certs.esc,prc:certs.prc,officialEsc:certs.officialEsc,officialPrc:certs.officialPrc,zone:climate.climateZone,bcaZone:climate.bcaZone,escRate,prcRate,escValue,prcValue,rebate:escValue+prcValue};
 }
 async function loadLiveCertificatePriceIfNeeded(){
+  if(!rebatesEnabled()) return;
   const input=$('essEscRate');
   const prcInput=$('essPrcRate');
   if(!input || !prcInput) return;
@@ -2918,6 +2937,14 @@ async function loadLiveCertificatePriceIfNeeded(){
 async function refreshLiveRebateForCurrentProduct(){
   const p=product();
   if(!p) return;
+  if(!rebatesEnabled()){
+    essCache.requestSeq++;
+    clearCertificateRuntime();
+    if($('rebate')) $('rebate').value='0.00';
+    applyRebateSchemeUi();
+    render();
+    return;
+  }
   if(hasManualRebateOverride(systemType,p)){
     clearCertificateRuntime();
     setCertificateBreakdown(null,'Manual rebate override active. Live ESC/PERC counts are not recalculated.',false);
@@ -2955,7 +2982,7 @@ async function refreshLiveRebateForCurrentProduct(){
 function onProductChange(){
   const p=product();
   $('unitPriceInc').value=(p.unitPriceInc||p.priceIncGst||0).toFixed(2);
-  $('rebate').value=(p.rebate||0).toFixed(2);
+  $('rebate').value=rebatesEnabled()?(p.rebate||0).toFixed(2):'0.00';
   applyDefaults();
   resetEnergySavingsResults();
   refreshEnergySavingsEstimate();
@@ -3131,8 +3158,41 @@ function canSeeCommissionDetails(){const u=calculatorUserContext(); return u.can
 function canSeeProfitDetails(){const u=calculatorUserContext(); return u.canSeeProfitDetails!==false;}
 function canSeeSalespersonCommission(){const u=calculatorUserContext(); return u.canSeeSalespersonCommission!==false;}
 function canEditManagedRebates(){return canSeeOwnerDetails();}
+function activeBusinessState(){return String(calculatorUserContext().businessOperatingState||'NSW').toUpperCase();}
+function activeRebateScheme(){return String(calculatorUserContext().rebateScheme||'nsw_ess').toLowerCase();}
+function rebatesEnabled(){
+  const u=calculatorUserContext();
+  if(u.rebatesEnabled===false) return false;
+  return activeRebateScheme()==='nsw_ess';
+}
+function rebateSchemeStatusText(){
+  const state=activeBusinessState();
+  const scheme=activeRebateScheme();
+  if(scheme==='veu') return `Victorian VEU rebates are not configured yet for this calculator. ${state} mode is running without rebates.`;
+  if(scheme==='none') return `${state} business workspace has no rebate scheme enabled. Rebates are not applied.`;
+  return 'NSW ESS/PDRS rebates enabled.';
+}
+function applyRebateSchemeUi(){
+  const enabled=rebatesEnabled();
+  if(document.body) document.body.classList.toggle('noRebateScheme',!enabled);
+  const rebate=$('rebate');
+  if(rebate){
+    if(!enabled){
+      rebate.value='0.00';
+      rebate.readOnly=true;
+    }else if(!rebate.classList.contains('fixedMoneyInput')){
+      rebate.readOnly=false;
+    }
+  }
+  if(!enabled){
+    clearCertificateRuntime();
+    setCertificateBreakdown(null,rebateSchemeStatusText(),false);
+    setRebateCalcMeta(rebateSchemeStatusText(),false);
+  }
+}
 function applyOwnerVisibility(){
   if(document.body) document.body.classList.toggle('restrictedOwnerDetails',!canSeeOwnerDetails());
+  applyRebateSchemeUi();
 }
 function effectiveCommissionType(){
   const t=String(calculatorUserContext().commissionType||'agency').toLowerCase();
@@ -3248,7 +3308,7 @@ function calculate(){
   const baseMaterialsInc=num('materials'), materialsInc=baseMaterialsInc+installAddons.materialsInc;
   const matsEx=materialsInc/1.1, miscEx=num('misc')/1.1;
   const service=systemType==='split'?powerCost(c):num('electrician'), addons=airCost();
-  const rebate=num('rebate'), finalInc=num('finalInc'), sellEx=finalInc/1.1;
+  const rebate=rebatesEnabled()?num('rebate'):0, finalInc=num('finalInc'), sellEx=finalInc/1.1;
   const splitLabourRetained=systemType==='split' && $('installerRetainsLabour') && $('installerRetainsLabour').checked;
   const ductedLabourRetained=systemType==='ducted' && $('ductedInstallerRetainsLabour') && $('ductedInstallerRetainsLabour').checked;
   const labourRetained=splitLabourRetained||ductedLabourRetained;
@@ -3754,6 +3814,7 @@ function updateManagedPrice(key,field,value){
     item.p.model=model;
   } else {
     const n=Number(value)||0;
+    if(field==='rebate' && !rebatesEnabled()) return;
     if(field==='rebate' && !canEditManagedRebates()) return;
     entry[field]=n;
     if(field==='unitPriceInc'){ item.p.unitPriceInc=n; item.p.priceIncGst=n; }
@@ -3769,7 +3830,7 @@ function syncCurrentProductAfterPriceChange(changedItem){
   const option=$('product').options[currentIndex];
   if(option) option.textContent=unitSelectLabel(changedItem.p);
   $('unitPriceInc').value=(changedItem.p.unitPriceInc||changedItem.p.priceIncGst||0).toFixed(2);
-  $('rebate').value=(changedItem.p.rebate||0).toFixed(2);
+  $('rebate').value=rebatesEnabled()?(changedItem.p.rebate||0).toFixed(2):'0.00';
   if(hasManualRebateOverride(systemType,changedItem.p)){
     clearCertificateRuntime();
     setCertificateBreakdown(null,'Manual rebate override active. Live ESC/PERC counts are not recalculated.',false);
@@ -3805,7 +3866,7 @@ function renderPriceManager(){
       <td>${htmlEscape(item.p.capacity||item.p.size+'kW')}</td>
       <td><input class="priceInput modelInput managedPriceInput" data-field="model" type="text" value="${model}" ${locked?'disabled':''}></td>
       <td><input class="priceInput managedPriceInput" data-field="unitPriceInc" type="number" step="0.01" value="${price}" ${locked?'disabled':''}></td>
-      <td><input class="priceInput managedPriceInput" data-field="rebate" type="number" step="0.01" value="${rebate}" ${rebateLocked?'disabled':''}></td>
+      <td class="managedRebateColumn"><input class="priceInput managedPriceInput" data-field="rebate" type="number" step="0.01" value="${rebate}" ${rebateLocked?'disabled':''}></td>
       <td><span class="pill">${locked?'Locked':'Unlocked'}</span></td>
       <td><button type="button" class="lockBtn ${locked?'':'unlocked'} managedLockBtn" onclick="event.stopPropagation(); togglePriceLock(decodeKeyFromDom(this.closest('tr[data-key]').dataset.key));">${locked?'Unlock':'Lock'}</button></td>
     </tr>`;
@@ -3825,12 +3886,13 @@ function currentState(){
   const includeCommission=canSeeCommissionDetails();
   return {
     systemType, installType,
+    businessOperatingState:activeBusinessState(), rebateScheme:activeRebateScheme(), rebatesEnabled:rebatesEnabled(),
     customer:$('customer').value, address:$('address').value, date:$('date').value,
     ess:currentEssState(), postcode:getEssPostcode(), essClimateZone:getEssZoneSelection(),
     brand:x.p.brand, series:x.p.series||'', model:x.p.model, size:x.p.capacity||x.p.size+'kW', capacityNum:cap(x.p),
     productIndex:Number.isFinite(productIndex)?productIndex:null,
     productManagedKey:managedKey||'',
-    unitPriceInc:$('unitPriceInc').value, labour:$('labour').value, rebate:$('rebate').value,
+    unitPriceInc:$('unitPriceInc').value, labour:$('labour').value, rebate:rebatesEnabled()?$('rebate').value:'0',
     materials:$('materials').value, misc:$('misc').value, finalInc:$('finalInc').value,
     powerCircuit:$('powerCircuit').value, powerMode:$('powerMode').value,
     electrician:$('electrician').value, airtouch:$('airtouch').value, zones:$('zones').value, sensors:$('sensors').value,
@@ -3938,7 +4000,7 @@ function recomputeSavedQuote(r){
   if(!isSplit && r.state && r.state.airtouch==='yes'){
     addons=1100+(Number(r.state.sensors)||0)*82+(Number(r.state.zones)||0)*65;
   }
-  const rebate=Number(r.rebate)||0;
+  const rebate=rebatesEnabled()?(Number(r.rebate)||0):0;
   const finalInc=Number(r.finalInc)||0;
   const sellEx=finalInc/1.1;
   const trueCost=unitEx+labour+matsEx+miscEx+service+addons;
@@ -3969,6 +4031,7 @@ function recomputeSavedQuote(r){
   r.materialsInc=materialsInc;
   r.matsEx=matsEx;
   r.miscInc=miscInc;
+  r.rebate=rebate;
   r.otherEx=miscEx+service+addons;
   r.trueCost=trueCost;
   r.cashProfit=cashProfit;
@@ -4504,6 +4567,11 @@ function groupTotals(rows){
   const sum=(fn)=>rows.reduce((a,r)=>a+(Number(fn(r))||0),0);
   return {customer:sum(r=>r.finalInc), rebate:sum(r=>r.rebate), unit:sum(r=>r.unitInc), labour:sum(r=>r.labour), materials:sum(r=>savedMaterialsInc(r)), misc:sum(r=>savedMiscInc(r)), power:sum(r=>r.type==='Split'?(Number(r.powerCost)||0):0), commission:sum(r=>r.commissionInc), salespersonCommission:sum(r=>r.salespersonCommissionInc), profit:sum(r=>r.netProfit)};
 }
+function rebateHeadHtml(label){return rebatesEnabled()?`<th>${htmlEscape(label||'Rebate')}</th>`:'';}
+function rebateCellHtml(value){return rebatesEnabled()?`<td class="money">${money(value)}</td>`:'';}
+function rebateMetricHtml(value){return rebatesEnabled()?`<div class="currentOptionMetric"><span>Rebate</span><strong>${money(value)}</strong></div>`:'';}
+function optionRebateTotalHtml(value){return rebatesEnabled()?`<span>Rebate<strong>${money(value)}</strong></span>`:'';}
+function quoteTotalsRebateCells(value){return rebatesEnabled()?`<td>Total rebate</td><td class="money">${money(value)}</td>`:'';}
 function quoteLabourTreatment(r){return r.labourTreatment || (r.type==='Split' ? 'Retained' : 'Expense');}
 function currentOptionSelection(){
   ensureOptionDefs();
@@ -4586,12 +4654,12 @@ function renderCurrentOptionPanel(){
     const power=(r.type==='Split')?money(r.powerCost!==undefined?r.powerCost:0):'N/A';
     const privateCells=showPrivate?`<td class="money">${money(r.commissionInc)}</td><td class="money">${money(r.salespersonCommissionInc)}</td><td class="money">${money(r.netProfit)}</td>`:(showLimitedSales?`<td class="money">${money(r.salespersonCommissionInc)}</td><td class="money">${money(r.netProfit)}</td>`:'');
     const actionCell=isWon?`<button class="load" onclick="loadQuote(${r._index})">Load</button> <button class="secondary smallBtn" disabled>Locked</button>`:`<button class="load" onclick="loadQuote(${r._index})">Load</button> <button class="danger" onclick="removeQuote(${r._index})">Remove</button>`;
-    return `<tr><td>${htmlEscape(r.type)}</td><td>${htmlEscape(r.brand)}</td><td>${htmlEscape(r.size)}</td><td>${htmlEscape(r.model)}</td><td>${htmlEscape(r.install)}</td><td class="money">${money(r.finalInc)}</td><td class="money">${money(r.rebate)}</td><td class="money">${money(r.labour)}</td><td class="money">${money(materialsInc)}</td><td class="money">${power}</td>${privateCells}<td>${actionCell}</td></tr>`;
+    return `<tr><td>${htmlEscape(r.type)}</td><td>${htmlEscape(r.brand)}</td><td>${htmlEscape(r.size)}</td><td>${htmlEscape(r.model)}</td><td>${htmlEscape(r.install)}</td><td class="money">${money(r.finalInc)}</td>${rebateCellHtml(r.rebate)}<td class="money">${money(r.labour)}</td><td class="money">${money(materialsInc)}</td><td class="money">${power}</td>${privateCells}<td>${actionCell}</td></tr>`;
   }).join('');
   const lockedAttr=isWon?' disabled':'';
   const lockNotice=isWon?`<div class="wonNotice"><strong>${htmlEscape(optionWonLabel(def))}</strong><span>This option is locked. Ask Daniel to unlock it before making changes.</span></div>`:'';
   const unlockAction=isWon&&canUnlockWonOptions()?`<button class="secondary" type="button" onclick="unlockWonOption('${def.id}')">Unlock won option</button>`:'';
-  body.innerHTML=`${lockNotice}<div class="currentOptionSummaryGrid"><div class="currentOptionMetric editable"><span>Customer total inc GST</span><input id="currentOptionCustomerTotal" type="number" step="0.01" value="${t.customer.toFixed(2)}"${lockedAttr}></div><div class="currentOptionMetric"><span>Rebate</span><strong>${money(t.rebate)}</strong></div><div class="currentOptionMetric editable"><span>Labour ex GST</span><input id="currentOptionLabourTotal" type="number" step="0.01" value="${t.labour.toFixed(2)}"${lockedAttr}></div><div class="currentOptionMetric editable"><span>Materials inc GST</span><input id="currentOptionMaterialsTotal" type="number" step="0.01" value="${t.materials.toFixed(2)}"${lockedAttr}></div><div class="currentOptionMetric editable"><span>Misc inc GST</span><input id="currentOptionMiscTotal" type="number" step="0.01" value="${t.misc.toFixed(2)}"${lockedAttr}></div>${commissionMetrics}</div><div class="currentOptionEditActions"><button class="secondary" type="button" onclick="fillCurrentOptionTotals()"${lockedAttr}>Load option totals</button><button class="orange" type="button" onclick="applyCurrentOptionDistribution()"${lockedAttr}>Apply to current option</button>${unlockAction}</div><div class="currentOptionEditHint" id="currentOptionEditHint">${htmlEscape(isWon?'This option is marked as won and locked.':(currentOptionEditMessage||'Adjust customer, labour, materials or misc, then apply them evenly across only the systems in this option.'))}</div><div class="tableWrap" style="margin-top:12px"><table><thead><tr><th>Type</th><th>Brand</th><th>Size</th><th>Model</th><th>Install</th><th>Customer inc</th><th>Rebate</th><th>Labour ex</th><th>Materials inc</th><th>Power</th>${privateHeads}<th>Actions</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
+  body.innerHTML=`${lockNotice}<div class="currentOptionSummaryGrid"><div class="currentOptionMetric editable"><span>Customer total inc GST</span><input id="currentOptionCustomerTotal" type="number" step="0.01" value="${t.customer.toFixed(2)}"${lockedAttr}></div>${rebateMetricHtml(t.rebate)}<div class="currentOptionMetric editable"><span>Labour ex GST</span><input id="currentOptionLabourTotal" type="number" step="0.01" value="${t.labour.toFixed(2)}"${lockedAttr}></div><div class="currentOptionMetric editable"><span>Materials inc GST</span><input id="currentOptionMaterialsTotal" type="number" step="0.01" value="${t.materials.toFixed(2)}"${lockedAttr}></div><div class="currentOptionMetric editable"><span>Misc inc GST</span><input id="currentOptionMiscTotal" type="number" step="0.01" value="${t.misc.toFixed(2)}"${lockedAttr}></div>${commissionMetrics}</div><div class="currentOptionEditActions"><button class="secondary" type="button" onclick="fillCurrentOptionTotals()"${lockedAttr}>Load option totals</button><button class="orange" type="button" onclick="applyCurrentOptionDistribution()"${lockedAttr}>Apply to current option</button>${unlockAction}</div><div class="currentOptionEditHint" id="currentOptionEditHint">${htmlEscape(isWon?'This option is marked as won and locked.':(currentOptionEditMessage||'Adjust customer, labour, materials or misc, then apply them evenly across only the systems in this option.'))}</div><div class="tableWrap" style="margin-top:12px"><table><thead><tr><th>Type</th><th>Brand</th><th>Size</th><th>Model</th><th>Install</th><th>Customer inc</th>${rebateHeadHtml('Rebate')}<th>Labour ex</th><th>Materials inc</th><th>Power</th>${privateHeads}<th>Actions</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
 }
 function addToQuote(){
   const optionId=currentAddOptionId();
@@ -4631,13 +4699,14 @@ function renderQuotes(){
         const t=groupTotals(g.rows);
         const rec=recommendedOptionId===g.def.id;
         const isWon=!!g.def.wonAt;
+        const emptyColspan=(showPrivate?16:(showLimitedSales?15:13))-(rebatesEnabled()?0:1);
         const bodyRows=g.rows.length?g.rows.map(r=>{
           const materialsInc=savedMaterialsInc(r);
           const power=(r.type==='Split')?money(r.powerCost!==undefined?r.powerCost:0):'N/A';
           const privateCells=showPrivate?`<td class="money">${money(r.commissionInc)}</td><td class="money">${money(r.salespersonCommissionInc)}</td><td class="money">${money(r.netProfit)}</td>`:(showLimitedSales?`<td class="money">${money(r.salespersonCommissionInc)}</td><td class="money">${money(r.netProfit)}</td>`:'');
           const actionCell=isWon?`<button class="load" onclick="loadQuote(${r._index})">Load</button> <button class="secondary smallBtn" disabled>Locked</button>`:`<button class="load" onclick="loadQuote(${r._index})">Load</button> <button class="danger" onclick="removeQuote(${r._index})">Remove</button>`;
-          return `<tr><td>${htmlEscape(r.type)}</td><td>${htmlEscape(r.brand)}</td><td>${htmlEscape(r.size)}</td><td>${htmlEscape(r.model)}</td><td>${htmlEscape(r.install)}</td><td class="money">${money(r.finalInc)}</td><td class="money">${money(r.rebate)}</td><td class="money">${money(r.unitInc)}</td><td class="money">${money(r.labour)}</td><td>${htmlEscape(r.labourTreatment || (r.type==='Split' ? 'Retained' : 'Expense'))}</td><td class="money">${money(materialsInc)}</td><td class="money">${power}</td>${privateCells}<td>${actionCell}</td></tr>`;
-        }).join(''):`<tr><td colspan="${showPrivate?16:(showLimitedSales?15:13)}">No units in this option yet.</td></tr>`;
+          return `<tr><td>${htmlEscape(r.type)}</td><td>${htmlEscape(r.brand)}</td><td>${htmlEscape(r.size)}</td><td>${htmlEscape(r.model)}</td><td>${htmlEscape(r.install)}</td><td class="money">${money(r.finalInc)}</td>${rebateCellHtml(r.rebate)}<td class="money">${money(r.unitInc)}</td><td class="money">${money(r.labour)}</td><td>${htmlEscape(r.labourTreatment || (r.type==='Split' ? 'Retained' : 'Expense'))}</td><td class="money">${money(materialsInc)}</td><td class="money">${power}</td>${privateCells}<td>${actionCell}</td></tr>`;
+        }).join(''):`<tr><td colspan="${emptyColspan}">No units in this option yet.</td></tr>`;
         const privateSummary=(showPrivate||showLimitedSales)?` | Installer profit ${money(t.profit)} ex GST`:'';
         const privateHeads=showPrivate?'<th>Agency comm inc</th><th>Salesperson comm inc</th><th>Installer Profit ex</th>':(showLimitedSales?'<th>Salesperson commission</th><th>Installer Profit ex</th>':'');
         const privateTotals=showPrivate?`<span>Agency commission inc<strong>${money(t.commission)}</strong></span><span>Salesperson commission inc<strong>${money(t.salespersonCommission)}</strong></span><span>Installer profit ex<strong>${money(t.profit)}</strong></span>`:(showLimitedSales?`<span>Salesperson commission<strong>${money(t.salespersonCommission)}</strong></span><span>Installer profit ex<strong>${money(t.profit)}</strong></span>`:'');
@@ -4654,8 +4723,8 @@ function renderQuotes(){
             <div class="optionTools">${wonTools}<button class="smallBtn secondary" onclick="markRecommendedOption('${g.def.id}')">Recommend</button><button class="smallBtn secondary" onclick="duplicateOptionGroup('${g.def.id}')">Duplicate</button><button class="smallBtn danger" onclick="deleteOptionGroup('${g.def.id}')">Delete option</button></div>
           </div>
           <div class="optionBody">
-            <div class="tableWrap"><table><thead><tr><th>Type</th><th>Brand</th><th>Size</th><th>Model</th><th>Install</th><th>Customer inc</th><th>Rebate</th><th>Unit inc</th><th>Labour ex</th><th>Installer Labour</th><th>Materials inc</th><th>Power</th>${privateHeads}<th>Actions</th></tr></thead><tbody>${bodyRows}</tbody></table></div>
-            <div class="optionTotals"><span>Customer total<strong>${money(t.customer)}</strong></span><span>Rebate<strong>${money(t.rebate)}</strong></span><span>Labour ex<strong>${money(t.labour)}</strong></span><span>Materials inc<strong>${money(t.materials)}</strong></span><span>Misc inc<strong>${money(t.misc)}</strong></span>${privateTotals}</div>
+            <div class="tableWrap"><table><thead><tr><th>Type</th><th>Brand</th><th>Size</th><th>Model</th><th>Install</th><th>Customer inc</th>${rebateHeadHtml('Rebate')}<th>Unit inc</th><th>Labour ex</th><th>Installer Labour</th><th>Materials inc</th><th>Power</th>${privateHeads}<th>Actions</th></tr></thead><tbody>${bodyRows}</tbody></table></div>
+            <div class="optionTotals"><span>Customer total<strong>${money(t.customer)}</strong></span>${optionRebateTotalHtml(t.rebate)}<span>Labour ex<strong>${money(t.labour)}</strong></span><span>Materials inc<strong>${money(t.materials)}</strong></span><span>Misc inc<strong>${money(t.misc)}</strong></span>${privateTotals}</div>
           </div>
         </div>`;
       }).join('');
@@ -4667,10 +4736,10 @@ function renderQuotes(){
     else{
       const all=groupTotals(quotes);
       totalBody.innerHTML=canSeeProfitDetails()
-        ? `<tr><td>Total customer inc</td><td class="money">${money(all.customer)}</td><td>Total rebate</td><td class="money">${money(all.rebate)}</td><td>Total labour ex</td><td class="money">${money(all.labour)}</td></tr><tr><td>Total unit inc</td><td class="money">${money(all.unit)}</td><td>Total materials inc</td><td class="money">${money(all.materials)}</td><td>Total misc inc</td><td class="money">${money(all.misc)}</td></tr><tr><td>Total power ex</td><td class="money">${money(all.power)}</td><td>Agency commission inc</td><td class="money">${money(all.commission)}</td><td>Salesperson commission inc</td><td class="money">${money(all.salespersonCommission)}</td></tr><tr><td>Installer profit ex</td><td class="money">${money(all.profit)}</td><td></td><td></td><td></td><td></td></tr>`
+        ? `<tr><td>Total customer inc</td><td class="money">${money(all.customer)}</td>${quoteTotalsRebateCells(all.rebate)}<td>Total labour ex</td><td class="money">${money(all.labour)}</td></tr><tr><td>Total unit inc</td><td class="money">${money(all.unit)}</td><td>Total materials inc</td><td class="money">${money(all.materials)}</td><td>Total misc inc</td><td class="money">${money(all.misc)}</td></tr><tr><td>Total power ex</td><td class="money">${money(all.power)}</td><td>Agency commission inc</td><td class="money">${money(all.commission)}</td><td>Salesperson commission inc</td><td class="money">${money(all.salespersonCommission)}</td></tr><tr><td>Installer profit ex</td><td class="money">${money(all.profit)}</td><td></td><td></td><td></td><td></td></tr>`
         : (canSeeSalespersonCommission()
-          ? `<tr><td>Total customer inc</td><td class="money">${money(all.customer)}</td><td>Total rebate</td><td class="money">${money(all.rebate)}</td><td>Total labour ex</td><td class="money">${money(all.labour)}</td></tr><tr><td>Total unit inc</td><td class="money">${money(all.unit)}</td><td>Total materials inc</td><td class="money">${money(all.materials)}</td><td>Total misc inc</td><td class="money">${money(all.misc)}</td></tr><tr><td>Total power ex</td><td class="money">${money(all.power)}</td><td>Salesperson commission</td><td class="money">${money(all.salespersonCommission)}</td><td>Installer profit ex</td><td class="money">${money(all.profit)}</td></tr>`
-          : `<tr><td>Total customer inc</td><td class="money">${money(all.customer)}</td><td>Total rebate</td><td class="money">${money(all.rebate)}</td><td>Total labour ex</td><td class="money">${money(all.labour)}</td></tr><tr><td>Total unit inc</td><td class="money">${money(all.unit)}</td><td>Total materials inc</td><td class="money">${money(all.materials)}</td><td>Total misc inc</td><td class="money">${money(all.misc)}</td></tr><tr><td>Total power ex</td><td class="money">${money(all.power)}</td><td></td><td></td><td></td><td></td></tr>`);
+          ? `<tr><td>Total customer inc</td><td class="money">${money(all.customer)}</td>${quoteTotalsRebateCells(all.rebate)}<td>Total labour ex</td><td class="money">${money(all.labour)}</td></tr><tr><td>Total unit inc</td><td class="money">${money(all.unit)}</td><td>Total materials inc</td><td class="money">${money(all.materials)}</td><td>Total misc inc</td><td class="money">${money(all.misc)}</td></tr><tr><td>Total power ex</td><td class="money">${money(all.power)}</td><td>Salesperson commission</td><td class="money">${money(all.salespersonCommission)}</td><td>Installer profit ex</td><td class="money">${money(all.profit)}</td></tr>`
+          : `<tr><td>Total customer inc</td><td class="money">${money(all.customer)}</td>${quoteTotalsRebateCells(all.rebate)}<td>Total labour ex</td><td class="money">${money(all.labour)}</td></tr><tr><td>Total unit inc</td><td class="money">${money(all.unit)}</td><td>Total materials inc</td><td class="money">${money(all.materials)}</td><td>Total misc inc</td><td class="money">${money(all.misc)}</td></tr><tr><td>Total power ex</td><td class="money">${money(all.power)}</td><td></td><td></td><td></td><td></td></tr>`);
     }
   }
   renderCurrentOptionPanel();
@@ -4689,11 +4758,11 @@ function downloadCsv(){
   const quoteName=($('quoteExportName') && $('quoteExportName').value.trim()) || ($('customer') && $('customer').value.trim()) || 'Quote Builder';
   const showPrivate=canSeeProfitDetails();
   const showLimitedSales=!showPrivate&&canSeeSalespersonCommission();
-  const heads=['Quote Name','Option','Type','Brand','Series','Size','Model','Install','Customer inc','Rebate','Unit inc','Labour ex','Installer Labour','Materials inc','Power'].concat(showPrivate?['Agency Comm inc','Salesperson Comm inc','Installer Profit ex']:(showLimitedSales?['Salesperson commission','Installer Profit ex']:[]));
+  const heads=['Quote Name','Option','Type','Brand','Series','Size','Model','Install','Customer inc'].concat(rebatesEnabled()?['Rebate']:[],['Unit inc','Labour ex','Installer Labour','Materials inc','Power']).concat(showPrivate?['Agency Comm inc','Salesperson Comm inc','Installer Profit ex']:(showLimitedSales?['Salesperson commission','Installer Profit ex']:[]));
   const rows=[];
   optionGroups().forEach(g=>g.rows.forEach(r=>{
     const materialsInc=savedMaterialsInc(r); const power=(r.type==='Split')?(r.powerCost!==undefined?Number(r.powerCost):0):'N/A';
-    rows.push([quoteName,g.def.name,r.type,r.brand,r.series||'',r.size,r.model,r.install,r.finalInc,r.rebate,r.unitInc,r.labour,(r.labourTreatment || (r.type==='Split' ? 'Retained' : 'Expense')),materialsInc,power].concat(showPrivate?[r.commissionInc,r.salespersonCommissionInc,r.netProfit]:(showLimitedSales?[r.salespersonCommissionInc,r.netProfit]:[])));
+    rows.push([quoteName,g.def.name,r.type,r.brand,r.series||'',r.size,r.model,r.install,r.finalInc].concat(rebatesEnabled()?[r.rebate]:[],[r.unitInc,r.labour,(r.labourTreatment || (r.type==='Split' ? 'Retained' : 'Expense')),materialsInc,power]).concat(showPrivate?[r.commissionInc,r.salespersonCommissionInc,r.netProfit]:(showLimitedSales?[r.salespersonCommissionInc,r.netProfit]:[])));
   }));
   const csv=[heads,...rows].map(row=>row.map(v=>'"'+String(v).replaceAll('"','""')+'"').join(',')).join('\n');
   const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download='installer-quote-'+cleanFileName(quoteName)+'.csv'; a.click();
@@ -5012,7 +5081,7 @@ function proposalPricingHtml(groups){
   }).join('');
 }
 function proposalTermsHtml(){
-  const terms=[
+  let terms=[
     ['Quotation and pricing','All prices quoted are inclusive of GST and valid for 30 days from the date of issue. Any additional works required beyond the agreed scope will be quoted as a variation and require customer approval where practical.'],
     ['Payment terms','A 10% deposit is required upon acceptance of the quote, with the balance payable upon completion unless otherwise agreed in writing.'],
     ['Installation access','The customer is responsible for providing clear and safe access to the installation areas. Additional work required due to restricted access or unforeseen site conditions may incur extra charges.'],
@@ -5021,6 +5090,7 @@ function proposalTermsHtml(){
     ['Electrical compliance','Quoted works assume existing electrical infrastructure is compliant and suitable unless a new circuit or upgrade is specifically included. Required compliance works may be treated as a variation.'],
     ['Variations','Any additional works required due to site conditions, electrical compliance, access limitations or customer-requested changes may be charged accordingly.']
   ];
+  if(!rebatesEnabled()) terms=terms.filter(t=>t[0]!=='Government rebates');
   return `<section class="page terms-page"><h2>Terms & Conditions</h2>${terms.map((t,i)=>`<div class="term"><h3>${i+1}. ${htmlEscape(t[0])}</h3><p>${htmlEscape(t[1])}</p></div>`).join('')}</section>`;
 }
 function proposalAcceptanceHtml(details){
