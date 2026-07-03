@@ -637,7 +637,7 @@ select {
 
 .sales-summary-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 12px;
   margin: 16px 0;
 }
@@ -885,7 +885,8 @@ select {
 }
 
 .won-grid {
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 560px), 1fr));
+  align-items: start;
 }
 
 .won-metrics {

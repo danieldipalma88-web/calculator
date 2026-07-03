@@ -48,6 +48,7 @@ type WonOption = {
   userEmail: string;
   userName: string;
   businessName: string;
+  sourceId: string;
   optionId: string;
   optionName: string;
   wonAt: string;
@@ -124,6 +125,12 @@ const QUOTE_STORAGE_KEYS = [
   "installerMasterQuoteLogV1",
   "greenEnergyMasterQuoteLogV1",
   "MasterQuoteLogV1",
+];
+
+const SAVED_QUOTE_SET_STORAGE_KEYS = [
+  "installerSavedQuoteSetsV1",
+  "greenEnergySavedQuoteSetsV1",
+  "SavedQuoteSetsV1",
 ];
 
 const WON_PAYMENT_KEYS = [
@@ -694,8 +701,8 @@ function wonPaymentStatusLabel(status: WonPaymentStatus) {
   return "Not paid in";
 }
 
-function wonOptionDomKey(option: Pick<WonOption, "userEmail" | "optionId" | "wonAt">) {
-  return `${option.userEmail}-${option.optionId}-${option.wonAt}`;
+function wonOptionDomKey(option: Pick<WonOption, "userEmail" | "sourceId" | "optionId" | "wonAt">) {
+  return `${option.userEmail}-${option.sourceId}-${option.optionId}-${option.wonAt}`;
 }
 
 function clearWonPaymentFields(record: Record<string, unknown>) {
@@ -956,6 +963,94 @@ function businessMultiSelectScript() {
 `;
 }
 
+const CURRENT_WON_SOURCE_ID = "current";
+
+function savedQuoteSetSourceId(set: Record<string, unknown>, index: number) {
+  const id = String(set.id || "").trim();
+  return id ? `saved:${id}` : `saved-index:${index}`;
+}
+
+function wonOptionKey(email: string, optionId: string, wonAt: string) {
+  return `${email}|${optionId}|${wonAt}`;
+}
+
+function addWonOptionsFromSnapshot({
+  wonOptions,
+  usersByEmail,
+  email,
+  user,
+  optionDefs,
+  quotes,
+  sourceId,
+  updatedAt,
+}: {
+  wonOptions: Map<string, WonOption>;
+  usersByEmail: Map<string, ApprovedUser>;
+  email: string;
+  user: ApprovedUser | undefined;
+  optionDefs: Record<string, unknown>[];
+  quotes: Record<string, unknown>[];
+  sourceId: string;
+  updatedAt: string;
+}) {
+  optionDefs
+    .filter((option) => option && option.wonAt)
+    .forEach((option) => {
+      const optionId = String(option.id || "");
+      const wonAt = String(option.wonAt || updatedAt || "");
+      const key = wonOptionKey(email, optionId, wonAt);
+      const rows = quotes.filter((quote) => String(quote.optionId || "option_1") === optionId);
+      const paidInAt = String(option.agencyPaidInAt || option.paidInAt || "");
+      const paidOutAt = String(option.salespersonPaidOutAt || option.paidOutAt || "");
+      const paymentStatus = wonPaymentStatus(paidInAt, paidOutAt);
+      const firstBusinessName = rows
+        .map((quote) => String(quote.businessName || ""))
+        .find(Boolean);
+      const wonRows = rows.map((quote) => ({
+        label: optionRowLabel(quote) || String(quote.model || "System"),
+        install: String(quote.install || ""),
+        finalInc: moneyValue(quote.finalInc),
+        rebate: quoteRebateValue(quote),
+        agencyCommissionInc: moneyValue(quote.agencyCommissionInc ?? quote.commissionInc),
+        salespersonCommissionInc: moneyValue(quote.salespersonCommissionInc),
+        netProfit: moneyValue(quote.netProfit),
+      }));
+      const existing = wonOptions.get(key);
+      if (existing && (existing.rows.length || !wonRows.length)) return;
+
+      wonOptions.set(key, {
+        userEmail: email,
+        userName: user ? displayNameFor(user) : usersByEmail.get(email)?.email || email,
+        businessName:
+          String(option.businessName || firstBusinessName || "") ||
+          user?.business_names.join(", ") ||
+          user?.business_name ||
+          "No business",
+        sourceId,
+        optionId,
+        optionName: String(option.name || "Option"),
+        wonAt,
+        paidInAt,
+        paidOutAt,
+        paymentStatus,
+        paymentStatusLabel: wonPaymentStatusLabel(paymentStatus),
+        systemCount: rows.length,
+        customerTotal: rows.reduce((sum, quote) => sum + moneyValue(quote.finalInc), 0),
+        rebateTotal: rows.reduce((sum, quote) => sum + quoteRebateValue(quote), 0),
+        agencyCommissionTotal: rows.reduce(
+          (sum, quote) => sum + moneyValue(quote.agencyCommissionInc ?? quote.commissionInc),
+          0,
+        ),
+        salespersonCommissionTotal: rows.reduce(
+          (sum, quote) => sum + moneyValue(quote.salespersonCommissionInc),
+          0,
+        ),
+        installerProfitTotal: rows.reduce((sum, quote) => sum + moneyValue(quote.netProfit), 0),
+        rows: wonRows,
+      });
+    });
+}
+
 async function listWonOptions(supabase: SupabaseServer, users: ApprovedUser[]) {
   const dataResult = await supabase
     .from("user_calculator_data")
@@ -967,7 +1062,7 @@ async function listWonOptions(supabase: SupabaseServer, users: ApprovedUser[]) {
   }
 
   const usersByEmail = new Map(users.map((user) => [user.email.toLowerCase(), user]));
-  const wonOptions: WonOption[] = [];
+  const wonOptions = new Map<string, WonOption>();
 
   ((dataResult.data || []) as CalculatorDataRow[]).forEach((row) => {
     const email = String(row.email || "").toLowerCase();
@@ -983,62 +1078,37 @@ async function listWonOptions(supabase: SupabaseServer, users: ApprovedUser[]) {
       [],
     );
     const user = usersByEmail.get(email);
+    addWonOptionsFromSnapshot({
+      wonOptions,
+      usersByEmail,
+      email,
+      user,
+      optionDefs,
+      quotes,
+      sourceId: CURRENT_WON_SOURCE_ID,
+      updatedAt: String(row.updated_at || ""),
+    });
 
-    optionDefs
-      .filter((option) => option && option.wonAt)
-      .forEach((option) => {
-        const optionId = String(option.id || "");
-        const rows = quotes.filter((quote) => String(quote.optionId || "option_1") === optionId);
-        const paidInAt = String(option.agencyPaidInAt || option.paidInAt || "");
-        const paidOutAt = String(option.salespersonPaidOutAt || option.paidOutAt || "");
-        const paymentStatus = wonPaymentStatus(paidInAt, paidOutAt);
-        const firstBusinessName = rows
-          .map((quote) => String(quote.businessName || ""))
-          .find(Boolean);
-        const wonRows = rows.map((quote) => ({
-          label: optionRowLabel(quote) || String(quote.model || "System"),
-          install: String(quote.install || ""),
-          finalInc: moneyValue(quote.finalInc),
-          rebate: quoteRebateValue(quote),
-          agencyCommissionInc: moneyValue(quote.agencyCommissionInc ?? quote.commissionInc),
-          salespersonCommissionInc: moneyValue(quote.salespersonCommissionInc),
-          netProfit: moneyValue(quote.netProfit),
-        }));
-
-        wonOptions.push({
-          userEmail: email,
-          userName: user ? displayNameFor(user) : email,
-          businessName:
-            String(option.businessName || firstBusinessName || "") ||
-            user?.business_names.join(", ") ||
-            user?.business_name ||
-            "No business",
-          optionId,
-          optionName: String(option.name || "Option"),
-          wonAt: String(option.wonAt || row.updated_at || ""),
-          paidInAt,
-          paidOutAt,
-          paymentStatus,
-          paymentStatusLabel: wonPaymentStatusLabel(paymentStatus),
-          systemCount: rows.length,
-          customerTotal: rows.reduce((sum, quote) => sum + moneyValue(quote.finalInc), 0),
-          rebateTotal: rows.reduce((sum, quote) => sum + quoteRebateValue(quote), 0),
-          agencyCommissionTotal: rows.reduce(
-            (sum, quote) => sum + moneyValue(quote.agencyCommissionInc ?? quote.commissionInc),
-            0,
-          ),
-          salespersonCommissionTotal: rows.reduce(
-            (sum, quote) => sum + moneyValue(quote.salespersonCommissionInc),
-            0,
-          ),
-          installerProfitTotal: rows.reduce((sum, quote) => sum + moneyValue(quote.netProfit), 0),
-          rows: wonRows,
-        });
+    const savedQuoteSets = parseStoredJson<Record<string, unknown>[]>(
+      data.installerSavedQuoteSetsV1 || data.greenEnergySavedQuoteSetsV1 || data.SavedQuoteSetsV1,
+      [],
+    );
+    savedQuoteSets.forEach((savedQuoteSet, index) => {
+      addWonOptionsFromSnapshot({
+        wonOptions,
+        usersByEmail,
+        email,
+        user,
+        optionDefs: Array.isArray(savedQuoteSet.optionDefs) ? savedQuoteSet.optionDefs as Record<string, unknown>[] : [],
+        quotes: Array.isArray(savedQuoteSet.quotes) ? savedQuoteSet.quotes as Record<string, unknown>[] : [],
+        sourceId: savedQuoteSetSourceId(savedQuoteSet, index),
+        updatedAt: String(savedQuoteSet.savedAt || row.updated_at || ""),
       });
+    });
   });
 
   return {
-    data: wonOptions.sort((a, b) => Number(new Date(b.wonAt)) - Number(new Date(a.wonAt))),
+    data: [...wonOptions.values()].sort((a, b) => Number(new Date(b.wonAt)) - Number(new Date(a.wonAt))),
     errorMessage: "",
   };
 }
@@ -1049,6 +1119,7 @@ async function updateWonOptionState(
   optionId: string,
   mode: WonOptionUpdateMode,
   adminEmail = "",
+  sourceId = CURRENT_WON_SOURCE_ID,
 ) {
   const email = userEmail.toLowerCase();
   const dataResult = await supabase
@@ -1061,52 +1132,83 @@ async function updateWonOptionState(
   if (!dataResult.data?.data) return "Could not find saved calculator data for this user.";
 
   const data = { ...(dataResult.data.data as Record<string, unknown>) };
-  const optionDefsKey = storedJsonKey(data, OPTION_DEF_STORAGE_KEYS);
-  const quotesKey = storedJsonKey(data, QUOTE_STORAGE_KEYS);
-  const optionDefs = parseStoredJson<Record<string, unknown>[]>(data[optionDefsKey], []);
-  const quotes = parseStoredJson<Record<string, unknown>[]>(data[quotesKey], []);
+  let updated = false;
 
-  if (!optionDefs.some((option) => String(option.id || "") === optionId)) {
-    return "Could not find that won option in the saved calculator data.";
+  function updateOptionCollections(
+    optionDefs: Record<string, unknown>[],
+    quotes: Record<string, unknown>[],
+  ) {
+    if (!optionDefs.some((option) => String(option.id || "") === optionId)) return null;
+
+    let nextOptionDefs: Record<string, unknown>[];
+    let nextQuotes: Record<string, unknown>[];
+
+    if (mode === "delete") {
+      nextOptionDefs = optionDefs.filter((option) => String(option.id || "") !== optionId);
+      nextQuotes = quotes.filter((quote) => String(quote.optionId || "option_1") !== optionId);
+      if (!nextOptionDefs.length) nextOptionDefs = [{ id: "option_1", name: "Option 1" }];
+    } else if (mode === "unlock") {
+      nextOptionDefs = optionDefs.map((option) => {
+        if (String(option.id || "") !== optionId) return option;
+        const next = clearWonPaymentFields(option);
+        delete next.wonAt;
+        delete next.wonByEmail;
+        delete next.wonByName;
+        return next;
+      });
+      nextQuotes = quotes.map((quote) => {
+        if (String(quote.optionId || "option_1") !== optionId) return quote;
+        const next = clearWonPaymentFields(quote);
+        delete next.wonAt;
+        delete next.wonByEmail;
+        delete next.wonByName;
+        return next;
+      });
+    } else {
+      nextOptionDefs = optionDefs.map((option) =>
+        String(option.id || "") === optionId ? applyWonPaymentFields(option, mode, adminEmail) : option,
+      );
+      nextQuotes = quotes.map((quote) =>
+        String(quote.optionId || "option_1") === optionId
+          ? applyWonPaymentFields(quote, mode, adminEmail)
+          : quote,
+      );
+    }
+
+    return { optionDefs: nextOptionDefs, quotes: nextQuotes };
   }
 
-  let nextOptionDefs: Record<string, unknown>[];
-  let nextQuotes: Record<string, unknown>[];
-
-  if (mode === "delete") {
-    nextOptionDefs = optionDefs.filter((option) => String(option.id || "") !== optionId);
-    nextQuotes = quotes.filter((quote) => String(quote.optionId || "option_1") !== optionId);
-    if (!nextOptionDefs.length) nextOptionDefs = [{ id: "option_1", name: "Option 1" }];
-  } else if (mode === "unlock") {
-    nextOptionDefs = optionDefs.map((option) => {
-      if (String(option.id || "") !== optionId) return option;
-      const next = clearWonPaymentFields(option);
-      delete next.wonAt;
-      delete next.wonByEmail;
-      delete next.wonByName;
-      return next;
-    });
-    nextQuotes = quotes.map((quote) => {
-      if (String(quote.optionId || "option_1") !== optionId) return quote;
-      const next = clearWonPaymentFields(quote);
-      delete next.wonAt;
-      delete next.wonByEmail;
-      delete next.wonByName;
-      return next;
-    });
+  if (sourceId === CURRENT_WON_SOURCE_ID) {
+    const optionDefsKey = storedJsonKey(data, OPTION_DEF_STORAGE_KEYS);
+    const quotesKey = storedJsonKey(data, QUOTE_STORAGE_KEYS);
+    const optionDefs = parseStoredJson<Record<string, unknown>[]>(data[optionDefsKey], []);
+    const quotes = parseStoredJson<Record<string, unknown>[]>(data[quotesKey], []);
+    const next = updateOptionCollections(optionDefs, quotes);
+    if (next) {
+      data[optionDefsKey] = serializeLikeStoredValue(data[optionDefsKey], next.optionDefs);
+      data[quotesKey] = serializeLikeStoredValue(data[quotesKey], next.quotes);
+      updated = true;
+    }
   } else {
-    nextOptionDefs = optionDefs.map((option) =>
-      String(option.id || "") === optionId ? applyWonPaymentFields(option, mode, adminEmail) : option,
-    );
-    nextQuotes = quotes.map((quote) =>
-      String(quote.optionId || "option_1") === optionId
-        ? applyWonPaymentFields(quote, mode, adminEmail)
-        : quote,
-    );
+    const savedSetsKey = storedJsonKey(data, SAVED_QUOTE_SET_STORAGE_KEYS);
+    const savedQuoteSets = parseStoredJson<Record<string, unknown>[]>(data[savedSetsKey], []);
+    const nextSavedQuoteSets = savedQuoteSets.map((savedQuoteSet, index) => {
+      if (savedQuoteSetSourceId(savedQuoteSet, index) !== sourceId) return savedQuoteSet;
+      const optionDefs = Array.isArray(savedQuoteSet.optionDefs)
+        ? savedQuoteSet.optionDefs as Record<string, unknown>[]
+        : [];
+      const quotes = Array.isArray(savedQuoteSet.quotes)
+        ? savedQuoteSet.quotes as Record<string, unknown>[]
+        : [];
+      const next = updateOptionCollections(optionDefs, quotes);
+      if (!next) return savedQuoteSet;
+      updated = true;
+      return { ...savedQuoteSet, optionDefs: next.optionDefs, quotes: next.quotes };
+    });
+    if (updated) data[savedSetsKey] = serializeLikeStoredValue(data[savedSetsKey], nextSavedQuoteSets);
   }
 
-  data[optionDefsKey] = serializeLikeStoredValue(data[optionDefsKey], nextOptionDefs);
-  data[quotesKey] = serializeLikeStoredValue(data[quotesKey], nextQuotes);
+  if (!updated) return "Could not find that won option in the saved calculator data.";
 
   const updateResult = await supabase
     .from("user_calculator_data")
@@ -1269,12 +1371,13 @@ async function unlockWonOption(formData: FormData) {
   const { supabase } = await requireAdmin();
   const userEmail = normalizeEmail(formData.get("userEmail"));
   const optionId = normalizeText(formData.get("optionId"));
+  const sourceId = normalizeText(formData.get("sourceId")) || CURRENT_WON_SOURCE_ID;
 
   if (!userEmail || !optionId) {
     redirect("/admin/users?error=Could not identify the won option to unlock.");
   }
 
-  const errorMessage = await updateWonOptionState(supabase, userEmail, optionId, "unlock");
+  const errorMessage = await updateWonOptionState(supabase, userEmail, optionId, "unlock", "", sourceId);
 
   if (errorMessage) {
     redirect(`/admin/users?error=${encodeURIComponent(errorMessage)}`);
@@ -1290,12 +1393,13 @@ async function deleteWonOption(formData: FormData) {
   const { supabase } = await requireAdmin();
   const userEmail = normalizeEmail(formData.get("userEmail"));
   const optionId = normalizeText(formData.get("optionId"));
+  const sourceId = normalizeText(formData.get("sourceId")) || CURRENT_WON_SOURCE_ID;
 
   if (!userEmail || !optionId) {
     redirect("/admin/users?error=Could not identify the won option to delete.");
   }
 
-  const errorMessage = await updateWonOptionState(supabase, userEmail, optionId, "delete");
+  const errorMessage = await updateWonOptionState(supabase, userEmail, optionId, "delete", "", sourceId);
 
   if (errorMessage) {
     redirect(`/admin/users?error=${encodeURIComponent(errorMessage)}`);
@@ -1311,6 +1415,7 @@ async function updateWonPaymentStatus(formData: FormData) {
   const { supabase, email: adminEmail } = await requireAdmin();
   const userEmail = normalizeEmail(formData.get("userEmail"));
   const optionId = normalizeText(formData.get("optionId"));
+  const sourceId = normalizeText(formData.get("sourceId")) || CURRENT_WON_SOURCE_ID;
   const mode = String(formData.get("paymentMode") || "");
 
   if (!userEmail || !optionId) {
@@ -1327,6 +1432,7 @@ async function updateWonPaymentStatus(formData: FormData) {
     optionId,
     mode,
     adminEmail,
+    sourceId,
   );
 
   if (errorMessage) {
@@ -1888,6 +1994,7 @@ export default async function AdminUsersPage({
                     {option.paymentStatus === "not_paid_in" ? (
                       <form action={updateWonPaymentStatus}>
                         <input type="hidden" name="userEmail" value={option.userEmail} />
+                        <input type="hidden" name="sourceId" value={option.sourceId} />
                         <input type="hidden" name="optionId" value={option.optionId} />
                         <input type="hidden" name="paymentMode" value="paid_in" />
                         <button className="secondary" type="submit">
@@ -1898,6 +2005,7 @@ export default async function AdminUsersPage({
                     {option.paymentStatus !== "paid_out" ? (
                       <form action={updateWonPaymentStatus}>
                         <input type="hidden" name="userEmail" value={option.userEmail} />
+                        <input type="hidden" name="sourceId" value={option.sourceId} />
                         <input type="hidden" name="optionId" value={option.optionId} />
                         <input type="hidden" name="paymentMode" value="paid_out" />
                         <button className="secondary" type="submit">
@@ -1908,6 +2016,7 @@ export default async function AdminUsersPage({
                     {option.paymentStatus !== "not_paid_in" ? (
                       <form action={updateWonPaymentStatus}>
                         <input type="hidden" name="userEmail" value={option.userEmail} />
+                        <input type="hidden" name="sourceId" value={option.sourceId} />
                         <input type="hidden" name="optionId" value={option.optionId} />
                         <input type="hidden" name="paymentMode" value="reset_payment" />
                         <button className="secondary" type="submit">
@@ -1917,6 +2026,7 @@ export default async function AdminUsersPage({
                     ) : null}
                     <form action={unlockWonOption}>
                       <input type="hidden" name="userEmail" value={option.userEmail} />
+                      <input type="hidden" name="sourceId" value={option.sourceId} />
                       <input type="hidden" name="optionId" value={option.optionId} />
                       <button className="secondary" type="submit">
                         Unlock
@@ -1926,6 +2036,7 @@ export default async function AdminUsersPage({
                       <summary>Delete</summary>
                       <form action={deleteWonOption}>
                         <input type="hidden" name="userEmail" value={option.userEmail} />
+                        <input type="hidden" name="sourceId" value={option.sourceId} />
                         <input type="hidden" name="optionId" value={option.optionId} />
                         <button className="danger" type="submit">
                           Confirm delete
