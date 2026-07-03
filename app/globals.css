@@ -269,14 +269,92 @@ button.danger {
 }
 
 .admin-section {
-  margin-top: 28px;
+  margin-top: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  overflow: hidden;
 }
 
-.section-heading {
+.section-heading,
+.admin-section-summary {
   display: flex;
   justify-content: space-between;
   gap: 16px;
   align-items: flex-start;
+}
+
+.admin-section-summary {
+  position: relative;
+  align-items: center;
+  padding: 18px;
+  cursor: pointer;
+  list-style: none;
+  transition: background-color 0.16s ease;
+}
+
+.admin-section-summary:hover {
+  background: #f8fafc;
+}
+
+.admin-section-summary:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.24);
+  outline-offset: -3px;
+}
+
+.admin-section-summary::-webkit-details-marker {
+  display: none;
+}
+
+.admin-section-body {
+  padding: 0 18px 18px;
+  border-top: 1px solid #edf1f5;
+}
+
+.admin-section-body > .won-toolbar:first-child {
+  margin: 18px 0 12px;
+}
+
+.section-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  margin-left: auto;
+  padding: 0 10px;
+  border: 1px solid #dbe6ef;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.section-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid #dbe6ef;
+  border-radius: 999px;
+  background: #fff;
+  color: #334155;
+  transition: transform 0.16s ease, background-color 0.16s ease;
+}
+
+.section-chevron::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: translateY(-2px) rotate(45deg);
+}
+
+.admin-section:not([open]) .section-chevron {
+  transform: rotate(-90deg);
 }
 
 .section-heading h2 {
@@ -1012,6 +1090,28 @@ select {
 
   .admin-form {
     grid-template-columns: 1fr;
+  }
+
+  .admin-section-summary {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .admin-section-summary > div:first-child {
+    flex: 1 1 100%;
+  }
+
+  .admin-section-body {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .section-count {
+    margin-left: 0;
+  }
+
+  .section-chevron {
+    margin-left: auto;
   }
 
   .business-form,

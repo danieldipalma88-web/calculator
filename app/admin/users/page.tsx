@@ -1580,15 +1580,18 @@ export default async function AdminUsersPage({
           <div className="notice">Won options setup: {wonResult.errorMessage}</div>
         ) : null}
 
-        <section className="admin-section">
-          <div className="section-heading">
+        <details className="admin-section" open>
+          <summary className="section-heading admin-section-summary">
             <div>
               <h2>Businesses</h2>
               <p>Business defaults are used unless a user has their own commission override.</p>
             </div>
-          </div>
+            <span className="section-count">{businesses.length} total</span>
+            <span className="section-chevron" aria-hidden="true" />
+          </summary>
 
-          <form action={upsertBusiness} className="admin-form business-form">
+          <div className="admin-section-body">
+            <form action={upsertBusiness} className="admin-form business-form">
             <div>
               <label htmlFor="businessName">Business name</label>
               <input
@@ -1627,9 +1630,9 @@ export default async function AdminUsersPage({
             <button className="orange" type="submit">
               Add business
             </button>
-          </form>
+            </form>
 
-          <div className="business-grid">
+            <div className="business-grid">
             {businesses.map((business) => (
               <details className="business-card business-edit-card locked-card" key={business.id}>
                 <summary className="business-summary">
@@ -1710,18 +1713,22 @@ export default async function AdminUsersPage({
               </details>
             ))}
             {!businesses.length ? <div className="empty-card">No businesses yet.</div> : null}
+            </div>
           </div>
-        </section>
+        </details>
 
-        <section className="admin-section">
-          <div className="section-heading">
+        <details className="admin-section" open>
+          <summary className="section-heading admin-section-summary">
             <div>
               <h2>Approved users</h2>
               <p>Salespeople can use the calculator without seeing hidden commission percentages.</p>
             </div>
-          </div>
+            <span className="section-count">{users.length} total</span>
+            <span className="section-chevron" aria-hidden="true" />
+          </summary>
 
-          <form action={addApprovedUser} className="admin-form user-form">
+          <div className="admin-section-body">
+            <form action={addApprovedUser} className="admin-form user-form">
             <div>
               <label htmlFor="displayName">Name</label>
               <input id="displayName" name="displayName" placeholder="Alex Quinn" />
@@ -1765,9 +1772,9 @@ export default async function AdminUsersPage({
             <button className="orange" type="submit">
               Add user
             </button>
-          </form>
+            </form>
 
-          <div className="user-card-grid">
+            <div className="user-card-grid">
             {users.map((approvedUser) => {
               const isSelf = approvedUser.email.toLowerCase() === currentEmail;
               const commissionOverride = approvedUser.commission_type_override || "business_default";
@@ -1870,9 +1877,9 @@ export default async function AdminUsersPage({
               );
             })}
             {!users.length ? <div className="empty-card">No approved users found.</div> : null}
-          </div>
+            </div>
 
-          <div className="table-wrap legacy-users-table">
+            <div className="table-wrap legacy-users-table">
             <table className="admin-table">
               <thead>
                 <tr>
@@ -1984,21 +1991,27 @@ export default async function AdminUsersPage({
                 ) : null}
               </tbody>
             </table>
-          </div>
+            </div>
 
-          <div className="admin-help">
+            <div className="admin-help">
             <strong>Commission shown above:</strong> a user with Use business default inherits the
             selected business setup. Standard commission uses the primary percentage. Agency
             commission uses both percentages.
+            </div>
           </div>
-        </section>
+        </details>
 
-        <section className="admin-section">
-          <div className="section-heading">
+        <details className="admin-section" open>
+          <summary className="section-heading admin-section-summary">
             <div>
               <h2>Won options</h2>
               <p>Options marked as won in each calculator, including Daniel's full commission view.</p>
             </div>
+            <span className="section-count">{wonOptions.length} total</span>
+            <span className="section-chevron" aria-hidden="true" />
+          </summary>
+
+          <div className="admin-section-body">
             <div className="won-toolbar">
               <button className="secondary" type="button" data-select-all-won>
                 Select visible
@@ -2007,7 +2020,6 @@ export default async function AdminUsersPage({
                 Export selected CSV
               </button>
             </div>
-          </div>
 
           {salespersonSales.length ? (
             <div className="sales-summary-grid">
@@ -2158,8 +2170,9 @@ export default async function AdminUsersPage({
               </article>
             ))}
             {!wonOptions.length ? <div className="empty-card">No won options yet.</div> : null}
+            </div>
           </div>
-        </section>
+        </details>
       </section>
       <Script id="admin-users-page-actions" strategy="afterInteractive">
         {`${businessMultiSelectScript()}\n${wonExportScript()}`}
