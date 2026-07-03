@@ -145,6 +145,8 @@ button.load{background:#dcfce7;color:#166534;padding:8px 10px}
 button.secondary{background:#eef3f7;color:#0f172a}
 button.orange{background:var(--orange);color:#fff}
 button.orange:hover{background:var(--orange-strong)}
+button.green{background:#16a34a;color:#fff}
+button.green:hover{background:#15803d}
 button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
 
 .systemTabs{display:flex;gap:10px;margin-top:16px}
@@ -923,6 +925,7 @@ tbody tr:hover td{background:#f0f7ff}
   box-shadow:0 18px 36px rgba(234,106,27,.34);
 }
 .floatingView{background:#0f172a;color:#fff}
+.floatingWon{background:#16a34a;color:#fff;box-shadow:0 18px 36px rgba(22,163,74,.28)}
 
 .priceDrawer{width:min(980px,96vw)}
 .priceDrawer table{min-width:980px}
@@ -962,6 +965,28 @@ tbody tr:hover td{background:#f0f7ff}
 .wonNotice{display:flex;justify-content:space-between;gap:12px;align-items:center;border:1px solid #bbf7d0;background:#f0fdf4;border-radius:14px;padding:12px 14px;margin-bottom:12px;color:#166534}
 .wonNotice strong{font-size:13px}
 .wonNotice span{font-size:12px;color:#3f6b4b}
+.wonJobsDrawer{width:min(980px,96vw)}
+.wonJobsSummary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:14px 0}
+.wonJobsSummaryCard{border:1px solid #bbf7d0;background:#f0fdf4;border-radius:14px;padding:12px}
+.wonJobsSummaryCard span{display:block;color:#3f6b4b;font-size:11px;font-weight:900;letter-spacing:.06em;text-transform:uppercase}
+.wonJobsSummaryCard strong{display:block;margin-top:4px;color:#14532d;font-size:18px}
+.wonJobsList{display:grid;gap:12px}
+.wonJobCard{border:1px solid #bbf7d0;background:#fbfffc;border-radius:18px;padding:14px;box-shadow:0 6px 18px rgba(22,101,52,.08)}
+.wonJobHead{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;padding-bottom:12px;border-bottom:1px solid #dcfce7}
+.wonJobTitle{min-width:0}
+.wonJobTitle strong{display:block;color:#0f172a;font-size:16px;word-break:break-word}
+.wonJobMeta{display:block;margin-top:4px;color:#64748b;font-size:12px;line-height:1.45}
+.wonJobActions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.wonJobPill{display:inline-flex;align-items:center;min-height:28px;padding:0 10px;border-radius:999px;background:#dcfce7;color:#166534;font-size:12px;font-weight:900;white-space:nowrap}
+.wonJobMetrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:12px 0}
+.wonJobMetrics div{padding:10px;border:1px solid #e2e8f0;border-radius:12px;background:#fff}
+.wonJobMetrics span{display:block;color:#64748b;font-size:10.5px;font-weight:900;letter-spacing:.05em;text-transform:uppercase}
+.wonJobMetrics strong{display:block;margin-top:3px;color:#0f172a;font-size:14px}
+.wonJobLines{display:grid;gap:8px}
+.wonJobLine{display:grid;grid-template-columns:minmax(160px,.85fr) minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 0;border-top:1px solid #eaf4ee}
+.wonJobLine strong,.wonJobLine span{overflow-wrap:anywhere}
+.wonJobLine span{color:#64748b;font-size:12px}
+.emptyWonJobs{border:1px dashed #bbf7d0;background:#f8fffb;border-radius:16px;padding:18px;color:#166534}
 .proposalDrawer .proposalGrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .proposalDrawer .proposalWide{grid-column:1 / -1}
 .proposalDrawer .proposalChecks{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
@@ -995,7 +1020,7 @@ tbody tr:hover td{background:#f0f7ff}
   .wrap{
     width:100%;
     max-width:100%;
-    padding:12px 10px calc(98px + env(safe-area-inset-bottom, 0px));
+    padding:12px 10px calc(150px + env(safe-area-inset-bottom, 0px));
     touch-action:pan-y pinch-zoom;
   }
   .header{display:block;margin-bottom:10px}
@@ -1292,6 +1317,17 @@ tbody tr:hover td{background:#f0f7ff}
     grid-template-columns:repeat(2,minmax(0,1fr));
     gap:8px;
   }
+  .wonJobsSummary,
+  .wonJobMetrics,
+  .wonJobLine{
+    grid-template-columns:1fr;
+  }
+  .wonJobHead{
+    flex-direction:column;
+  }
+  .wonJobActions{
+    justify-content:flex-start;
+  }
   .optionTools{
     display:grid;
     grid-template-columns:repeat(2,minmax(0,1fr));
@@ -1403,20 +1439,20 @@ tbody tr:hover td{background:#f0f7ff}
       <div id="salespersonCommissionIncRow" class="summaryLine"><span>Salesperson commission payable inc GST</span><strong id="salespersonCommissionInc"></strong></div>
       <div id="netProfitRow" class="summaryLine cash profitHighlight"><span id="netProfitLabel">Installer profit after commission ex GST</span><strong><span id="netProfit"></span><small id="netProfitMargin"></small></strong></div>
       <div id="summaryInstallAddons" class="summaryAddons hidden"><div class="summaryAddonsHead"><strong>Install add-ons</strong><span>Cost only</span></div><div id="summaryInstallAddonRows" class="summaryAddonRows"></div><div id="summaryInstallAddonFoot" class="summaryAddonFoot"></div></div>
-      <div class="actions"><button class="orange" onclick="addToQuote()">Add to Quote</button><button class="secondary" onclick="openDrawer()">View Options (<span id="quoteCount">0</span>)</button><button class="secondary" onclick="openPriceDrawer()">Price Manager</button><button id="certValuesActionBtn" class="secondary" onclick="openCertDrawer()">Certificate Values</button></div>
+      <div class="actions"><button class="orange" onclick="addToQuote()">Add to Quote</button><button class="secondary" onclick="openDrawer()">View Options (<span id="quoteCount">0</span>)</button><button class="green" onclick="openWonJobsDrawer()">Won Jobs (<span data-won-jobs-count>0</span>)</button><button class="secondary" onclick="openPriceDrawer()">Price Manager</button><button id="certValuesActionBtn" class="secondary" onclick="openCertDrawer()">Certificate Values</button></div>
       <div style="margin-top:12px"><label>Add current unit to option</label><div class="row2"><select id="addOptionSelect" onchange="onOptionSelectionChange(this.value)"></select><button class="secondary" type="button" onclick="createNewOption(true)">+ New Option</button></div><div style="margin-top:10px"><label>Selected option name</label><input id="mainOptionName" placeholder="Option name" onchange="renameCurrentMainOption(this.value)"></div></div>
     </aside>
   </div>
   <div class="currentOptionPanel card">
     <div class="currentOptionHead">
       <div><div class="kicker">Current option</div><h2 id="currentOptionTitle">Option 1</h2><div class="sub" id="currentOptionSummary">Add systems to the selected option to build the quote.</div></div>
-      <div class="actions"><button class="secondary" type="button" onclick="openDrawer()">View all options</button><button class="orange" type="button" onclick="addToQuote()">Add Current Unit</button><button id="currentOptionWonBtn" class="secondary" type="button" onclick="toggleCurrentOptionWon()">Mark won</button></div>
+      <div class="actions"><button class="secondary" type="button" onclick="openDrawer()">View all options</button><button class="green" type="button" onclick="openWonJobsDrawer()">Won Jobs (<span data-won-jobs-count>0</span>)</button><button class="orange" type="button" onclick="addToQuote()">Add Current Unit</button><button id="currentOptionWonBtn" class="secondary" type="button" onclick="toggleCurrentOptionWon()">Mark won</button></div>
     </div>
     <div id="currentOptionBody"></div>
   </div>
 
 </div>
-<div class="floatingActionBar"><button class="floatingAction floatingAdd" onclick="addToQuote()">+ Add to Quote</button><button class="floatingAction floatingView" onclick="openDrawer()">View Options</button></div>
+<div class="floatingActionBar"><button class="floatingAction floatingAdd" onclick="addToQuote()">+ Add to Quote</button><button class="floatingAction floatingView" onclick="openDrawer()">View Options</button><button class="floatingAction floatingWon" onclick="openWonJobsDrawer()">Won Jobs</button></div>
 <div id="overlay" class="drawerOverlay" onclick="closeAllDrawers()"></div>
 <div id="drawer" class="quoteDrawer quoteBuilderDrawer"><div class="drawerHead"><div><div class="kicker">Quote builder</div><h2 style="margin:4px 0">Saved options</h2><div class="sub drawerIntro">Compare split and ducted options. Working options are stored for 7 days. Use Save Quote to store permanent snapshots in this browser.</div><div class="quoteExportField" style="margin-top:14px;max-width:420px"><label>Quote / customer export name</label><input id="quoteExportName" placeholder="Example: Ash Macquarie Links" oninput="saveQuoteExportName()"></div></div><div class="actions"><button class="orange" onclick="saveCurrentQuoteSet()">Save Quote</button><button class="secondary" onclick="downloadCsv()">Download CSV</button><button class="danger" onclick="clearQuotes()">Clear</button><button class="secondary" onclick="closeDrawer()">Close</button></div></div>
   <div class="drawerFloatingActions"><button class="orange" onclick="saveCurrentQuoteSet()">Save Quote</button><button class="secondary" onclick="closeDrawer()">Close</button></div>
@@ -1466,6 +1502,21 @@ tbody tr:hover td{background:#f0f7ff}
     <div id="optionGroups" class="optionCards"></div>
     <div class="tableWrap" style="margin-top:14px"><table><thead><tr><th colspan="6">Overall quote builder totals</th></tr></thead><tbody id="quoteTotalsBody"><tr><td>No options added yet.</td></tr></tbody></table></div>
   </div>
+</div>
+<div id="wonJobsDrawer" class="quoteDrawer wonJobsDrawer">
+  <div class="drawerHead">
+    <div>
+      <div class="kicker">Won jobs</div>
+      <h2 style="margin:4px 0">Jobs marked as won</h2>
+      <div class="sub">Review the options that have been marked as won in this calculator, including saved quote snapshots.</div>
+    </div>
+    <div class="actions">
+      <button class="green" onclick="renderWonJobs()">Refresh</button>
+      <button class="secondary" onclick="closeWonJobsDrawer()">Close</button>
+    </div>
+  </div>
+  <div id="wonJobsSummary" class="wonJobsSummary"></div>
+  <div id="wonJobsList" class="wonJobsList"></div>
 </div>
 <div id="priceDrawer" class="quoteDrawer priceDrawer">
   <div class="drawerHead">
@@ -4570,6 +4621,7 @@ function renderSavedQuoteSets(){
   if(selected){
     onSavedQuoteSelectionChange();
   }
+  updateWonJobsCount();
 }
 function defaultSavedQuoteName(){
   const base=(($('savedQuoteName')&&$('savedQuoteName').value.trim()) || ($('quoteExportName')&&$('quoteExportName').value.trim()) || ($('customer')&&$('customer').value.trim()) || '');
@@ -4759,6 +4811,7 @@ function onOptionSelectionChange(value){
   syncAddOptionSelects(value);
   updateMainOptionNameInput();
   renderCurrentOptionPanel();
+  updateWonJobsCount();
 }
 function updateMainOptionNameInput(){
   const input=$('mainOptionName');
@@ -4842,6 +4895,184 @@ function groupTotals(rows){
   const sum=(fn)=>rows.reduce((a,r)=>a+(Number(fn(r))||0),0);
   return {customer:sum(r=>r.finalInc), rebate:sum(r=>r.rebate), unit:sum(r=>r.unitInc), labour:sum(r=>r.labour), materials:sum(r=>savedMaterialsInc(r)), misc:sum(r=>savedMiscInc(r)), power:sum(r=>r.type==='Split'?(Number(r.powerCost)||0):0), commission:sum(r=>r.commissionInc), salespersonCommission:sum(r=>r.salespersonCommissionInc), profit:sum(r=>r.netProfit)};
 }
+function jsArg(value){return encodeURIComponent(String(value||''));}
+function formatWonDate(value){
+  const d=new Date(value);
+  return Number.isNaN(d.getTime())?'Won':`Won ${d.toLocaleDateString('en-AU')}`;
+}
+function wonJobTotals(rows){
+  const sum=(fn)=>rows.reduce((a,r)=>a+(Number(fn(r))||0),0);
+  return {
+    customer:sum(r=>r.finalInc),
+    rebate:sum(r=>quoteStateDisablesRebates(r)?0:r.rebate),
+    salespersonCommission:sum(r=>r.salespersonCommissionInc),
+    agencyCommission:sum(r=>r.agencyCommissionInc ?? r.commissionInc),
+    profit:sum(r=>r.netProfit)
+  };
+}
+function normalizeWonJobRows(rows){
+  return (Array.isArray(rows)?rows:[])
+    .map(row=>{
+      const normalized=recomputeSavedQuote(normalizeQuoteLocation(cloneObj(row)));
+      if(normalized && !normalized.optionId) normalized.optionId='option_1';
+      if(normalized && !normalized.optionName) normalized.optionName='Option 1';
+      return normalized;
+    })
+    .filter(row=>row && row.optionId);
+}
+function collectWonJobsFromSnapshot(source,seen,jobs){
+  const optionDefs=Array.isArray(source.optionDefs)?source.optionDefs:[];
+  const rows=normalizeWonJobRows(source.quotes);
+  const defsById=new Map(optionDefs.map(def=>[String(def.id||''),def]).filter(([id])=>id));
+  function addJob(def,optionRows){
+    const optionId=String(def.id||optionRows[0]?.optionId||'option_1');
+    const wonAt=String(def.wonAt || optionRows.find(row=>row.wonAt)?.wonAt || source.savedAt || source.updatedAt || '');
+    if(!wonAt || !optionRows.length) return;
+    const key=`${optionId}|${wonAt}`;
+    if(seen.has(key)) return;
+    seen.add(key);
+    const totals=wonJobTotals(optionRows);
+    const customerName=String(source.customer || source.quoteExportName || '').trim();
+    jobs.push({
+      sourceKind:source.sourceKind,
+      sourceId:String(source.sourceId||''),
+      sourceName:String(source.sourceName||'Current quote builder'),
+      optionId,
+      optionName:String(def.name || optionRows[0]?.optionName || 'Option'),
+      wonAt,
+      wonByName:String(def.wonByName || optionRows.find(row=>row.wonByName)?.wonByName || wonOptionOwnerName() || ''),
+      customerName,
+      address:String(source.address||''),
+      date:String(source.date||''),
+      savedAt:source.savedAt,
+      rows:optionRows,
+      totals
+    });
+  }
+  optionDefs.filter(def=>def&&def.wonAt).forEach(def=>{
+    const optionId=String(def.id||'');
+    const optionRows=rows.filter(row=>String(row.optionId||'option_1')===optionId);
+    addJob(def,optionRows);
+  });
+  const rowWonGroups=new Map();
+  rows.filter(row=>row && row.wonAt).forEach(row=>{
+    const optionId=String(row.optionId||'option_1');
+    if(defsById.get(optionId)?.wonAt) return;
+    if(!rowWonGroups.has(optionId)) rowWonGroups.set(optionId,[]);
+    rowWonGroups.get(optionId).push(row);
+  });
+  rowWonGroups.forEach((optionRows,optionId)=>{
+    const first=optionRows[0]||{};
+    addJob({id:optionId,name:first.optionName||'Option',wonAt:first.wonAt,wonByName:first.wonByName},optionRows);
+  });
+}
+function collectWonJobs(){
+  ensureOptionDefs();
+  const seen=new Set();
+  const jobs=[];
+  collectWonJobsFromSnapshot({
+    sourceKind:'current',
+    sourceId:'current',
+    sourceName:'Current quote builder',
+    optionDefs:quoteOptionDefs,
+    quotes,
+    quoteExportName:($('quoteExportName')&&$('quoteExportName').value)||'',
+    customer:($('customer')&&$('customer').value)||'',
+    address:($('address')&&$('address').value)||'',
+    date:($('date')&&$('date').value)||'',
+    updatedAt:Date.now()
+  },seen,jobs);
+  savedQuoteSets.forEach(savedQuoteSet=>{
+    collectWonJobsFromSnapshot({
+      sourceKind:'saved',
+      sourceId:savedQuoteSet.id,
+      sourceName:savedQuoteSet.name || 'Saved quote',
+      optionDefs:savedQuoteSet.optionDefs,
+      quotes:savedQuoteSet.quotes,
+      quoteExportName:savedQuoteSet.quoteExportName,
+      customer:savedQuoteSet.customer,
+      address:savedQuoteSet.address,
+      date:savedQuoteSet.date,
+      savedAt:savedQuoteSet.savedAt
+    },seen,jobs);
+  });
+  return jobs.sort((a,b)=>Number(new Date(b.wonAt))-Number(new Date(a.wonAt)));
+}
+function updateWonJobsCount(){
+  const count=collectWonJobs().length;
+  document.querySelectorAll('[data-won-jobs-count]').forEach(el=>{el.textContent=String(count);});
+}
+function viewWonCurrentOption(encodedId){
+  const id=decodeURIComponent(encodedId||'');
+  if(id) syncAddOptionSelects(id);
+  renderCurrentOptionPanel();
+  closeWonJobsDrawer();
+  openDrawer();
+}
+function loadWonSavedQuote(encodedId){
+  const id=decodeURIComponent(encodedId||'');
+  const sel=$('savedQuoteSelect');
+  if(!id || !sel){openDrawer();return;}
+  sel.value=id;
+  closeWonJobsDrawer();
+  loadSelectedSavedQuote();
+  openDrawer();
+}
+function renderWonJobs(){
+  const jobs=collectWonJobs();
+  const list=$('wonJobsList');
+  const summary=$('wonJobsSummary');
+  if(!list || !summary) return;
+  document.querySelectorAll('[data-won-jobs-count]').forEach(el=>{el.textContent=String(jobs.length);});
+  const totalCustomer=jobs.reduce((sum,job)=>sum+job.totals.customer,0);
+  const totalCommission=jobs.reduce((sum,job)=>sum+job.totals.salespersonCommission,0);
+  const totalSystems=jobs.reduce((sum,job)=>sum+job.rows.length,0);
+  const thirdSummary=canSeeSalespersonCommission()
+    ? `<div class="wonJobsSummaryCard"><span>Salesperson commission</span><strong>${money(totalCommission)}</strong></div>`
+    : `<div class="wonJobsSummaryCard"><span>Systems won</span><strong>${totalSystems}</strong></div>`;
+  summary.innerHTML=`<div class="wonJobsSummaryCard"><span>Won jobs</span><strong>${jobs.length}</strong></div><div class="wonJobsSummaryCard"><span>Customer total</span><strong>${money(totalCustomer)}</strong></div>${thirdSummary}`;
+  if(!jobs.length){
+    list.innerHTML='<div class="emptyWonJobs"><strong>No won jobs yet.</strong><div class="sub" style="margin-top:6px">When an option is marked as won, it will appear here for this calculator user.</div></div>';
+    return;
+  }
+  const showPrivate=canSeeProfitDetails();
+  const showSales=canSeeSalespersonCommission();
+  list.innerHTML=jobs.map(job=>{
+    const title=[job.customerName,job.optionName].filter(Boolean).join(' - ') || job.optionName;
+    const sourceMeta=job.sourceKind==='saved'
+      ? `Saved quote: ${job.sourceName}${job.savedAt?' - '+formatSavedQuoteTime(job.savedAt):''}`
+      : job.sourceName;
+    const detailBits=[job.address,job.date?`Install date: ${job.date}`:'',job.wonByName?`Won by: ${job.wonByName}`:''].filter(Boolean);
+    const salesMetric=showSales?`<div><span>Salesperson comm</span><strong>${money(job.totals.salespersonCommission)}</strong></div>`:'';
+    const privateMetrics=showPrivate?`<div><span>Agency comm</span><strong>${money(job.totals.agencyCommission)}</strong></div><div><span>Installer profit</span><strong>${money(job.totals.profit)}</strong></div>`:'';
+    const action=job.sourceKind==='saved'
+      ? `<button class="secondary" type="button" onclick="loadWonSavedQuote('${jsArg(job.sourceId)}')">Load saved quote</button>`
+      : `<button class="secondary" type="button" onclick="viewWonCurrentOption('${jsArg(job.optionId)}')">View option</button>`;
+    const rowHtml=job.rows.map(row=>{
+      const system=[row.size,row.brand,row.type].filter(Boolean).join(' ');
+      const details=[row.model,row.install].filter(Boolean).join(' - ');
+      return `<div class="wonJobLine"><strong>${htmlEscape(system||'System')}</strong><span>${htmlEscape(details)}</span><span>${money(row.finalInc)}</span></div>`;
+    }).join('');
+    return `<article class="wonJobCard">
+      <div class="wonJobHead">
+        <div class="wonJobTitle">
+          <strong>${htmlEscape(title)}</strong>
+          <span class="wonJobMeta">${htmlEscape(sourceMeta)}${detailBits.length?'<br>'+htmlEscape(detailBits.join(' - ')):''}</span>
+        </div>
+        <div class="wonJobActions"><span class="wonJobPill">${htmlEscape(formatWonDate(job.wonAt))}</span>${action}</div>
+      </div>
+      <div class="wonJobMetrics">
+        <div><span>Systems</span><strong>${job.rows.length}</strong></div>
+        <div><span>Customer total</span><strong>${money(job.totals.customer)}</strong></div>
+        <div><span>Rebate</span><strong>${money(job.totals.rebate)}</strong></div>
+        ${salesMetric}${privateMetrics}
+      </div>
+      <div class="wonJobLines">${rowHtml}</div>
+    </article>`;
+  }).join('');
+}
+function openWonJobsDrawer(){renderWonJobs(); const el=$('wonJobsDrawer'); if(el) el.classList.add('open'); syncOverlayState();}
+function closeWonJobsDrawer(){const el=$('wonJobsDrawer'); if(el) el.classList.remove('open'); syncOverlayState();}
 function rebateHeadHtml(label){return rebatesEnabled()?`<th>${htmlEscape(label||'Rebate')}</th>`:'';}
 function rebateCellHtml(value){return rebatesEnabled()?`<td class="money">${money(value)}</td>`:'';}
 function rebateMetricHtml(value){return rebatesEnabled()?`<div class="currentOptionMetric"><span>Rebate</span><strong>${money(value)}</strong></div>`:'';}
@@ -5018,6 +5249,7 @@ function renderQuotes(){
     }
   }
   renderCurrentOptionPanel();
+  updateWonJobsCount();
 }
 function removeQuote(i){
   const q=quotes[i];
@@ -5126,7 +5358,7 @@ function drawerIsOpen(id){const el=$(id); return !!(el && el.classList.contains(
 function syncOverlayState(){
   const overlay=$('overlay');
   if(!overlay) return;
-  const open=['drawer','priceDrawer','certDrawer','proposalDrawer'].some(drawerIsOpen);
+  const open=['drawer','priceDrawer','certDrawer','proposalDrawer','wonJobsDrawer'].some(drawerIsOpen);
   overlay.classList.toggle('open',open);
   document.body.classList.toggle('drawerOpen',open);
 }
@@ -5134,7 +5366,7 @@ function closeDrawer(){const el=$('drawer'); if(el) el.classList.remove('open');
 function closePriceDrawer(){const el=$('priceDrawer'); if(el) el.classList.remove('open'); syncOverlayState();}
 function closeCertDrawer(){const el=$('certDrawer'); if(el) el.classList.remove('open'); syncOverlayState();}
 function closeProposalDrawer(){const el=$('proposalDrawer'); if(el) el.classList.remove('open'); syncOverlayState();}
-function closeAllDrawers(){['drawer','priceDrawer','certDrawer','proposalDrawer'].forEach(id=>{const el=$(id); if(el) el.classList.remove('open');}); syncOverlayState();}
+function closeAllDrawers(){['drawer','priceDrawer','certDrawer','proposalDrawer','wonJobsDrawer'].forEach(id=>{const el=$(id); if(el) el.classList.remove('open');}); syncOverlayState();}
 function proposalTodayRef(){
   const d=new Date();
   const pad=n=>String(n).padStart(2,'0');
