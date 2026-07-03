@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { canManageUsers } from "../../lib/admin";
 import { createSupabaseServerClient } from "../../lib/supabase/server";
 
@@ -113,6 +114,14 @@ function displayName(user: Pick<ApprovedUser, "email" | "display_name">) {
   return String(user.display_name || user.email);
 }
 
+function lastBusinessCookieName(email: string) {
+  const slug = String(email || "account")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "_")
+    .slice(0, 90);
+  return `calculatorLastBusinessV1_${slug || "account"}`;
+}
+
 export default async function CalculatorPage({
   searchParams,
 }: {
@@ -173,8 +182,12 @@ export default async function CalculatorPage({
           viewingEmail,
           (viewedApprovedUser as ApprovedUser).business_id,
         );
+  const cookieStore = await cookies();
+  const rememberedBusinessId = String(cookieStore.get(lastBusinessCookieName(viewingEmail))?.value || "").trim();
+  const requestedBusiness = businessOptions.find((business) => business.id === requestedBusinessId) || null;
+  const rememberedBusiness = businessOptions.find((business) => business.id === rememberedBusinessId) || null;
   const selectedBusiness =
-    businessOptions.find((business) => business.id === requestedBusinessId) || businessOptions[0] || null;
+    requestedBusiness || rememberedBusiness || businessOptions[0] || null;
   const businessQuery = selectedBusiness ? `businessId=${encodeURIComponent(selectedBusiness.id)}` : "";
   const rawSrc = isViewingAnotherUser
     ? `/calculator/raw?as=${encodeURIComponent(viewingEmail)}${isPreviewingAsUser ? "&preview=1" : ""}${businessQuery ? `&${businessQuery}` : ""}`
@@ -182,6 +195,17 @@ export default async function CalculatorPage({
   const viewingName = displayName(viewedApprovedUser);
   const selectedBusinessName = selectedBusiness ? businessOptionLabel(selectedBusiness) : "";
   const selectedBusinessParam = selectedBusiness ? `&businessId=${encodeURIComponent(selectedBusiness.id)}` : "";
+  const rememberBusinessScript = selectedBusiness
+    ? `
+(function(){
+  try {
+    var name = ${JSON.stringify(lastBusinessCookieName(viewingEmail))};
+    var value = ${JSON.stringify(selectedBusiness.id)};
+    document.cookie = name + '=' + encodeURIComponent(value) + '; Max-Age=31536000; Path=/; SameSite=Lax';
+  } catch (e) {}
+})();
+`
+    : "";
 
   return (
     <div className="calculator-shell">
@@ -264,6 +288,7 @@ export default async function CalculatorPage({
           </span>
         </div>
       ) : null}
+      {rememberBusinessScript ? <script dangerouslySetInnerHTML={{ __html: rememberBusinessScript }} /> : null}
       <iframe className="calculator-frame" src={rawSrc} title="Quote calculator" />
     </div>
   );

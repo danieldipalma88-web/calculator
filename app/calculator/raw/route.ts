@@ -66,6 +66,28 @@ function rebatesEnabledForScheme(rebateScheme: string) {
   return rebateScheme === "nsw_ess";
 }
 
+function lastBusinessCookieName(email: string) {
+  const slug = String(email || "account")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "_")
+    .slice(0, 90);
+  return `calculatorLastBusinessV1_${slug || "account"}`;
+}
+
+function cookieValue(request: Request, name: string) {
+  const header = request.headers.get("cookie") || "";
+  for (const part of header.split(";")) {
+    const [rawKey, ...rawValue] = part.trim().split("=");
+    if (rawKey !== name) continue;
+    try {
+      return decodeURIComponent(rawValue.join("="));
+    } catch {
+      return rawValue.join("=");
+    }
+  }
+  return "";
+}
+
 const MANAGED_PRICE_STORAGE_KEYS = [
   "installerManagedPricesV1",
   "ManagedPricesV1",
@@ -589,6 +611,8 @@ export async function GET(request: Request) {
   const canManage = canManageUsers(currentEmail, approved.role);
   const viewingEmail = canManage && requestedEmail ? requestedEmail : currentEmail;
   const previewAsViewedUser = canManage && requestedPreview && viewingEmail !== currentEmail;
+  const rememberedBusinessId = String(cookieValue(request, lastBusinessCookieName(viewingEmail)) || "").trim();
+  const effectiveRequestedBusinessId = requestedBusinessId || rememberedBusinessId;
   const { data: viewedApprovedUser } =
     viewingEmail === currentEmail
       ? { data: approved }
@@ -598,7 +622,7 @@ export async function GET(request: Request) {
   const business = await resolveActiveBusiness(
     supabase,
     viewedUser,
-    requestedBusinessId,
+    effectiveRequestedBusinessId,
     currentUserIsOwner,
   );
   const businessOperatingState = normalizeOperatingState(business?.operating_state);
