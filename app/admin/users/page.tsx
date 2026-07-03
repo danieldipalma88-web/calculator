@@ -39,6 +39,7 @@ type ApprovedUser = {
 };
 
 type CalculatorDataRow = {
+  user_id?: string | null;
   email: string | null;
   data: Record<string, unknown> | null;
   updated_at?: string | null;
@@ -48,6 +49,7 @@ type WonOption = {
   userEmail: string;
   userName: string;
   businessName: string;
+  dataUserId: string;
   sourceId: string;
   optionId: string;
   optionName: string;
@@ -157,6 +159,10 @@ function normalizeText(value: FormDataEntryValue | null) {
 
 function displayNameFor(user: Pick<ApprovedUser, "display_name" | "email">) {
   return user.display_name || user.email;
+}
+
+function lookupText(value: unknown) {
+  return String(value || "").trim().toLowerCase();
 }
 
 function normalizeRole(value: FormDataEntryValue | null): UserRole {
@@ -701,8 +707,8 @@ function wonPaymentStatusLabel(status: WonPaymentStatus) {
   return "Not paid in";
 }
 
-function wonOptionDomKey(option: Pick<WonOption, "userEmail" | "sourceId" | "optionId" | "wonAt">) {
-  return `${option.userEmail}-${option.sourceId}-${option.optionId}-${option.wonAt}`;
+function wonOptionDomKey(option: Pick<WonOption, "userEmail" | "dataUserId" | "sourceId" | "optionId" | "wonAt">) {
+  return `${option.userEmail}-${option.dataUserId}-${option.sourceId}-${option.optionId}-${option.wonAt}`;
 }
 
 function clearWonPaymentFields(record: Record<string, unknown>) {
@@ -977,8 +983,9 @@ function wonOptionKey(email: string, optionId: string, wonAt: string) {
 function addWonOptionsFromSnapshot({
   wonOptions,
   usersByEmail,
-  email,
-  user,
+  usersByName,
+  fallbackEmail,
+  dataUserId,
   optionDefs,
   quotes,
   sourceId,
@@ -986,8 +993,9 @@ function addWonOptionsFromSnapshot({
 }: {
   wonOptions: Map<string, WonOption>;
   usersByEmail: Map<string, ApprovedUser>;
-  email: string;
-  user: ApprovedUser | undefined;
+  usersByName: Map<string, ApprovedUser>;
+  fallbackEmail: string;
+  dataUserId: string;
   optionDefs: Record<string, unknown>[];
   quotes: Record<string, unknown>[];
   sourceId: string;
@@ -998,8 +1006,17 @@ function addWonOptionsFromSnapshot({
     .forEach((option) => {
       const optionId = String(option.id || "");
       const wonAt = String(option.wonAt || updatedAt || "");
-      const key = wonOptionKey(email, optionId, wonAt);
       const rows = quotes.filter((quote) => String(quote.optionId || "option_1") === optionId);
+      const rowWonByEmail = rows.map((quote) => quote.wonByEmail).find(Boolean);
+      const rowWonByName = rows.map((quote) => quote.wonByName).find(Boolean);
+      const wonByEmail = lookupText(option.wonByEmail || rowWonByEmail);
+      const wonByName = lookupText(option.wonByName || rowWonByName);
+      const userFromName = wonByName ? usersByName.get(wonByName) : undefined;
+      const email = wonByEmail || fallbackEmail || String(userFromName?.email || "").toLowerCase();
+      if (!email) return;
+
+      const user = usersByEmail.get(email) || userFromName;
+      const key = wonOptionKey(email, optionId, wonAt);
       const paidInAt = String(option.agencyPaidInAt || option.paidInAt || "");
       const paidOutAt = String(option.salespersonPaidOutAt || option.paidOutAt || "");
       const paymentStatus = wonPaymentStatus(paidInAt, paidOutAt);
@@ -1020,12 +1037,13 @@ function addWonOptionsFromSnapshot({
 
       wonOptions.set(key, {
         userEmail: email,
-        userName: user ? displayNameFor(user) : usersByEmail.get(email)?.email || email,
+        userName: user ? displayNameFor(user) : email,
         businessName:
           String(option.businessName || firstBusinessName || "") ||
           user?.business_names.join(", ") ||
           user?.business_name ||
           "No business",
+        dataUserId,
         sourceId,
         optionId,
         optionName: String(option.name || "Option"),
@@ -1054,19 +1072,23 @@ function addWonOptionsFromSnapshot({
 async function listWonOptions(supabase: SupabaseServer, users: ApprovedUser[]) {
   const dataResult = await supabase
     .from("user_calculator_data")
-    .select("email, data, updated_at")
-    .not("email", "is", null);
+    .select("user_id, email, data, updated_at");
 
   if (dataResult.error) {
     return { data: [] as WonOption[], errorMessage: dbMessage(dataResult.error) };
   }
 
   const usersByEmail = new Map(users.map((user) => [user.email.toLowerCase(), user]));
+  const usersByName = new Map(
+    users
+      .map((user) => [lookupText(displayNameFor(user)), user] as const)
+      .filter(([name]) => Boolean(name)),
+  );
   const wonOptions = new Map<string, WonOption>();
 
   ((dataResult.data || []) as CalculatorDataRow[]).forEach((row) => {
-    const email = String(row.email || "").toLowerCase();
-    if (!email) return;
+    const fallbackEmail = lookupText(row.email);
+    const dataUserId = String(row.user_id || "");
 
     const data = row.data || {};
     const optionDefs = parseStoredJson<Record<string, unknown>[]>(
@@ -1077,12 +1099,12 @@ async function listWonOptions(supabase: SupabaseServer, users: ApprovedUser[]) {
       data.installerMasterQuoteLogV1 || data.greenEnergyMasterQuoteLogV1 || data.MasterQuoteLogV1,
       [],
     );
-    const user = usersByEmail.get(email);
     addWonOptionsFromSnapshot({
       wonOptions,
       usersByEmail,
-      email,
-      user,
+      usersByName,
+      fallbackEmail,
+      dataUserId,
       optionDefs,
       quotes,
       sourceId: CURRENT_WON_SOURCE_ID,
@@ -1097,8 +1119,9 @@ async function listWonOptions(supabase: SupabaseServer, users: ApprovedUser[]) {
       addWonOptionsFromSnapshot({
         wonOptions,
         usersByEmail,
-        email,
-        user,
+        usersByName,
+        fallbackEmail,
+        dataUserId,
         optionDefs: Array.isArray(savedQuoteSet.optionDefs) ? savedQuoteSet.optionDefs as Record<string, unknown>[] : [],
         quotes: Array.isArray(savedQuoteSet.quotes) ? savedQuoteSet.quotes as Record<string, unknown>[] : [],
         sourceId: savedQuoteSetSourceId(savedQuoteSet, index),
@@ -1120,13 +1143,14 @@ async function updateWonOptionState(
   mode: WonOptionUpdateMode,
   adminEmail = "",
   sourceId = CURRENT_WON_SOURCE_ID,
+  dataUserId = "",
 ) {
   const email = userEmail.toLowerCase();
-  const dataResult = await supabase
+  let dataQuery = supabase
     .from("user_calculator_data")
-    .select("data")
-    .eq("email", email)
-    .maybeSingle();
+    .select("user_id, data");
+  dataQuery = dataUserId ? dataQuery.eq("user_id", dataUserId) : dataQuery.eq("email", email);
+  const dataResult = await dataQuery.maybeSingle();
 
   if (dataResult.error) return dbMessage(dataResult.error);
   if (!dataResult.data?.data) return "Could not find saved calculator data for this user.";
@@ -1210,10 +1234,11 @@ async function updateWonOptionState(
 
   if (!updated) return "Could not find that won option in the saved calculator data.";
 
-  const updateResult = await supabase
+  let updateQuery = supabase
     .from("user_calculator_data")
-    .update({ data, updated_at: new Date().toISOString() })
-    .eq("email", email);
+    .update({ data, updated_at: new Date().toISOString() });
+  updateQuery = dataUserId ? updateQuery.eq("user_id", dataUserId) : updateQuery.eq("email", email);
+  const updateResult = await updateQuery;
 
   return updateResult.error ? dbMessage(updateResult.error) : "";
 }
@@ -1372,12 +1397,13 @@ async function unlockWonOption(formData: FormData) {
   const userEmail = normalizeEmail(formData.get("userEmail"));
   const optionId = normalizeText(formData.get("optionId"));
   const sourceId = normalizeText(formData.get("sourceId")) || CURRENT_WON_SOURCE_ID;
+  const dataUserId = normalizeText(formData.get("dataUserId"));
 
   if (!userEmail || !optionId) {
     redirect("/admin/users?error=Could not identify the won option to unlock.");
   }
 
-  const errorMessage = await updateWonOptionState(supabase, userEmail, optionId, "unlock", "", sourceId);
+  const errorMessage = await updateWonOptionState(supabase, userEmail, optionId, "unlock", "", sourceId, dataUserId);
 
   if (errorMessage) {
     redirect(`/admin/users?error=${encodeURIComponent(errorMessage)}`);
@@ -1394,12 +1420,13 @@ async function deleteWonOption(formData: FormData) {
   const userEmail = normalizeEmail(formData.get("userEmail"));
   const optionId = normalizeText(formData.get("optionId"));
   const sourceId = normalizeText(formData.get("sourceId")) || CURRENT_WON_SOURCE_ID;
+  const dataUserId = normalizeText(formData.get("dataUserId"));
 
   if (!userEmail || !optionId) {
     redirect("/admin/users?error=Could not identify the won option to delete.");
   }
 
-  const errorMessage = await updateWonOptionState(supabase, userEmail, optionId, "delete", "", sourceId);
+  const errorMessage = await updateWonOptionState(supabase, userEmail, optionId, "delete", "", sourceId, dataUserId);
 
   if (errorMessage) {
     redirect(`/admin/users?error=${encodeURIComponent(errorMessage)}`);
@@ -1416,6 +1443,7 @@ async function updateWonPaymentStatus(formData: FormData) {
   const userEmail = normalizeEmail(formData.get("userEmail"));
   const optionId = normalizeText(formData.get("optionId"));
   const sourceId = normalizeText(formData.get("sourceId")) || CURRENT_WON_SOURCE_ID;
+  const dataUserId = normalizeText(formData.get("dataUserId"));
   const mode = String(formData.get("paymentMode") || "");
 
   if (!userEmail || !optionId) {
@@ -1433,6 +1461,7 @@ async function updateWonPaymentStatus(formData: FormData) {
     mode,
     adminEmail,
     sourceId,
+    dataUserId,
   );
 
   if (errorMessage) {
@@ -1994,6 +2023,7 @@ export default async function AdminUsersPage({
                     {option.paymentStatus === "not_paid_in" ? (
                       <form action={updateWonPaymentStatus}>
                         <input type="hidden" name="userEmail" value={option.userEmail} />
+                        <input type="hidden" name="dataUserId" value={option.dataUserId} />
                         <input type="hidden" name="sourceId" value={option.sourceId} />
                         <input type="hidden" name="optionId" value={option.optionId} />
                         <input type="hidden" name="paymentMode" value="paid_in" />
@@ -2005,6 +2035,7 @@ export default async function AdminUsersPage({
                     {option.paymentStatus !== "paid_out" ? (
                       <form action={updateWonPaymentStatus}>
                         <input type="hidden" name="userEmail" value={option.userEmail} />
+                        <input type="hidden" name="dataUserId" value={option.dataUserId} />
                         <input type="hidden" name="sourceId" value={option.sourceId} />
                         <input type="hidden" name="optionId" value={option.optionId} />
                         <input type="hidden" name="paymentMode" value="paid_out" />
@@ -2016,6 +2047,7 @@ export default async function AdminUsersPage({
                     {option.paymentStatus !== "not_paid_in" ? (
                       <form action={updateWonPaymentStatus}>
                         <input type="hidden" name="userEmail" value={option.userEmail} />
+                        <input type="hidden" name="dataUserId" value={option.dataUserId} />
                         <input type="hidden" name="sourceId" value={option.sourceId} />
                         <input type="hidden" name="optionId" value={option.optionId} />
                         <input type="hidden" name="paymentMode" value="reset_payment" />
@@ -2026,6 +2058,7 @@ export default async function AdminUsersPage({
                     ) : null}
                     <form action={unlockWonOption}>
                       <input type="hidden" name="userEmail" value={option.userEmail} />
+                      <input type="hidden" name="dataUserId" value={option.dataUserId} />
                       <input type="hidden" name="sourceId" value={option.sourceId} />
                       <input type="hidden" name="optionId" value={option.optionId} />
                       <button className="secondary" type="submit">
@@ -2036,6 +2069,7 @@ export default async function AdminUsersPage({
                       <summary>Delete</summary>
                       <form action={deleteWonOption}>
                         <input type="hidden" name="userEmail" value={option.userEmail} />
+                        <input type="hidden" name="dataUserId" value={option.dataUserId} />
                         <input type="hidden" name="sourceId" value={option.sourceId} />
                         <input type="hidden" name="optionId" value={option.optionId} />
                         <button className="danger" type="submit">
