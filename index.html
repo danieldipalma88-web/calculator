@@ -1707,6 +1707,203 @@ DUCTED_PRODUCTS.push(
   {"brand":"Midea","series":"Vesta","size":14.0,"phase":"Single","model":"UCMI140OC/DUCMI140IHC","priceIncGst":2955.70,"rebate":0.0,"capacity":"14.0kW","capacityNum":14.0,"unitPriceInc":2955.70},
   {"brand":"Midea","series":"Vesta","size":17.0,"phase":"Single","model":"UCMI170OC/DUCMI170IHC","priceIncGst":3369.30,"rebate":0.0,"capacity":"17.0kW","capacityNum":17.0,"unitPriceInc":3369.30}
 );
+function andosUnitPriceInc(setPriceExGst){return Number((Number(setPriceExGst||0)*1.1).toFixed(2));}
+function andosSplit(brand,series,capacityNum,indoor,outdoor,setPriceExGst){
+  const unitPriceInc=andosUnitPriceInc(setPriceExGst);
+  return {brand,series,capacity:capacityNum.toFixed(1)+'kW',capacityNum,unitPriceInc,priceIncGst:unitPriceInc,model:`${outdoor} / ${indoor}`,rebate:0};
+}
+function andosDucted(brand,series,capacityNum,phase,indoor,outdoor,setPriceExGst){
+  const unitPriceInc=andosUnitPriceInc(setPriceExGst);
+  return {brand,series,phase,capacity:capacityNum.toFixed(1)+'kW',size:capacityNum,capacityNum,unitPriceInc,priceIncGst:unitPriceInc,model:`${outdoor} / ${indoor}`,rebate:0};
+}
+const ANDOS_SPLIT_PRODUCTS = [
+  andosSplit("Daikin", "Lite", 2.0, "FTXF20WVMA", "RXF20WVMA", 755),
+  andosSplit("Daikin", "Lite", 2.5, "FTXF25WVMA", "RXF25WVMA", 795),
+  andosSplit("Daikin", "Lite", 3.5, "FTXF35WVMA", "RXF35WVMA", 960),
+  andosSplit("Daikin", "Lite", 4.0, "FTXF46WVMA", "RXF46WVMA", 1220),
+  andosSplit("Daikin", "Lite", 5.0, "FTXF50WVMA", "RXF50WVMA", 1320),
+  andosSplit("Daikin", "Lite", 6.0, "FTXF60WVMA", "RXF60WVMA", 1495),
+  andosSplit("Daikin", "Lite", 7.0, "FTXF71WVMA", "RXF71WVMA", 1650),
+  andosSplit("Daikin", "Cora XL", 2.0, "FTXV20WVMA", "RXV20WVMA", 795),
+  andosSplit("Daikin", "Cora XL", 2.5, "FTXV25WVMA", "RXV25WVMA", 845),
+  andosSplit("Daikin", "Cora XL", 3.5, "FTXV35WVMA", "RXV35WVMA", 1020),
+  andosSplit("Daikin", "Cora XL", 4.0, "FTXV46WVMA", "RXV46WVMA", 1310),
+  andosSplit("Daikin", "Cora XL", 5.0, "FTXV50WVMA", "RXV50WVMA", 1395),
+  andosSplit("Daikin", "Cora XL", 6.0, "FTXV60WVMA", "RXV60WVMA", 1565),
+  andosSplit("Daikin", "Cora XL", 7.0, "FTXV71WVMA", "RXV71WVMA", 1745),
+  andosSplit("Daikin", "Cora XL", 8.0, "FTXV80WVMA", "RXV80WVMA", 2165),
+  andosSplit("Daikin", "Cora XL", 9.0, "FTXV90WVMA", "RXV90WVMA", 2550),
+  andosSplit("Daikin", "Alira X XL Premium", 2.0, "FTXM20YVMA", "RXM20YVMA", 885),
+  andosSplit("Daikin", "Alira X XL Premium", 2.5, "FTXM25YVMA", "RXM25YVMA", 940),
+  andosSplit("Daikin", "Alira X XL Premium", 3.5, "FTXM35YVMA", "RXM35YVMA", 1140),
+  andosSplit("Daikin", "Alira X XL Premium", 4.0, "FTXM46WVMA", "RXM46WVMA", 1475),
+  andosSplit("Daikin", "Alira X XL Premium", 5.0, "FTXM50WVMA", "RXM50WVMA", 1575),
+  andosSplit("Daikin", "Alira X XL Premium", 6.0, "FTXM60WVMA", "RXM60WVMA", 1765),
+  andosSplit("Daikin", "Alira X XL Premium", 7.0, "FTXM71WVMA", "RXM71WVMA", 1965),
+  andosSplit("Daikin", "Alira X XL Premium", 8.0, "FTXM85WVMA", "RXM85WVMA", 2525),
+  andosSplit("Daikin", "Alira X XL Premium", 9.0, "FTXM95WVMA", "RXM95WVMA", 2970),
+  andosSplit("Mitsubishi Electric", "AP Series W/WiFi", 2.0, "MSZ-AP20VGD-A1", "MUZ-AP20VGD-A1", 810),
+  andosSplit("Mitsubishi Electric", "AP Series W/WiFi", 2.5, "MSZ-AP25VGKD2-A2", "MUZ-AP25VGD2-A2", 840),
+  andosSplit("Mitsubishi Electric", "AP Series W/WiFi", 3.5, "MSZ-AP35VGKD2-A2", "MUZ-AP35VGD2-A2", 998),
+  andosSplit("Mitsubishi Electric", "AP Series W/WiFi", 4.0, "MSZ-AP42VGKD2-A2", "MUZ-AP42VGD2-A2", 1195),
+  andosSplit("Mitsubishi Electric", "AP Series W/WiFi", 5.0, "MSZ-AP50VGKD2-A2", "MUZ-AP50VGD2-A2", 1365),
+  andosSplit("Mitsubishi Electric", "AP Series W/WiFi", 6.0, "MSZ-AP60VGKD2-A2", "MUZ-AP60VGD2-A2", 1590),
+  andosSplit("Mitsubishi Electric", "AP Series W/WiFi", 7.0, "MSZ-AP71VGKD2-A2", "MUZ-AP71VGD2-A2", 1690),
+  andosSplit("Mitsubishi Electric", "AP Series W/WiFi", 8.0, "MSZ-AP80VGKD2-A2", "MUZ-AP80VGD2-A2", 2085),
+  andosSplit("Mitsubishi Electric", "AP Series W/WiFi", 9.0, "MSZ-AS90VGD-A1", "MUZ-AS90VGD-A1", 2370),
+  andosSplit("Fujitsu", "Lifestyle", 2.5, "ASTG09KMTC", "AOTG09KMTC", 795),
+  andosSplit("Fujitsu", "Lifestyle", 3.5, "ASTG12KMTC", "AOTG12KMTC", 940),
+  andosSplit("Fujitsu", "Lifestyle", 5.0, "ASTH18KMTD", "AOTH18KMTD", 1300),
+  andosSplit("Fujitsu", "Lifestyle", 6.0, "ASTH22KMTD", "AOTH22KMTD", 1500),
+  andosSplit("Fujitsu", "Lifestyle", 7.0, "ASTH24KMTD", "AOTH24KMTD", 1620),
+  andosSplit("Fujitsu", "Lifestyle", 8.0, "ASTH30KMTD", "AOTH30KMTD", 2050),
+  andosSplit("Fujitsu", "Lifestyle", 9.0, "ASTH34KMTD", "AOTH34KMTD", 2420),
+  andosSplit("Fujitsu", "Comfort", 2.5, "ASTH09KNCA", "AOTH09KNCA", 750),
+  andosSplit("Fujitsu", "Comfort", 3.5, "ASTH12KNCA", "AOTH12KNCA", 855),
+  andosSplit("Fujitsu", "Comfort", 4.0, "ASTH14KNCA", "AOTH14KNCA", 1035),
+  andosSplit("Fujitsu", "Comfort", 5.0, "ASTH18KNTA", "AOTH18KNTA", 1185),
+  andosSplit("Fujitsu", "Comfort", 6.0, "ASTH22KNTA", "AOTH22KNTA", 1290),
+  andosSplit("Fujitsu", "Comfort", 7.0, "ASTH24KNTA", "AOTH24KNTA", 1435),
+  andosSplit("Fujitsu", "Comfort", 8.0, "ASTH30KNTA", "AOTH30KNTA", 1985),
+  andosSplit("Fujitsu", "Comfort", 9.0, "ASTH34KNTA", "AOTH34KNTA", 2355),
+  andosSplit("Gree", "Alto Hyper Plus", 2.5, "GWH09ATBXB-K6DNA1C/I", "GWH09ATBXB-K6DNA1C/O", 610),
+  andosSplit("Gree", "Alto Hyper Plus", 3.5, "GWH12ATCXB-K6DNA1B/I", "GWH12ATCXB-K6DNA1B/O", 720),
+  andosSplit("Gree", "Alto Hyper Plus", 5.0, "GWH18ATDXD-K6DNA1C/I", "GWH18ATDXD-K6DNA1C/O", 920),
+  andosSplit("Gree", "Alto Hyper Plus", 7.0, "GWH24ATEXF-K6DNA1E/I", "GWH24ATEXF-K6DNA1E/O", 1155),
+  andosSplit("Gree", "Alto Hyper Plus", 8.0, "GWH28ATEXF-K6DNA1A/I", "GWH28ATEXF-K6DNA1A/O", 1320),
+  andosSplit("Gree", "Alto Hyper Plus", 9.0, "GWH32QFXH-K6DNB2A/I", "GWH32QFXH-K6DNB2A/O", 1680),
+  andosSplit("TCL", "Breeze In", 2.5, "TAC-10CHSD/VEIH-I", "TAC-10CHSD/VEIH-O", 530),
+  andosSplit("TCL", "Breeze In", 3.5, "TAC-13CHSD/VEIH-I", "TAC-13CHSD/VEIH-O", 595),
+  andosSplit("TCL", "Breeze In", 5.0, "TAC-18CHSD/VEIH-I", "TAC-18CHSD/VEIH-O", 795),
+  andosSplit("TCL", "Breeze In", 7.0, "TAC-24CHSD/VEIH-I", "TAC-24CHSD/VEIH-O", 835),
+  andosSplit("TCL", "Breeze In", 8.0, "TAC-28CHSD/VEIH-I", "TAC-28CHSD/VEIH-O", 1235),
+  andosSplit("Panasonic", "RZ Series", 2.5, "CS-RZ25AKR", "CU-RZ25AKR", 775),
+  andosSplit("Panasonic", "RZ Series", 3.5, "CS-RZ35AKR", "CU-RZ35AKR", 950),
+  andosSplit("Panasonic", "RZ Series", 4.0, "CS-RZ42AKR", "CU-RZ42AKR", 1100),
+  andosSplit("Panasonic", "RZ Series", 5.0, "CS-RZ50AKR", "CU-RZ50AKR", 1300),
+  andosSplit("Panasonic", "RZ Series", 6.0, "CS-RZ60AKR", "CU-RZ60AKR", 1445),
+  andosSplit("Panasonic", "RZ Series", 7.0, "CS-RZ71AKR", "CU-RZ71AKR", 1595),
+  andosSplit("Panasonic", "RZ Series", 8.0, "CS-RZ80YKR", "CU-RZ80YKR", 2110),
+  andosSplit("Panasonic", "RZ Series", 9.0, "CS-RZ95AKR", "CU-RZ95AKR", 2464),
+  andosSplit("Panasonic", "Z Series", 2.5, "CS-Z25AKR", "CU-Z25AKR", 895),
+  andosSplit("Panasonic", "Z Series", 3.5, "CS-Z35AKR", "CU-Z35AKR", 1095),
+  andosSplit("Panasonic", "Z Series", 4.0, "CS-Z42AKR", "CU-Z42AKR", 1300),
+  andosSplit("Panasonic", "Z Series", 5.0, "CS-Z50AKR", "CU-Z50AKR", 1500),
+  andosSplit("Panasonic", "Z Series", 6.0, "CS-Z60AKR", "CU-Z60AKR", 1630),
+  andosSplit("Panasonic", "Z Series", 7.0, "CS-Z71AKR", "CU-Z71AKR", 1820),
+  andosSplit("Panasonic", "Z Series", 8.0, "CS-Z80YKR", "CU-Z80YKR", 2182),
+  andosSplit("Panasonic", "Z Series", 9.0, "CS-Z95AKR", "CU-Z95AKR", 2745),
+  andosSplit("Samsung", "Aero Series", 2.5, "AR09DXFZCWKNSA", "AR09DXFZCWKXSA", 590),
+  andosSplit("Samsung", "Aero Series", 3.5, "AR12DXFZCWKNSA", "AR12DXFZCWKXSA", 670),
+  andosSplit("Samsung", "Aero Series", 5.0, "AR18DXFZCWKNSA", "AR18DXFZCWKXSA", 840),
+  andosSplit("Samsung", "Aero Series", 7.0, "AR24DXFZCWKNSA", "AR24DXFZCWKXSA", 1090),
+  andosSplit("Samsung", "Aero Series", 8.0, "AR30DXFZCWKNSA", "AR30DXFZCWKXSA", 1420)
+];
+const ANDOS_DUCTED_PRODUCTS = [
+  andosDucted("Daikin", "Premium Inverter", 7.0, "Single", "FDYA71AV19", "RZAS71C2V1", 3335),
+  andosDucted("Daikin", "Premium Inverter", 8.0, "Single", "FDYA85AV19", "RZAS85C2V1", 3775),
+  andosDucted("Daikin", "Premium Inverter", 10.0, "Single", "FDYA100AV19", "RZAS100C2V1", 4170),
+  andosDucted("Daikin", "Premium Inverter", 12.0, "Single", "FDYA125AV19", "RZAS125C2V1", 4820),
+  andosDucted("Daikin", "Premium Inverter", 14.0, "Single", "FDYA140AV19", "RZAS140C2V1", 5420),
+  andosDucted("Daikin", "Premium Inverter", 16.0, "Single", "FDYA160AV19", "RZAS160C2V1", 5935),
+  andosDucted("Daikin", "Standard Inverter", 5.0, "Single", "FDYAN50AV1", "RZA50C2V1", 2345),
+  andosDucted("Daikin", "Standard Inverter", 6.0, "Single", "FDYAN60AV1", "RZA60C2V1", 2605),
+  andosDucted("Daikin", "Standard Inverter", 7.0, "Single", "FDYAN71AV1", "RZA71C2V1", 2820),
+  andosDucted("Daikin", "Standard Inverter", 8.0, "Single", "FDYAN85AV1", "RZA85C2V1", 3180),
+  andosDucted("Daikin", "Standard Inverter", 10.0, "Single", "FDYAN100AV1", "RZA100C2V1", 3440),
+  andosDucted("Daikin", "Standard Inverter", 12.0, "Single", "FDYAN125AV1", "RZA125C2V1", 3980),
+  andosDucted("Daikin", "Standard Inverter", 14.0, "Single", "FDYAN140AV1", "RZA140C2V1", 4585),
+  andosDucted("Daikin", "Standard Inverter", 16.0, "Single", "FDYAN160AV1", "RZA160C2V1", 5020),
+  andosDucted("Mitsubishi Electric", "Ducted System Inverter R32", 10.0, "Single", "PEA-M100GAA.TH", "PUZ-M100VKA-A.TH", 3225),
+  andosDucted("Mitsubishi Electric", "Ducted System Inverter R32", 12.0, "Single", "PEA-M125GAA.TH", "PUZ-M125VKA-A.TH", 3520),
+  andosDucted("Mitsubishi Electric", "Ducted System Inverter R32", 14.0, "Single", "PEA-M140GAA.TH", "PUZ-M140VKA-A.TH", 4100),
+  andosDucted("Mitsubishi Electric", "Ducted System Power Inverter R32", 10.0, "Single", "PEA-M100GAA.TH", "PUZ-ZM100VKA2-A.TH", 3495),
+  andosDucted("Mitsubishi Electric", "Ducted System Power Inverter R32", 12.0, "Single", "PEA-M125GAA.TH", "PUZ-ZM125VKA2-A.TH", 3800),
+  andosDucted("Mitsubishi Electric", "Ducted System Power Inverter R32", 14.0, "Single", "PEA-M140GAA.TH", "PUZ-ZM140VKA2-A.TH", 4430),
+  andosDucted("Mitsubishi Electric", "2 Piece Ducted System Inverter", 10.0, "Single", "PEA-M100HAA", "PUZ-M100VKA-A.TH", 3360),
+  andosDucted("Mitsubishi Electric", "2 Piece Ducted System Inverter", 12.0, "Single", "PEA-M125HAA", "PUZ-M125VKA-A.TH", 3645),
+  andosDucted("Mitsubishi Electric", "2 Piece Ducted System Inverter", 14.0, "Single", "PEA-M140HAA", "PUZ-M140VKA-A.TH", 4225),
+  andosDucted("Mitsubishi Electric", "2 Piece Ducted System Inverter", 16.0, "Single", "PEA-M160HAA", "PUZ-ZM160VKA-A.TH", 4950),
+  andosDucted("Mitsubishi Electric", "2 Piece Ducted System Inverter", 18.0, "Single", "PEA-M180LAA.TH", "PUZ-ZM180VKA-A.TH", 5515),
+  andosDucted("Mitsubishi Electric", "2 Piece Ducted System Power Inverter", 10.0, "Single", "PEA-M100HAA", "PUZ-ZM100VKA2-A.TH", 3630),
+  andosDucted("Mitsubishi Electric", "2 Piece Ducted System Power Inverter", 12.0, "Single", "PEA-M125HAA", "PUZ-ZM125VKA2-A.TH", 3925),
+  andosDucted("Mitsubishi Electric", "2 Piece Ducted System Power Inverter", 14.0, "Single", "PEA-M140HAA", "PUZ-ZM140VKA2-A.TH", 4555),
+  andosDucted("Fujitsu", "High Static", 7.0, "Single", "ARTH24KHTA", "AOTH24KBTA", 2630),
+  andosDucted("Fujitsu", "High Static", 8.0, "Single", "ARTH30KHTA", "AOTH30KBTA", 2980),
+  andosDucted("Fujitsu", "High Static", 10.0, "Single", "ARTH36KHTA", "AOTH36KBTA", 3215),
+  andosDucted("Fujitsu", "High Static", 12.0, "Single", "ARTH45KHTA", "AOTH45KBTA", 3690),
+  andosDucted("Fujitsu", "High Static", 14.0, "Single", "ARTH54KHTA", "AOTH54KBTA", 4215),
+  andosDucted("Fujitsu", "High Static", 16.0, "Single", "ARTH60KHTA", "AOTH60KBTA", 4635),
+  andosDucted("Fujitsu", "High Static", 18.0, "Single", "ARTH65KHTA", "AOTH65KBTA", 4865),
+  andosDucted("Fujitsu", "High Static High Performance", 8.0, "Single", "ARTH30KHTA", "AOTH30KCTA", 3590),
+  andosDucted("Fujitsu", "High Static High Performance", 10.0, "Single", "ARTH36KHTA", "AOTH36KCTA", 3945),
+  andosDucted("Fujitsu", "High Static High Performance", 12.0, "Single", "ARTH45KHTA", "AOTH45KCTA", 4530),
+  andosDucted("Fujitsu", "High Static High Performance", 14.0, "Single", "ARTH54KHTA", "AOTH54KCTA", 5065),
+  andosDucted("Fujitsu", "High Static High Performance", 16.0, "Single", "ARTH60KHTB", "AOTH60KCTA", 5335),
+  andosDucted("Gree", "1 Phase", 5.0, "Single", "GUD50PHS1/C-S", "GUD50W1/NhC-S", 1415),
+  andosDucted("Gree", "1 Phase", 7.0, "Single", "GUD71PHS1/C-S", "GUD71W1/NhC-S", 1600),
+  andosDucted("Gree", "1 Phase", 10.0, "Single", "GUD100PHS1/C-S", "GUD100W1/NhC-S", 2230),
+  andosDucted("Gree", "1 Phase", 12.0, "Single", "GUD125PHS1/C-S", "GUD125W1/NhC-S", 2675),
+  andosDucted("Gree", "1 Phase", 14.0, "Single", "GUD140PHS1/C-S", "GUD140W1/NhC-S", 2965),
+  andosDucted("Gree", "1 Phase", 16.0, "Single", "GUD160PHS1/C-S", "GUD160W1/NhC-S", 3280),
+  andosDucted("Panasonic", "NX High Static", 6.0, "Single", "S-60PE4R", "U-60PZ4R5", 2688),
+  andosDucted("Panasonic", "NX High Static", 7.0, "Single", "S-71PE4R", "U-71PZ4R5", 2787),
+  andosDucted("Panasonic", "NX High Static", 10.0, "Single", "S-100PE4R", "U-100PZ4R5", 3392),
+  andosDucted("Panasonic", "NX High Static", 12.0, "Single", "S-125PE4R", "U-125PZ4R5", 3917),
+  andosDucted("Panasonic", "NX High Static", 14.0, "Single", "S-140PE4R", "U-140PZ4R5", 4485),
+  andosDucted("Panasonic", "NX High Static", 16.0, "Single", "S-160PE4R", "U-160PZH3R5", 5076),
+  andosDucted("Panasonic", "NX High Static", 18.0, "Single", "S-180PE4R", "U-180PZH3R5", 5575),
+  andosDucted("Samsung", "1 Phase", 5.0, "Single", "AC052TNHDKG/SA", "AC052TXAPKG/SA", 1620),
+  andosDucted("Samsung", "1 Phase", 7.0, "Single", "AC071TNHDKG/SA", "AC071TXAPKG/SA", 2015),
+  andosDucted("Samsung", "1 Phase", 8.0, "Single", "AC090TNHDKG/SA", "AC090TXAPKG/SA", 2100),
+  andosDucted("Samsung", "1 Phase", 10.0, "Single", "AC100TNHPKG/SA", "AC100TXAPKG/SA", 2380),
+  andosDucted("Samsung", "1 Phase", 12.0, "Single", "AC120TNHPKG/SA", "AC120TXAPKG/SA", 2695),
+  andosDucted("Samsung", "1 Phase", 14.0, "Single", "AC140TNHPKG/SA", "AC140TXAPKG/SA", 2995),
+  andosDucted("Samsung", "1 Phase", 16.0, "Single", "AC160TNHPKG/SA", "AC160TXAPKG/SA", 3450),
+  andosDucted("Daikin", "Premium Inverter 3 Phase R410A", 18.0, "Three", "FDYA180AV1", "RZAS180DY1", 6300),
+  andosDucted("Daikin", "Premium Inverter 3 Phase R410A", 20.0, "Three", "FDYA200AV1", "RZAS200DY1", 6580),
+  andosDucted("Daikin", "Premium Inverter 3 Phase R410A", 24.0, "Three", "FDYQ250LCV1", "RZYQ10TY1", 7590),
+  andosDucted("Daikin", "Standard 3 Phase R410A", 7.0, "Three", "FDYAN71AV1", "RZA71C2Y1", 3285),
+  andosDucted("Daikin", "Standard 3 Phase R410A", 8.0, "Three", "FDYAN85AV1", "RZA85C2Y1", 3710),
+  andosDucted("Daikin", "Standard 3 Phase R410A", 10.0, "Three", "FDYAN100AV1", "RZA100C2Y1", 3960),
+  andosDucted("Daikin", "Standard 3 Phase R410A", 12.0, "Three", "FDYAN125AV1", "RZA125C2Y1", 4480),
+  andosDucted("Daikin", "Standard 3 Phase R410A", 14.0, "Three", "FDYAN140AV1", "RZA140C2Y1", 4915),
+  andosDucted("Daikin", "Standard 3 Phase R410A", 16.0, "Three", "FDYAN160AV1", "RZA160C2Y1", 5200),
+  andosDucted("Daikin", "Standard 3 Phase R410A", 18.0, "Three", "FDYQN180LCV1", "RZQ180M2Y1", 5195),
+  andosDucted("Daikin", "Standard 3 Phase R410A", 20.0, "Three", "FDYQN200LCV1", "RZQ200MY1", 5505),
+  andosDucted("Daikin", "Standard 3 Phase R410A", 24.0, "Three", "FDYQN250LBV1", "RZQ250LY1", 6705),
+  andosDucted("Mitsubishi Electric", "Ducted System Power Inverter 3 Phase", 10.0, "Three", "PEA-M100GAA.TH", "PUZ-ZM100YKA3-A.TH", 3900),
+  andosDucted("Mitsubishi Electric", "Ducted System Power Inverter 3 Phase", 12.0, "Three", "PEA-M125GAA.TH", "PUZ-ZM125YKA2-A.TH", 4285),
+  andosDucted("Mitsubishi Electric", "Ducted System Power Inverter 3 Phase", 14.0, "Three", "PEA-M140GAA.TH", "PUZ-ZM140YKA2-A.TH", 4850),
+  andosDucted("Mitsubishi Electric", "2 Piece Ducted System Power Inverter 3 Phase", 10.0, "Three", "PEA-M100HAA", "PUZ-ZM100YKA3-A.TH", 4035),
+  andosDucted("Mitsubishi Electric", "2 Piece Ducted System Power Inverter 3 Phase", 12.0, "Three", "PEA-M125HAA", "PUZ-ZM125YKA2-A.TH", 4410),
+  andosDucted("Mitsubishi Electric", "2 Piece Ducted System Power Inverter 3 Phase", 14.0, "Three", "PEA-M140HAA", "PUZ-ZM140YKA2-A.TH", 4975),
+  andosDucted("Mitsubishi Electric", "2 Piece Ducted System Power Inverter 3 Phase", 16.0, "Three", "PEA-M160HAA", "PUZ-ZM160YKA-A.TH", 5275),
+  andosDucted("Mitsubishi Electric", "2 Piece Ducted System Power Inverter 3 Phase", 18.0, "Three", "PEA-M180LAA.TH", "PUZ-ZM180YKA-A.TH", 5680),
+  andosDucted("Mitsubishi Electric", "2 Piece Ducted System Power Inverter 3 Phase", 20.0, "Three", "PEA-M200LAA.TH", "PUZ-ZM200YKA-A.TH", 5765),
+  andosDucted("Mitsubishi Electric", "2 Piece Ducted System Power Inverter 3 Phase", 24.0, "Three", "PEA-M250LAA.TH", "PUZ-ZM250YKA-A.TH", 6570),
+  andosDucted("Fujitsu", "3 Phase", 10.0, "Three", "ARTH36KHTA", "AOTH36KRTA", 3670),
+  andosDucted("Fujitsu", "3 Phase", 12.0, "Three", "ARTH45KHTA", "AOTH45KRTA", 4110),
+  andosDucted("Fujitsu", "3 Phase", 14.0, "Three", "ARTH54KHTA", "AOTH54KRTA", 4480),
+  andosDucted("Fujitsu", "3 Phase", 16.0, "Three", "ARTH60KHTA", "AOTH60KRTA", 4740),
+  andosDucted("Fujitsu", "3 Phase", 18.0, "Three", "ARTH65KHTA", "AOTH65KRTA", 4940),
+  andosDucted("Fujitsu", "3 Phase", 20.0, "Three", "ARTH72KHTA", "AOTH72KRTA", 5205),
+  andosDucted("Fujitsu", "3 Phase", 24.0, "Three", "ARTH90KHTA", "AOTH90KRTA", 6320),
+  andosDucted("Gree", "3 Phase", 20.0, "Three", "FGR20Pd/DNa-X(Au)(I)", "FGR20Pd/DNa-X(Au)(O)", 4640),
+  andosDucted("Panasonic", "NX High Static 3 Phase", 10.0, "Three", "S-100PE4R", "U-100PZ4R8", 3723),
+  andosDucted("Panasonic", "NX High Static 3 Phase", 12.0, "Three", "S-125PE4R", "U-125PZ4R8", 4297),
+  andosDucted("Panasonic", "NX High Static 3 Phase", 14.0, "Three", "S-140PE4R", "U-140PZ4R8", 4913),
+  andosDucted("Panasonic", "NX High Static 3 Phase", 16.0, "Three", "S-160PE4R", "U-160PZH3R8", 5121),
+  andosDucted("Panasonic", "NX High Static 3 Phase", 18.0, "Three", "S-180PE4R", "U-180PZH3R8", 5575),
+  andosDucted("Panasonic", "NX High Static 3 Phase", 20.0, "Three", "S-200PE4R", "U-200PZH3R8", 5810),
+  andosDucted("Panasonic", "NX High Static 3 Phase", 24.0, "Three", "S-224PE4R", "U-224PZH3R8", 7095),
+  andosDucted("Samsung", "3 Phase", 10.0, "Three", "AC100TNHPKG/SA", "AC100TXAPNG/SA", 2400),
+  andosDucted("Samsung", "3 Phase", 12.0, "Three", "AC120TNHPKG/SA", "AC120TXAPNG/SA", 2720),
+  andosDucted("Samsung", "3 Phase", 14.0, "Three", "AC140TNHPKG/SA", "AC140TXAPNG/SA", 3100),
+  andosDucted("Samsung", "3 Phase", 16.0, "Three", "AC160TNHPKG/SA", "AC160TXAPNG/SA", 3500),
+  andosDucted("Samsung", "3 Phase", 18.0, "Three", "AC180JNHFKH/SA", "AC180JXAFNH/SA", 3595),
+  andosDucted("Samsung", "3 Phase", 20.0, "Three", "AC200JNHFKH/SA", "AC200TXAPNG/SA", 4009)
+];
 const PRODUCT_SUPPORT_DEFAULT={wifiStatus:'unknown',wifiLabel:'Wi-Fi TBC',warrantyYears:null,warrantyLabel:'Warranty TBC',originLabel:'Origin TBC'};
 const BRAND_ORIGIN_LABELS={
   'Actron':'Australian',
@@ -1874,7 +2071,14 @@ let defaultCostRules=[];
 let savedQuoteSets=[];
 $('date').value=new Date().toISOString().slice(0,10);
 function activeProducts(list){return list.filter(p=>!p.deprecated);}
-function data(){return activeProducts(systemType==='split'?SPLIT_PRODUCTS:DUCTED_PRODUCTS)};
+function businessCatalogSlug(name){return String(name||'').toLowerCase().replace(/[^a-z0-9]/g,'');}
+function activeBusinessName(){return String(calculatorUserContext().businessName||'');}
+function activeCatalogKey(){return businessCatalogSlug(activeBusinessName()).includes('andosair')?'andos':'default';}
+function productListFor(type){
+  if(activeCatalogKey()==='andos') return type==='ducted'?ANDOS_DUCTED_PRODUCTS:ANDOS_SPLIT_PRODUCTS;
+  return type==='ducted'?DUCTED_PRODUCTS:SPLIT_PRODUCTS;
+}
+function data(){return activeProducts(productListFor(systemType))};
 const BRAND_ALIASES={"Fujitsu":"Fujitsu General","Fujitsu Lifestyle":"Fujitsu General","Hisense x3 series":"Hisense","Hisense G series":"Hisense","Hitachi AirHome 600":"Hitachi","TCL BreezeIN 2.0":"TCL","Daikin Alira":"Daikin","Daikin Cora":"Daikin","Mitsubishi Heavy Industries Avanti Plus":"Mitsubishi Heavy Industries","Mitsubishi Heavy Industries Bronte":"Mitsubishi Heavy Industries","Rinnai PB Series":"Rinnai","Rinnai PX Series":"Rinnai","Actron":"Actron Air"};
 const MODEL_ALIASES={"RXM46W1VMA / FTXM46W1VMA":"RXM46WVMA / FTXM46WVMA","FDUA125VH/FDCA125VNX":"FDCA125VNX-W/FDUA125VH","FDCA125VNX-FDUA125VH":"FDCA125VNX-W/FDUA125VH","FDCA125VNX-W-FDUA125VH":"FDCA125VNX-W/FDUA125VH","FDUA140VG/FDCA140VNX":"FDCA140VNX-W/FDUA140VH","FDUA160VG/FDCA160VNX":"FDCA160VNX-W/FDUA160VH","UHN100M2S/UU100WR3":"UU100WR3 U30/UHN100M2S N20","UHN125M3S/UU125WR3":"UU125WR3 U30/UHN125M3S N30","UHN140M3S/UU140WR3":"UU140WR3 U30/UHN140M3S N30","UHN150M3S/UU150WR3":"UU150WR3 U30 / UHN150M3S N30","PPHI-3.0UFA1NQ/PAS-3.0UFASNQ1":"PAS-3.0UFASNQ1 / PPIH-3.0UFA1NQ","PPHI-4.0UFA1NQ/PAS-4.0UFASNQ1":"PAS-4.0UFASNQ1 / PPIH-4.0UFA1NQ","PPHI-5.0UFA1NQ/PAS-5.0UFASNQ1":"PAS-5.0UFASNQ1 / PPIH-5.0UFA1NQ","PPHI-6.0UFA1NQ/PAS-6.0UFASNQ1":"PAS-6.0UFASNQ1 / PPIH-6.0UFA1NQ","PPHI-6.5UFA1NQ/PAS-6.5UFASNQ1":"PAS-6.5UFASNQ1 / PPIH-6.5UFA1NQ","PAS-6.5UFASMQ1 - PPIH-6.5UFA1NQ":"PAS-6.5UFASMQ1 / PPIH-6.5UFA1NQ","TCD71D1HWH-DV/TCD71D1HWH-DV":"TCD71D1HWH-DVO/TCD71D1HWH-DVI","TCD85D1HWH-DV/TCD85D1HWH-DV":"TCD85D1HWH-DVO/TCD85D1HWH-DVI","TCD100D1HWH-DVO-TCD100D1HWH-DVI":"TCD100D1HWH-DVO/TCD100D1HWH-DVI","TCD125D1HWH-DVO-TCD125D1HWH-DVI":"TCD125D1HWH-DVO/TCD125D1HWH-DVI","TCD140D1HWH-DVO - TCD140D1HWH-DVI":"TCD140D1HWH-DVO / TCD140D1HWH-DVI","TCD160D1HWH-DVO - TCD160D1HWH-DVI":"TCD160D1HWH-DVO / TCD160D1HWH-DVI","DONSR09B1-DINLR09B1":"DONSR09B1/DINLR09B1","DONSR11B1LA-DINLR11B1A":"DONSR11B1LA/DINLR11B1A","DONSR13B1LA-DINLR13B1A":"DONSR13B1LA/DINLR13B1A","DONSR15B1TA-DINLR15B1SA":"DONSR15B1TA/DINLR15B1SA","DONSR18B1-DINLR18B1":"DONSR18B1/DINLR18B1","CRS10AS - EVA10AS":"CRS10AS / EVA10AS","CRS13AS - EVA13AS":"CRS13AS / EVA13AS","CRS15AS - EVA15AS":"CRS15AS / EVA15AS","CRS17AS - EVA17AS":"CRS17AS / EVA17AS","CRS20AT - EVA20AS":"CRS20AT / EVA20AS","CRS23AT - EVA23AS":"CRS23AT / EVA23AS","AOTH24KBTA-ARTH24KHTA":"AOTH24KBTA/ARTH24KHTA","AOTH30KBTA-ARTH30KHTA":"AOTH30KBTA/ARTH30KHTA","AOTH36KBTA-ARTH36KHTA":"AOTH36KBTA/ARTH36KHTA","AOTH36KRTA-ARTH36KHTA":"AOTH36KRTA/ARTH36KHTA","AOTH45KBTA-ARTH45KHTA":"AOTH45KBTA/ARTH45KHTA","AOTH45KRTA-ARTH45KHTA":"AOTH45KRTA/ARTH45KHTA","AOTH54KBTA-ARTH54KHTA":"AOTH54KBTA/ARTH54KHTA","AOTH60KBTA-ARTH60KHTA":"AOTH60KBTA/ARTH60KHTA","AOTH60KRTA-ARTH60KHTA":"AOTH60KRTA/ARTH60KHTA","RZAS71C2V1 - FDYA71AV19":"RZAS71C2V1 / FDYA71AV19","RZAS100C2V1 - FDYA100AV19":"RZAS100C2V1 / FDYA100AV19","RZAS125C2V1 - FDYA125AV19":"RZAS125C2V1 / FDYA125AV19","RZAS140C2V1 - FDYA140AV19":"RZAS140C2V1 / FDYA140AV19","RZAS160C2V1 - FDYA160AV19":"RZAS160C2V1 / FDYA160AV19","RAC-VJ25PHAT-RAK-VJ25PHAT":"RAC-VJ25PHAT/RAK-VJ25PHAT","RAC-VJ35PHAT-RAK-VJ35PHAT":"RAC-VJ35PHAT/RAK-VJ35PHAT","RAC-VJ50PHAT-RAK-VJ50PHAT":"RAC-VJ50PHAT/RAK-VJ50PHAT","RAC-VJ60PHAT-RAK-VJ60PHAT":"RAC-VJ60PHAT/RAK-VJ60PHAT","RAC-VJ70PHAT-RAK-VJ70PHAT":"RAC-VJ70PHAT/RAK-VJ70PHAT","TAC-10CHSD-VEIH":"TAC-10CHSD/VEIH","TAC-13CHSD-VEIH":"TAC-13CHSD/VEIH","TAC-18CHSD-VEIH":"TAC-18CHSD/VEIH","TAC-24CHSD-VEIH":"TAC-24CHSD/VEIH","RXM20YVMA - FTXM20YVMA":"RXM20YVMA / FTXM20YVMA","RXM25YVMA - FTXM25YVMA":"RXM25YVMA / FTXM25YVMA","RXM35WVMA - FTXM35WVMA":"RXM35WVMA / FTXM35WVMA","RXM50WVMA - FTXM50WVMA":"RXM50WVMA / FTXM50WVMA","RXM60WVMA - FTXM60WVMA":"RXM60WVMA / FTXM60WVMA","RXM71WVMA - FTXM71WVMA":"RXM71WVMA / FTXM71WVMA","SRC20ZSXA-W-SRK20ZSXA-WF":"SRC20ZSXA-W/SRK20ZSXA-WF","SRC25ZSXA-W-SRK25ZSXA-WF":"SRC25ZSXA-W/SRK25ZSXA-WF","SRC35ZSXA-W-SRK35ZSXA-WF":"SRC35ZSXA-W/SRK35ZSXA-WF","SRC50ZSXA-W-SRK50ZSXA-WF":"SRC50ZSXA-W/SRK50ZSXA-WF","SRC60ZSXA-W-SRK60ZSXA-WF":"SRC60ZSXA-W/SRK60ZSXA-WF","SRC95ZRA-W - SRK95ZRA-WF1":"SRC95ZRA-W / SRK95ZRA-WF1","DXC24ZRA-W / DXK24ZRA-WF1":"DXC24ZRA-W - DXK24ZRA-WF1","HONRPX25-HINRPX25M":"HONRPX25/HINRPX25M","HONRPX35-HINRPX35M":"HONRPX35/HINRPX35M","HONRPX50-HINRPX50M":"HONRPX50/HINRPX50M","HONRPX60-HINRPX60M":"HONRPX60/HINRPX60M","HONRPX70-HINRPX70M":"HONRPX70/HINRPX70M","HONRPX80-HINRPX80M":"HONRPX80/HINRPX80M"};
 Object.assign(MODEL_ALIASES,{
@@ -1969,7 +2173,7 @@ function rebateLookupModelCandidates(m){
   return [...new Set([displayModel,...aliasList])].filter(Boolean);
 }
 function applyProductModelDisplayAliases(){
-  [SPLIT_PRODUCTS,DUCTED_PRODUCTS].forEach(list=>{
+  [SPLIT_PRODUCTS,DUCTED_PRODUCTS,ANDOS_SPLIT_PRODUCTS,ANDOS_DUCTED_PRODUCTS].forEach(list=>{
     list.forEach(p=>{
       p.brand=productDisplayBrandName(p.brand);
       p.model=normaliseModelName(p.model);
@@ -3620,14 +3824,21 @@ function render(){
 }
 
 
-function managedProductKey(type,index){return `${type}|${index}`;}
-function legacyProductKey(type,p){return `${type}|${p.brand}|${p.model}`;}
+function managedProductKey(type,index){
+  const catalog=activeCatalogKey();
+  return catalog==='default'?`${type}|${index}`:`${catalog}|${type}|${index}`;
+}
+function legacyProductKey(type,p){
+  const key=`${type}|${p.brand}|${p.model}`;
+  const catalog=activeCatalogKey();
+  return catalog==='default'?key:`${catalog}|${key}`;
+}
 function allManagedProducts(){return [
-  ...SPLIT_PRODUCTS.map((p,i)=>({type:'split', label:'Split', index:i, key:managedProductKey('split',i), p})),
-  ...DUCTED_PRODUCTS.map((p,i)=>({type:'ducted', label:'Ducted', index:i, key:managedProductKey('ducted',i), p}))
+  ...productListFor('split').map((p,i)=>({type:'split', label:'Split', index:i, key:managedProductKey('split',i), p})),
+  ...productListFor('ducted').map((p,i)=>({type:'ducted', label:'Ducted', index:i, key:managedProductKey('ducted',i), p}))
 ].filter(item=>!item.p.deprecated);}
 function managedKeyForProduct(type,p){
-  const list=type==='split'?SPLIT_PRODUCTS:DUCTED_PRODUCTS;
+  const list=productListFor(type);
   const index=list.indexOf(p);
   return index>=0?managedProductKey(type,index):null;
 }
@@ -3677,7 +3888,9 @@ function savedManagedModelNorm(saved){
 }
 function managedStoredTypeFromKey(key){
   const parts=String(key||'').split('|');
-  if(parts[0]==='split' || parts[0]==='ducted') return parts[0];
+  const catalog=activeCatalogKey();
+  if(catalog==='default' && parts.length===2 && (parts[0]==='split' || parts[0]==='ducted')) return parts[0];
+  if(catalog!=='default' && parts.length===3 && parts[0]===catalog && (parts[1]==='split' || parts[1]==='ducted')) return parts[1];
   return '';
 }
 function buildManagedStoredModelMap(stored,items){
@@ -4000,7 +4213,7 @@ function quoteStateDisablesRebates(r){
 function savedQuoteProduct(r){
   const s=(r && r.state && typeof r.state==='object')?r.state:{};
   const type=String(s.systemType || r.type || '').toLowerCase()==='ducted'?'ducted':'split';
-  const list=type==='ducted'?DUCTED_PRODUCTS:SPLIT_PRODUCTS;
+  const list=productListFor(type);
   const lookup=Object.assign({}, s, {
     systemType:type,
     brand:s.brand!==undefined?s.brand:r.brand,
@@ -4191,8 +4404,15 @@ function openDrawer(){$('drawer').classList.add('open'); $('overlay').classList.
 function closeDrawer(){$('drawer').classList.remove('open'); if(!$('priceDrawer').classList.contains('open') && !$('certDrawer').classList.contains('open')) $('overlay').classList.remove('open')}
 function parseManagedIndexFromKey(key,expectedType){
   const parts=String(key||'').split('|');
-  if(parts.length!==2 || parts[0]!==expectedType) return -1;
-  const idx=Number(parts[1]);
+  const catalog=activeCatalogKey();
+  let idx=-1;
+  if(catalog==='default'){
+    if(parts.length!==2 || parts[0]!==expectedType) return -1;
+    idx=Number(parts[1]);
+  }else{
+    if(parts.length!==3 || parts[0]!==catalog || parts[1]!==expectedType) return -1;
+    idx=Number(parts[2]);
+  }
   return Number.isInteger(idx) && idx>=0 ? idx : -1;
 }
 function productLookupIndexFromState(s,list){
