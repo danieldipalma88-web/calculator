@@ -45,12 +45,18 @@ type CalculatorDataRow = {
   updated_at?: string | null;
 };
 
+type CalculatorBackupDataRow = CalculatorDataRow & {
+  id: string;
+  created_at?: string | null;
+};
+
 type WonOption = {
   userEmail: string;
   userName: string;
   businessName: string;
   dataUserId: string;
   sourceId: string;
+  recoveredFromBackup: boolean;
   optionId: string;
   optionName: string;
   wonAt: string;
@@ -757,6 +763,7 @@ function wonExportRow(option: WonOption) {
     Email: option.userEmail,
     Business: option.businessName,
     Option: option.optionName,
+    Source: option.recoveredFromBackup ? "Recovered backup" : "Current calculator data",
     "Won date": formatShortDate(option.wonAt),
     Status: option.paymentStatusLabel,
     "Paid in date": formatShortDate(option.paidInAt),
@@ -989,6 +996,7 @@ function addWonOptionsFromSnapshot({
   optionDefs,
   quotes,
   sourceId,
+  recoveredFromBackup = false,
   updatedAt,
 }: {
   wonOptions: Map<string, WonOption>;
@@ -999,6 +1007,7 @@ function addWonOptionsFromSnapshot({
   optionDefs: Record<string, unknown>[];
   quotes: Record<string, unknown>[];
   sourceId: string;
+  recoveredFromBackup?: boolean;
   updatedAt: string;
 }) {
   optionDefs
@@ -1033,7 +1042,10 @@ function addWonOptionsFromSnapshot({
         netProfit: moneyValue(quote.netProfit),
       }));
       const existing = wonOptions.get(key);
-      if (existing && (existing.rows.length || !wonRows.length)) return;
+      if (existing) {
+        if (existing.rows.length || !wonRows.length) return;
+        if (!existing.recoveredFromBackup && recoveredFromBackup) return;
+      }
 
       wonOptions.set(key, {
         userEmail: email,
@@ -1045,6 +1057,7 @@ function addWonOptionsFromSnapshot({
           "No business",
         dataUserId,
         sourceId,
+        recoveredFromBackup,
         optionId,
         optionName: String(option.name || "Option"),
         wonAt,
@@ -1078,6 +1091,12 @@ async function listWonOptions(supabase: SupabaseServer, users: ApprovedUser[]) {
     return { data: [] as WonOption[], errorMessage: dbMessage(dataResult.error) };
   }
 
+  const backupResult = await supabase
+    .from("user_calculator_data_backups")
+    .select("id, user_id, email, data, created_at")
+    .order("created_at", { ascending: false })
+    .limit(1000);
+
   const usersByEmail = new Map(users.map((user) => [user.email.toLowerCase(), user]));
   const usersByName = new Map(
     users
@@ -1086,7 +1105,17 @@ async function listWonOptions(supabase: SupabaseServer, users: ApprovedUser[]) {
   );
   const wonOptions = new Map<string, WonOption>();
 
-  ((dataResult.data || []) as CalculatorDataRow[]).forEach((row) => {
+  function scanCalculatorSnapshot({
+    row,
+    sourcePrefix = "",
+    recoveredFromBackup = false,
+    updatedAt,
+  }: {
+    row: CalculatorDataRow;
+    sourcePrefix?: string;
+    recoveredFromBackup?: boolean;
+    updatedAt: string;
+  }) {
     const fallbackEmail = lookupText(row.email);
     const dataUserId = String(row.user_id || "");
 
@@ -1107,8 +1136,9 @@ async function listWonOptions(supabase: SupabaseServer, users: ApprovedUser[]) {
       dataUserId,
       optionDefs,
       quotes,
-      sourceId: CURRENT_WON_SOURCE_ID,
-      updatedAt: String(row.updated_at || ""),
+      sourceId: `${sourcePrefix}${CURRENT_WON_SOURCE_ID}`,
+      recoveredFromBackup,
+      updatedAt,
     });
 
     const savedQuoteSets = parseStoredJson<Record<string, unknown>[]>(
@@ -1124,15 +1154,36 @@ async function listWonOptions(supabase: SupabaseServer, users: ApprovedUser[]) {
         dataUserId,
         optionDefs: Array.isArray(savedQuoteSet.optionDefs) ? savedQuoteSet.optionDefs as Record<string, unknown>[] : [],
         quotes: Array.isArray(savedQuoteSet.quotes) ? savedQuoteSet.quotes as Record<string, unknown>[] : [],
-        sourceId: savedQuoteSetSourceId(savedQuoteSet, index),
-        updatedAt: String(savedQuoteSet.savedAt || row.updated_at || ""),
+        sourceId: `${sourcePrefix}${savedQuoteSetSourceId(savedQuoteSet, index)}`,
+        recoveredFromBackup,
+        updatedAt: String(savedQuoteSet.savedAt || updatedAt || ""),
       });
+    });
+  }
+
+  ((dataResult.data || []) as CalculatorDataRow[]).forEach((row) => {
+    scanCalculatorSnapshot({
+      row,
+      updatedAt: String(row.updated_at || ""),
     });
   });
 
+  if (!backupResult.error) {
+    ((backupResult.data || []) as CalculatorBackupDataRow[]).forEach((row) => {
+      scanCalculatorSnapshot({
+        row,
+        sourcePrefix: `backup:${row.id}:`,
+        recoveredFromBackup: true,
+        updatedAt: String(row.created_at || ""),
+      });
+    });
+  }
+
+  const backupErrorMessage = backupResult.error ? dbMessage(backupResult.error) : "";
+
   return {
     data: [...wonOptions.values()].sort((a, b) => Number(new Date(b.wonAt)) - Number(new Date(a.wonAt))),
-    errorMessage: "",
+    errorMessage: backupErrorMessage ? `Backup won options were not checked: ${backupErrorMessage}` : "",
   };
 }
 
@@ -2020,63 +2071,68 @@ export default async function AdminUsersPage({
                     <span className="locked-pill">
                       {option.wonAt ? formatShortDate(option.wonAt) : "Won"}
                     </span>
-                    {option.paymentStatus === "not_paid_in" ? (
-                      <form action={updateWonPaymentStatus}>
-                        <input type="hidden" name="userEmail" value={option.userEmail} />
-                        <input type="hidden" name="dataUserId" value={option.dataUserId} />
-                        <input type="hidden" name="sourceId" value={option.sourceId} />
-                        <input type="hidden" name="optionId" value={option.optionId} />
-                        <input type="hidden" name="paymentMode" value="paid_in" />
-                        <button className="secondary" type="submit">
-                          Mark paid in
-                        </button>
-                      </form>
+                    {option.recoveredFromBackup ? <span className="locked-pill">Recovered backup</span> : null}
+                    {!option.recoveredFromBackup ? (
+                      <>
+                        {option.paymentStatus === "not_paid_in" ? (
+                          <form action={updateWonPaymentStatus}>
+                            <input type="hidden" name="userEmail" value={option.userEmail} />
+                            <input type="hidden" name="dataUserId" value={option.dataUserId} />
+                            <input type="hidden" name="sourceId" value={option.sourceId} />
+                            <input type="hidden" name="optionId" value={option.optionId} />
+                            <input type="hidden" name="paymentMode" value="paid_in" />
+                            <button className="secondary" type="submit">
+                              Mark paid in
+                            </button>
+                          </form>
+                        ) : null}
+                        {option.paymentStatus !== "paid_out" ? (
+                          <form action={updateWonPaymentStatus}>
+                            <input type="hidden" name="userEmail" value={option.userEmail} />
+                            <input type="hidden" name="dataUserId" value={option.dataUserId} />
+                            <input type="hidden" name="sourceId" value={option.sourceId} />
+                            <input type="hidden" name="optionId" value={option.optionId} />
+                            <input type="hidden" name="paymentMode" value="paid_out" />
+                            <button className="secondary" type="submit">
+                              Mark paid out
+                            </button>
+                          </form>
+                        ) : null}
+                        {option.paymentStatus !== "not_paid_in" ? (
+                          <form action={updateWonPaymentStatus}>
+                            <input type="hidden" name="userEmail" value={option.userEmail} />
+                            <input type="hidden" name="dataUserId" value={option.dataUserId} />
+                            <input type="hidden" name="sourceId" value={option.sourceId} />
+                            <input type="hidden" name="optionId" value={option.optionId} />
+                            <input type="hidden" name="paymentMode" value="reset_payment" />
+                            <button className="secondary" type="submit">
+                              Reset payment
+                            </button>
+                          </form>
+                        ) : null}
+                        <form action={unlockWonOption}>
+                          <input type="hidden" name="userEmail" value={option.userEmail} />
+                          <input type="hidden" name="dataUserId" value={option.dataUserId} />
+                          <input type="hidden" name="sourceId" value={option.sourceId} />
+                          <input type="hidden" name="optionId" value={option.optionId} />
+                          <button className="secondary" type="submit">
+                            Unlock
+                          </button>
+                        </form>
+                        <details className="delete-confirm">
+                          <summary>Delete</summary>
+                          <form action={deleteWonOption}>
+                            <input type="hidden" name="userEmail" value={option.userEmail} />
+                            <input type="hidden" name="dataUserId" value={option.dataUserId} />
+                            <input type="hidden" name="sourceId" value={option.sourceId} />
+                            <input type="hidden" name="optionId" value={option.optionId} />
+                            <button className="danger" type="submit">
+                              Confirm delete
+                            </button>
+                          </form>
+                        </details>
+                      </>
                     ) : null}
-                    {option.paymentStatus !== "paid_out" ? (
-                      <form action={updateWonPaymentStatus}>
-                        <input type="hidden" name="userEmail" value={option.userEmail} />
-                        <input type="hidden" name="dataUserId" value={option.dataUserId} />
-                        <input type="hidden" name="sourceId" value={option.sourceId} />
-                        <input type="hidden" name="optionId" value={option.optionId} />
-                        <input type="hidden" name="paymentMode" value="paid_out" />
-                        <button className="secondary" type="submit">
-                          Mark paid out
-                        </button>
-                      </form>
-                    ) : null}
-                    {option.paymentStatus !== "not_paid_in" ? (
-                      <form action={updateWonPaymentStatus}>
-                        <input type="hidden" name="userEmail" value={option.userEmail} />
-                        <input type="hidden" name="dataUserId" value={option.dataUserId} />
-                        <input type="hidden" name="sourceId" value={option.sourceId} />
-                        <input type="hidden" name="optionId" value={option.optionId} />
-                        <input type="hidden" name="paymentMode" value="reset_payment" />
-                        <button className="secondary" type="submit">
-                          Reset payment
-                        </button>
-                      </form>
-                    ) : null}
-                    <form action={unlockWonOption}>
-                      <input type="hidden" name="userEmail" value={option.userEmail} />
-                      <input type="hidden" name="dataUserId" value={option.dataUserId} />
-                      <input type="hidden" name="sourceId" value={option.sourceId} />
-                      <input type="hidden" name="optionId" value={option.optionId} />
-                      <button className="secondary" type="submit">
-                        Unlock
-                      </button>
-                    </form>
-                    <details className="delete-confirm">
-                      <summary>Delete</summary>
-                      <form action={deleteWonOption}>
-                        <input type="hidden" name="userEmail" value={option.userEmail} />
-                        <input type="hidden" name="dataUserId" value={option.dataUserId} />
-                        <input type="hidden" name="sourceId" value={option.sourceId} />
-                        <input type="hidden" name="optionId" value={option.optionId} />
-                        <button className="danger" type="submit">
-                          Confirm delete
-                        </button>
-                      </form>
-                    </details>
                   </div>
                 </div>
                 <div className="won-metrics">
