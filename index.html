@@ -3984,6 +3984,57 @@ function savedMiscInc(r){
 function savedMaterialsInc(r){
   return (r.materialsInc!==undefined)?Number(r.materialsInc):Number(r.matsEx||0)*1.1;
 }
+function finiteMoneyNumber(value){
+  if(value===undefined || value===null || value==='') return null;
+  const n=Number(value);
+  return Number.isFinite(n)?n:null;
+}
+function quoteStateDisablesRebates(r){
+  const s=(r && r.state && typeof r.state==='object')?r.state:{};
+  if(s.rebatesEnabled===false) return true;
+  const scheme=String(s.rebateScheme||'').toLowerCase();
+  if(scheme==='none' || scheme==='veu') return true;
+  const operatingState=String(s.businessOperatingState||'').toUpperCase();
+  return !!(operatingState && operatingState!=='NSW');
+}
+function savedQuoteProduct(r){
+  const s=(r && r.state && typeof r.state==='object')?r.state:{};
+  const type=String(s.systemType || r.type || '').toLowerCase()==='ducted'?'ducted':'split';
+  const list=type==='ducted'?DUCTED_PRODUCTS:SPLIT_PRODUCTS;
+  const lookup=Object.assign({}, s, {
+    systemType:type,
+    brand:s.brand!==undefined?s.brand:r.brand,
+    model:s.model!==undefined?s.model:r.model,
+    capacityNum:s.capacityNum!==undefined?s.capacityNum:Number(String(r.size||'').replace(/[^0-9.]/g,''))
+  });
+  const idx=productLookupIndexFromState(lookup,list);
+  return idx>=0?list[idx]:null;
+}
+function savedQuoteProductRebate(r){
+  if(quoteStateDisablesRebates(r)) return 0;
+  const p=savedQuoteProduct(r);
+  const n=finiteMoneyNumber(p && p.rebate);
+  return n!==null?n:0;
+}
+function savedQuoteStoredRebate(r){
+  if(quoteStateDisablesRebates(r)) return 0;
+  const s=(r && r.state && typeof r.state==='object')?r.state:{};
+  const candidates=[
+    r && r.rebate,
+    r && r.rebateAmount,
+    r && r.rebateInc,
+    s.rebate,
+    s.rebateAmount,
+    s.rebateInc,
+    s.savedRebate
+  ];
+  const numbers=candidates.map(finiteMoneyNumber).filter(n=>n!==null);
+  const positive=numbers.find(n=>Math.abs(n)>0.0001);
+  if(positive!==undefined) return positive;
+  const productRebate=savedQuoteProductRebate(r);
+  if(Math.abs(productRebate)>0.0001) return productRebate;
+  return numbers.length?numbers[0]:0;
+}
 function recomputeSavedQuote(r){
   const unitInc=Number(r.unitInc)||0;
   const unitEx=unitInc/1.1;
@@ -4000,7 +4051,8 @@ function recomputeSavedQuote(r){
   if(!isSplit && r.state && r.state.airtouch==='yes'){
     addons=1100+(Number(r.state.sensors)||0)*82+(Number(r.state.zones)||0)*65;
   }
-  const rebate=rebatesEnabled()?(Number(r.rebate)||0):0;
+  const storedRebate=savedQuoteStoredRebate(r);
+  const rebate=rebatesEnabled()?storedRebate:0;
   const finalInc=Number(r.finalInc)||0;
   const sellEx=finalInc/1.1;
   const trueCost=unitEx+labour+matsEx+miscEx+service+addons;
@@ -4031,7 +4083,10 @@ function recomputeSavedQuote(r){
   r.materialsInc=materialsInc;
   r.matsEx=matsEx;
   r.miscInc=miscInc;
-  r.rebate=rebate;
+  r.rebate=storedRebate;
+  if(r.state && typeof r.state==='object' && !quoteStateDisablesRebates(r) && Math.abs(storedRebate)>0.0001){
+    r.state.rebate=String(Math.round(storedRebate*100)/100);
+  }
   r.otherEx=miscEx+service+addons;
   r.trueCost=trueCost;
   r.cashProfit=cashProfit;

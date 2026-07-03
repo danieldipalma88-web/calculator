@@ -598,6 +598,30 @@ function moneyValue(value: unknown) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function quoteStateDisablesRebates(row: Record<string, unknown>) {
+  const state = row.state && typeof row.state === "object" ? row.state as Record<string, unknown> : {};
+  if (state.rebatesEnabled === false) return true;
+  const scheme = String(state.rebateScheme || "").toLowerCase();
+  if (scheme === "none" || scheme === "veu") return true;
+  const operatingState = String(state.businessOperatingState || "").toUpperCase();
+  return Boolean(operatingState && operatingState !== "NSW");
+}
+
+function quoteRebateValue(row: Record<string, unknown>) {
+  if (quoteStateDisablesRebates(row)) return 0;
+  const state = row.state && typeof row.state === "object" ? row.state as Record<string, unknown> : {};
+  const values = [
+    row.rebate,
+    row.rebateAmount,
+    row.rebateInc,
+    state.rebate,
+    state.rebateAmount,
+    state.rebateInc,
+    state.savedRebate,
+  ].map(moneyValue);
+  return values.find((value) => Math.abs(value) > 0.0001) || 0;
+}
+
 function quoteMaterialsInc(row: Record<string, unknown>) {
   if (row.materialsInc !== undefined) return moneyValue(row.materialsInc);
   return moneyValue(row.matsEx) * 1.1;
@@ -975,7 +999,7 @@ async function listWonOptions(supabase: SupabaseServer, users: ApprovedUser[]) {
           label: optionRowLabel(quote) || String(quote.model || "System"),
           install: String(quote.install || ""),
           finalInc: moneyValue(quote.finalInc),
-          rebate: moneyValue(quote.rebate),
+          rebate: quoteRebateValue(quote),
           agencyCommissionInc: moneyValue(quote.agencyCommissionInc ?? quote.commissionInc),
           salespersonCommissionInc: moneyValue(quote.salespersonCommissionInc),
           netProfit: moneyValue(quote.netProfit),
@@ -998,7 +1022,7 @@ async function listWonOptions(supabase: SupabaseServer, users: ApprovedUser[]) {
           paymentStatusLabel: wonPaymentStatusLabel(paymentStatus),
           systemCount: rows.length,
           customerTotal: rows.reduce((sum, quote) => sum + moneyValue(quote.finalInc), 0),
-          rebateTotal: rows.reduce((sum, quote) => sum + moneyValue(quote.rebate), 0),
+          rebateTotal: rows.reduce((sum, quote) => sum + quoteRebateValue(quote), 0),
           agencyCommissionTotal: rows.reduce(
             (sum, quote) => sum + moneyValue(quote.agencyCommissionInc ?? quote.commissionInc),
             0,
