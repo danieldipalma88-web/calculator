@@ -908,20 +908,26 @@ function wonExportScript() {
     refreshBulkInputs();
     updateWonFilterStatus(activeEmails);
   }
+  function toggleSalespersonCard(card) {
+    if (!card) return;
+    card.classList.toggle("is-active");
+    card.setAttribute("aria-pressed", card.classList.contains("is-active") ? "true" : "false");
+    applyWonSalespersonFilter();
+  }
   Array.prototype.slice.call(document.querySelectorAll("[data-salesperson-filter]")).forEach(function(card){
-    if (card.getAttribute("data-won-filter-ready") === "true") return;
-    card.setAttribute("data-won-filter-ready", "true");
-    function toggleCard() {
-      card.classList.toggle("is-active");
-      card.setAttribute("aria-pressed", card.classList.contains("is-active") ? "true" : "false");
-      applyWonSalespersonFilter();
-    }
-    card.addEventListener("click", toggleCard);
-    card.addEventListener("keydown", function(event){
-      if (event.key !== "Enter" && event.key !== " ") return;
-      event.preventDefault();
-      toggleCard();
-    });
+    card.setAttribute("aria-pressed", card.classList.contains("is-active") ? "true" : "false");
+  });
+  document.addEventListener("click", function(event){
+    var target = event.target && event.target.closest ? event.target.closest("[data-salesperson-filter]") : null;
+    if (!target) return;
+    toggleSalespersonCard(target);
+  });
+  document.addEventListener("keydown", function(event){
+    if (event.key !== "Enter" && event.key !== " ") return;
+    var target = event.target && event.target.closest ? event.target.closest("[data-salesperson-filter]") : null;
+    if (!target) return;
+    event.preventDefault();
+    toggleSalespersonCard(target);
   });
   if (selectAll) {
     selectAll.addEventListener("click", function(){
@@ -977,7 +983,8 @@ function wonExportScript() {
       }
     });
   });
-  Array.prototype.slice.call(document.querySelectorAll("[data-confirm-message]:not([data-bulk-won-form])")).forEach(function(form){
+  Array.prototype.slice.call(document.querySelectorAll("[data-confirm-message]")).forEach(function(form){
+    if (form.hasAttribute("data-bulk-won-form")) return;
     form.addEventListener("submit", function(event){
       var message = form.getAttribute("data-confirm-message");
       if (message && !window.confirm(message)) {
@@ -1041,6 +1048,10 @@ function wonOptionKey(email: string, optionId: string, wonAt: string) {
   return `${email}|${optionId}|${wonAt}`;
 }
 
+function wonOptionId(option: Record<string, unknown>) {
+  return String(option.id || "option_1");
+}
+
 function addWonOptionsFromSnapshot({
   wonOptions,
   usersByEmail,
@@ -1067,7 +1078,7 @@ function addWonOptionsFromSnapshot({
   optionDefs
     .filter((option) => option && option.wonAt)
     .forEach((option) => {
-      const optionId = String(option.id || "");
+      const optionId = wonOptionId(option);
       const wonAt = String(option.wonAt || updatedAt || "");
       const rows = quotes.filter((quote) => String(quote.optionId || "option_1") === optionId);
       const rowWonByEmail = rows.map((quote) => quote.wonByEmail).find(Boolean);
@@ -1260,10 +1271,10 @@ async function updateWonOptionState(
     const targetIds = new Set(
       optionDefs
         .filter((option) => {
-          if (String(option.id || "") !== optionId) return false;
+          if (wonOptionId(option) !== optionId) return false;
           return !wonAt || String(option.wonAt || "") === wonAt;
         })
-        .map((option) => String(option.id || "")),
+        .map(wonOptionId),
     );
     if (!targetIds.size) return null;
 
@@ -1271,12 +1282,12 @@ async function updateWonOptionState(
     let nextQuotes: Record<string, unknown>[];
 
     if (mode === "delete") {
-      nextOptionDefs = optionDefs.filter((option) => !targetIds.has(String(option.id || "")));
+      nextOptionDefs = optionDefs.filter((option) => !targetIds.has(wonOptionId(option)));
       nextQuotes = quotes.filter((quote) => !targetIds.has(String(quote.optionId || "option_1")));
       if (!nextOptionDefs.length) nextOptionDefs = [{ id: "option_1", name: "Option 1" }];
     } else if (mode === "unlock") {
       nextOptionDefs = optionDefs.map((option) => {
-        if (!targetIds.has(String(option.id || ""))) return option;
+        if (!targetIds.has(wonOptionId(option))) return option;
         const next = clearWonPaymentFields(option);
         delete next.wonAt;
         delete next.wonByEmail;
@@ -1293,7 +1304,7 @@ async function updateWonOptionState(
       });
     } else {
       nextOptionDefs = optionDefs.map((option) =>
-        targetIds.has(String(option.id || "")) ? applyWonPaymentFields(option, mode, adminEmail) : option,
+        targetIds.has(wonOptionId(option)) ? applyWonPaymentFields(option, mode, adminEmail) : option,
       );
       nextQuotes = quotes.map((quote) =>
         targetIds.has(String(quote.optionId || "option_1"))
