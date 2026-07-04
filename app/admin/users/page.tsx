@@ -55,6 +55,7 @@ type WonOption = {
   userName: string;
   businessName: string;
   dataUserId: string;
+  dataOwnerEmail: string;
   sourceId: string;
   recoveredFromBackup: boolean;
   optionId: string;
@@ -713,8 +714,8 @@ function wonPaymentStatusLabel(status: WonPaymentStatus) {
   return "Not paid in";
 }
 
-function wonOptionDomKey(option: Pick<WonOption, "userEmail" | "dataUserId" | "sourceId" | "optionId" | "wonAt">) {
-  return `${option.userEmail}-${option.dataUserId}-${option.sourceId}-${option.optionId}-${option.wonAt}`;
+function wonOptionDomKey(option: Pick<WonOption, "userEmail" | "dataUserId" | "dataOwnerEmail" | "sourceId" | "optionId" | "wonAt">) {
+  return `${option.userEmail}-${option.dataUserId}-${option.dataOwnerEmail}-${option.sourceId}-${option.optionId}-${option.wonAt}`;
 }
 
 function clearWonPaymentFields(record: Record<string, unknown>) {
@@ -1044,8 +1045,8 @@ function backupSourceParts(sourceId: string) {
   return match ? { backupId: match[1], sourceId: match[2] } : null;
 }
 
-function wonOptionKey(email: string, optionId: string, wonAt: string) {
-  return `${email}|${optionId}|${wonAt}`;
+function wonOptionKey(email: string, dataOwnerEmail: string, dataUserId: string, optionId: string, wonAt: string) {
+  return `${dataUserId || dataOwnerEmail || email}|${email}|${optionId}|${wonAt}`;
 }
 
 function wonOptionId(option: Record<string, unknown>) {
@@ -1081,6 +1082,7 @@ function addWonOptionsFromSnapshot({
       const optionId = wonOptionId(option);
       const wonAt = String(option.wonAt || updatedAt || "");
       const rows = quotes.filter((quote) => String(quote.optionId || "option_1") === optionId);
+      const dataOwnerEmail = fallbackEmail;
       const rowWonByEmail = rows.map((quote) => quote.wonByEmail).find(Boolean);
       const rowWonByName = rows.map((quote) => quote.wonByName).find(Boolean);
       const wonByEmail = lookupText(option.wonByEmail || rowWonByEmail);
@@ -1090,7 +1092,7 @@ function addWonOptionsFromSnapshot({
       if (!email) return;
 
       const user = usersByEmail.get(email) || userFromName;
-      const key = wonOptionKey(email, optionId, wonAt);
+      const key = wonOptionKey(email, dataOwnerEmail, dataUserId, optionId, wonAt);
       const paidInAt = String(option.agencyPaidInAt || option.paidInAt || "");
       const paidOutAt = String(option.salespersonPaidOutAt || option.paidOutAt || "");
       const paymentStatus = wonPaymentStatus(paidInAt, paidOutAt);
@@ -1121,6 +1123,7 @@ function addWonOptionsFromSnapshot({
           user?.business_name ||
           "No business",
         dataUserId,
+        dataOwnerEmail,
         sourceId,
         recoveredFromBackup,
         optionId,
@@ -1260,9 +1263,12 @@ async function updateWonOptionState(
   adminEmail = "",
   sourceId = CURRENT_WON_SOURCE_ID,
   dataUserId = "",
+  dataOwnerEmail = "",
   wonAt = "",
 ) {
-  const email = userEmail.toLowerCase();
+  const ownerEmail = (dataOwnerEmail || userEmail).toLowerCase();
+  const ownerColumn = dataUserId ? "user_id" : "email";
+  const ownerValue = dataUserId || ownerEmail;
 
   function updateOptionCollections(
     optionDefs: Record<string, unknown>[],
@@ -1396,7 +1402,7 @@ async function updateWonOptionState(
     let currentQuery = supabase
       .from("user_calculator_data")
       .select("user_id, data");
-    currentQuery = dataUserId ? currentQuery.eq("user_id", dataUserId) : currentQuery.eq("email", email);
+    currentQuery = currentQuery.eq(ownerColumn, ownerValue);
     const currentResult = await currentQuery.maybeSingle();
     if (currentResult.error) return dbMessage(currentResult.error);
     if (currentResult.data?.data) {
@@ -1405,7 +1411,7 @@ async function updateWonOptionState(
         let updateQuery = supabase
           .from("user_calculator_data")
           .update({ data: next.data, updated_at: new Date().toISOString() });
-        updateQuery = dataUserId ? updateQuery.eq("user_id", dataUserId) : updateQuery.eq("email", email);
+        updateQuery = updateQuery.eq(ownerColumn, ownerValue);
         const updateResult = await updateQuery;
         if (updateResult.error) return dbMessage(updateResult.error);
         updatedCount += 1;
@@ -1415,7 +1421,7 @@ async function updateWonOptionState(
     let backupsQuery = supabase
       .from("user_calculator_data_backups")
       .select("id, user_id, email, data");
-    backupsQuery = dataUserId ? backupsQuery.eq("user_id", dataUserId) : backupsQuery.eq("email", email);
+    backupsQuery = backupsQuery.eq(ownerColumn, ownerValue);
     const backupsResult = await backupsQuery;
     if (backupsResult.error) return dbMessage(backupsResult.error);
 
@@ -1459,7 +1465,7 @@ async function updateWonOptionState(
   let dataQuery = supabase
     .from("user_calculator_data")
     .select("user_id, data");
-  dataQuery = dataUserId ? dataQuery.eq("user_id", dataUserId) : dataQuery.eq("email", email);
+  dataQuery = dataQuery.eq(ownerColumn, ownerValue);
   const dataResult = await dataQuery.maybeSingle();
 
   if (dataResult.error) return dbMessage(dataResult.error);
@@ -1473,7 +1479,7 @@ async function updateWonOptionState(
   let updateQuery = supabase
     .from("user_calculator_data")
     .update({ data: next.data, updated_at: new Date().toISOString() });
-  updateQuery = dataUserId ? updateQuery.eq("user_id", dataUserId) : updateQuery.eq("email", email);
+  updateQuery = updateQuery.eq(ownerColumn, ownerValue);
   const updateResult = await updateQuery;
 
   return updateResult.error ? dbMessage(updateResult.error) : "";
@@ -1634,13 +1640,14 @@ async function unlockWonOption(formData: FormData) {
   const optionId = normalizeText(formData.get("optionId"));
   const sourceId = normalizeText(formData.get("sourceId")) || CURRENT_WON_SOURCE_ID;
   const dataUserId = normalizeText(formData.get("dataUserId"));
+  const dataOwnerEmail = normalizeEmail(formData.get("dataOwnerEmail"));
   const wonAt = normalizeText(formData.get("wonAt"));
 
   if (!userEmail || !optionId) {
     redirect("/admin/users?error=Could not identify the won option to unlock.");
   }
 
-  const errorMessage = await updateWonOptionState(supabase, userEmail, optionId, "unlock", "", sourceId, dataUserId, wonAt);
+  const errorMessage = await updateWonOptionState(supabase, userEmail, optionId, "unlock", "", sourceId, dataUserId, dataOwnerEmail, wonAt);
 
   if (errorMessage) {
     redirect(`/admin/users?error=${encodeURIComponent(errorMessage)}`);
@@ -1658,13 +1665,14 @@ async function deleteWonOption(formData: FormData) {
   const optionId = normalizeText(formData.get("optionId"));
   const sourceId = normalizeText(formData.get("sourceId")) || CURRENT_WON_SOURCE_ID;
   const dataUserId = normalizeText(formData.get("dataUserId"));
+  const dataOwnerEmail = normalizeEmail(formData.get("dataOwnerEmail"));
   const wonAt = normalizeText(formData.get("wonAt"));
 
   if (!userEmail || !optionId) {
     redirect("/admin/users?error=Could not identify the won option to delete.");
   }
 
-  const errorMessage = await updateWonOptionState(supabase, userEmail, optionId, "delete", "", sourceId, dataUserId, wonAt);
+  const errorMessage = await updateWonOptionState(supabase, userEmail, optionId, "delete", "", sourceId, dataUserId, dataOwnerEmail, wonAt);
 
   if (errorMessage) {
     redirect(`/admin/users?error=${encodeURIComponent(errorMessage)}`);
@@ -1682,6 +1690,7 @@ async function updateWonPaymentStatus(formData: FormData) {
   const optionId = normalizeText(formData.get("optionId"));
   const sourceId = normalizeText(formData.get("sourceId")) || CURRENT_WON_SOURCE_ID;
   const dataUserId = normalizeText(formData.get("dataUserId"));
+  const dataOwnerEmail = normalizeEmail(formData.get("dataOwnerEmail"));
   const wonAt = normalizeText(formData.get("wonAt"));
   const mode = String(formData.get("paymentMode") || "");
 
@@ -1701,6 +1710,7 @@ async function updateWonPaymentStatus(formData: FormData) {
     adminEmail,
     sourceId,
     dataUserId,
+    dataOwnerEmail,
     wonAt,
   );
 
@@ -1722,6 +1732,7 @@ async function updateWonPaymentStatus(formData: FormData) {
 type WonOptionSelection = {
   userEmail: string;
   dataUserId: string;
+  dataOwnerEmail: string;
   sourceId: string;
   optionId: string;
   wonAt: string;
@@ -1747,6 +1758,7 @@ function parseWonOptionSelections(value: FormDataEntryValue | null) {
     const selection = {
       userEmail: String(record.userEmail || "").trim().toLowerCase(),
       dataUserId: String(record.dataUserId || "").trim(),
+      dataOwnerEmail: String(record.dataOwnerEmail || "").trim().toLowerCase(),
       sourceId: String(record.sourceId || CURRENT_WON_SOURCE_ID).trim() || CURRENT_WON_SOURCE_ID,
       optionId: String(record.optionId || "").trim(),
       wonAt: String(record.wonAt || "").trim(),
@@ -1755,6 +1767,7 @@ function parseWonOptionSelections(value: FormDataEntryValue | null) {
     const key = [
       selection.userEmail,
       selection.dataUserId,
+      selection.dataOwnerEmail,
       selection.sourceId,
       selection.optionId,
       selection.wonAt,
@@ -1792,6 +1805,7 @@ async function bulkUpdateWonOptions(formData: FormData) {
       adminEmail,
       selection.sourceId,
       selection.dataUserId,
+      selection.dataOwnerEmail,
       selection.wonAt,
     );
     if (errorMessage) {
@@ -2391,6 +2405,7 @@ export default async function AdminUsersPage({
                 data-won-selection={JSON.stringify({
                   userEmail: option.userEmail,
                   dataUserId: option.dataUserId,
+                  dataOwnerEmail: option.dataOwnerEmail,
                   sourceId: option.sourceId,
                   optionId: option.optionId,
                   wonAt: option.wonAt,
@@ -2421,6 +2436,7 @@ export default async function AdminUsersPage({
                       <form action={updateWonPaymentStatus}>
                         <input type="hidden" name="userEmail" value={option.userEmail} />
                         <input type="hidden" name="dataUserId" value={option.dataUserId} />
+                        <input type="hidden" name="dataOwnerEmail" value={option.dataOwnerEmail} />
                         <input type="hidden" name="sourceId" value={option.sourceId} />
                         <input type="hidden" name="optionId" value={option.optionId} />
                         <input type="hidden" name="wonAt" value={option.wonAt} />
@@ -2434,6 +2450,7 @@ export default async function AdminUsersPage({
                       <form action={updateWonPaymentStatus}>
                         <input type="hidden" name="userEmail" value={option.userEmail} />
                         <input type="hidden" name="dataUserId" value={option.dataUserId} />
+                        <input type="hidden" name="dataOwnerEmail" value={option.dataOwnerEmail} />
                         <input type="hidden" name="sourceId" value={option.sourceId} />
                         <input type="hidden" name="optionId" value={option.optionId} />
                         <input type="hidden" name="wonAt" value={option.wonAt} />
@@ -2447,6 +2464,7 @@ export default async function AdminUsersPage({
                       <form action={updateWonPaymentStatus}>
                         <input type="hidden" name="userEmail" value={option.userEmail} />
                         <input type="hidden" name="dataUserId" value={option.dataUserId} />
+                        <input type="hidden" name="dataOwnerEmail" value={option.dataOwnerEmail} />
                         <input type="hidden" name="sourceId" value={option.sourceId} />
                         <input type="hidden" name="optionId" value={option.optionId} />
                         <input type="hidden" name="wonAt" value={option.wonAt} />
@@ -2459,6 +2477,7 @@ export default async function AdminUsersPage({
                     <form action={unlockWonOption}>
                       <input type="hidden" name="userEmail" value={option.userEmail} />
                       <input type="hidden" name="dataUserId" value={option.dataUserId} />
+                      <input type="hidden" name="dataOwnerEmail" value={option.dataOwnerEmail} />
                       <input type="hidden" name="sourceId" value={option.sourceId} />
                       <input type="hidden" name="optionId" value={option.optionId} />
                       <input type="hidden" name="wonAt" value={option.wonAt} />
@@ -2474,6 +2493,7 @@ export default async function AdminUsersPage({
                       >
                         <input type="hidden" name="userEmail" value={option.userEmail} />
                         <input type="hidden" name="dataUserId" value={option.dataUserId} />
+                        <input type="hidden" name="dataOwnerEmail" value={option.dataOwnerEmail} />
                         <input type="hidden" name="sourceId" value={option.sourceId} />
                         <input type="hidden" name="optionId" value={option.optionId} />
                         <input type="hidden" name="wonAt" value={option.wonAt} />
