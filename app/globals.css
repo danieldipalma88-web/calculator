@@ -882,7 +882,8 @@ select {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  justify-content: flex-end;
+  align-items: flex-start;
+  justify-content: space-between;
   padding: 10px;
   border: 1px solid rgba(203, 213, 225, 0.85);
   border-radius: 16px;
@@ -892,11 +893,38 @@ select {
   -webkit-backdrop-filter: blur(14px);
 }
 
+.won-toolbar-primary,
+.won-bulk-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.won-toolbar-primary {
+  flex: 0 1 auto;
+}
+
+.won-bulk-actions {
+  flex: 1 1 520px;
+  justify-content: flex-end;
+}
+
 .won-toolbar button {
   min-height: 38px;
   border-radius: 999px;
   padding: 0 14px;
   font-size: 13px;
+}
+
+.won-toolbar .delete-confirm summary {
+  min-height: 38px;
+  border-radius: 999px;
+  padding: 0 14px;
+  font-size: 13px;
+}
+
+.bulk-delete-confirm {
+  flex: 0 0 auto;
 }
 
 .won-card-not_paid_in {
@@ -1176,9 +1204,23 @@ select {
 }
 
 .delete-confirm form {
-  display: flex;
-  justify-content: flex-end;
+  display: grid;
+  gap: 8px;
+  justify-items: start;
   margin-top: 8px;
+}
+
+.delete-warning {
+  max-width: 360px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #fecaca;
+  border-radius: 12px;
+  background: #fff7f7;
+  color: #991b1b;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.4;
 }
 
 @media (max-width: 760px) {
@@ -1299,7 +1341,19 @@ select {
     justify-content: stretch;
   }
 
+  .won-toolbar-primary,
+  .won-bulk-actions,
+  .bulk-delete-confirm {
+    flex: 1 1 100%;
+  }
+
   .won-toolbar button {
     flex: 1 1 160px;
+  }
+
+  .won-toolbar .delete-confirm summary,
+  .bulk-delete-confirm form,
+  .delete-warning {
+    width: 100%;
   }
 }

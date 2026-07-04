@@ -832,6 +832,11 @@ function wonExportScript() {
     try { return JSON.parse(card.getAttribute("data-export-row") || "{}"); }
     catch (error) { return null; }
   }
+  function parseSelectionCard(card) {
+    if (!card) return null;
+    try { return JSON.parse(card.getAttribute("data-won-selection") || "{}"); }
+    catch (error) { return null; }
+  }
   function salespersonCardForEmail(email) {
     return Array.prototype.slice.call(document.querySelectorAll("[data-salesperson-filter]")).find(function(card){
       return String(card.getAttribute("data-salesperson-filter") || "").toLowerCase() === email;
@@ -850,6 +855,23 @@ function wonExportScript() {
       .filter(Boolean);
     var hasVisibleUnchecked = visibleBoxes.some(function(box){ return !box.checked; });
     selectAll.textContent = visibleBoxes.length && !hasVisibleUnchecked ? "Clear visible" : "Select visible";
+  }
+  function selectedWonCards() {
+    return visibleWonCards()
+      .map(function(card){
+        var box = card.querySelector(".won-sale-select:checked");
+        return box ? card : null;
+      })
+      .filter(Boolean);
+  }
+  function selectedWonSelections() {
+    return selectedWonCards().map(parseSelectionCard).filter(Boolean);
+  }
+  function refreshBulkInputs() {
+    var value = JSON.stringify(selectedWonSelections());
+    Array.prototype.slice.call(document.querySelectorAll("[data-selected-won-input]")).forEach(function(input){
+      input.value = value;
+    });
   }
   function updateWonFilterStatus(activeEmails) {
     var status = document.querySelector("[data-won-filter-status]");
@@ -883,6 +905,7 @@ function wonExportScript() {
       }
     });
     updateSelectAllLabel();
+    refreshBulkInputs();
     updateWonFilterStatus(activeEmails);
   }
   Array.prototype.slice.call(document.querySelectorAll("[data-salesperson-filter]")).forEach(function(card){
@@ -908,18 +931,21 @@ function wonExportScript() {
       var shouldCheck = boxes.some(function(box){ return !box.checked; });
       boxes.forEach(function(box){ box.checked = shouldCheck; });
       updateSelectAllLabel();
+      refreshBulkInputs();
     });
   }
+  Array.prototype.slice.call(document.querySelectorAll(".won-sale-select")).forEach(function(box){
+    box.addEventListener("change", function(){
+      updateSelectAllLabel();
+      refreshBulkInputs();
+    });
+  });
   var exportButton = document.querySelector("[data-export-won-selected]");
   if (exportButton) {
     exportButton.addEventListener("click", function(){
       var visibleCards = visibleWonCards();
-      var checked = visibleCards
-        .map(function(card){ return card.querySelector(".won-sale-select:checked"); })
-        .filter(Boolean);
-      var cards = checked.length
-        ? checked.map(function(box){ return box.closest(".won-card"); })
-        : visibleCards;
+      var cards = selectedWonCards();
+      if (!cards.length) cards = visibleCards;
       var rows = cards.map(parseCard).filter(Boolean);
       if (!rows.length) return;
       var headers = Object.keys(rows[0]);
@@ -937,7 +963,30 @@ function wonExportScript() {
       URL.revokeObjectURL(url);
     });
   }
+  Array.prototype.slice.call(document.querySelectorAll("[data-bulk-won-form]")).forEach(function(form){
+    form.addEventListener("submit", function(event){
+      refreshBulkInputs();
+      if (!selectedWonSelections().length) {
+        event.preventDefault();
+        window.alert("Select at least one won option first.");
+        return;
+      }
+      var message = form.getAttribute("data-confirm-message");
+      if (message && !window.confirm(message)) {
+        event.preventDefault();
+      }
+    });
+  });
+  Array.prototype.slice.call(document.querySelectorAll("[data-confirm-message]:not([data-bulk-won-form])")).forEach(function(form){
+    form.addEventListener("submit", function(event){
+      var message = form.getAttribute("data-confirm-message");
+      if (message && !window.confirm(message)) {
+        event.preventDefault();
+      }
+    });
+  });
   applyWonSalespersonFilter();
+  refreshBulkInputs();
 })();
 `;
 }
@@ -981,6 +1030,11 @@ const CURRENT_WON_SOURCE_ID = "current";
 function savedQuoteSetSourceId(set: Record<string, unknown>, index: number) {
   const id = String(set.id || "").trim();
   return id ? `saved:${id}` : `saved-index:${index}`;
+}
+
+function backupSourceParts(sourceId: string) {
+  const match = /^backup:([^:]+):(.+)$/.exec(sourceId);
+  return match ? { backupId: match[1], sourceId: match[2] } : null;
 }
 
 function wonOptionKey(email: string, optionId: string, wonAt: string) {
@@ -1195,36 +1249,34 @@ async function updateWonOptionState(
   adminEmail = "",
   sourceId = CURRENT_WON_SOURCE_ID,
   dataUserId = "",
+  wonAt = "",
 ) {
   const email = userEmail.toLowerCase();
-  let dataQuery = supabase
-    .from("user_calculator_data")
-    .select("user_id, data");
-  dataQuery = dataUserId ? dataQuery.eq("user_id", dataUserId) : dataQuery.eq("email", email);
-  const dataResult = await dataQuery.maybeSingle();
-
-  if (dataResult.error) return dbMessage(dataResult.error);
-  if (!dataResult.data?.data) return "Could not find saved calculator data for this user.";
-
-  const data = { ...(dataResult.data.data as Record<string, unknown>) };
-  let updated = false;
 
   function updateOptionCollections(
     optionDefs: Record<string, unknown>[],
     quotes: Record<string, unknown>[],
   ) {
-    if (!optionDefs.some((option) => String(option.id || "") === optionId)) return null;
+    const targetIds = new Set(
+      optionDefs
+        .filter((option) => {
+          if (String(option.id || "") !== optionId) return false;
+          return !wonAt || String(option.wonAt || "") === wonAt;
+        })
+        .map((option) => String(option.id || "")),
+    );
+    if (!targetIds.size) return null;
 
     let nextOptionDefs: Record<string, unknown>[];
     let nextQuotes: Record<string, unknown>[];
 
     if (mode === "delete") {
-      nextOptionDefs = optionDefs.filter((option) => String(option.id || "") !== optionId);
-      nextQuotes = quotes.filter((quote) => String(quote.optionId || "option_1") !== optionId);
+      nextOptionDefs = optionDefs.filter((option) => !targetIds.has(String(option.id || "")));
+      nextQuotes = quotes.filter((quote) => !targetIds.has(String(quote.optionId || "option_1")));
       if (!nextOptionDefs.length) nextOptionDefs = [{ id: "option_1", name: "Option 1" }];
     } else if (mode === "unlock") {
       nextOptionDefs = optionDefs.map((option) => {
-        if (String(option.id || "") !== optionId) return option;
+        if (!targetIds.has(String(option.id || ""))) return option;
         const next = clearWonPaymentFields(option);
         delete next.wonAt;
         delete next.wonByEmail;
@@ -1232,7 +1284,7 @@ async function updateWonOptionState(
         return next;
       });
       nextQuotes = quotes.map((quote) => {
-        if (String(quote.optionId || "option_1") !== optionId) return quote;
+        if (!targetIds.has(String(quote.optionId || "option_1"))) return quote;
         const next = clearWonPaymentFields(quote);
         delete next.wonAt;
         delete next.wonByEmail;
@@ -1241,10 +1293,10 @@ async function updateWonOptionState(
       });
     } else {
       nextOptionDefs = optionDefs.map((option) =>
-        String(option.id || "") === optionId ? applyWonPaymentFields(option, mode, adminEmail) : option,
+        targetIds.has(String(option.id || "")) ? applyWonPaymentFields(option, mode, adminEmail) : option,
       );
       nextQuotes = quotes.map((quote) =>
-        String(quote.optionId || "option_1") === optionId
+        targetIds.has(String(quote.optionId || "option_1"))
           ? applyWonPaymentFields(quote, mode, adminEmail)
           : quote,
       );
@@ -1253,22 +1305,28 @@ async function updateWonOptionState(
     return { optionDefs: nextOptionDefs, quotes: nextQuotes };
   }
 
-  if (sourceId === CURRENT_WON_SOURCE_ID) {
-    const optionDefsKey = storedJsonKey(data, OPTION_DEF_STORAGE_KEYS);
-    const quotesKey = storedJsonKey(data, QUOTE_STORAGE_KEYS);
-    const optionDefs = parseStoredJson<Record<string, unknown>[]>(data[optionDefsKey], []);
-    const quotes = parseStoredJson<Record<string, unknown>[]>(data[quotesKey], []);
-    const next = updateOptionCollections(optionDefs, quotes);
-    if (next) {
-      data[optionDefsKey] = serializeLikeStoredValue(data[optionDefsKey], next.optionDefs);
-      data[quotesKey] = serializeLikeStoredValue(data[quotesKey], next.quotes);
-      updated = true;
+  function updateDataForSource(originalData: Record<string, unknown>, targetSourceId: string) {
+    const data = { ...originalData };
+    let updated = false;
+
+    if (targetSourceId === CURRENT_WON_SOURCE_ID) {
+      const optionDefsKey = storedJsonKey(data, OPTION_DEF_STORAGE_KEYS);
+      const quotesKey = storedJsonKey(data, QUOTE_STORAGE_KEYS);
+      const optionDefs = parseStoredJson<Record<string, unknown>[]>(data[optionDefsKey], []);
+      const quotes = parseStoredJson<Record<string, unknown>[]>(data[quotesKey], []);
+      const next = updateOptionCollections(optionDefs, quotes);
+      if (next) {
+        data[optionDefsKey] = serializeLikeStoredValue(data[optionDefsKey], next.optionDefs);
+        data[quotesKey] = serializeLikeStoredValue(data[quotesKey], next.quotes);
+        updated = true;
+      }
+      return { data, updated };
     }
-  } else {
+
     const savedSetsKey = storedJsonKey(data, SAVED_QUOTE_SET_STORAGE_KEYS);
     const savedQuoteSets = parseStoredJson<Record<string, unknown>[]>(data[savedSetsKey], []);
     const nextSavedQuoteSets = savedQuoteSets.map((savedQuoteSet, index) => {
-      if (savedQuoteSetSourceId(savedQuoteSet, index) !== sourceId) return savedQuoteSet;
+      if (savedQuoteSetSourceId(savedQuoteSet, index) !== targetSourceId) return savedQuoteSet;
       const optionDefs = Array.isArray(savedQuoteSet.optionDefs)
         ? savedQuoteSet.optionDefs as Record<string, unknown>[]
         : [];
@@ -1281,13 +1339,129 @@ async function updateWonOptionState(
       return { ...savedQuoteSet, optionDefs: next.optionDefs, quotes: next.quotes };
     });
     if (updated) data[savedSetsKey] = serializeLikeStoredValue(data[savedSetsKey], nextSavedQuoteSets);
+
+    return { data, updated };
   }
+
+  function deleteFromEverySource(originalData: Record<string, unknown>) {
+    const data = { ...originalData };
+    let updated = false;
+
+    const optionDefsKey = storedJsonKey(data, OPTION_DEF_STORAGE_KEYS);
+    const quotesKey = storedJsonKey(data, QUOTE_STORAGE_KEYS);
+    const optionDefs = parseStoredJson<Record<string, unknown>[]>(data[optionDefsKey], []);
+    const quotes = parseStoredJson<Record<string, unknown>[]>(data[quotesKey], []);
+    const currentNext = updateOptionCollections(optionDefs, quotes);
+    if (currentNext) {
+      data[optionDefsKey] = serializeLikeStoredValue(data[optionDefsKey], currentNext.optionDefs);
+      data[quotesKey] = serializeLikeStoredValue(data[quotesKey], currentNext.quotes);
+      updated = true;
+    }
+
+    const savedSetsKey = storedJsonKey(data, SAVED_QUOTE_SET_STORAGE_KEYS);
+    const savedQuoteSets = parseStoredJson<Record<string, unknown>[]>(data[savedSetsKey], []);
+    let savedSetsUpdated = false;
+    const nextSavedQuoteSets = savedQuoteSets.map((savedQuoteSet) => {
+      const optionDefs = Array.isArray(savedQuoteSet.optionDefs)
+        ? savedQuoteSet.optionDefs as Record<string, unknown>[]
+        : [];
+      const quotes = Array.isArray(savedQuoteSet.quotes)
+        ? savedQuoteSet.quotes as Record<string, unknown>[]
+        : [];
+      const next = updateOptionCollections(optionDefs, quotes);
+      if (!next) return savedQuoteSet;
+      updated = true;
+      savedSetsUpdated = true;
+      return { ...savedQuoteSet, optionDefs: next.optionDefs, quotes: next.quotes };
+    });
+    if (savedSetsUpdated) data[savedSetsKey] = serializeLikeStoredValue(data[savedSetsKey], nextSavedQuoteSets);
+
+    return { data, updated };
+  }
+
+  if (mode === "delete") {
+    let updatedCount = 0;
+
+    let currentQuery = supabase
+      .from("user_calculator_data")
+      .select("user_id, data");
+    currentQuery = dataUserId ? currentQuery.eq("user_id", dataUserId) : currentQuery.eq("email", email);
+    const currentResult = await currentQuery.maybeSingle();
+    if (currentResult.error) return dbMessage(currentResult.error);
+    if (currentResult.data?.data) {
+      const next = deleteFromEverySource(currentResult.data.data as Record<string, unknown>);
+      if (next.updated) {
+        let updateQuery = supabase
+          .from("user_calculator_data")
+          .update({ data: next.data, updated_at: new Date().toISOString() });
+        updateQuery = dataUserId ? updateQuery.eq("user_id", dataUserId) : updateQuery.eq("email", email);
+        const updateResult = await updateQuery;
+        if (updateResult.error) return dbMessage(updateResult.error);
+        updatedCount += 1;
+      }
+    }
+
+    let backupsQuery = supabase
+      .from("user_calculator_data_backups")
+      .select("id, user_id, email, data");
+    backupsQuery = dataUserId ? backupsQuery.eq("user_id", dataUserId) : backupsQuery.eq("email", email);
+    const backupsResult = await backupsQuery;
+    if (backupsResult.error) return dbMessage(backupsResult.error);
+
+    for (const backup of (backupsResult.data || []) as CalculatorBackupDataRow[]) {
+      if (!backup.data) continue;
+      const next = deleteFromEverySource(backup.data);
+      if (!next.updated) continue;
+      const updateResult = await supabase
+        .from("user_calculator_data_backups")
+        .update({ data: next.data })
+        .eq("id", backup.id);
+      if (updateResult.error) return dbMessage(updateResult.error);
+      updatedCount += 1;
+    }
+
+    return updatedCount ? "" : "Could not find that won option in the saved calculator data or backups.";
+  }
+
+  const backupSource = backupSourceParts(sourceId);
+  if (backupSource) {
+    const backupResult = await supabase
+      .from("user_calculator_data_backups")
+      .select("id, user_id, email, data")
+      .eq("id", backupSource.backupId)
+      .maybeSingle();
+
+    if (backupResult.error) return dbMessage(backupResult.error);
+    if (!backupResult.data?.data) return "Could not find that recovered backup.";
+
+    const next = updateDataForSource(backupResult.data.data as Record<string, unknown>, backupSource.sourceId);
+    if (!next.updated) return "Could not find that won option in the recovered backup.";
+
+    const updateResult = await supabase
+      .from("user_calculator_data_backups")
+      .update({ data: next.data })
+      .eq("id", backupSource.backupId);
+
+    return updateResult.error ? dbMessage(updateResult.error) : "";
+  }
+
+  let dataQuery = supabase
+    .from("user_calculator_data")
+    .select("user_id, data");
+  dataQuery = dataUserId ? dataQuery.eq("user_id", dataUserId) : dataQuery.eq("email", email);
+  const dataResult = await dataQuery.maybeSingle();
+
+  if (dataResult.error) return dbMessage(dataResult.error);
+  if (!dataResult.data?.data) return "Could not find saved calculator data for this user.";
+
+  const next = updateDataForSource(dataResult.data.data as Record<string, unknown>, sourceId);
+  const updated = next.updated;
 
   if (!updated) return "Could not find that won option in the saved calculator data.";
 
   let updateQuery = supabase
     .from("user_calculator_data")
-    .update({ data, updated_at: new Date().toISOString() });
+    .update({ data: next.data, updated_at: new Date().toISOString() });
   updateQuery = dataUserId ? updateQuery.eq("user_id", dataUserId) : updateQuery.eq("email", email);
   const updateResult = await updateQuery;
 
@@ -1449,12 +1623,13 @@ async function unlockWonOption(formData: FormData) {
   const optionId = normalizeText(formData.get("optionId"));
   const sourceId = normalizeText(formData.get("sourceId")) || CURRENT_WON_SOURCE_ID;
   const dataUserId = normalizeText(formData.get("dataUserId"));
+  const wonAt = normalizeText(formData.get("wonAt"));
 
   if (!userEmail || !optionId) {
     redirect("/admin/users?error=Could not identify the won option to unlock.");
   }
 
-  const errorMessage = await updateWonOptionState(supabase, userEmail, optionId, "unlock", "", sourceId, dataUserId);
+  const errorMessage = await updateWonOptionState(supabase, userEmail, optionId, "unlock", "", sourceId, dataUserId, wonAt);
 
   if (errorMessage) {
     redirect(`/admin/users?error=${encodeURIComponent(errorMessage)}`);
@@ -1472,12 +1647,13 @@ async function deleteWonOption(formData: FormData) {
   const optionId = normalizeText(formData.get("optionId"));
   const sourceId = normalizeText(formData.get("sourceId")) || CURRENT_WON_SOURCE_ID;
   const dataUserId = normalizeText(formData.get("dataUserId"));
+  const wonAt = normalizeText(formData.get("wonAt"));
 
   if (!userEmail || !optionId) {
     redirect("/admin/users?error=Could not identify the won option to delete.");
   }
 
-  const errorMessage = await updateWonOptionState(supabase, userEmail, optionId, "delete", "", sourceId, dataUserId);
+  const errorMessage = await updateWonOptionState(supabase, userEmail, optionId, "delete", "", sourceId, dataUserId, wonAt);
 
   if (errorMessage) {
     redirect(`/admin/users?error=${encodeURIComponent(errorMessage)}`);
@@ -1495,6 +1671,7 @@ async function updateWonPaymentStatus(formData: FormData) {
   const optionId = normalizeText(formData.get("optionId"));
   const sourceId = normalizeText(formData.get("sourceId")) || CURRENT_WON_SOURCE_ID;
   const dataUserId = normalizeText(formData.get("dataUserId"));
+  const wonAt = normalizeText(formData.get("wonAt"));
   const mode = String(formData.get("paymentMode") || "");
 
   if (!userEmail || !optionId) {
@@ -1513,6 +1690,7 @@ async function updateWonPaymentStatus(formData: FormData) {
     adminEmail,
     sourceId,
     dataUserId,
+    wonAt,
   );
 
   if (errorMessage) {
@@ -1528,6 +1706,109 @@ async function updateWonPaymentStatus(formData: FormData) {
 
   revalidatePath("/admin/users");
   redirect(`/admin/users?message=${encodeURIComponent(message)}`);
+}
+
+type WonOptionSelection = {
+  userEmail: string;
+  dataUserId: string;
+  sourceId: string;
+  optionId: string;
+  wonAt: string;
+};
+
+function parseWonOptionSelections(value: FormDataEntryValue | null) {
+  if (typeof value !== "string" || !value.trim()) return [] as WonOptionSelection[];
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    return [] as WonOptionSelection[];
+  }
+
+  if (!Array.isArray(parsed)) return [] as WonOptionSelection[];
+
+  const seen = new Set<string>();
+  const selections: WonOptionSelection[] = [];
+  parsed.forEach((item) => {
+    if (!item || typeof item !== "object") return;
+    const record = item as Record<string, unknown>;
+    const selection = {
+      userEmail: String(record.userEmail || "").trim().toLowerCase(),
+      dataUserId: String(record.dataUserId || "").trim(),
+      sourceId: String(record.sourceId || CURRENT_WON_SOURCE_ID).trim() || CURRENT_WON_SOURCE_ID,
+      optionId: String(record.optionId || "").trim(),
+      wonAt: String(record.wonAt || "").trim(),
+    };
+    if (!selection.userEmail || !selection.optionId) return;
+    const key = [
+      selection.userEmail,
+      selection.dataUserId,
+      selection.sourceId,
+      selection.optionId,
+      selection.wonAt,
+    ].join("|");
+    if (seen.has(key)) return;
+    seen.add(key);
+    selections.push(selection);
+  });
+  return selections;
+}
+
+async function bulkUpdateWonOptions(formData: FormData) {
+  "use server";
+
+  const { supabase, email: adminEmail } = await requireAdmin();
+  const mode = String(formData.get("bulkMode") || "") as WonOptionUpdateMode;
+  const selections = parseWonOptionSelections(formData.get("selectedWonOptions"));
+
+  if (!selections.length) {
+    redirect("/admin/users?error=Select at least one won option first.");
+  }
+
+  if (!["paid_in", "paid_out", "reset_payment", "unlock", "delete"].includes(mode)) {
+    redirect("/admin/users?error=Choose a valid bulk action.");
+  }
+
+  const errors: string[] = [];
+  let updatedCount = 0;
+  for (const selection of selections) {
+    const errorMessage = await updateWonOptionState(
+      supabase,
+      selection.userEmail,
+      selection.optionId,
+      mode,
+      adminEmail,
+      selection.sourceId,
+      selection.dataUserId,
+      selection.wonAt,
+    );
+    if (errorMessage) {
+      errors.push(`${selection.userEmail}: ${errorMessage}`);
+    } else {
+      updatedCount += 1;
+    }
+  }
+
+  revalidatePath("/admin/users");
+
+  if (errors.length) {
+    const detail = errors.slice(0, 3).join(" ");
+    redirect(`/admin/users?error=${encodeURIComponent(`${updatedCount} updated, ${errors.length} failed. ${detail}`)}`);
+  }
+
+  const actionLabel =
+    mode === "paid_out"
+      ? "marked as paid out"
+      : mode === "paid_in"
+        ? "marked as paid in"
+        : mode === "reset_payment"
+          ? "reset"
+          : mode === "unlock"
+            ? "unlocked"
+            : "permanently deleted";
+
+  redirect(`/admin/users?message=${encodeURIComponent(`${updatedCount} won option${updatedCount === 1 ? "" : "s"} ${actionLabel}.`)}`);
 }
 
 export default async function AdminUsersPage({
@@ -2013,12 +2294,46 @@ export default async function AdminUsersPage({
 
           <div className="admin-section-body">
             <div className="won-toolbar">
-              <button className="secondary" type="button" data-select-all-won>
-                Select visible
-              </button>
-              <button className="orange" type="button" data-export-won-selected>
-                Export selected CSV
-              </button>
+              <div className="won-toolbar-primary">
+                <button className="secondary" type="button" data-select-all-won>
+                  Select visible
+                </button>
+                <button className="orange" type="button" data-export-won-selected>
+                  Export selected CSV
+                </button>
+              </div>
+              <form action={bulkUpdateWonOptions} className="won-bulk-actions" data-bulk-won-form>
+                <input type="hidden" name="selectedWonOptions" data-selected-won-input />
+                <button className="secondary" type="submit" name="bulkMode" value="paid_in">
+                  Mark paid in
+                </button>
+                <button className="secondary" type="submit" name="bulkMode" value="paid_out">
+                  Mark paid out
+                </button>
+                <button className="secondary" type="submit" name="bulkMode" value="reset_payment">
+                  Reset payment
+                </button>
+                <button className="secondary" type="submit" name="bulkMode" value="unlock">
+                  Unlock
+                </button>
+              </form>
+              <details className="delete-confirm bulk-delete-confirm">
+                <summary>Delete selected</summary>
+                <form
+                  action={bulkUpdateWonOptions}
+                  data-bulk-won-form
+                  data-confirm-message="This permanently deletes the selected won opportunities from current and recovered backup data. This cannot be undone."
+                >
+                  <input type="hidden" name="selectedWonOptions" data-selected-won-input />
+                  <input type="hidden" name="bulkMode" value="delete" />
+                  <p className="delete-warning">
+                    This permanently deletes the selected won opportunities from current and recovered backup data. This cannot be undone.
+                  </p>
+                  <button className="danger" type="submit">
+                    Permanently delete
+                  </button>
+                </form>
+              </details>
             </div>
 
           {salespersonSales.length ? (
@@ -2062,6 +2377,13 @@ export default async function AdminUsersPage({
               <article
                 className={`won-card won-card-${option.paymentStatus}`}
                 data-export-row={JSON.stringify(wonExportRow(option))}
+                data-won-selection={JSON.stringify({
+                  userEmail: option.userEmail,
+                  dataUserId: option.dataUserId,
+                  sourceId: option.sourceId,
+                  optionId: option.optionId,
+                  wonAt: option.wonAt,
+                })}
                 data-won-user-email={option.userEmail.toLowerCase()}
                 key={wonOptionDomKey(option)}
               >
@@ -2084,67 +2406,74 @@ export default async function AdminUsersPage({
                       {option.wonAt ? formatShortDate(option.wonAt) : "Won"}
                     </span>
                     {option.recoveredFromBackup ? <span className="locked-pill">Recovered backup</span> : null}
-                    {!option.recoveredFromBackup ? (
-                      <>
-                        {option.paymentStatus === "not_paid_in" ? (
-                          <form action={updateWonPaymentStatus}>
-                            <input type="hidden" name="userEmail" value={option.userEmail} />
-                            <input type="hidden" name="dataUserId" value={option.dataUserId} />
-                            <input type="hidden" name="sourceId" value={option.sourceId} />
-                            <input type="hidden" name="optionId" value={option.optionId} />
-                            <input type="hidden" name="paymentMode" value="paid_in" />
-                            <button className="secondary" type="submit">
-                              Mark paid in
-                            </button>
-                          </form>
-                        ) : null}
-                        {option.paymentStatus !== "paid_out" ? (
-                          <form action={updateWonPaymentStatus}>
-                            <input type="hidden" name="userEmail" value={option.userEmail} />
-                            <input type="hidden" name="dataUserId" value={option.dataUserId} />
-                            <input type="hidden" name="sourceId" value={option.sourceId} />
-                            <input type="hidden" name="optionId" value={option.optionId} />
-                            <input type="hidden" name="paymentMode" value="paid_out" />
-                            <button className="secondary" type="submit">
-                              Mark paid out
-                            </button>
-                          </form>
-                        ) : null}
-                        {option.paymentStatus !== "not_paid_in" ? (
-                          <form action={updateWonPaymentStatus}>
-                            <input type="hidden" name="userEmail" value={option.userEmail} />
-                            <input type="hidden" name="dataUserId" value={option.dataUserId} />
-                            <input type="hidden" name="sourceId" value={option.sourceId} />
-                            <input type="hidden" name="optionId" value={option.optionId} />
-                            <input type="hidden" name="paymentMode" value="reset_payment" />
-                            <button className="secondary" type="submit">
-                              Reset payment
-                            </button>
-                          </form>
-                        ) : null}
-                        <form action={unlockWonOption}>
-                          <input type="hidden" name="userEmail" value={option.userEmail} />
-                          <input type="hidden" name="dataUserId" value={option.dataUserId} />
-                          <input type="hidden" name="sourceId" value={option.sourceId} />
-                          <input type="hidden" name="optionId" value={option.optionId} />
-                          <button className="secondary" type="submit">
-                            Unlock
-                          </button>
-                        </form>
-                        <details className="delete-confirm">
-                          <summary>Delete</summary>
-                          <form action={deleteWonOption}>
-                            <input type="hidden" name="userEmail" value={option.userEmail} />
-                            <input type="hidden" name="dataUserId" value={option.dataUserId} />
-                            <input type="hidden" name="sourceId" value={option.sourceId} />
-                            <input type="hidden" name="optionId" value={option.optionId} />
-                            <button className="danger" type="submit">
-                              Confirm delete
-                            </button>
-                          </form>
-                        </details>
-                      </>
+                    {option.paymentStatus === "not_paid_in" ? (
+                      <form action={updateWonPaymentStatus}>
+                        <input type="hidden" name="userEmail" value={option.userEmail} />
+                        <input type="hidden" name="dataUserId" value={option.dataUserId} />
+                        <input type="hidden" name="sourceId" value={option.sourceId} />
+                        <input type="hidden" name="optionId" value={option.optionId} />
+                        <input type="hidden" name="wonAt" value={option.wonAt} />
+                        <input type="hidden" name="paymentMode" value="paid_in" />
+                        <button className="secondary" type="submit">
+                          Mark paid in
+                        </button>
+                      </form>
                     ) : null}
+                    {option.paymentStatus !== "paid_out" ? (
+                      <form action={updateWonPaymentStatus}>
+                        <input type="hidden" name="userEmail" value={option.userEmail} />
+                        <input type="hidden" name="dataUserId" value={option.dataUserId} />
+                        <input type="hidden" name="sourceId" value={option.sourceId} />
+                        <input type="hidden" name="optionId" value={option.optionId} />
+                        <input type="hidden" name="wonAt" value={option.wonAt} />
+                        <input type="hidden" name="paymentMode" value="paid_out" />
+                        <button className="secondary" type="submit">
+                          Mark paid out
+                        </button>
+                      </form>
+                    ) : null}
+                    {option.paymentStatus !== "not_paid_in" ? (
+                      <form action={updateWonPaymentStatus}>
+                        <input type="hidden" name="userEmail" value={option.userEmail} />
+                        <input type="hidden" name="dataUserId" value={option.dataUserId} />
+                        <input type="hidden" name="sourceId" value={option.sourceId} />
+                        <input type="hidden" name="optionId" value={option.optionId} />
+                        <input type="hidden" name="wonAt" value={option.wonAt} />
+                        <input type="hidden" name="paymentMode" value="reset_payment" />
+                        <button className="secondary" type="submit">
+                          Reset payment
+                        </button>
+                      </form>
+                    ) : null}
+                    <form action={unlockWonOption}>
+                      <input type="hidden" name="userEmail" value={option.userEmail} />
+                      <input type="hidden" name="dataUserId" value={option.dataUserId} />
+                      <input type="hidden" name="sourceId" value={option.sourceId} />
+                      <input type="hidden" name="optionId" value={option.optionId} />
+                      <input type="hidden" name="wonAt" value={option.wonAt} />
+                      <button className="secondary" type="submit">
+                        Unlock
+                      </button>
+                    </form>
+                    <details className="delete-confirm">
+                      <summary>Delete</summary>
+                      <form
+                        action={deleteWonOption}
+                        data-confirm-message="This permanently deletes this won opportunity from current and recovered backup data. This cannot be undone."
+                      >
+                        <input type="hidden" name="userEmail" value={option.userEmail} />
+                        <input type="hidden" name="dataUserId" value={option.dataUserId} />
+                        <input type="hidden" name="sourceId" value={option.sourceId} />
+                        <input type="hidden" name="optionId" value={option.optionId} />
+                        <input type="hidden" name="wonAt" value={option.wonAt} />
+                        <p className="delete-warning">
+                          This permanently deletes this won opportunity from current and recovered backup data. This cannot be undone.
+                        </p>
+                        <button className="danger" type="submit">
+                          Permanently delete
+                        </button>
+                      </form>
+                    </details>
                   </div>
                 </div>
                 <div className="won-metrics">
