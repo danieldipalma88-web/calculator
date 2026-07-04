@@ -2003,6 +2003,27 @@ const DUCTED_PRODUCT_SUPPORT=[
   {brand:'Actron',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional controller',warrantyYears:5,warrantyLabel:'5 yrs warranty'}},
   {brand:'Midea',series:'Vesta',details:{wifiStatus:'optional',wifiLabel:'Controller required',warrantyYears:7,warrantyLabel:'7 yrs warranty'}}
 ];
+const ANDOS_SPLIT_PRODUCT_SUPPORT=[
+  {brand:'Daikin',series:'Lite',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional adaptor',warrantyYears:5,warrantyLabel:'5 yrs warranty',originLabel:'Japanese'}},
+  {brand:'Daikin',series:'Cora XL',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional adaptor',warrantyYears:5,warrantyLabel:'5 yrs warranty',originLabel:'Japanese'}},
+  {brand:'Daikin',series:'Alira X XL Premium',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:5,warrantyLabel:'5 yrs warranty',originLabel:'Japanese'}},
+  {brand:'Mitsubishi Electric',series:'AP Series W/WiFi',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:5,warrantyLabel:'5 yrs warranty',originLabel:'Japanese'}},
+  {brand:'Fujitsu',series:'Lifestyle',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional adaptor',warrantyYears:5,warrantyLabel:'5 yrs warranty',originLabel:'Japanese'}},
+  {brand:'Fujitsu',series:'Comfort',details:{wifiStatus:'unknown',wifiLabel:'Wi-Fi not listed',warrantyYears:5,warrantyLabel:'5 yrs warranty',originLabel:'Japanese'}},
+  {brand:'Gree',series:'Alto Hyper Plus',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:6,warrantyLabel:'6 yrs warranty',originLabel:'Chinese'}},
+  {brand:'TCL',series:'Breeze In',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:7,warrantyLabel:'7 yrs warranty',originLabel:'Chinese'}},
+  {brand:'Panasonic',series:'RZ Series',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional adaptor',warrantyYears:5,warrantyLabel:'5 yrs warranty',originLabel:'Japanese'}},
+  {brand:'Panasonic',series:'Z Series',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:5,warrantyLabel:'5 yrs warranty',originLabel:'Japanese'}},
+  {brand:'Samsung',series:'Aero Series',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:5,warrantyLabel:'5 yrs warranty',originLabel:'South Korean'}}
+];
+const ANDOS_DUCTED_PRODUCT_SUPPORT=[
+  {brand:'Daikin',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional Airbase',warrantyYears:5,warrantyLabel:'5 yrs warranty',originLabel:'Japanese'}},
+  {brand:'Mitsubishi Electric',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional controller',warrantyYears:5,warrantyLabel:'5 yrs warranty',originLabel:'Japanese'}},
+  {brand:'Fujitsu',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional controller',warrantyYears:5,warrantyLabel:'5 yrs warranty',originLabel:'Japanese'}},
+  {brand:'Gree',details:{wifiStatus:'unknown',wifiLabel:'Wi-Fi not listed',warrantyYears:6,warrantyLabel:'6 yrs warranty',originLabel:'Chinese'}},
+  {brand:'Panasonic',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional controller',warrantyYears:5,warrantyLabel:'5 yrs warranty',originLabel:'Japanese'}},
+  {brand:'Samsung',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:5,warrantyLabel:'5 yrs warranty',originLabel:'South Korean'}}
+];
 function productSupportRuleMatches(rule,p){
   if(rule.brand && rule.brand!==p.brand) return false;
   if(rule.series && rule.series!==(p.series||'')) return false;
@@ -2017,6 +2038,8 @@ function applyProductSupportDetails(){
   });
   apply(SPLIT_PRODUCTS,SPLIT_PRODUCT_SUPPORT);
   apply(DUCTED_PRODUCTS,DUCTED_PRODUCT_SUPPORT);
+  apply(ANDOS_SPLIT_PRODUCTS,ANDOS_SPLIT_PRODUCT_SUPPORT);
+  apply(ANDOS_DUCTED_PRODUCTS,ANDOS_DUCTED_PRODUCT_SUPPORT);
 }
 applyProductSupportDetails();
 let systemType='split', installType='new', quotes=[];
