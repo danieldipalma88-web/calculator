@@ -2001,7 +2001,7 @@ export default async function AdminUsersPage({
           </div>
         </details>
 
-        <details className="admin-section" open>
+        <details className="admin-section won-options-section" open>
           <summary className="section-heading admin-section-summary">
             <div>
               <h2>Won options</h2>
@@ -2033,15 +2033,15 @@ export default async function AdminUsersPage({
                   role="button"
                   tabIndex={0}
                 >
-                  <div>
+                  <div className="sales-summary-head">
                     <strong>{summary.userName}</strong>
                     <span>{summary.businessNames || summary.userEmail}</span>
                   </div>
                   <div className="sales-summary-metrics">
                     <div><span>Sales</span><strong>{summary.saleCount}</strong></div>
-                    <div><span>Customer total</span><strong>{formatMoney(summary.customerTotal)}</strong></div>
+                    <div><span>Customer</span><strong>{formatMoney(summary.customerTotal)}</strong></div>
                     <div><span>Agency comm</span><strong>{formatMoney(summary.agencyCommissionTotal)}</strong></div>
-                    <div><span>Salesperson comm</span><strong>{formatMoney(summary.salespersonCommissionTotal)}</strong></div>
+                    <div><span>Sales comm</span><strong>{formatMoney(summary.salespersonCommissionTotal)}</strong></div>
                   </div>
                   <div className="sales-status-strip">
                     <span className="status-dot red">{summary.notPaidInCount} unpaid</span>
@@ -2149,11 +2149,11 @@ export default async function AdminUsersPage({
                 </div>
                 <div className="won-metrics">
                   <div><span>Systems</span><strong>{option.systemCount}</strong></div>
-                  <div><span>Customer total</span><strong>{formatMoney(option.customerTotal)}</strong></div>
+                  <div><span>Customer</span><strong>{formatMoney(option.customerTotal)}</strong></div>
                   <div><span>Rebate</span><strong>{formatMoney(option.rebateTotal)}</strong></div>
-                  <div><span>Agency comm inc</span><strong>{formatMoney(option.agencyCommissionTotal)}</strong></div>
-                  <div><span>Salesperson comm inc</span><strong>{formatMoney(option.salespersonCommissionTotal)}</strong></div>
-                  <div><span>Installer profit ex</span><strong>{formatMoney(option.installerProfitTotal)}</strong></div>
+                  <div><span>Agency comm</span><strong>{formatMoney(option.agencyCommissionTotal)}</strong></div>
+                  <div><span>Sales comm</span><strong>{formatMoney(option.salespersonCommissionTotal)}</strong></div>
+                  <div><span>Installer profit</span><strong>{formatMoney(option.installerProfitTotal)}</strong></div>
                   <div><span>Paid in</span><strong>{option.paidInAt ? formatShortDate(option.paidInAt) : "Not yet"}</strong></div>
                   <div><span>Paid out</span><strong>{option.paidOutAt ? formatShortDate(option.paidOutAt) : "Not yet"}</strong></div>
                 </div>

@@ -713,29 +713,53 @@ select {
   background: #fff;
 }
 
+.won-options-section {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 251, 255, 0.9));
+}
+
+.won-options-section .admin-section-summary {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.won-options-section .admin-section-body {
+  background:
+    linear-gradient(180deg, rgba(248, 251, 255, 0.96), rgba(255, 255, 255, 0.98) 240px),
+    #fff;
+}
+
 .sales-summary-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 12px;
-  margin: 16px 0;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 430px), 1fr));
+  gap: 16px;
+  align-items: stretch;
+  margin: 18px 0 16px;
 }
 
 .sales-summary-card {
   display: grid;
-  gap: 12px;
-  padding: 14px;
-  border: 1px solid #dbe6ef;
-  border-radius: 8px;
-  background: #f8fafc;
+  grid-template-rows: auto 1fr auto;
+  gap: 14px;
+  min-height: 214px;
+  height: 100%;
+  padding: 16px;
+  border: 1px solid rgba(203, 213, 225, 0.85);
+  border-radius: 16px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(247, 250, 252, 0.86)),
+    #fff;
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   cursor: pointer;
-  transition: border-color 0.16s ease, box-shadow 0.16s ease, background-color 0.16s ease;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease, background-color 0.16s ease;
 }
 
 .sales-summary-card:hover,
 .sales-summary-card:focus-visible {
   border-color: #93c5fd;
-  background: #f8fbff;
-  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.1);
+  background: linear-gradient(145deg, #fff, #f7fbff);
+  box-shadow: 0 18px 42px rgba(37, 99, 235, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.92);
+  transform: translateY(-1px);
   outline: none;
 }
 
@@ -743,31 +767,49 @@ select {
 .sales-summary-card.is-active:hover,
 .sales-summary-card.is-active:focus-visible {
   border-color: #1d4ed8;
-  background: #dbeafe;
-  box-shadow: 0 0 0 2px rgba(29, 78, 216, 0.2), 0 12px 26px rgba(37, 99, 235, 0.14);
+  background: linear-gradient(145deg, #eff6ff, #dbeafe);
+  box-shadow: 0 0 0 2px rgba(29, 78, 216, 0.18), 0 18px 42px rgba(37, 99, 235, 0.16);
 }
 
-.sales-summary-card strong {
+.sales-summary-head {
+  display: grid;
+  gap: 5px;
+  min-height: 48px;
+  align-content: start;
+}
+
+.sales-summary-head strong {
   display: block;
   color: var(--ink);
+  font-size: 16px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 
-.sales-summary-card span {
+.sales-summary-head span {
   color: var(--muted);
   font-size: 12px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .sales-summary-metrics {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
 }
 
 .sales-summary-metrics div {
-  padding: 10px;
-  border: 1px solid #e4ebf2;
-  border-radius: 8px;
-  background: #fff;
+  display: flex;
+  min-width: 0;
+  min-height: 68px;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 10px 9px;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 .sales-summary-metrics span,
@@ -775,38 +817,50 @@ select {
   display: block;
   font-size: 11px;
   font-weight: 900;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .sales-summary-metrics strong {
-  margin-top: 3px;
-  font-size: 14px;
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .sales-status-strip {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
 
 .won-filter-status {
-  margin: 4px 0 12px;
-  padding: 10px 12px;
-  border: 1px solid #dbe6ef;
-  border-radius: 8px;
-  background: #f8fafc;
+  display: inline-flex;
+  max-width: 100%;
+  margin: 2px 0 14px;
+  padding: 9px 13px;
+  border: 1px solid rgba(203, 213, 225, 0.85);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.76);
   color: var(--muted);
   font-size: 13px;
   font-weight: 700;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 .status-dot {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   min-height: 28px;
   padding: 0 10px;
   border-radius: 999px;
+  white-space: nowrap;
 }
 
 .status-dot.red {
@@ -827,27 +881,75 @@ select {
 .won-toolbar {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 10px;
   justify-content: flex-end;
+  padding: 10px;
+  border: 1px solid rgba(203, 213, 225, 0.85);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.won-toolbar button {
+  min-height: 38px;
+  border-radius: 999px;
+  padding: 0 14px;
+  font-size: 13px;
 }
 
 .won-card-not_paid_in {
-  border-color: #fca5a5;
-  background: #fff7f7;
+  border-color: rgba(248, 113, 113, 0.45);
+  background: linear-gradient(145deg, #fff, #fff7f7);
 }
 
 .won-card-paid_in {
-  border-color: #fdba74;
-  background: #fff8ed;
+  border-color: rgba(251, 146, 60, 0.45);
+  background: linear-gradient(145deg, #fff, #fff8ed);
 }
 
 .won-card-paid_out {
-  border-color: #86efac;
-  background: #f0fdf4;
+  border-color: rgba(74, 222, 128, 0.5);
+  background: linear-gradient(145deg, #fff, #f2fdf6);
 }
 
 .won-card[hidden] {
   display: none !important;
+}
+
+.won-card {
+  position: relative;
+  display: flex;
+  min-height: 430px;
+  height: 100%;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 18px;
+  border-radius: 18px;
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.won-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 5px;
+  background: #94a3b8;
+}
+
+.won-card-not_paid_in::before {
+  background: #ef4444;
+}
+
+.won-card-paid_in::before {
+  background: #f97316;
+}
+
+.won-card-paid_out::before {
+  background: #22c55e;
 }
 
 .user-card-head,
@@ -860,6 +962,14 @@ select {
   border-bottom: 1px solid #edf1f5;
 }
 
+.won-card-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  padding-bottom: 14px;
+  border-bottom-color: rgba(226, 232, 240, 0.86);
+}
+
 .user-card-head strong,
 .won-card-head strong {
   color: var(--ink);
@@ -867,7 +977,14 @@ select {
 }
 
 .won-title {
-  flex: 1 1 240px;
+  min-width: 0;
+}
+
+.won-title strong {
+  display: block;
+  font-size: 17px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 
 .won-select {
@@ -876,12 +993,13 @@ select {
   gap: 8px;
   min-height: 36px;
   padding: 0 10px;
-  border: 1px solid #dbe6ef;
-  border-radius: 8px;
-  background: #fff;
+  border: 1px solid rgba(203, 213, 225, 0.95);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.84);
   color: var(--muted);
   font-size: 12px;
   font-weight: 900;
+  white-space: nowrap;
 }
 
 .won-select input {
@@ -926,10 +1044,15 @@ select {
 .user-facts div,
 .won-metrics div {
   min-width: 0;
+  display: flex;
+  min-height: 76px;
+  flex-direction: column;
+  justify-content: space-between;
   padding: 12px;
-  border: 1px solid #e4ebf2;
-  border-radius: 8px;
-  background: #f8fafc;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.88);
 }
 
 .user-facts span,
@@ -938,16 +1061,20 @@ select {
   color: var(--muted);
   font-size: 11px;
   font-weight: 900;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .user-facts strong,
 .won-metrics strong {
   display: block;
-  margin-top: 4px;
+  margin-top: 8px;
   color: var(--ink);
   font-size: 14px;
+  line-height: 1.2;
   overflow-wrap: anywhere;
 }
 
@@ -963,26 +1090,27 @@ select {
 }
 
 .won-grid {
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 560px), 1fr));
-  align-items: start;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 540px), 1fr));
+  align-items: stretch;
 }
 
 .won-metrics {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .won-lines {
   display: grid;
   gap: 8px;
+  margin-top: auto;
+  padding-top: 2px;
 }
 
 .won-line {
   display: grid;
-  grid-template-columns: minmax(180px, 0.9fr) minmax(0, 1.1fr);
-  gap: 10px;
-  align-items: center;
-  padding: 10px 0;
-  border-top: 1px solid #edf1f5;
+  gap: 5px;
+  align-items: start;
+  padding: 12px 0;
+  border-top: 1px solid rgba(226, 232, 240, 0.86);
 }
 
 .won-line strong,
@@ -993,14 +1121,36 @@ select {
 .won-line span {
   color: var(--muted);
   font-size: 13px;
+  line-height: 1.4;
 }
 
 .won-actions {
   display: flex;
+  grid-column: 1 / -1;
   gap: 8px;
   align-items: center;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: flex-start;
+  padding-top: 2px;
+}
+
+.won-actions form {
+  display: inline-flex;
+}
+
+.won-actions .locked-pill {
+  min-height: 28px;
+  border-color: rgba(203, 213, 225, 0.95);
+  background: rgba(255, 255, 255, 0.78);
+  color: #334155;
+}
+
+.won-actions button,
+.won-actions .delete-confirm summary {
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 12px;
 }
 
 .delete-confirm {
@@ -1122,18 +1272,34 @@ select {
   .wide-inline-form,
   .user-facts,
   .user-edit-grid,
+  .sales-summary-metrics,
+  .sales-status-strip,
   .won-grid,
   .won-metrics,
+  .won-card-head,
   .won-line {
     grid-template-columns: 1fr;
   }
 
-  .user-card-head,
-  .won-card-head {
+  .user-card-head {
     flex-direction: column;
   }
 
   .won-actions {
     justify-content: flex-start;
+  }
+
+  .won-card {
+    min-height: 0;
+    border-radius: 14px;
+    padding: 16px;
+  }
+
+  .won-toolbar {
+    justify-content: stretch;
+  }
+
+  .won-toolbar button {
+    flex: 1 1 160px;
   }
 }
