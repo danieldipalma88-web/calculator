@@ -142,6 +142,12 @@ const SAVED_QUOTE_SET_STORAGE_KEYS = [
   "SavedQuoteSetsV1",
 ];
 
+const DELETED_WON_OPTIONS_STORAGE_KEYS = [
+  "installerDeletedWonOptionsV1",
+  "greenEnergyDeletedWonOptionsV1",
+  "DeletedWonOptionsV1",
+];
+
 const WON_PAYMENT_KEYS = [
   "agencyPaidInAt",
   "agencyPaidInByEmail",
@@ -1053,8 +1059,34 @@ function wonOptionId(option: Record<string, unknown>) {
   return String(option.id || "option_1");
 }
 
+function deletedWonOptionKey(
+  record: Record<string, unknown>,
+  fallbackOwnerEmail = "",
+  fallbackDataUserId = "",
+) {
+  const userEmail = lookupText(record.userEmail || record.wonByEmail || record.email);
+  const dataOwnerEmail = lookupText(record.dataOwnerEmail || record.ownerEmail || fallbackOwnerEmail);
+  const dataUserId = String(record.dataUserId || record.userId || fallbackDataUserId || "").trim();
+  const optionId = String(record.optionId || "option_1").trim() || "option_1";
+  const wonAt = String(record.wonAt || "").trim();
+  if (!userEmail || !optionId || !wonAt) return "";
+  return wonOptionKey(userEmail, dataOwnerEmail, dataUserId, optionId, wonAt);
+}
+
+function deletedWonOptionKeysFromData(data: Record<string, unknown>, ownerEmail: string, dataUserId: string) {
+  const keys = new Set<string>();
+  DELETED_WON_OPTIONS_STORAGE_KEYS.forEach((storageKey) => {
+    parseStoredJson<Record<string, unknown>[]>(data[storageKey], []).forEach((record) => {
+      const key = deletedWonOptionKey(record, ownerEmail, dataUserId);
+      if (key) keys.add(key);
+    });
+  });
+  return keys;
+}
+
 function addWonOptionsFromSnapshot({
   wonOptions,
+  deletedWonOptions,
   usersByEmail,
   usersByName,
   fallbackEmail,
@@ -1066,6 +1098,7 @@ function addWonOptionsFromSnapshot({
   updatedAt,
 }: {
   wonOptions: Map<string, WonOption>;
+  deletedWonOptions: Set<string>;
   usersByEmail: Map<string, ApprovedUser>;
   usersByName: Map<string, ApprovedUser>;
   fallbackEmail: string;
@@ -1076,12 +1109,11 @@ function addWonOptionsFromSnapshot({
   recoveredFromBackup?: boolean;
   updatedAt: string;
 }) {
-  optionDefs
-    .filter((option) => option && option.wonAt)
-    .forEach((option) => {
-      const optionId = wonOptionId(option);
-      const wonAt = String(option.wonAt || updatedAt || "");
-      const rows = quotes.filter((quote) => String(quote.optionId || "option_1") === optionId);
+  function addOption(option: Record<string, unknown>, optionRows?: Record<string, unknown>[]) {
+    const optionId = wonOptionId(option);
+    const wonAt = String(option.wonAt || updatedAt || "");
+    const rows = optionRows || quotes.filter((quote) => String(quote.optionId || "option_1") === optionId);
+    if (!wonAt || !rows.length) return;
       const dataOwnerEmail = fallbackEmail;
       const rowWonByEmail = rows.map((quote) => quote.wonByEmail).find(Boolean);
       const rowWonByName = rows.map((quote) => quote.wonByName).find(Boolean);
@@ -1093,6 +1125,7 @@ function addWonOptionsFromSnapshot({
 
       const user = usersByEmail.get(email) || userFromName;
       const key = wonOptionKey(email, dataOwnerEmail, dataUserId, optionId, wonAt);
+      if (deletedWonOptions.has(key)) return;
       const paidInAt = String(option.agencyPaidInAt || option.paidInAt || "");
       const paidOutAt = String(option.salespersonPaidOutAt || option.paidOutAt || "");
       const paymentStatus = wonPaymentStatus(paidInAt, paidOutAt);
@@ -1147,7 +1180,34 @@ function addWonOptionsFromSnapshot({
         installerProfitTotal: rows.reduce((sum, quote) => sum + moneyValue(quote.netProfit), 0),
         rows: wonRows,
       });
+  }
+
+  const wonOptionIds = new Set<string>();
+  optionDefs
+    .filter((option) => option && option.wonAt)
+    .forEach((option) => {
+      wonOptionIds.add(wonOptionId(option));
+      addOption(option);
     });
+
+  const rowWonGroups = new Map<string, Record<string, unknown>[]>();
+  quotes
+    .filter((quote) => quote && quote.wonAt)
+    .forEach((quote) => {
+      const optionId = String(quote.optionId || "option_1");
+      if (wonOptionIds.has(optionId)) return;
+      rowWonGroups.set(optionId, [...(rowWonGroups.get(optionId) || []), quote]);
+    });
+  rowWonGroups.forEach((rows, optionId) => {
+    const first = rows[0] || {};
+    addOption({
+      id: optionId,
+      name: first.optionName || "Option",
+      wonAt: first.wonAt,
+      wonByEmail: first.wonByEmail,
+      wonByName: first.wonByName,
+    }, rows);
+  });
 }
 
 async function listWonOptions(supabase: SupabaseServer, users: ApprovedUser[]) {
@@ -1172,6 +1232,14 @@ async function listWonOptions(supabase: SupabaseServer, users: ApprovedUser[]) {
       .filter(([name]) => Boolean(name)),
   );
   const wonOptions = new Map<string, WonOption>();
+  const deletedWonOptions = new Set<string>();
+
+  ((dataResult.data || []) as CalculatorDataRow[]).forEach((row) => {
+    const data = row.data || {};
+    deletedWonOptionKeysFromData(data, lookupText(row.email), String(row.user_id || "")).forEach((key) => {
+      deletedWonOptions.add(key);
+    });
+  });
 
   function scanCalculatorSnapshot({
     row,
@@ -1198,6 +1266,7 @@ async function listWonOptions(supabase: SupabaseServer, users: ApprovedUser[]) {
     );
     addWonOptionsFromSnapshot({
       wonOptions,
+      deletedWonOptions,
       usersByEmail,
       usersByName,
       fallbackEmail,
@@ -1216,6 +1285,7 @@ async function listWonOptions(supabase: SupabaseServer, users: ApprovedUser[]) {
     savedQuoteSets.forEach((savedQuoteSet, index) => {
       addWonOptionsFromSnapshot({
         wonOptions,
+        deletedWonOptions,
         usersByEmail,
         usersByName,
         fallbackEmail,
@@ -1270,18 +1340,46 @@ async function updateWonOptionState(
   const ownerColumn = dataUserId ? "user_id" : "email";
   const ownerValue = dataUserId || ownerEmail;
 
+  function appendDeletedWonOption(originalData: Record<string, unknown>) {
+    const data = { ...originalData };
+    const storageKey = storedJsonKey(data, DELETED_WON_OPTIONS_STORAGE_KEYS);
+    const existing = parseStoredJson<Record<string, unknown>[]>(data[storageKey], []);
+    const deletedRecord = {
+      userEmail: userEmail.toLowerCase(),
+      dataOwnerEmail: ownerEmail,
+      dataUserId,
+      optionId,
+      wonAt,
+      sourceId,
+      deletedAt: new Date().toISOString(),
+      deletedByEmail: adminEmail,
+    };
+    const targetKey = deletedWonOptionKey(deletedRecord, ownerEmail, dataUserId);
+    if (!targetKey) return { data, updated: false };
+
+    const nextRecords = existing.filter((record) => (
+      deletedWonOptionKey(record, ownerEmail, dataUserId) !== targetKey
+    ));
+    data[storageKey] = serializeLikeStoredValue(data[storageKey], [deletedRecord, ...nextRecords].slice(0, 1000));
+    return { data, updated: true };
+  }
+
   function updateOptionCollections(
     optionDefs: Record<string, unknown>[],
     quotes: Record<string, unknown>[],
   ) {
-    const targetIds = new Set(
-      optionDefs
-        .filter((option) => {
-          if (wonOptionId(option) !== optionId) return false;
-          return !wonAt || String(option.wonAt || "") === wonAt;
-        })
-        .map(wonOptionId),
-    );
+    const targetIds = new Set<string>();
+    optionDefs.forEach((option) => {
+      if (wonOptionId(option) !== optionId) return;
+      if (wonAt && String(option.wonAt || "") !== wonAt) return;
+      targetIds.add(wonOptionId(option));
+    });
+    quotes.forEach((quote) => {
+      const quoteOptionId = String(quote.optionId || "option_1");
+      if (quoteOptionId !== optionId) return;
+      if (wonAt && String(quote.wonAt || "") !== wonAt) return;
+      targetIds.add(quoteOptionId);
+    });
     if (!targetIds.size) return null;
 
     let nextOptionDefs: Record<string, unknown>[];
@@ -1397,47 +1495,50 @@ async function updateWonOptionState(
   }
 
   if (mode === "delete") {
-    let updatedCount = 0;
-
     let currentQuery = supabase
       .from("user_calculator_data")
-      .select("user_id, data");
+      .select("user_id, email, data");
     currentQuery = currentQuery.eq(ownerColumn, ownerValue);
     const currentResult = await currentQuery.maybeSingle();
     if (currentResult.error) return dbMessage(currentResult.error);
-    if (currentResult.data?.data) {
-      const next = deleteFromEverySource(currentResult.data.data as Record<string, unknown>);
-      if (next.updated) {
-        let updateQuery = supabase
-          .from("user_calculator_data")
-          .update({ data: next.data, updated_at: new Date().toISOString() });
-        updateQuery = updateQuery.eq(ownerColumn, ownerValue);
-        const updateResult = await updateQuery;
-        if (updateResult.error) return dbMessage(updateResult.error);
-        updatedCount += 1;
+
+    let markerColumn = ownerColumn;
+    let markerValue = ownerValue;
+    let originalData = (currentResult.data?.data || null) as Record<string, unknown> | null;
+    let removed = originalData
+      ? deleteFromEverySource(originalData)
+      : { data: null as Record<string, unknown> | null, updated: false };
+
+    if (!originalData && adminEmail) {
+      const adminResult = await supabase
+        .from("user_calculator_data")
+        .select("user_id, email, data")
+        .eq("email", adminEmail.toLowerCase())
+        .maybeSingle();
+      if (adminResult.error) return dbMessage(adminResult.error);
+      if (adminResult.data?.data) {
+        markerColumn = "email";
+        markerValue = adminEmail.toLowerCase();
+        originalData = adminResult.data.data as Record<string, unknown>;
+        removed = { data: originalData, updated: false };
       }
     }
 
-    let backupsQuery = supabase
-      .from("user_calculator_data_backups")
-      .select("id, user_id, email, data");
-    backupsQuery = backupsQuery.eq(ownerColumn, ownerValue);
-    const backupsResult = await backupsQuery;
-    if (backupsResult.error) return dbMessage(backupsResult.error);
-
-    for (const backup of (backupsResult.data || []) as CalculatorBackupDataRow[]) {
-      if (!backup.data) continue;
-      const next = deleteFromEverySource(backup.data);
-      if (!next.updated) continue;
-      const updateResult = await supabase
-        .from("user_calculator_data_backups")
-        .update({ data: next.data })
-        .eq("id", backup.id);
-      if (updateResult.error) return dbMessage(updateResult.error);
-      updatedCount += 1;
+    if (!originalData || !removed.data) {
+      return "Could not find current calculator data to store the deletion marker.";
     }
 
-    return updatedCount ? "" : "Could not find that won option in the saved calculator data or backups.";
+    const marked = appendDeletedWonOption(removed.data);
+    if (!removed.updated && !marked.updated) {
+      return "Could not identify this won option closely enough to delete it.";
+    }
+
+    let updateQuery = supabase
+      .from("user_calculator_data")
+      .update({ data: marked.data, updated_at: new Date().toISOString() });
+    updateQuery = updateQuery.eq(markerColumn, markerValue);
+    const updateResult = await updateQuery;
+    return updateResult.error ? dbMessage(updateResult.error) : "";
   }
 
   const backupSource = backupSourceParts(sourceId);
@@ -1660,7 +1761,7 @@ async function unlockWonOption(formData: FormData) {
 async function deleteWonOption(formData: FormData) {
   "use server";
 
-  const { supabase } = await requireAdmin();
+  const { supabase, email: adminEmail } = await requireAdmin();
   const userEmail = normalizeEmail(formData.get("userEmail"));
   const optionId = normalizeText(formData.get("optionId"));
   const sourceId = normalizeText(formData.get("sourceId")) || CURRENT_WON_SOURCE_ID;
@@ -1672,7 +1773,7 @@ async function deleteWonOption(formData: FormData) {
     redirect("/admin/users?error=Could not identify the won option to delete.");
   }
 
-  const errorMessage = await updateWonOptionState(supabase, userEmail, optionId, "delete", "", sourceId, dataUserId, dataOwnerEmail, wonAt);
+  const errorMessage = await updateWonOptionState(supabase, userEmail, optionId, "delete", adminEmail, sourceId, dataUserId, dataOwnerEmail, wonAt);
 
   if (errorMessage) {
     redirect(`/admin/users?error=${encodeURIComponent(errorMessage)}`);
