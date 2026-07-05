@@ -845,6 +845,25 @@ function wonExportScript() {
       return String(card.getAttribute("data-salesperson-filter") || "").toLowerCase() === email;
     });
   }
+  function paymentFilterLabel(value) {
+    if (value === "unpaid") return "Unpaid";
+    if (value === "paid-in") return "Paid in";
+    if (value === "paid-out") return "Paid out";
+    return value;
+  }
+  function currency(value) {
+    return Number(value || 0).toLocaleString("en-AU", { style: "currency", currency: "AUD" });
+  }
+  function numberFromCard(card, attr) {
+    var parsed = Number(card.getAttribute(attr) || "0");
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  function cardMatchesPaymentFilters(card, activePayments) {
+    if (!activePayments.length) return true;
+    return activePayments.some(function(payment){
+      return card.getAttribute("data-payment-" + payment) === "true";
+    });
+  }
   var selectAll = document.querySelector("[data-select-all-won]");
   function visibleWonCards() {
     return Array.prototype.slice.call(document.querySelectorAll(".won-card")).filter(function(card){
@@ -876,11 +895,16 @@ function wonExportScript() {
       input.value = value;
     });
   }
-  function updateWonFilterStatus(activeEmails) {
+  function updateWonFilterStatus(activeEmails, activePayments) {
     var status = document.querySelector("[data-won-filter-status]");
     if (!status) return;
     var visibleCount = visibleWonCards().length;
+    var paymentText = activePayments.length ? " with " + activePayments.map(paymentFilterLabel).join(", ") : "";
     if (!activeEmails.length) {
+      if (paymentText) {
+        status.textContent = "Showing " + visibleCount + paymentText + " won options.";
+        return;
+      }
       status.textContent = "Showing all " + visibleCount + " won options.";
       return;
     }
@@ -888,19 +912,66 @@ function wonExportScript() {
       var card = salespersonCardForEmail(email);
       return card ? String(card.getAttribute("data-salesperson-name") || email) : email;
     });
-    status.textContent = "Showing " + visibleCount + " won options for " + names.join(", ") + ".";
+    status.textContent = "Showing " + visibleCount + paymentText + " won options for " + names.join(", ") + ".";
   }
   function activeSalespersonEmails() {
     return Array.prototype.slice.call(document.querySelectorAll(".sales-summary-card.is-active"))
       .map(function(card){ return String(card.getAttribute("data-salesperson-filter") || "").toLowerCase(); })
       .filter(Boolean);
   }
+  function activePaymentFilters() {
+    var values = Array.prototype.slice.call(document.querySelectorAll("[data-payment-filter].is-active"))
+      .map(function(button){ return String(button.getAttribute("data-payment-filter") || ""); })
+      .filter(Boolean);
+    return values.filter(function(value, index){ return values.indexOf(value) === index; });
+  }
+  function updateSalespersonSummaryTotals(activePayments) {
+    Array.prototype.slice.call(document.querySelectorAll("[data-salesperson-filter]")).forEach(function(summaryCard){
+      var email = String(summaryCard.getAttribute("data-salesperson-filter") || "").toLowerCase();
+      var cards = Array.prototype.slice.call(document.querySelectorAll(".won-card")).filter(function(card){
+        return String(card.getAttribute("data-won-user-email") || "").toLowerCase() === email &&
+          cardMatchesPaymentFilters(card, activePayments);
+      });
+      var totals = cards.reduce(function(total, card){
+        total.sales += 1;
+        total.customer += numberFromCard(card, "data-won-customer-total");
+        total.agency += numberFromCard(card, "data-won-agency-total");
+        total.salesComm += numberFromCard(card, "data-won-sales-total");
+        if (card.getAttribute("data-payment-unpaid") === "true") total.unpaid += 1;
+        if (card.getAttribute("data-payment-paid-in") === "true") total.paidIn += 1;
+        if (card.getAttribute("data-payment-paid-out") === "true") total.paidOut += 1;
+        return total;
+      }, { sales: 0, customer: 0, agency: 0, salesComm: 0, unpaid: 0, paidIn: 0, paidOut: 0 });
+      var salesEl = summaryCard.querySelector("[data-summary-sales]");
+      var customerEl = summaryCard.querySelector("[data-summary-customer]");
+      var agencyEl = summaryCard.querySelector("[data-summary-agency]");
+      var salesCommEl = summaryCard.querySelector("[data-summary-sales-comm]");
+      var unpaidEl = summaryCard.querySelector("[data-summary-unpaid]");
+      var paidInEl = summaryCard.querySelector("[data-summary-paid-in]");
+      var paidOutEl = summaryCard.querySelector("[data-summary-paid-out]");
+      if (salesEl) salesEl.textContent = String(totals.sales);
+      if (customerEl) customerEl.textContent = currency(totals.customer);
+      if (agencyEl) agencyEl.textContent = currency(totals.agency);
+      if (salesCommEl) salesCommEl.textContent = currency(totals.salesComm);
+      if (unpaidEl) unpaidEl.textContent = String(totals.unpaid);
+      if (paidInEl) paidInEl.textContent = String(totals.paidIn);
+      if (paidOutEl) paidOutEl.textContent = String(totals.paidOut);
+    });
+  }
+  function updatePaymentFilterButtons(activePayments) {
+    Array.prototype.slice.call(document.querySelectorAll("[data-payment-filter]")).forEach(function(button){
+      var isActive = activePayments.indexOf(String(button.getAttribute("data-payment-filter") || "")) >= 0;
+      button.classList.toggle("is-active", isActive);
+      button.setAttribute("aria-pressed", isActive ? "true" : "false");
+    });
+  }
   function applyWonSalespersonFilter() {
     var activeEmails = activeSalespersonEmails();
+    var activePayments = activePaymentFilters();
     var hasFilter = activeEmails.length > 0;
     Array.prototype.slice.call(document.querySelectorAll(".won-card")).forEach(function(card){
       var email = String(card.getAttribute("data-won-user-email") || "").toLowerCase();
-      var show = !hasFilter || activeEmails.indexOf(email) >= 0;
+      var show = (!hasFilter || activeEmails.indexOf(email) >= 0) && cardMatchesPaymentFilters(card, activePayments);
       card.hidden = !show;
       if (!show) {
         var box = card.querySelector(".won-sale-select");
@@ -909,7 +980,8 @@ function wonExportScript() {
     });
     updateSelectAllLabel();
     refreshBulkInputs();
-    updateWonFilterStatus(activeEmails);
+    updateSalespersonSummaryTotals(activePayments);
+    updateWonFilterStatus(activeEmails, activePayments);
   }
   function toggleSalespersonCard(card) {
     if (!card) return;
@@ -921,12 +993,25 @@ function wonExportScript() {
     card.setAttribute("aria-pressed", card.classList.contains("is-active") ? "true" : "false");
   });
   document.addEventListener("click", function(event){
+    var paymentTarget = event.target && event.target.closest ? event.target.closest("[data-payment-filter]") : null;
+    if (paymentTarget) {
+      event.preventDefault();
+      event.stopPropagation();
+      var payment = String(paymentTarget.getAttribute("data-payment-filter") || "");
+      if (!payment) return;
+      var activePayments = activePaymentFilters();
+      var isActive = activePayments.indexOf(payment) >= 0;
+      updatePaymentFilterButtons(isActive ? activePayments.filter(function(value){ return value !== payment; }) : activePayments.concat(payment));
+      applyWonSalespersonFilter();
+      return;
+    }
     var target = event.target && event.target.closest ? event.target.closest("[data-salesperson-filter]") : null;
     if (!target) return;
     toggleSalespersonCard(target);
   });
   document.addEventListener("keydown", function(event){
     if (event.key !== "Enter" && event.key !== " ") return;
+    if (event.target && event.target.closest && event.target.closest("[data-payment-filter]")) return;
     var target = event.target && event.target.closest ? event.target.closest("[data-salesperson-filter]") : null;
     if (!target) return;
     event.preventDefault();
@@ -2475,24 +2560,39 @@ export default async function AdminUsersPage({
                     <span>{summary.businessNames || summary.userEmail}</span>
                   </div>
                   <div className="sales-summary-metrics">
-                    <div><span>Sales</span><strong>{summary.saleCount}</strong></div>
-                    <div><span>Customer</span><strong>{formatMoney(summary.customerTotal)}</strong></div>
-                    <div><span>Agency comm</span><strong>{formatMoney(summary.agencyCommissionTotal)}</strong></div>
-                    <div><span>Sales comm</span><strong>{formatMoney(summary.salespersonCommissionTotal)}</strong></div>
+                    <div><span>Sales</span><strong data-summary-sales="true">{summary.saleCount}</strong></div>
+                    <div><span>Customer</span><strong data-summary-customer="true">{formatMoney(summary.customerTotal)}</strong></div>
+                    <div><span>Agency comm</span><strong data-summary-agency="true">{formatMoney(summary.agencyCommissionTotal)}</strong></div>
+                    <div><span>Sales comm</span><strong data-summary-sales-comm="true">{formatMoney(summary.salespersonCommissionTotal)}</strong></div>
                   </div>
                   <div className="sales-status-strip">
-                    <span className="status-chip status-chip-red">
-                      <strong>{summary.notPaidInCount}</strong>
+                    <button
+                      aria-pressed="false"
+                      className="status-chip status-chip-red"
+                      data-payment-filter="unpaid"
+                      type="button"
+                    >
+                      <strong data-summary-unpaid="true">{summary.notPaidInCount}</strong>
                       <span>Unpaid</span>
-                    </span>
-                    <span className="status-chip status-chip-amber">
-                      <strong>{summary.paidInCount}</strong>
+                    </button>
+                    <button
+                      aria-pressed="false"
+                      className="status-chip status-chip-amber"
+                      data-payment-filter="paid-in"
+                      type="button"
+                    >
+                      <strong data-summary-paid-in="true">{summary.paidInCount}</strong>
                       <span>Paid in</span>
-                    </span>
-                    <span className="status-chip status-chip-green">
-                      <strong>{summary.paidOutCount}</strong>
+                    </button>
+                    <button
+                      aria-pressed="false"
+                      className="status-chip status-chip-green"
+                      data-payment-filter="paid-out"
+                      type="button"
+                    >
+                      <strong data-summary-paid-out="true">{summary.paidOutCount}</strong>
                       <span>Paid out</span>
-                    </span>
+                    </button>
                   </div>
                 </article>
               ))}
@@ -2517,6 +2617,12 @@ export default async function AdminUsersPage({
                   wonAt: option.wonAt,
                 })}
                 data-won-user-email={option.userEmail.toLowerCase()}
+                data-payment-unpaid={option.paidInAt ? "false" : "true"}
+                data-payment-paid-in={option.paidInAt ? "true" : "false"}
+                data-payment-paid-out={option.paidOutAt ? "true" : "false"}
+                data-won-agency-total={option.agencyCommissionTotal}
+                data-won-customer-total={option.customerTotal}
+                data-won-sales-total={option.salespersonCommissionTotal}
                 key={wonOptionDomKey(option)}
               >
                 <div className="won-card-head">
