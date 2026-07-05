@@ -853,28 +853,63 @@ select {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
-.status-dot {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 28px;
-  padding: 0 10px;
-  border-radius: 999px;
-  white-space: nowrap;
+.status-chip {
+  display: grid;
+  min-width: 0;
+  min-height: 54px;
+  align-content: center;
+  justify-items: center;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid rgba(203, 213, 225, 0.78);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  text-align: center;
 }
 
-.status-dot.red {
-  background: #fee2e2;
+.status-chip strong {
+  color: var(--ink);
+  font-size: 17px;
+  line-height: 1;
+}
+
+.status-chip span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.status-chip-red {
+  border-color: rgba(248, 113, 113, 0.34);
+  background: #fff7f7;
+}
+
+.status-chip-red strong,
+.status-chip-red span {
   color: #991b1b;
 }
 
-.status-dot.orange {
-  background: #ffedd5;
-  color: #9a3412;
+.status-chip-amber {
+  border-color: rgba(251, 191, 36, 0.42);
+  background: #fffbeb;
 }
 
-.status-dot.green {
-  background: #dcfce7;
+.status-chip-amber strong,
+.status-chip-amber span {
+  color: #92400e;
+}
+
+.status-chip-green {
+  border-color: rgba(74, 222, 128, 0.38);
+  background: #f0fdf4;
+}
+
+.status-chip-green strong,
+.status-chip-green span {
   color: #166534;
 }
 
@@ -927,17 +962,17 @@ select {
   flex: 0 0 auto;
 }
 
-.won-card-not_paid_in {
+.won-card-payment_open {
   border-color: rgba(248, 113, 113, 0.45);
   background: linear-gradient(145deg, #fff, #fff7f7);
 }
 
-.won-card-paid_in {
-  border-color: rgba(251, 146, 60, 0.45);
-  background: linear-gradient(145deg, #fff, #fff8ed);
+.won-card-payment_partial {
+  border-color: rgba(251, 191, 36, 0.52);
+  background: linear-gradient(145deg, #fff, #fffbeb);
 }
 
-.won-card-paid_out {
+.won-card-payment_complete {
   border-color: rgba(74, 222, 128, 0.5);
   background: linear-gradient(145deg, #fff, #f2fdf6);
 }
@@ -949,7 +984,7 @@ select {
 .won-card {
   position: relative;
   display: flex;
-  min-height: 430px;
+  min-height: 0;
   height: 100%;
   flex-direction: column;
   overflow: hidden;
@@ -968,15 +1003,15 @@ select {
   background: #94a3b8;
 }
 
-.won-card-not_paid_in::before {
+.won-card-payment_open::before {
   background: #ef4444;
 }
 
-.won-card-paid_in::before {
-  background: #f97316;
+.won-card-payment_partial::before {
+  background: #f59e0b;
 }
 
-.won-card-paid_out::before {
+.won-card-payment_complete::before {
   background: #22c55e;
 }
 
@@ -1046,18 +1081,54 @@ select {
   font-weight: 900;
 }
 
-.payment-pill-not_paid_in {
+.payment-state-group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.payment-pill-payment_open {
   background: #fee2e2;
   color: #991b1b;
 }
 
-.payment-pill-paid_in {
-  background: #ffedd5;
-  color: #9a3412;
+.payment-pill-payment_partial {
+  background: #fef3c7;
+  color: #92400e;
 }
 
-.payment-pill-paid_out {
+.payment-pill-payment_complete {
   background: #dcfce7;
+  color: #166534;
+}
+
+.payment-flag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid rgba(203, 213, 225, 0.85);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.payment-flag-off {
+  background: rgba(255, 255, 255, 0.78);
+  color: #64748b;
+}
+
+.payment-flag-on {
+  border-color: rgba(251, 191, 36, 0.48);
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.won-card-payment_complete .payment-flag-on {
+  border-color: rgba(74, 222, 128, 0.42);
+  background: #f0fdf4;
   color: #166534;
 }
 
@@ -1118,7 +1189,7 @@ select {
 }
 
 .won-grid {
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 540px), 1fr));
+  grid-template-columns: minmax(0, 1fr);
   align-items: stretch;
 }
 

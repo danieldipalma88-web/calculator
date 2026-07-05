@@ -8,7 +8,7 @@ type UserRole = "admin" | "business_owner" | "agency" | "salesperson" | "user";
 type CommissionType = "none" | "standard" | "agency";
 type CommissionOverride = CommissionType | "business_default";
 type OperatingState = "NSW" | "VIC" | "QLD" | "SA" | "WA" | "TAS" | "ACT" | "NT";
-type WonPaymentStatus = "not_paid_in" | "paid_in" | "paid_out";
+type WonPaymentStatus = "payment_open" | "payment_partial" | "payment_complete";
 type WonOptionUpdateMode = "unlock" | "delete" | "paid_in" | "paid_out" | "reset_payment";
 
 type Business = {
@@ -709,15 +709,15 @@ function formatShortDate(value: string) {
 }
 
 function wonPaymentStatus(paidInAt: string, paidOutAt: string): WonPaymentStatus {
-  if (paidOutAt) return "paid_out";
-  if (paidInAt) return "paid_in";
-  return "not_paid_in";
+  if (paidInAt && paidOutAt) return "payment_complete";
+  if (paidInAt || paidOutAt) return "payment_partial";
+  return "payment_open";
 }
 
 function wonPaymentStatusLabel(status: WonPaymentStatus) {
-  if (status === "paid_out") return "Paid out";
-  if (status === "paid_in") return "Paid in, not paid out";
-  return "Not paid in";
+  if (status === "payment_complete") return "Paid in and out";
+  if (status === "payment_partial") return "Part paid";
+  return "Payment open";
 }
 
 function wonOptionDomKey(option: Pick<WonOption, "userEmail" | "dataUserId" | "dataOwnerEmail" | "sourceId" | "optionId" | "wonAt">) {
@@ -743,16 +743,12 @@ function applyWonPaymentFields(
   if (mode === "reset_payment") return clearWonPaymentFields(next);
 
   if (mode === "paid_in") {
-    delete next.salespersonPaidOutAt;
-    delete next.salespersonPaidOutByEmail;
-    delete next.paidOutAt;
-    delete next.paidOutByEmail;
+    next.agencyPaidInAt = now;
+    next.agencyPaidInByEmail = adminEmail;
+    next.paidInAt = now;
+    next.paidInByEmail = adminEmail;
+    return next;
   }
-
-  next.agencyPaidInAt = String(next.agencyPaidInAt || next.paidInAt || now);
-  next.agencyPaidInByEmail = String(next.agencyPaidInByEmail || next.paidInByEmail || adminEmail);
-  next.paidInAt = String(next.paidInAt || next.agencyPaidInAt || now);
-  next.paidInByEmail = String(next.paidInByEmail || next.agencyPaidInByEmail || adminEmail);
 
   if (mode === "paid_out") {
     next.salespersonPaidOutAt = now;
@@ -810,9 +806,9 @@ function summarizeSalesBySalesperson(wonOptions: WonOption[]) {
     existing.customerTotal += option.customerTotal;
     existing.agencyCommissionTotal += option.agencyCommissionTotal;
     existing.salespersonCommissionTotal += option.salespersonCommissionTotal;
-    if (option.paymentStatus === "paid_out") existing.paidOutCount += 1;
-    else if (option.paymentStatus === "paid_in") existing.paidInCount += 1;
+    if (option.paidInAt) existing.paidInCount += 1;
     else existing.notPaidInCount += 1;
+    if (option.paidOutAt) existing.paidOutCount += 1;
 
     const businessNames = new Set(
       `${existing.businessNames},${option.businessName}`
@@ -1987,7 +1983,7 @@ export default async function AdminUsersPage({
           <div className="notice">Won options setup: {wonResult.errorMessage}</div>
         ) : null}
 
-        <details className="admin-section" open>
+        <details className="admin-section">
           <summary className="section-heading admin-section-summary">
             <div>
               <h2>Businesses</h2>
@@ -2124,7 +2120,7 @@ export default async function AdminUsersPage({
           </div>
         </details>
 
-        <details className="admin-section" open>
+        <details className="admin-section">
           <summary className="section-heading admin-section-summary">
             <div>
               <h2>Approved users</h2>
@@ -2408,7 +2404,7 @@ export default async function AdminUsersPage({
           </div>
         </details>
 
-        <details className="admin-section won-options-section" open>
+        <details className="admin-section won-options-section">
           <summary className="section-heading admin-section-summary">
             <div>
               <h2>Won options</h2>
@@ -2485,9 +2481,18 @@ export default async function AdminUsersPage({
                     <div><span>Sales comm</span><strong>{formatMoney(summary.salespersonCommissionTotal)}</strong></div>
                   </div>
                   <div className="sales-status-strip">
-                    <span className="status-dot red">{summary.notPaidInCount} unpaid</span>
-                    <span className="status-dot orange">{summary.paidInCount} paid in</span>
-                    <span className="status-dot green">{summary.paidOutCount} paid out</span>
+                    <span className="status-chip status-chip-red">
+                      <strong>{summary.notPaidInCount}</strong>
+                      <span>Unpaid</span>
+                    </span>
+                    <span className="status-chip status-chip-amber">
+                      <strong>{summary.paidInCount}</strong>
+                      <span>Paid in</span>
+                    </span>
+                    <span className="status-chip status-chip-green">
+                      <strong>{summary.paidOutCount}</strong>
+                      <span>Paid out</span>
+                    </span>
                   </div>
                 </article>
               ))}
@@ -2526,14 +2531,22 @@ export default async function AdminUsersPage({
                     </span>
                   </div>
                   <div className="won-actions">
-                    <span className={`payment-pill payment-pill-${option.paymentStatus}`}>
-                      {option.paymentStatusLabel}
-                    </span>
+                    <div className="payment-state-group">
+                      <span className={`payment-pill payment-pill-${option.paymentStatus}`}>
+                        {option.paymentStatusLabel}
+                      </span>
+                      <span className={`payment-flag ${option.paidInAt ? "payment-flag-on" : "payment-flag-off"}`}>
+                        Paid in: {option.paidInAt ? formatShortDate(option.paidInAt) : "Not yet"}
+                      </span>
+                      <span className={`payment-flag ${option.paidOutAt ? "payment-flag-on" : "payment-flag-off"}`}>
+                        Paid out: {option.paidOutAt ? formatShortDate(option.paidOutAt) : "Not yet"}
+                      </span>
+                    </div>
                     <span className="locked-pill">
                       {option.wonAt ? formatShortDate(option.wonAt) : "Won"}
                     </span>
                     {option.recoveredFromBackup ? <span className="locked-pill">Recovered backup</span> : null}
-                    {option.paymentStatus === "not_paid_in" ? (
+                    {!option.paidInAt ? (
                       <form action={updateWonPaymentStatus}>
                         <input type="hidden" name="userEmail" value={option.userEmail} />
                         <input type="hidden" name="dataUserId" value={option.dataUserId} />
@@ -2547,7 +2560,7 @@ export default async function AdminUsersPage({
                         </button>
                       </form>
                     ) : null}
-                    {option.paymentStatus !== "paid_out" ? (
+                    {!option.paidOutAt ? (
                       <form action={updateWonPaymentStatus}>
                         <input type="hidden" name="userEmail" value={option.userEmail} />
                         <input type="hidden" name="dataUserId" value={option.dataUserId} />
@@ -2561,7 +2574,7 @@ export default async function AdminUsersPage({
                         </button>
                       </form>
                     ) : null}
-                    {option.paymentStatus !== "not_paid_in" ? (
+                    {option.paidInAt || option.paidOutAt ? (
                       <form action={updateWonPaymentStatus}>
                         <input type="hidden" name="userEmail" value={option.userEmail} />
                         <input type="hidden" name="dataUserId" value={option.dataUserId} />
