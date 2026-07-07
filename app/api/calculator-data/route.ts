@@ -13,6 +13,12 @@ const CERTIFICATE_VALUE_STORAGE_KEYS = [
   "CertificateValuesV1",
 ];
 
+const WON_OPTION_ADMIN_STATE_STORAGE_KEYS = [
+  "installerWonOptionAdminStateV1",
+  "greenEnergyWonOptionAdminStateV1",
+  "WonOptionAdminStateV1",
+];
+
 const BUSINESS_SHARED_STORAGE_KEYS = new Set([
   "installerManagedPricesV1",
   "greenEnergyManagedPricesV1",
@@ -88,7 +94,7 @@ function splitCalculatorDataByScope(data: Record<string, unknown>) {
 
 function stripCertificateValueKeys(data: Record<string, unknown>) {
   const output = { ...data };
-  CERTIFICATE_VALUE_STORAGE_KEYS.forEach((key) => {
+  [...CERTIFICATE_VALUE_STORAGE_KEYS, ...WON_OPTION_ADMIN_STATE_STORAGE_KEYS].forEach((key) => {
     delete output[key];
   });
   return output;

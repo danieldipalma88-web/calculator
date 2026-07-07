@@ -99,6 +99,32 @@ const CERTIFICATE_VALUE_STORAGE_KEYS = [
   "CertificateValuesV1",
 ];
 
+const WON_OPTION_ADMIN_STATE_STORAGE_KEYS = [
+  "installerWonOptionAdminStateV1",
+  "greenEnergyWonOptionAdminStateV1",
+  "WonOptionAdminStateV1",
+];
+
+const OPTION_DEF_STORAGE_KEYS = [
+  "installerQuoteOptionDefsV1",
+  "greenEnergyQuoteOptionDefsV1",
+  "QuoteOptionDefsV1",
+];
+
+const QUOTE_STORAGE_KEYS = [
+  "installerMasterQuoteLogV1",
+  "greenEnergyMasterQuoteLogV1",
+  "MasterQuoteLogV1",
+];
+
+const SAVED_QUOTE_SET_STORAGE_KEYS = [
+  "installerSavedQuoteSetsV1",
+  "greenEnergySavedQuoteSetsV1",
+  "SavedQuoteSetsV1",
+];
+
+const CURRENT_WON_SOURCE_ID = "current";
+
 const BUSINESS_SHARED_STORAGE_KEYS = new Set([
   "installerManagedPricesV1",
   "greenEnergyManagedPricesV1",
@@ -179,10 +205,140 @@ function sharedBusinessDataFromUserData(data: Record<string, unknown>) {
 
 function stripCertificateValueKeys(data: Record<string, unknown>) {
   const output = { ...data };
-  CERTIFICATE_VALUE_STORAGE_KEYS.forEach((key) => {
+  [...CERTIFICATE_VALUE_STORAGE_KEYS, ...WON_OPTION_ADMIN_STATE_STORAGE_KEYS].forEach((key) => {
     delete output[key];
   });
   return output;
+}
+
+function parseStoredJson<T>(value: unknown, fallback: T): T {
+  if (Array.isArray(value) || (value && typeof value === "object")) return value as T;
+  if (typeof value !== "string" || !value.trim()) return fallback;
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+function storedJsonKey(data: Record<string, unknown>, keys: string[]) {
+  return keys.find((key) => key in data) || keys[0];
+}
+
+function serializeLikeStoredValue(original: unknown, value: unknown) {
+  return typeof original === "string" || original === undefined ? JSON.stringify(value) : value;
+}
+
+function savedQuoteSetSourceId(set: Record<string, unknown>, index: number) {
+  const id = String(set.id || "").trim();
+  return id ? `saved:${id}` : `saved-index:${index}`;
+}
+
+function clearWonFields(record: Record<string, unknown>) {
+  const next = { ...record };
+  [
+    "wonAt",
+    "wonByEmail",
+    "wonByName",
+    "agencyPaidInAt",
+    "agencyPaidInByEmail",
+    "paidInAt",
+    "paidInByEmail",
+    "salespersonPaidOutAt",
+    "salespersonPaidOutByEmail",
+    "paidOutAt",
+    "paidOutByEmail",
+  ].forEach((key) => {
+    delete next[key];
+  });
+  return next;
+}
+
+function wonAdminUnlockRecords(data: Record<string, unknown>) {
+  const records: { sourceId: string; optionId: string; wonAt: string }[] = [];
+  WON_OPTION_ADMIN_STATE_STORAGE_KEYS.forEach((storageKey) => {
+    parseStoredJson<Record<string, unknown>[]>(data[storageKey], []).forEach((record) => {
+      if (!record.unlockedAt) return;
+      const optionId = String(record.optionId || "option_1").trim() || "option_1";
+      const wonAt = String(record.wonAt || "").trim();
+      if (!wonAt) return;
+      records.push({
+        sourceId: String(record.sourceId || CURRENT_WON_SOURCE_ID).trim() || CURRENT_WON_SOURCE_ID,
+        optionId,
+        wonAt,
+      });
+    });
+  });
+  return records;
+}
+
+function applyWonAdminUnlocks(data: Record<string, unknown>) {
+  const unlockRecords = wonAdminUnlockRecords(data);
+  if (!unlockRecords.length) return data;
+
+  const nextData = { ...data };
+
+  function shouldUnlock(sourceId: string, optionId: string, wonAt: unknown) {
+    const normalizedWonAt = String(wonAt || "").trim();
+    if (!normalizedWonAt) return false;
+    return unlockRecords.some((record) => (
+      record.sourceId === sourceId &&
+      record.optionId === optionId &&
+      record.wonAt === normalizedWonAt
+    ));
+  }
+
+  function scrubCollections(
+    sourceId: string,
+    optionDefs: Record<string, unknown>[],
+    quotes: Record<string, unknown>[],
+  ) {
+    let updated = false;
+    const nextOptionDefs = optionDefs.map((option) => {
+      const optionId = String(option.id || "option_1").trim() || "option_1";
+      if (!shouldUnlock(sourceId, optionId, option.wonAt)) return option;
+      updated = true;
+      return clearWonFields(option);
+    });
+    const nextQuotes = quotes.map((quote) => {
+      const optionId = String(quote.optionId || "option_1").trim() || "option_1";
+      if (!shouldUnlock(sourceId, optionId, quote.wonAt)) return quote;
+      updated = true;
+      return clearWonFields(quote);
+    });
+    return updated ? { optionDefs: nextOptionDefs, quotes: nextQuotes } : null;
+  }
+
+  const optionDefsKey = storedJsonKey(nextData, OPTION_DEF_STORAGE_KEYS);
+  const quotesKey = storedJsonKey(nextData, QUOTE_STORAGE_KEYS);
+  const optionDefs = parseStoredJson<Record<string, unknown>[]>(nextData[optionDefsKey], []);
+  const quotes = parseStoredJson<Record<string, unknown>[]>(nextData[quotesKey], []);
+  const current = scrubCollections(CURRENT_WON_SOURCE_ID, optionDefs, quotes);
+  if (current) {
+    nextData[optionDefsKey] = serializeLikeStoredValue(nextData[optionDefsKey], current.optionDefs);
+    nextData[quotesKey] = serializeLikeStoredValue(nextData[quotesKey], current.quotes);
+  }
+
+  const savedSetsKey = storedJsonKey(nextData, SAVED_QUOTE_SET_STORAGE_KEYS);
+  const savedQuoteSets = parseStoredJson<Record<string, unknown>[]>(nextData[savedSetsKey], []);
+  let savedSetsUpdated = false;
+  const nextSavedQuoteSets = savedQuoteSets.map((savedQuoteSet, index) => {
+    const savedOptionDefs = Array.isArray(savedQuoteSet.optionDefs)
+      ? savedQuoteSet.optionDefs as Record<string, unknown>[]
+      : [];
+    const savedQuotes = Array.isArray(savedQuoteSet.quotes)
+      ? savedQuoteSet.quotes as Record<string, unknown>[]
+      : [];
+    const scrubbed = scrubCollections(savedQuoteSetSourceId(savedQuoteSet, index), savedOptionDefs, savedQuotes);
+    if (!scrubbed) return savedQuoteSet;
+    savedSetsUpdated = true;
+    return { ...savedQuoteSet, optionDefs: scrubbed.optionDefs, quotes: scrubbed.quotes };
+  });
+  if (savedSetsUpdated) {
+    nextData[savedSetsKey] = serializeLikeStoredValue(nextData[savedSetsKey], nextSavedQuoteSets);
+  }
+
+  return nextData;
 }
 
 function stripManagedRebateOverrides(value: unknown) {
@@ -606,7 +762,8 @@ async function getSavedCalculatorData(
     }
   }
 
-  const cleanedUserData = stripCertificateValueKeys(userData);
+  const unlockedUserData = applyWonAdminUnlocks(userData);
+  const cleanedUserData = stripCertificateValueKeys(unlockedUserData);
   return { ...cleanedUserData, ...sharedBusinessDataFromUserData(cleanedUserData), ...businessData };
 }
 

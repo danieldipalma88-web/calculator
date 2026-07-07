@@ -90,6 +90,24 @@ type WonOption = {
   }[];
 };
 
+type WonOptionAdminState = {
+  userEmail: string;
+  dataOwnerEmail: string;
+  dataUserId: string;
+  sourceId: string;
+  optionId: string;
+  wonAt: string;
+  paidInAt?: string;
+  paidInByEmail?: string;
+  paidOutAt?: string;
+  paidOutByEmail?: string;
+  paymentResetAt?: string;
+  paymentResetByEmail?: string;
+  unlockedAt?: string;
+  unlockedByEmail?: string;
+  updatedAt?: string;
+};
+
 type SalespersonSalesSummary = {
   userEmail: string;
   userName: string;
@@ -154,6 +172,12 @@ const DELETED_WON_OPTIONS_STORAGE_KEYS = [
   "installerDeletedWonOptionsV1",
   "greenEnergyDeletedWonOptionsV1",
   "DeletedWonOptionsV1",
+];
+
+const WON_OPTION_ADMIN_STATE_STORAGE_KEYS = [
+  "installerWonOptionAdminStateV1",
+  "greenEnergyWonOptionAdminStateV1",
+  "WonOptionAdminStateV1",
 ];
 
 const WON_PAYMENT_KEYS = [
@@ -1304,9 +1328,69 @@ function deletedWonOptionKeysFromData(data: Record<string, unknown>, ownerEmail:
   return keys;
 }
 
+function wonAdminStateKey(
+  record: Pick<WonOptionAdminState, "userEmail" | "dataOwnerEmail" | "dataUserId" | "optionId" | "wonAt">,
+  fallbackOwnerEmail = "",
+  fallbackDataUserId = "",
+) {
+  const userEmail = lookupText(record.userEmail);
+  const dataOwnerEmail = lookupText(record.dataOwnerEmail || fallbackOwnerEmail);
+  const dataUserId = String(record.dataUserId || fallbackDataUserId || "").trim();
+  const optionId = String(record.optionId || "option_1").trim() || "option_1";
+  const wonAt = String(record.wonAt || "").trim();
+  if (!userEmail || !optionId || !wonAt) return "";
+  return wonOptionKey(userEmail, dataOwnerEmail, dataUserId, optionId, wonAt);
+}
+
+function normalizeWonAdminStateRecord(
+  record: Record<string, unknown>,
+  ownerEmail: string,
+  dataUserId: string,
+): WonOptionAdminState | null {
+  const normalized: WonOptionAdminState = {
+    userEmail: lookupText(record.userEmail || record.wonByEmail || record.email),
+    dataOwnerEmail: lookupText(record.dataOwnerEmail || record.ownerEmail || ownerEmail),
+    dataUserId: String(record.dataUserId || record.userId || dataUserId || "").trim(),
+    sourceId: String(record.sourceId || CURRENT_WON_SOURCE_ID).trim() || CURRENT_WON_SOURCE_ID,
+    optionId: String(record.optionId || "option_1").trim() || "option_1",
+    wonAt: String(record.wonAt || "").trim(),
+    paidInAt: String(record.paidInAt || record.agencyPaidInAt || ""),
+    paidInByEmail: lookupText(record.paidInByEmail || record.agencyPaidInByEmail),
+    paidOutAt: String(record.paidOutAt || record.salespersonPaidOutAt || ""),
+    paidOutByEmail: lookupText(record.paidOutByEmail || record.salespersonPaidOutByEmail),
+    paymentResetAt: String(record.paymentResetAt || ""),
+    paymentResetByEmail: lookupText(record.paymentResetByEmail),
+    unlockedAt: String(record.unlockedAt || ""),
+    unlockedByEmail: lookupText(record.unlockedByEmail),
+    updatedAt: String(record.updatedAt || record.paidInAt || record.paidOutAt || record.unlockedAt || record.paymentResetAt || ""),
+  };
+
+  if (!wonAdminStateKey(normalized, ownerEmail, dataUserId)) return null;
+  return normalized;
+}
+
+function wonAdminStateRecordsFromData(data: Record<string, unknown>, ownerEmail: string, dataUserId: string) {
+  const records: WonOptionAdminState[] = [];
+  WON_OPTION_ADMIN_STATE_STORAGE_KEYS.forEach((storageKey) => {
+    parseStoredJson<Record<string, unknown>[]>(data[storageKey], []).forEach((record) => {
+      const normalized = normalizeWonAdminStateRecord(record, ownerEmail, dataUserId);
+      if (normalized) records.push(normalized);
+    });
+  });
+  return records;
+}
+
+function newerAdminStateRecord(existing: WonOptionAdminState | undefined, next: WonOptionAdminState) {
+  if (!existing) return next;
+  const existingTime = Number(new Date(existing.updatedAt || existing.paidInAt || existing.paidOutAt || existing.unlockedAt || existing.paymentResetAt || 0));
+  const nextTime = Number(new Date(next.updatedAt || next.paidInAt || next.paidOutAt || next.unlockedAt || next.paymentResetAt || 0));
+  return nextTime >= existingTime ? next : existing;
+}
+
 function addWonOptionsFromSnapshot({
   wonOptions,
   deletedWonOptions,
+  adminWonStates,
   usersByEmail,
   usersByName,
   fallbackEmail,
@@ -1319,6 +1403,7 @@ function addWonOptionsFromSnapshot({
 }: {
   wonOptions: Map<string, WonOption>;
   deletedWonOptions: Set<string>;
+  adminWonStates: Map<string, WonOptionAdminState>;
   usersByEmail: Map<string, ApprovedUser>;
   usersByName: Map<string, ApprovedUser>;
   fallbackEmail: string;
@@ -1346,8 +1431,14 @@ function addWonOptionsFromSnapshot({
       const user = usersByEmail.get(email) || userFromName;
       const key = wonOptionKey(email, dataOwnerEmail, dataUserId, optionId, wonAt);
       if (deletedWonOptions.has(key)) return;
-      const paidInAt = String(option.agencyPaidInAt || option.paidInAt || "");
-      const paidOutAt = String(option.salespersonPaidOutAt || option.paidOutAt || "");
+      const adminState = adminWonStates.get(key);
+      const paymentWasReset = Boolean(adminState?.paymentResetAt);
+      const paidInAt = paymentWasReset
+        ? ""
+        : String(adminState?.paidInAt ?? option.agencyPaidInAt ?? option.paidInAt ?? "");
+      const paidOutAt = paymentWasReset
+        ? ""
+        : String(adminState?.paidOutAt ?? option.salespersonPaidOutAt ?? option.paidOutAt ?? "");
       const paymentStatus = wonPaymentStatus(paidInAt, paidOutAt);
       const firstBusinessName = rows
         .map((quote) => String(quote.businessName || ""))
@@ -1453,11 +1544,20 @@ async function listWonOptions(supabase: SupabaseServer, users: ApprovedUser[]) {
   );
   const wonOptions = new Map<string, WonOption>();
   const deletedWonOptions = new Set<string>();
+  const adminWonStates = new Map<string, WonOptionAdminState>();
 
   ((dataResult.data || []) as CalculatorDataRow[]).forEach((row) => {
     const data = row.data || {};
-    deletedWonOptionKeysFromData(data, lookupText(row.email), String(row.user_id || "")).forEach((key) => {
+    const ownerEmail = lookupText(row.email);
+    const dataUserId = String(row.user_id || "");
+    deletedWonOptionKeysFromData(data, ownerEmail, dataUserId).forEach((key) => {
       deletedWonOptions.add(key);
+    });
+    wonAdminStateRecordsFromData(data, ownerEmail, dataUserId).forEach((record) => {
+      const key = wonAdminStateKey(record, ownerEmail, dataUserId);
+      if (!key) return;
+      adminWonStates.set(key, newerAdminStateRecord(adminWonStates.get(key), record));
+      if (record.unlockedAt) deletedWonOptions.add(key);
     });
   });
 
@@ -1487,6 +1587,7 @@ async function listWonOptions(supabase: SupabaseServer, users: ApprovedUser[]) {
     addWonOptionsFromSnapshot({
       wonOptions,
       deletedWonOptions,
+      adminWonStates,
       usersByEmail,
       usersByName,
       fallbackEmail,
@@ -1506,6 +1607,7 @@ async function listWonOptions(supabase: SupabaseServer, users: ApprovedUser[]) {
       addWonOptionsFromSnapshot({
         wonOptions,
         deletedWonOptions,
+        adminWonStates,
         usersByEmail,
         usersByName,
         fallbackEmail,
@@ -1543,6 +1645,61 @@ async function listWonOptions(supabase: SupabaseServer, users: ApprovedUser[]) {
     data: [...wonOptions.values()].sort((a, b) => Number(new Date(b.wonAt)) - Number(new Date(a.wonAt))),
     errorMessage: backupErrorMessage ? `Backup won options were not checked: ${backupErrorMessage}` : "",
   };
+}
+
+function upsertWonAdminState(
+  originalData: Record<string, unknown>,
+  patch: WonOptionAdminState,
+  mode: Exclude<WonOptionUpdateMode, "delete">,
+  adminEmail: string,
+) {
+  const data = { ...originalData };
+  const storageKey = storedJsonKey(data, WON_OPTION_ADMIN_STATE_STORAGE_KEYS);
+  const existing = parseStoredJson<Record<string, unknown>[]>(data[storageKey], [])
+    .map((record) => normalizeWonAdminStateRecord(record, patch.dataOwnerEmail, patch.dataUserId))
+    .filter((record): record is WonOptionAdminState => Boolean(record));
+  const targetKey = wonAdminStateKey(patch, patch.dataOwnerEmail, patch.dataUserId);
+  if (!targetKey) return { data, updated: false };
+
+  const previous = existing.find((record) => (
+    wonAdminStateKey(record, patch.dataOwnerEmail, patch.dataUserId) === targetKey
+  ));
+  const now = new Date().toISOString();
+  const nextRecord: WonOptionAdminState = {
+    ...(previous || {}),
+    ...patch,
+    userEmail: patch.userEmail.toLowerCase(),
+    dataOwnerEmail: patch.dataOwnerEmail.toLowerCase(),
+    updatedAt: now,
+  };
+
+  if (mode === "paid_in") {
+    nextRecord.paidInAt = now;
+    nextRecord.paidInByEmail = adminEmail;
+    delete nextRecord.paymentResetAt;
+    delete nextRecord.paymentResetByEmail;
+  } else if (mode === "paid_out") {
+    nextRecord.paidOutAt = now;
+    nextRecord.paidOutByEmail = adminEmail;
+    delete nextRecord.paymentResetAt;
+    delete nextRecord.paymentResetByEmail;
+  } else if (mode === "reset_payment") {
+    nextRecord.paidInAt = "";
+    delete nextRecord.paidInByEmail;
+    nextRecord.paidOutAt = "";
+    delete nextRecord.paidOutByEmail;
+    nextRecord.paymentResetAt = now;
+    nextRecord.paymentResetByEmail = adminEmail;
+  } else if (mode === "unlock") {
+    nextRecord.unlockedAt = now;
+    nextRecord.unlockedByEmail = adminEmail;
+  }
+
+  const nextRecords = existing.filter((record) => (
+    wonAdminStateKey(record, patch.dataOwnerEmail, patch.dataUserId) !== targetKey
+  ));
+  data[storageKey] = serializeLikeStoredValue(data[storageKey], [nextRecord, ...nextRecords].slice(0, 2000));
+  return { data, updated: true };
 }
 
 async function updateWonOptionState(
@@ -1793,13 +1950,26 @@ async function updateWonOptionState(
   if (!dataResult.data?.data) return "Could not find saved calculator data for this user.";
 
   const next = updateDataForSource(dataResult.data.data as Record<string, unknown>, sourceId);
-  const updated = next.updated;
+  const adminState = upsertWonAdminState(
+    next.data,
+    {
+      userEmail: userEmail.toLowerCase(),
+      dataOwnerEmail: ownerEmail,
+      dataUserId,
+      sourceId,
+      optionId,
+      wonAt,
+    },
+    mode,
+    adminEmail,
+  );
+  const updated = next.updated || adminState.updated;
 
   if (!updated) return "Could not find that won option in the saved calculator data.";
 
   let updateQuery = supabase
     .from("user_calculator_data")
-    .update({ data: next.data, updated_at: new Date().toISOString() });
+    .update({ data: adminState.data, updated_at: new Date().toISOString() });
   updateQuery = updateQuery.eq(ownerColumn, ownerValue);
   const updateResult = await updateQuery;
 
@@ -2019,7 +2189,7 @@ async function removeApprovedUser(formData: FormData) {
 async function unlockWonOption(formData: FormData) {
   "use server";
 
-  const { supabase } = await requireAdmin();
+  const { supabase, email: adminEmail } = await requireAdmin();
   const userEmail = normalizeEmail(formData.get("userEmail"));
   const optionId = normalizeText(formData.get("optionId"));
   const sourceId = normalizeText(formData.get("sourceId")) || CURRENT_WON_SOURCE_ID;
@@ -2031,7 +2201,7 @@ async function unlockWonOption(formData: FormData) {
     redirect("/admin/users?error=Could not identify the won option to unlock.");
   }
 
-  const errorMessage = await updateWonOptionState(supabase, userEmail, optionId, "unlock", "", sourceId, dataUserId, dataOwnerEmail, wonAt);
+  const errorMessage = await updateWonOptionState(supabase, userEmail, optionId, "unlock", adminEmail, sourceId, dataUserId, dataOwnerEmail, wonAt);
 
   if (errorMessage) {
     redirect(`/admin/users?error=${encodeURIComponent(errorMessage)}`);
