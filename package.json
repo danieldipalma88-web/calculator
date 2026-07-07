@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "verify:rebates": "node scripts/verify-rebate-guards.mjs",
     "build": "next build",
     "start": "next start"
   },

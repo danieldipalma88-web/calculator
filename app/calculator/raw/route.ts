@@ -90,6 +90,7 @@ function cookieValue(request: Request, name: string) {
 
 const MANAGED_PRICE_STORAGE_KEYS = [
   "installerManagedPricesV1",
+  "greenEnergyManagedPricesV1",
   "ManagedPricesV1",
 ];
 
@@ -191,6 +192,14 @@ function stripAccountManagedRebateOverrides(data: Record<string, unknown>) {
     if (key in output) {
       output[key] = stripManagedRebateOverrides(output[key]);
     }
+  }
+  return output;
+}
+
+function trustedBusinessManagedPriceData(data: Record<string, unknown>) {
+  const output: Record<string, unknown> = {};
+  for (const key of MANAGED_PRICE_STORAGE_KEYS) {
+    if (key in data) output[key] = data[key];
   }
   return output;
 }
@@ -375,10 +384,12 @@ function injectCloudStorageSync(
   var calculatorSyncUrl = ${safeScriptJson(syncUrl)};
   var profileStorageKey = '__calculatorProfileEmail';
   var profileEmail = ((calculatorUser && (calculatorUser.viewingEmail || calculatorUser.email)) || '') + '|' + ((calculatorUser && calculatorUser.businessId) || '');
+  var trustedManagedPriceKeys = {};
   var syncing = false;
   var timer = null;
   var lastSnapshotJson = '';
   window.CALCULATOR_USER = calculatorUser;
+  window.__calculatorTrustedManagedPriceKeys = trustedManagedPriceKeys;
   function isAppStorageKey(key){
     return !!key && key.indexOf('sb-') !== 0 && key !== profileStorageKey;
   }
@@ -453,6 +464,7 @@ function injectCloudStorageSync(
   function stripLocalManagedRebateOverrides(){
     if (calculatorUser && calculatorUser.canSeeOwnerDetails) return;
     ['installerManagedPricesV1', 'greenEnergyManagedPricesV1'].forEach(function(key){
+      if (trustedManagedPriceKeys[key]) return;
       try {
         var value = localStorage.getItem(key);
         if (value !== null) localStorage.setItem(key, stripManagedRebateOverridesFromStoredValue(value));
@@ -591,6 +603,9 @@ function injectCloudStorageSync(
     stripLocalManagedRebateOverrides();
     Object.keys(cloudData || {}).forEach(function(key){
       setCloudValue(key, cloudData[key]);
+      if (key === 'installerManagedPricesV1' || key === 'greenEnergyManagedPricesV1' || key === 'ManagedPricesV1') {
+        trustedManagedPriceKeys[key] = true;
+      }
     });
     stripLocalCertificateRates();
     stripLocalManagedRebateOverrides();
@@ -764,7 +779,8 @@ async function getSavedCalculatorData(
 
   const unlockedUserData = applyWonAdminUnlocks(userData);
   const cleanedUserData = stripCertificateValueKeys(unlockedUserData);
-  return { ...cleanedUserData, ...sharedBusinessDataFromUserData(cleanedUserData), ...businessData };
+  const data = { ...cleanedUserData, ...sharedBusinessDataFromUserData(cleanedUserData), ...businessData };
+  return { data, businessData };
 }
 
 export async function GET(request: Request) {
@@ -817,16 +833,20 @@ export async function GET(request: Request) {
     viewedUser.salesperson_commission_rate_override ?? business?.salesperson_commission_rate ?? 0,
   );
   const contextRole = String(viewedUser.role || "user");
-  const savedData = await getSavedCalculatorData(
+  const savedDataResult = await getSavedCalculatorData(
     supabase,
     user.id,
     currentEmail,
     viewingEmail,
     business?.id || null,
   );
+  const savedData = savedDataResult.data;
   const effectiveSavedData = isOwnerEmail(viewingEmail)
     ? { ...savedData }
-    : stripAccountManagedRebateOverrides(savedData);
+    : {
+        ...stripAccountManagedRebateOverrides(savedData),
+        ...trustedBusinessManagedPriceData(savedDataResult.businessData),
+      };
   const useAdminVisibility = currentUserIsOwner && !previewAsViewedUser;
   const effectiveCanManageUsers = previewAsViewedUser
     ? canManageUsers(viewingEmail, contextRole)

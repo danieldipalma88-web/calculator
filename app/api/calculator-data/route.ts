@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from "../../../lib/supabase/server";
 
 const MANAGED_PRICE_STORAGE_KEYS = [
   "installerManagedPricesV1",
+  "greenEnergyManagedPricesV1",
   "ManagedPricesV1",
 ];
 
@@ -172,6 +173,109 @@ function stripManagedRebateOverrides(value: unknown) {
   }
 }
 
+function parseManagedPriceMap(value: unknown) {
+  if (typeof value === "string" && value.trim()) {
+    try {
+      const parsed = JSON.parse(value);
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+        ? (parsed as Record<string, unknown>)
+        : {};
+    } catch {
+      return {};
+    }
+  }
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? { ...(value as Record<string, unknown>) }
+    : {};
+}
+
+function serializeManagedPriceMap(original: unknown, value: Record<string, unknown>) {
+  return typeof original === "string" || original === undefined ? JSON.stringify(value) : value;
+}
+
+function normalizeManagedLookup(value: unknown) {
+  return String(value || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function managedEntryHasTrustedRebate(entry: unknown) {
+  if (!entry || typeof entry !== "object" || Array.isArray(entry)) return false;
+  const rebateManual = (entry as Record<string, unknown>).rebateManual === true;
+  const rebate = Number((entry as Record<string, unknown>).rebate);
+  return rebateManual || (Number.isFinite(rebate) && Math.abs(rebate) > 0.0001);
+}
+
+function managedEntryModelKey(entry: unknown) {
+  if (!entry || typeof entry !== "object" || Array.isArray(entry)) return "";
+  return normalizeManagedLookup((entry as Record<string, unknown>).model);
+}
+
+function managedRebateSource(
+  entryKey: string,
+  entry: unknown,
+  existingMaps: Record<string, unknown>[],
+) {
+  for (const map of existingMaps) {
+    const source = map[entryKey];
+    if (managedEntryHasTrustedRebate(source)) return source as Record<string, unknown>;
+  }
+
+  const modelKey = managedEntryModelKey(entry);
+  if (!modelKey) return null;
+
+  for (const map of existingMaps) {
+    for (const source of Object.values(map)) {
+      if (managedEntryModelKey(source) === modelKey && managedEntryHasTrustedRebate(source)) {
+        return source as Record<string, unknown>;
+      }
+    }
+  }
+
+  return null;
+}
+
+function preserveManagedRebateFields(
+  existingValue: unknown,
+  incomingValue: unknown,
+  fallbackExistingValues: unknown[] = [],
+) {
+  const existingMaps = [
+    parseManagedPriceMap(existingValue),
+    ...fallbackExistingValues.map(parseManagedPriceMap),
+  ];
+  const incoming = parseManagedPriceMap(incomingValue);
+
+  for (const [key, entry] of Object.entries(incoming)) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+    const outputEntry = entry as Record<string, unknown>;
+    const sourceEntry = managedRebateSource(key, outputEntry, existingMaps);
+    if (!sourceEntry) continue;
+    if (!("rebate" in outputEntry) && "rebate" in sourceEntry) outputEntry.rebate = sourceEntry.rebate;
+    if (!("rebateManual" in outputEntry) && "rebateManual" in sourceEntry) outputEntry.rebateManual = sourceEntry.rebateManual;
+  }
+
+  return serializeManagedPriceMap(incomingValue, incoming);
+}
+
+function preserveBusinessManagedRebates(
+  existing: unknown,
+  incoming: Record<string, unknown>,
+) {
+  const existingData =
+    existing && typeof existing === "object" ? (existing as Record<string, unknown>) : {};
+  const output = { ...incoming };
+
+  for (const key of MANAGED_PRICE_STORAGE_KEYS) {
+    if (key in output) {
+      const fallbackExistingValues = MANAGED_PRICE_STORAGE_KEYS
+        .filter((candidate) => candidate !== key)
+        .map((candidate) => existingData[candidate]);
+      output[key] = preserveManagedRebateFields(existingData[key], output[key], fallbackExistingValues);
+    }
+  }
+
+  return output;
+}
+
 export async function GET(request: Request) {
   const supabase = await createSupabaseServerClient();
   const {
@@ -270,7 +374,10 @@ async function saveCalculatorData(request: Request) {
       .eq("business_id", businessId)
       .maybeSingle();
 
-    const mergedBusinessData = mergeCalculatorData(existingBusiness.data?.data, businessData);
+    const safeBusinessData = canEditManagedRebates
+      ? businessData
+      : preserveBusinessManagedRebates(existingBusiness.data?.data, businessData);
+    const mergedBusinessData = mergeCalculatorData(existingBusiness.data?.data, safeBusinessData);
     const businessSave = await supabase.from("business_calculator_data").upsert({
       business_id: businessId,
       data: mergedBusinessData,
