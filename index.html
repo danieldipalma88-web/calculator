@@ -2853,7 +2853,14 @@ function toggleCertValuesLock(){
   refreshLiveRebateForCurrentProduct();
   refreshBestValueIndicator();
 }
-function openCertDrawer(){applyLockedCertValuesToMain(); $('certDrawer').classList.add('open'); $('overlay').classList.add('open'); syncOverlayState();}
+function openCertDrawer(){
+  if(canManageUsers()){
+    try{window.top.location.href='/admin/users#certificate-values';}
+    catch(e){window.location.href='/admin/users#certificate-values';}
+    return;
+  }
+  applyLockedCertValuesToMain(); $('certDrawer').classList.add('open'); $('overlay').classList.add('open'); syncOverlayState();
+}
 function closeCertDrawer(){
   $('certDrawer').classList.remove('open');
   if(!$('drawer').classList.contains('open') && !$('priceDrawer').classList.contains('open')) $('overlay').classList.remove('open');
@@ -3435,6 +3442,7 @@ function formatCommissionRate(v){
   return n.toLocaleString('en-AU',{minimumFractionDigits:n%1?1:0,maximumFractionDigits:2});
 }
 function calculatorUserContext(){return window.CALCULATOR_USER||{};}
+function canManageUsers(){const u=calculatorUserContext(); return !!u.canManageUsers;}
 function canSeeOwnerDetails(){const u=calculatorUserContext(); return u.canSeeOwnerDetails!==false;}
 function canSeeCommissionDetails(){const u=calculatorUserContext(); return u.canSeeCommissionDetails!==false;}
 function canSeeProfitDetails(){const u=calculatorUserContext(); return u.canSeeProfitDetails!==false;}

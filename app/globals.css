@@ -380,6 +380,65 @@ button.danger {
   width: 100%;
 }
 
+.certificate-admin-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.34fr);
+  gap: 14px;
+  align-items: stretch;
+  margin-top: 18px;
+}
+
+.certificate-admin-form,
+.certificate-admin-status {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.certificate-admin-form {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(190px, 0.72fr) auto;
+  align-items: end;
+}
+
+.certificate-admin-form button {
+  width: 100%;
+}
+
+.certificate-lock-toggle {
+  margin: 0;
+  min-height: 44px;
+  background: #fff;
+}
+
+.certificate-admin-status {
+  grid-template-columns: 1fr;
+  background: #fff;
+}
+
+.certificate-admin-status span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.certificate-admin-status strong {
+  display: block;
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.certificate-admin-status button {
+  width: 100%;
+}
+
 .business-checkbox-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -1409,6 +1468,8 @@ select {
 
   .business-form,
   .user-form,
+  .certificate-admin-grid,
+  .certificate-admin-form,
   .business-card,
   .business-summary,
   .business-edit-form,

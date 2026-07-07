@@ -93,6 +93,12 @@ const MANAGED_PRICE_STORAGE_KEYS = [
   "ManagedPricesV1",
 ];
 
+const CERTIFICATE_VALUE_STORAGE_KEYS = [
+  "installerCertificateValuesV1",
+  "greenEnergyCertificateValuesV1",
+  "CertificateValuesV1",
+];
+
 const BUSINESS_SHARED_STORAGE_KEYS = new Set([
   "installerManagedPricesV1",
   "greenEnergyManagedPricesV1",
@@ -100,9 +106,6 @@ const BUSINESS_SHARED_STORAGE_KEYS = new Set([
   "installerDefaultCostRulesV1",
   "greenEnergyDefaultCostRulesV1",
   "DefaultCostRulesV1",
-  "installerCertificateValuesV1",
-  "greenEnergyCertificateValuesV1",
-  "CertificateValuesV1",
 ]);
 
 function stripSensitiveQuoteFields(value: unknown): unknown {
@@ -171,6 +174,14 @@ function sharedBusinessDataFromUserData(data: Record<string, unknown>) {
   for (const [key, value] of Object.entries(data)) {
     if (BUSINESS_SHARED_STORAGE_KEYS.has(key)) output[key] = value;
   }
+  return output;
+}
+
+function stripCertificateValueKeys(data: Record<string, unknown>) {
+  const output = { ...data };
+  CERTIFICATE_VALUE_STORAGE_KEYS.forEach((key) => {
+    delete output[key];
+  });
   return output;
 }
 
@@ -372,6 +383,18 @@ function injectCloudStorageSync(
   function applyRoleUi(){
     if (document.body) {
       document.body.classList.toggle('restrictedOwnerDetails', !(calculatorUser && calculatorUser.canSeeOwnerDetails));
+    }
+    var certValuesButton = document.getElementById('certValuesActionBtn');
+    if (certValuesButton) {
+      if (calculatorUser && calculatorUser.canManageUsers) {
+        certValuesButton.textContent = 'Certificate Values';
+        certValuesButton.onclick = function(){
+          try { window.top.location.href = '/admin/users#certificate-values'; }
+          catch(e) { window.location.href = '/admin/users#certificate-values'; }
+        };
+      } else {
+        certValuesButton.style.display = 'none';
+      }
     }
     if (calculatorUser && calculatorUser.canManageUsers) {
       var certButtonForAdmin = document.getElementById('certValuesActionBtn');
@@ -583,7 +606,8 @@ async function getSavedCalculatorData(
     }
   }
 
-  return { ...userData, ...sharedBusinessDataFromUserData(userData), ...businessData };
+  const cleanedUserData = stripCertificateValueKeys(userData);
+  return { ...cleanedUserData, ...sharedBusinessDataFromUserData(cleanedUserData), ...businessData };
 }
 
 export async function GET(request: Request) {

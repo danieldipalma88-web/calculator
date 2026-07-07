@@ -7,6 +7,12 @@ const MANAGED_PRICE_STORAGE_KEYS = [
   "ManagedPricesV1",
 ];
 
+const CERTIFICATE_VALUE_STORAGE_KEYS = [
+  "installerCertificateValuesV1",
+  "greenEnergyCertificateValuesV1",
+  "CertificateValuesV1",
+];
+
 const BUSINESS_SHARED_STORAGE_KEYS = new Set([
   "installerManagedPricesV1",
   "greenEnergyManagedPricesV1",
@@ -14,9 +20,6 @@ const BUSINESS_SHARED_STORAGE_KEYS = new Set([
   "installerDefaultCostRulesV1",
   "greenEnergyDefaultCostRulesV1",
   "DefaultCostRulesV1",
-  "installerCertificateValuesV1",
-  "greenEnergyCertificateValuesV1",
-  "CertificateValuesV1",
 ]);
 
 async function currentApprovedUser(
@@ -81,6 +84,14 @@ function splitCalculatorDataByScope(data: Record<string, unknown>) {
   }
 
   return { userData, businessData };
+}
+
+function stripCertificateValueKeys(data: Record<string, unknown>) {
+  const output = { ...data };
+  CERTIFICATE_VALUE_STORAGE_KEYS.forEach((key) => {
+    delete output[key];
+  });
+  return output;
 }
 
 async function businessIdsForEmail(
@@ -213,7 +224,7 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json({ data: { ...userData, ...businessData } });
+  return NextResponse.json({ data: { ...stripCertificateValueKeys(userData), ...businessData } });
 }
 
 async function saveCalculatorData(request: Request) {
@@ -242,7 +253,7 @@ async function saveCalculatorData(request: Request) {
     rawCalculatorData,
     canEditManagedRebates,
   );
-  const { userData, businessData } = splitCalculatorDataByScope(calculatorData);
+  const { userData, businessData } = splitCalculatorDataByScope(stripCertificateValueKeys(calculatorData));
   const incomingHasData = calculatorDataHasData(userData);
   const incomingBusinessHasData = calculatorDataHasData(businessData);
 

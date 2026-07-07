@@ -11,6 +11,14 @@ type OperatingState = "NSW" | "VIC" | "QLD" | "SA" | "WA" | "TAS" | "ACT" | "NT"
 type WonPaymentStatus = "payment_open" | "payment_partial" | "payment_complete";
 type WonOptionUpdateMode = "unlock" | "delete" | "paid_in" | "paid_out" | "reset_payment";
 
+type CertificateValues = {
+  escRate: number;
+  prcRate: number;
+  source: string;
+  locked: boolean;
+  updatedAt: string;
+};
+
 type Business = {
   id: string;
   name: string;
@@ -159,6 +167,20 @@ const WON_PAYMENT_KEYS = [
   "paidOutByEmail",
 ];
 
+const CERTIFICATE_VALUES_STORAGE_KEY = "installerCertificateValuesV1";
+const CERTIFICATE_VALUES_STORAGE_KEYS = [
+  CERTIFICATE_VALUES_STORAGE_KEY,
+  "greenEnergyCertificateValuesV1",
+  "CertificateValuesV1",
+];
+const DEFAULT_CERTIFICATE_VALUES: CertificateValues = {
+  escRate: 24.39,
+  prcRate: 2.85,
+  source: "Electric Future",
+  locked: true,
+  updatedAt: "",
+};
+
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
@@ -271,6 +293,63 @@ function asNumber(value: unknown, fallback: number) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function certificateMoneyValue(value: unknown, fallback: number) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function normalizeCertificateValues(value: unknown): CertificateValues {
+  const saved = value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+
+  return {
+    escRate: certificateMoneyValue(saved.escRate, DEFAULT_CERTIFICATE_VALUES.escRate),
+    prcRate: certificateMoneyValue(saved.prcRate, DEFAULT_CERTIFICATE_VALUES.prcRate),
+    source: String(saved.source || DEFAULT_CERTIFICATE_VALUES.source).trim() || DEFAULT_CERTIFICATE_VALUES.source,
+    locked: saved.locked === undefined ? DEFAULT_CERTIFICATE_VALUES.locked : Boolean(saved.locked),
+    updatedAt: String(saved.updatedAt || ""),
+  };
+}
+
+function certificateValuesFromStoredData(data: Record<string, unknown> | null | undefined) {
+  if (!data) return null;
+
+  for (const key of CERTIFICATE_VALUES_STORAGE_KEYS) {
+    const raw = data[key];
+    if (raw === undefined || raw === null) continue;
+    if (typeof raw === "string") {
+      try {
+        return normalizeCertificateValues(JSON.parse(raw));
+      } catch {
+        continue;
+      }
+    }
+    return normalizeCertificateValues(raw);
+  }
+
+  return null;
+}
+
+function serializeCertificateValues(values: CertificateValues) {
+  return JSON.stringify({
+    escRate: Number(values.escRate.toFixed(2)),
+    prcRate: Number(values.prcRate.toFixed(2)),
+    source: values.source,
+    locked: values.locked,
+    updatedAt: values.updatedAt,
+  });
+}
+
+function dataWithCertificateValues(data: Record<string, unknown>, values: CertificateValues) {
+  const next = { ...data };
+  CERTIFICATE_VALUES_STORAGE_KEYS.forEach((key) => {
+    delete next[key];
+  });
+  next[CERTIFICATE_VALUES_STORAGE_KEY] = serializeCertificateValues(values);
+  return next;
+}
+
 function normalizeBusiness(row: Record<string, unknown>): Business {
   return {
     id: String(row.id || ""),
@@ -359,6 +438,66 @@ async function listBusinesses(supabase: SupabaseServer) {
     data: ((directResult.data || []) as Record<string, unknown>[]).map(normalizeBusiness),
     errorMessage: "",
   };
+}
+
+async function getPlatformCertificateValues(supabase: SupabaseServer, businesses: Business[]) {
+  const result = await supabase
+    .from("business_calculator_data")
+    .select("business_id, data, updated_at")
+    .order("updated_at", { ascending: false });
+
+  if (result.error) {
+    return {
+      data: { ...DEFAULT_CERTIFICATE_VALUES },
+      appliedBusinessCount: 0,
+      totalBusinessCount: businesses.length,
+      errorMessage: schemaSetupMessage(result.error),
+    };
+  }
+
+  const rows = (result.data || []) as { business_id?: string | null; data?: Record<string, unknown> | null }[];
+  const businessIds = new Set(businesses.map((business) => business.id));
+  const matchingRows = rows.filter((row) => row.business_id && businessIds.has(row.business_id));
+  const appliedBusinessCount = matchingRows.filter((row) => certificateValuesFromStoredData(row.data)).length;
+  const existingValues = matchingRows
+    .map((row) => certificateValuesFromStoredData(row.data))
+    .find(Boolean);
+
+  return {
+    data: existingValues || { ...DEFAULT_CERTIFICATE_VALUES },
+    appliedBusinessCount,
+    totalBusinessCount: businesses.length,
+    errorMessage: "",
+  };
+}
+
+async function applyPlatformCertificateValuesToBusinesses(
+  supabase: SupabaseServer,
+  businesses: Business[],
+  values: CertificateValues,
+) {
+  if (!businesses.length) return "Add a business before saving certificate values.";
+
+  const existingResult = await supabase
+    .from("business_calculator_data")
+    .select("business_id, data")
+    .in("business_id", businesses.map((business) => business.id));
+
+  if (existingResult.error) return dbMessage(existingResult.error);
+
+  const existingByBusiness = new Map(
+    ((existingResult.data || []) as { business_id?: string | null; data?: Record<string, unknown> | null }[])
+      .map((row) => [String(row.business_id || ""), row.data || {}]),
+  );
+
+  const payload = businesses.map((business) => ({
+    business_id: business.id,
+    data: dataWithCertificateValues(existingByBusiness.get(business.id) || {}, values),
+    updated_at: new Date().toISOString(),
+  }));
+
+  const saveResult = await supabase.from("business_calculator_data").upsert(payload);
+  return saveResult.error ? dbMessage(saveResult.error) : "";
 }
 
 async function listApprovedUsers(supabase: SupabaseServer, businesses: Business[]) {
@@ -1720,8 +1859,71 @@ async function upsertBusiness(formData: FormData) {
     redirect(`/admin/users?error=${encodeURIComponent(errorMessage)}`);
   }
 
+  const businessesResult = await listBusinesses(supabase);
+  if (businessesResult.data.length) {
+    const certificateResult = await getPlatformCertificateValues(supabase, businessesResult.data);
+    const certificateError = await applyPlatformCertificateValuesToBusinesses(
+      supabase,
+      businessesResult.data,
+      certificateResult.data,
+    );
+    if (certificateError) {
+      redirect(`/admin/users?error=${encodeURIComponent(`${name} was saved, but certificate values were not applied to all businesses. ${certificateError}`)}`);
+    }
+  }
+
   revalidatePath("/admin/users");
   redirect(`/admin/users?message=${encodeURIComponent(`${name} was saved.`)}`);
+}
+
+async function savePlatformCertificateValues(formData: FormData) {
+  "use server";
+
+  const { supabase } = await requireAdmin();
+  const businessesResult = await listBusinesses(supabase);
+  const values = normalizeCertificateValues({
+    escRate: formData.get("escRate"),
+    prcRate: formData.get("prcRate"),
+    source: normalizeText(formData.get("source")) || DEFAULT_CERTIFICATE_VALUES.source,
+    locked: formData.get("locked") === "1",
+    updatedAt: new Date().toISOString(),
+  });
+
+  const errorMessage = await applyPlatformCertificateValuesToBusinesses(
+    supabase,
+    businessesResult.data,
+    values,
+  );
+
+  if (businessesResult.errorMessage || errorMessage) {
+    redirect(`/admin/users?error=${encodeURIComponent(businessesResult.errorMessage || errorMessage)}`);
+  }
+
+  revalidatePath("/admin/users");
+  redirect(`/admin/users?message=${encodeURIComponent(`Certificate values were ${values.locked ? "locked" : "saved"} and applied across all businesses.`)}`);
+}
+
+async function resetPlatformCertificateValues() {
+  "use server";
+
+  const { supabase } = await requireAdmin();
+  const businessesResult = await listBusinesses(supabase);
+  const values = {
+    ...DEFAULT_CERTIFICATE_VALUES,
+    updatedAt: new Date().toISOString(),
+  };
+  const errorMessage = await applyPlatformCertificateValuesToBusinesses(
+    supabase,
+    businessesResult.data,
+    values,
+  );
+
+  if (businessesResult.errorMessage || errorMessage) {
+    redirect(`/admin/users?error=${encodeURIComponent(businessesResult.errorMessage || errorMessage)}`);
+  }
+
+  revalidatePath("/admin/users");
+  redirect(`/admin/users?message=${encodeURIComponent("Certificate values were reset to the default locked values across all businesses.")}`);
 }
 
 async function addApprovedUser(formData: FormData) {
@@ -2028,6 +2230,7 @@ export default async function AdminUsersPage({
   const businessResult = await listBusinesses(supabase);
   const usersResult = await listApprovedUsers(supabase, businessResult.data);
   const membershipsResult = await listUserBusinessMemberships(supabase, businessResult.data);
+  const certificateResult = await getPlatformCertificateValues(supabase, businessResult.data);
 
   const businesses = businessResult.data;
   const users = applyMembershipsToUsers(usersResult.data, membershipsResult.data);
@@ -2035,6 +2238,7 @@ export default async function AdminUsersPage({
   const wonOptions = wonResult.data;
   const salespersonSales = summarizeSalesBySalesperson(wonOptions);
   const firstBusinessId = businesses[0]?.id || "";
+  const certificateValues = certificateResult.data;
 
   return (
     <main className="admin-shell">
@@ -2067,6 +2271,94 @@ export default async function AdminUsersPage({
         {wonResult.errorMessage ? (
           <div className="notice">Won options setup: {wonResult.errorMessage}</div>
         ) : null}
+        {certificateResult.errorMessage ? (
+          <div className="notice">Certificate values setup: {certificateResult.errorMessage}</div>
+        ) : null}
+
+        <details className="admin-section" id="certificate-values">
+          <summary className="section-heading admin-section-summary">
+            <div>
+              <h2>Certificate values</h2>
+              <p>These ESC and PERC dollar values are locked and injected into every business calculator.</p>
+            </div>
+            <span className="section-count">
+              {certificateResult.appliedBusinessCount}/{certificateResult.totalBusinessCount} businesses
+            </span>
+            <span className="section-chevron" aria-hidden="true" />
+          </summary>
+
+          <div className="admin-section-body">
+            <div className="certificate-admin-grid">
+              <form action={savePlatformCertificateValues} className="certificate-admin-form">
+                <div>
+                  <label htmlFor="certificateEscRate">ESC $ per cert</label>
+                  <input
+                    id="certificateEscRate"
+                    name="escRate"
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    defaultValue={certificateValues.escRate.toFixed(2)}
+                    required
+                  />
+                </div>
+                <div>
+                  <label htmlFor="certificatePrcRate">PERC $ per cert</label>
+                  <input
+                    id="certificatePrcRate"
+                    name="prcRate"
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    defaultValue={certificateValues.prcRate.toFixed(2)}
+                    required
+                  />
+                </div>
+                <div>
+                  <label htmlFor="certificateSource">Provider label</label>
+                  <input
+                    id="certificateSource"
+                    name="source"
+                    defaultValue={certificateValues.source}
+                    placeholder="Electric Future"
+                  />
+                </div>
+                <label className="checkbox-pill certificate-lock-toggle">
+                  <input
+                    type="checkbox"
+                    name="locked"
+                    value="1"
+                    defaultChecked={certificateValues.locked}
+                  />
+                  <span>Lock in calculators</span>
+                </label>
+                <button className="orange" type="submit">
+                  Save and apply
+                </button>
+              </form>
+
+              <div className="certificate-admin-status">
+                <div>
+                  <span>Current status</span>
+                  <strong>{certificateValues.locked ? "Locked" : "Unlocked"}</strong>
+                </div>
+                <div>
+                  <span>Last updated</span>
+                  <strong>
+                    {certificateValues.updatedAt
+                      ? new Date(certificateValues.updatedAt).toLocaleString("en-AU")
+                      : "Not saved yet"}
+                  </strong>
+                </div>
+                <form action={resetPlatformCertificateValues}>
+                  <button className="secondary" type="submit">
+                    Reset defaults
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </details>
 
         <details className="admin-section">
           <summary className="section-heading admin-section-summary">
