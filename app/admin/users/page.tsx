@@ -1048,11 +1048,12 @@ function wonExportScript() {
   }
   var selectAll = document.querySelector("[data-select-all-won]");
   function visibleWonCards() {
-    return Array.prototype.slice.call(document.querySelectorAll(".won-card")).filter(function(card){
-      return !card.hidden && card.getClientRects().length > 0;
+    return Array.prototype.slice.call(document.querySelectorAll(".won-options-section .won-card")).filter(function(card){
+      return !card.hidden;
     });
   }
   function updateSelectAllLabel() {
+    selectAll = document.querySelector("[data-select-all-won]");
     if (!selectAll) return;
     var visibleBoxes = visibleWonCards()
       .map(function(card){ return card.querySelector(".won-sale-select"); })
@@ -1073,6 +1074,12 @@ function wonExportScript() {
     Array.prototype.slice.call(document.querySelectorAll("[data-selected-won-input]")).forEach(function(input){
       input.value = value;
     });
+  }
+  function setExportStatus(message, tone) {
+    var status = document.querySelector("[data-won-export-status]");
+    if (!status) return;
+    status.textContent = message || "";
+    status.setAttribute("data-tone", tone || "");
   }
   function setWonActionLoading(form, submitter) {
     var section = form && form.closest ? form.closest(".won-options-section") : document.querySelector(".won-options-section");
@@ -1197,48 +1204,6 @@ function wonExportScript() {
   Array.prototype.slice.call(document.querySelectorAll("[data-salesperson-filter]")).forEach(function(card){
     card.setAttribute("aria-pressed", card.classList.contains("is-active") ? "true" : "false");
   });
-  document.addEventListener("click", function(event){
-    var paymentTarget = event.target && event.target.closest ? event.target.closest("[data-payment-filter]") : null;
-    if (paymentTarget) {
-      event.preventDefault();
-      event.stopPropagation();
-      var payment = String(paymentTarget.getAttribute("data-payment-filter") || "");
-      if (!payment) return;
-      var activePayments = activePaymentFilters();
-      var isActive = activePayments.indexOf(payment) >= 0;
-      updatePaymentFilterButtons(isActive ? activePayments.filter(function(value){ return value !== payment; }) : activePayments.concat(payment));
-      applyWonSalespersonFilter();
-      return;
-    }
-    var target = event.target && event.target.closest ? event.target.closest("[data-salesperson-filter]") : null;
-    if (!target) return;
-    toggleSalespersonCard(target);
-  });
-  document.addEventListener("keydown", function(event){
-    if (event.key !== "Enter" && event.key !== " ") return;
-    if (event.target && event.target.closest && event.target.closest("[data-payment-filter]")) return;
-    var target = event.target && event.target.closest ? event.target.closest("[data-salesperson-filter]") : null;
-    if (!target) return;
-    event.preventDefault();
-    toggleSalespersonCard(target);
-  });
-  if (selectAll) {
-    selectAll.addEventListener("click", function(){
-      var boxes = visibleWonCards()
-        .map(function(card){ return card.querySelector(".won-sale-select"); })
-        .filter(Boolean);
-      var shouldCheck = boxes.some(function(box){ return !box.checked; });
-      boxes.forEach(function(box){ box.checked = shouldCheck; });
-      updateSelectAllLabel();
-      refreshBulkInputs();
-    });
-  }
-  document.addEventListener("change", function(event){
-    if (event.target && event.target.classList && event.target.classList.contains("won-sale-select")) {
-      updateSelectAllLabel();
-      refreshBulkInputs();
-    }
-  });
   function workbookCell(value) {
     var isNumber = typeof value === "number" && Number.isFinite(value);
     var type = isNumber ? "Number" : "String";
@@ -1359,27 +1324,88 @@ function wonExportScript() {
       worksheets +
       '</Workbook>';
   }
-  var exportButton = document.querySelector("[data-export-won-selected]");
-  if (exportButton) {
-    exportButton.addEventListener("click", function(){
-      var cards = selectedWonCards();
-      var jobs = cards.map(parseCard).filter(Boolean);
-      if (!jobs.length) {
-        window.alert("Select at least one won option first.");
-        return;
-      }
+  function exportSelectedWonOptions() {
+    var cards = selectedWonCards();
+    var jobs = cards.map(parseCard).filter(Boolean);
+    if (!jobs.length) {
+      setExportStatus("Select at least one won option first.", "error");
+      window.alert("Select at least one won option first.");
+      return;
+    }
+    try {
+      setExportStatus("Preparing Excel export...", "loading");
       var blob = new Blob([workbookXml(jobs)], { type: "application/vnd.ms-excel;charset=utf-8" });
       var url = URL.createObjectURL(blob);
       var link = document.createElement("a");
       link.href = url;
-      link.download = "won-jobs-export.xls";
+      link.download = jobs.length === 1 ? "won-job-export.xls" : "won-jobs-export.xls";
+      link.style.display = "none";
       document.body.appendChild(link);
       link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
-    });
+      window.setTimeout(function(){
+        URL.revokeObjectURL(url);
+        if (link.parentNode) link.parentNode.removeChild(link);
+      }, 4000);
+      setExportStatus("Excel export started for " + jobs.length + " selected job" + (jobs.length === 1 ? "." : "s."), "success");
+    } catch (error) {
+      setExportStatus("Excel export failed. Please try again.", "error");
+      window.alert("Excel export failed. Please try again.");
+    }
   }
-  document.addEventListener("submit", function(event){
+  function handleWonClick(event) {
+    var selectTarget = event.target && event.target.closest ? event.target.closest("[data-select-all-won]") : null;
+    if (selectTarget) {
+      event.preventDefault();
+      var boxes = visibleWonCards()
+        .map(function(card){ return card.querySelector(".won-sale-select"); })
+        .filter(Boolean);
+      var shouldCheck = boxes.some(function(box){ return !box.checked; });
+      boxes.forEach(function(box){ box.checked = shouldCheck; });
+      updateSelectAllLabel();
+      refreshBulkInputs();
+      setExportStatus(shouldCheck ? "Selected " + boxes.length + " visible won option" + (boxes.length === 1 ? "." : "s.") : "Cleared visible selections.", "success");
+      return;
+    }
+
+    var exportTarget = event.target && event.target.closest ? event.target.closest("[data-export-won-selected]") : null;
+    if (exportTarget) {
+      event.preventDefault();
+      exportSelectedWonOptions();
+      return;
+    }
+
+    var paymentTarget = event.target && event.target.closest ? event.target.closest("[data-payment-filter]") : null;
+    if (paymentTarget) {
+      event.preventDefault();
+      event.stopPropagation();
+      var payment = String(paymentTarget.getAttribute("data-payment-filter") || "");
+      if (!payment) return;
+      var activePayments = activePaymentFilters();
+      var isActive = activePayments.indexOf(payment) >= 0;
+      updatePaymentFilterButtons(isActive ? activePayments.filter(function(value){ return value !== payment; }) : activePayments.concat(payment));
+      applyWonSalespersonFilter();
+      return;
+    }
+    var target = event.target && event.target.closest ? event.target.closest("[data-salesperson-filter]") : null;
+    if (!target) return;
+    toggleSalespersonCard(target);
+  }
+  function handleWonKeydown(event) {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    if (event.target && event.target.closest && event.target.closest("[data-payment-filter]")) return;
+    var target = event.target && event.target.closest ? event.target.closest("[data-salesperson-filter]") : null;
+    if (!target) return;
+    event.preventDefault();
+    toggleSalespersonCard(target);
+  }
+  function handleWonChange(event) {
+    if (event.target && event.target.classList && event.target.classList.contains("won-sale-select")) {
+      updateSelectAllLabel();
+      refreshBulkInputs();
+      setExportStatus("", "");
+    }
+  }
+  function handleWonSubmit(event) {
     var form = event.target;
     if (!form || !form.closest || !form.closest(".won-options-section")) return;
     if (form.hasAttribute("data-bulk-won-form")) {
@@ -1396,9 +1422,33 @@ function wonExportScript() {
       return;
     }
     setWonActionLoading(form, event.submitter);
-  });
-  applyWonSalespersonFilter();
-  refreshBulkInputs();
+  }
+  window.__adminWonOptionsRuntime = {
+    click: handleWonClick,
+    keydown: handleWonKeydown,
+    change: handleWonChange,
+    submit: handleWonSubmit,
+    refresh: function(){
+      applyWonSalespersonFilter();
+      refreshBulkInputs();
+    }
+  };
+  if (!window.__adminWonOptionsHandlersBound) {
+    window.__adminWonOptionsHandlersBound = true;
+    document.addEventListener("click", function(event){
+      if (window.__adminWonOptionsRuntime) window.__adminWonOptionsRuntime.click(event);
+    });
+    document.addEventListener("keydown", function(event){
+      if (window.__adminWonOptionsRuntime) window.__adminWonOptionsRuntime.keydown(event);
+    });
+    document.addEventListener("change", function(event){
+      if (window.__adminWonOptionsRuntime) window.__adminWonOptionsRuntime.change(event);
+    });
+    document.addEventListener("submit", function(event){
+      if (window.__adminWonOptionsRuntime) window.__adminWonOptionsRuntime.submit(event);
+    });
+  }
+  window.__adminWonOptionsRuntime.refresh();
 })();
 `;
 }
@@ -3171,6 +3221,7 @@ export default async function AdminUsersPage({
                 <button className="orange" type="button" data-export-won-selected>
                   Export selected Excel
                 </button>
+                <span className="won-export-status" data-won-export-status role="status" aria-live="polite" />
               </div>
               <form action={bulkUpdateWonOptions} className="won-bulk-actions" data-bulk-won-form>
                 <input type="hidden" name="selectedWonOptions" data-selected-won-input />
