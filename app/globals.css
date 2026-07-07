@@ -781,9 +781,99 @@ select {
 }
 
 .won-options-section .admin-section-body {
+  position: relative;
   background:
     linear-gradient(180deg, rgba(248, 251, 255, 0.96), rgba(255, 255, 255, 0.98) 240px),
     #fff;
+}
+
+.won-backup-note {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 18px 0 12px;
+  padding: 12px;
+  border: 1px solid rgba(203, 213, 225, 0.85);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.won-backup-note div {
+  display: grid;
+  gap: 3px;
+}
+
+.won-backup-note strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.won-backup-note span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.won-backup-note .button {
+  min-height: 38px;
+  white-space: nowrap;
+}
+
+.won-loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: none;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 74px;
+  background: rgba(248, 251, 255, 0.72);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+
+.won-options-section.is-loading .won-loading-overlay {
+  display: flex;
+}
+
+.won-loading-panel {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  width: min(360px, calc(100% - 32px));
+  padding: 18px;
+  border: 1px solid rgba(203, 213, 225, 0.92);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.16);
+  text-align: center;
+}
+
+.won-loading-panel strong {
+  color: var(--ink);
+  font-size: 15px;
+}
+
+.won-loading-panel span:last-child {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.won-loading-spinner {
+  width: 26px;
+  height: 26px;
+  border: 3px solid #dbeafe;
+  border-top-color: #2563eb;
+  border-radius: 999px;
+  animation: won-loading-spin 0.8s linear infinite;
+}
+
+@keyframes won-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .sales-summary-grid {
@@ -1501,6 +1591,15 @@ select {
 
   .won-toolbar {
     justify-content: stretch;
+  }
+
+  .won-backup-note {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .won-backup-note .button {
+    width: 100%;
   }
 
   .won-toolbar-primary,

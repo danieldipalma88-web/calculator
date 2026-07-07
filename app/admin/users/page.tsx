@@ -1074,6 +1074,32 @@ function wonExportScript() {
       input.value = value;
     });
   }
+  function setWonActionLoading(form, submitter) {
+    var section = form && form.closest ? form.closest(".won-options-section") : document.querySelector(".won-options-section");
+    if (section) section.classList.add("is-loading");
+    var overlay = section ? section.querySelector("[data-won-loading-overlay]") : null;
+    var actionText = submitter ? String(submitter.textContent || "").trim() : "Updating";
+    if (overlay) {
+      var label = overlay.querySelector("[data-won-loading-label]");
+      if (label) label.textContent = actionText ? actionText + "..." : "Updating...";
+    }
+    Array.prototype.slice.call(document.querySelectorAll(".won-options-section button, .won-options-section summary, .won-options-section a")).forEach(function(control){
+      if (control.tagName === "A") {
+        control.setAttribute("aria-disabled", "true");
+        control.addEventListener("click", function(event){ event.preventDefault(); }, { once: true });
+        return;
+      }
+      if (control.tagName === "SUMMARY") {
+        control.style.pointerEvents = "none";
+        return;
+      }
+      control.setAttribute("aria-disabled", "true");
+      control.style.pointerEvents = "none";
+    });
+    if (submitter) {
+      submitter.textContent = actionText ? actionText + "..." : "Updating...";
+    }
+  }
   function updateWonFilterStatus(activeEmails, activePayments) {
     var status = document.querySelector("[data-won-filter-status]");
     if (!status) return;
@@ -1353,28 +1379,23 @@ function wonExportScript() {
       URL.revokeObjectURL(url);
     });
   }
-  Array.prototype.slice.call(document.querySelectorAll("[data-bulk-won-form]")).forEach(function(form){
-    form.addEventListener("submit", function(event){
+  document.addEventListener("submit", function(event){
+    var form = event.target;
+    if (!form || !form.closest || !form.closest(".won-options-section")) return;
+    if (form.hasAttribute("data-bulk-won-form")) {
       refreshBulkInputs();
       if (!selectedWonSelections().length) {
         event.preventDefault();
         window.alert("Select at least one won option first.");
         return;
       }
-      var message = form.getAttribute("data-confirm-message");
-      if (message && !window.confirm(message)) {
-        event.preventDefault();
-      }
-    });
-  });
-  Array.prototype.slice.call(document.querySelectorAll("[data-confirm-message]")).forEach(function(form){
-    if (form.hasAttribute("data-bulk-won-form")) return;
-    form.addEventListener("submit", function(event){
-      var message = form.getAttribute("data-confirm-message");
-      if (message && !window.confirm(message)) {
-        event.preventDefault();
-      }
-    });
+    }
+    var message = form.getAttribute("data-confirm-message");
+    if (message && !window.confirm(message)) {
+      event.preventDefault();
+      return;
+    }
+    setWonActionLoading(form, event.submitter);
   });
   applyWonSalespersonFilter();
   refreshBulkInputs();
@@ -1673,7 +1694,7 @@ function addWonOptionsFromSnapshot({
   });
 }
 
-async function listWonOptions(supabase: SupabaseServer, users: ApprovedUser[]) {
+async function listWonOptions(supabase: SupabaseServer, users: ApprovedUser[], includeBackups = false) {
   const dataResult = await supabase
     .from("user_calculator_data")
     .select("user_id, email, data, updated_at");
@@ -1682,11 +1703,13 @@ async function listWonOptions(supabase: SupabaseServer, users: ApprovedUser[]) {
     return { data: [] as WonOption[], errorMessage: dbMessage(dataResult.error) };
   }
 
-  const backupResult = await supabase
-    .from("user_calculator_data_backups")
-    .select("id, user_id, email, data, created_at")
-    .order("created_at", { ascending: false })
-    .limit(1000);
+  const backupResult = includeBackups
+    ? await supabase
+        .from("user_calculator_data_backups")
+        .select("id, user_id, email, data, created_at")
+        .order("created_at", { ascending: false })
+        .limit(1000)
+    : { data: [] as CalculatorBackupDataRow[], error: null };
 
   const usersByEmail = new Map(users.map((user) => [user.email.toLowerCase(), user]));
   const usersByName = new Map(
@@ -2545,9 +2568,10 @@ async function bulkUpdateWonOptions(formData: FormData) {
 export default async function AdminUsersPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ error?: string; message?: string }>;
+  searchParams?: Promise<{ error?: string; message?: string; checkBackups?: string }>;
 }) {
   const params = await searchParams;
+  const includeBackupWonOptions = params?.checkBackups === "1";
   const { supabase, email: currentEmail } = await requireAdmin();
   const businessResult = await listBusinesses(supabase);
   const usersResult = await listApprovedUsers(supabase, businessResult.data);
@@ -2556,7 +2580,7 @@ export default async function AdminUsersPage({
 
   const businesses = businessResult.data;
   const users = applyMembershipsToUsers(usersResult.data, membershipsResult.data);
-  const wonResult = await listWonOptions(supabase, users);
+  const wonResult = await listWonOptions(supabase, users, includeBackupWonOptions);
   const wonOptions = wonResult.data;
   const salespersonSales = summarizeSalesBySalesperson(wonOptions);
   const firstBusinessId = businesses[0]?.id || "";
@@ -3103,7 +3127,7 @@ export default async function AdminUsersPage({
           </div>
         </details>
 
-        <details className="admin-section won-options-section">
+        <details className="admin-section won-options-section" id="won-options">
           <summary className="section-heading admin-section-summary">
             <div>
               <h2>Won options</h2>
@@ -3114,6 +3138,31 @@ export default async function AdminUsersPage({
           </summary>
 
           <div className="admin-section-body">
+            <div className="won-loading-overlay" data-won-loading-overlay>
+              <div className="won-loading-panel">
+                <span className="won-loading-spinner" aria-hidden="true" />
+                <strong data-won-loading-label>Updating...</strong>
+                <span>Please wait while the admin changes are saved.</span>
+              </div>
+            </div>
+            <div className="won-backup-note">
+              <div>
+                <strong>
+                  {includeBackupWonOptions ? "Recovered backup options included" : "Current won options only"}
+                </strong>
+                <span>
+                  {includeBackupWonOptions
+                    ? "This view includes recovered backup records and may take longer to load."
+                    : "Recovered backups are skipped on normal loads so paid-status updates stay fast."}
+                </span>
+              </div>
+              <a
+                className="button secondary"
+                href={includeBackupWonOptions ? "/admin/users#won-options" : "/admin/users?checkBackups=1#won-options"}
+              >
+                {includeBackupWonOptions ? "Hide backups" : "Check recovered backups"}
+              </a>
+            </div>
             <div className="won-toolbar">
               <div className="won-toolbar-primary">
                 <button className="secondary" type="button" data-select-all-won>
