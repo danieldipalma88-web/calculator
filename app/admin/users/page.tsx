@@ -1204,15 +1204,6 @@ function wonExportScript() {
   Array.prototype.slice.call(document.querySelectorAll("[data-salesperson-filter]")).forEach(function(card){
     card.setAttribute("aria-pressed", card.classList.contains("is-active") ? "true" : "false");
   });
-  function workbookCell(value) {
-    var isNumber = typeof value === "number" && Number.isFinite(value);
-    var type = isNumber ? "Number" : "String";
-    var output = isNumber ? String(Math.round(value * 100) / 100) : xmlEscape(value);
-    return '<Cell><Data ss:Type="' + type + '">' + output + '</Data></Cell>';
-  }
-  function workbookRow(values) {
-    return "<Row>" + values.map(workbookCell).join("") + "</Row>";
-  }
   function worksheetName(job, index) {
     var base = String(job.Option || job.Business || "Job " + (index + 1))
       .replace(/[\\\\\\/?*:\\[\\]]/g, " ")
@@ -1300,9 +1291,41 @@ function wonExportScript() {
     });
     return output;
   }
-  function workbookXml(jobs) {
+  function columnName(index) {
+    var name = "";
+    var n = index + 1;
+    while (n > 0) {
+      var remainder = (n - 1) % 26;
+      name = String.fromCharCode(65 + remainder) + name;
+      n = Math.floor((n - 1) / 26);
+    }
+    return name;
+  }
+  function xlsxCell(value, rowIndex, columnIndex) {
+    var ref = columnName(columnIndex) + rowIndex;
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return '<c r="' + ref + '"><v>' + String(Math.round(value * 100) / 100) + '</v></c>';
+    }
+    var text = String(value == null ? "" : value);
+    var preserve = /^\\s|\\s$/.test(text) ? ' xml:space="preserve"' : "";
+    return '<c r="' + ref + '" t="inlineStr"><is><t' + preserve + '>' + xmlEscape(text) + '</t></is></c>';
+  }
+  function xlsxWorksheetXml(rows) {
+    return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+      '<sheetData>' +
+      rows.map(function(row, rowIndex){
+        var rowNumber = rowIndex + 1;
+        var cells = (Array.isArray(row) ? row : []).map(function(value, columnIndex){
+          return xlsxCell(value, rowNumber, columnIndex);
+        }).join("");
+        return '<row r="' + rowNumber + '">' + cells + '</row>';
+      }).join("") +
+      '</sheetData></worksheet>';
+  }
+  function uniqueWorksheetNames(jobs) {
     var usedNames = {};
-    var worksheets = jobs.map(function(job, index){
+    return jobs.map(function(job, index){
       var rawName = worksheetName(job, index);
       var key = rawName.toLowerCase();
       if (usedNames[key]) {
@@ -1311,18 +1334,128 @@ function wonExportScript() {
         key = rawName.toLowerCase();
       }
       usedNames[key] = true;
-      var name = xmlEscape(rawName);
-      var rows = jobWorksheetRows(job).map(workbookRow).join("");
-      return '<Worksheet ss:Name="' + name + '"><Table>' + rows + '</Table></Worksheet>';
+      return rawName;
+    });
+  }
+  function stringBytes(value) {
+    return new TextEncoder().encode(value);
+  }
+  function crc32(bytes) {
+    if (!window.__xlsxCrcTable) {
+      var table = [];
+      for (var n = 0; n < 256; n += 1) {
+        var c = n;
+        for (var k = 0; k < 8; k += 1) {
+          c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+        }
+        table[n] = c >>> 0;
+      }
+      window.__xlsxCrcTable = table;
+    }
+    var crc = 0 ^ -1;
+    for (var i = 0; i < bytes.length; i += 1) {
+      crc = (crc >>> 8) ^ window.__xlsxCrcTable[(crc ^ bytes[i]) & 0xff];
+    }
+    return (crc ^ -1) >>> 0;
+  }
+  function pushUint16(output, value) {
+    output.push(value & 0xff, (value >>> 8) & 0xff);
+  }
+  function pushUint32(output, value) {
+    output.push(value & 0xff, (value >>> 8) & 0xff, (value >>> 16) & 0xff, (value >>> 24) & 0xff);
+  }
+  function dosDateTime() {
+    return { time: 0, date: 33 };
+  }
+  function concatBytes(parts, totalLength) {
+    var output = new Uint8Array(totalLength);
+    var offset = 0;
+    parts.forEach(function(part){
+      output.set(part, offset);
+      offset += part.length;
+    });
+    return output;
+  }
+  function zipBytes(files) {
+    var chunks = [];
+    var central = [];
+    var offset = 0;
+    var dateTime = dosDateTime();
+    files.forEach(function(file){
+      var nameBytes = stringBytes(file.name);
+      var dataBytes = typeof file.content === "string" ? stringBytes(file.content) : file.content;
+      var crc = crc32(dataBytes);
+      var local = [];
+      pushUint32(local, 0x04034b50);
+      pushUint16(local, 20);
+      pushUint16(local, 0x0800);
+      pushUint16(local, 0);
+      pushUint16(local, dateTime.time);
+      pushUint16(local, dateTime.date);
+      pushUint32(local, crc);
+      pushUint32(local, dataBytes.length);
+      pushUint32(local, dataBytes.length);
+      pushUint16(local, nameBytes.length);
+      pushUint16(local, 0);
+      var localBytes = concatBytes([new Uint8Array(local), nameBytes, dataBytes], local.length + nameBytes.length + dataBytes.length);
+      chunks.push(localBytes);
+
+      var centralHeader = [];
+      pushUint32(centralHeader, 0x02014b50);
+      pushUint16(centralHeader, 20);
+      pushUint16(centralHeader, 20);
+      pushUint16(centralHeader, 0x0800);
+      pushUint16(centralHeader, 0);
+      pushUint16(centralHeader, dateTime.time);
+      pushUint16(centralHeader, dateTime.date);
+      pushUint32(centralHeader, crc);
+      pushUint32(centralHeader, dataBytes.length);
+      pushUint32(centralHeader, dataBytes.length);
+      pushUint16(centralHeader, nameBytes.length);
+      pushUint16(centralHeader, 0);
+      pushUint16(centralHeader, 0);
+      pushUint16(centralHeader, 0);
+      pushUint16(centralHeader, 0);
+      pushUint32(centralHeader, 0);
+      pushUint32(centralHeader, offset);
+      central.push(concatBytes([new Uint8Array(centralHeader), nameBytes], centralHeader.length + nameBytes.length));
+      offset += localBytes.length;
+    });
+    var centralSize = central.reduce(function(total, part){ return total + part.length; }, 0);
+    var end = [];
+    pushUint32(end, 0x06054b50);
+    pushUint16(end, 0);
+    pushUint16(end, 0);
+    pushUint16(end, files.length);
+    pushUint16(end, files.length);
+    pushUint32(end, centralSize);
+    pushUint32(end, offset);
+    pushUint16(end, 0);
+    return concatBytes(chunks.concat(central).concat([new Uint8Array(end)]), offset + centralSize + end.length);
+  }
+  function workbookXlsxBytes(jobs) {
+    var sheetNames = uniqueWorksheetNames(jobs);
+    var sheetOverrides = sheetNames.map(function(name, index){
+      return '<Override PartName="/xl/worksheets/sheet' + (index + 1) + '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>';
     }).join("");
-    return '<?xml version="1.0"?>' +
-      '<?mso-application progid="Excel.Sheet"?>' +
-      '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" ' +
-      'xmlns:o="urn:schemas-microsoft-com:office:office" ' +
-      'xmlns:x="urn:schemas-microsoft-com:office:excel" ' +
-      'xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">' +
-      worksheets +
-      '</Workbook>';
+    var sheetsXml = sheetNames.map(function(name, index){
+      return '<sheet name="' + xmlEscape(name) + '" sheetId="' + (index + 1) + '" r:id="rId' + (index + 1) + '"/>';
+    }).join("");
+    var workbookRels = sheetNames.map(function(name, index){
+      return '<Relationship Id="rId' + (index + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet' + (index + 1) + '.xml"/>';
+    }).join("");
+    var files = [
+      { name: "[Content_Types].xml", content: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>' + sheetOverrides + '</Types>' },
+      { name: "_rels/.rels", content: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/></Relationships>' },
+      { name: "docProps/core.xml", content: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:creator>Quote Calculator</dc:creator><cp:lastModifiedBy>Quote Calculator</cp:lastModifiedBy><dcterms:created xsi:type="dcterms:W3CDTF">2026-07-07T00:00:00Z</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">2026-07-07T00:00:00Z</dcterms:modified></cp:coreProperties>' },
+      { name: "docProps/app.xml", content: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"><Application>Quote Calculator</Application><DocSecurity>0</DocSecurity><ScaleCrop>false</ScaleCrop><TitlesOfParts><vt:vector size="' + sheetNames.length + '" baseType="lpstr">' + sheetNames.map(function(name){ return '<vt:lpstr>' + xmlEscape(name) + '</vt:lpstr>'; }).join("") + '</vt:vector></TitlesOfParts></Properties>' },
+      { name: "xl/workbook.xml", content: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>' + sheetsXml + '</sheets></workbook>' },
+      { name: "xl/_rels/workbook.xml.rels", content: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' + workbookRels + '</Relationships>' }
+    ];
+    jobs.forEach(function(job, index){
+      files.push({ name: "xl/worksheets/sheet" + (index + 1) + ".xml", content: xlsxWorksheetXml(jobWorksheetRows(job)) });
+    });
+    return zipBytes(files);
   }
   function exportSelectedWonOptions() {
     var cards = selectedWonCards();
@@ -1333,12 +1466,12 @@ function wonExportScript() {
       return;
     }
     try {
-      setExportStatus("Preparing Excel export...", "loading");
-      var blob = new Blob([workbookXml(jobs)], { type: "application/vnd.ms-excel;charset=utf-8" });
+      setExportStatus("Preparing XLSX export...", "loading");
+      var blob = new Blob([workbookXlsxBytes(jobs)], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
       var url = URL.createObjectURL(blob);
       var link = document.createElement("a");
       link.href = url;
-      link.download = jobs.length === 1 ? "won-job-export.xls" : "won-jobs-export.xls";
+      link.download = jobs.length === 1 ? "won-job-export.xlsx" : "won-jobs-export.xlsx";
       link.style.display = "none";
       document.body.appendChild(link);
       link.click();
@@ -1346,7 +1479,7 @@ function wonExportScript() {
         URL.revokeObjectURL(url);
         if (link.parentNode) link.parentNode.removeChild(link);
       }, 4000);
-      setExportStatus("Excel export started for " + jobs.length + " selected job" + (jobs.length === 1 ? "." : "s."), "success");
+      setExportStatus("XLSX export started for " + jobs.length + " selected job" + (jobs.length === 1 ? "." : "s."), "success");
     } catch (error) {
       setExportStatus("Excel export failed. Please try again.", "error");
       window.alert("Excel export failed. Please try again.");
