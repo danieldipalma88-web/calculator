@@ -32,6 +32,7 @@ html{
   width:100%;
   max-width:100%;
   overflow-x:hidden;
+  overflow-x:clip;
   overscroll-behavior-x:none;
   touch-action:pan-y pinch-zoom;
 }
@@ -42,6 +43,7 @@ body{
   width:100%;
   max-width:100%;
   overflow-x:hidden;
+  overflow-x:clip;
   overscroll-behavior-x:none;
   touch-action:pan-y pinch-zoom;
   background:
@@ -498,6 +500,7 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
 .checkbox{display:flex;gap:10px;align-items:center;margin:10px 0}
 .checkbox input{width:auto;height:auto;padding:0;border:0;background:transparent}
 .toggleRow{
+  position:relative;
   display:flex;
   justify-content:space-between;
   align-items:center;
@@ -511,7 +514,16 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
 }
 .toggleRow strong{display:block;font-size:13px;color:#1e293b}
 .toggleRow small{display:block;margin-top:2px;color:var(--muted);font-size:11px;line-height:1.25}
-.toggleRow input{position:absolute;opacity:0;pointer-events:none}
+.toggleRow input{
+  position:absolute;
+  opacity:0;
+  pointer-events:none;
+  width:1px;
+  height:1px;
+  margin:0;
+  padding:0;
+  border:0;
+}
 .toggleTrack{
   position:relative;
   flex:0 0 46px;
@@ -1215,22 +1227,28 @@ tbody tr:hover td{background:#f0f7ff}
   body.drawerOpen .floatingActionBar{display:none}
   .quoteDrawer{
     left:0;
-    right:auto;
+    right:0;
     top:0;
-    width:100vw;
-    max-width:100vw;
+    width:auto;
+    max-width:none;
     height:100vh;
     height:100dvh;
+    display:none;
     padding:12px 10px calc(92px + env(safe-area-inset-bottom, 0px));
     border-left:0;
     box-shadow:none;
-    transform:translate3d(100vw,0,0);
+    transform:none;
+    transition:none;
     overflow-y:auto;
     overflow-x:hidden;
     overscroll-behavior:contain;
     touch-action:pan-y;
+    contain:layout paint style;
   }
-  .quoteDrawer.open{transform:translate3d(0,0,0)}
+  .quoteDrawer.open{
+    display:block;
+    transform:none;
+  }
   .quoteDrawer *{max-width:100%}
   .quoteDrawer .drawerHead{
     display:grid;
@@ -1296,7 +1314,8 @@ tbody tr:hover td{background:#f0f7ff}
   .quoteDrawer table,
   .quoteDrawer .optionBody table{
     width:100%;
-    min-width:0;
+    min-width:0!important;
+    max-width:100%;
     table-layout:fixed;
     font-size:11px;
   }
@@ -5882,12 +5901,19 @@ function setupMobileMoneySteppers(){
   }
 }
 function setupMobileHorizontalDragLock(){
-  if(!('ontouchstart' in window)) return;
   let startX=0, startY=0, axis='';
   const resetHorizontalScroll=()=>{
-    const x=window.scrollX || document.documentElement.scrollLeft || document.body.scrollLeft || 0;
-    if(x) window.scrollTo(0, window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0);
+    const root=document.documentElement;
+    const body=document.body;
+    const x=window.scrollX || (root&&root.scrollLeft) || (body&&body.scrollLeft) || 0;
+    if(root) root.scrollLeft=0;
+    if(body) body.scrollLeft=0;
+    if(x) window.scrollTo(0, window.scrollY || (root&&root.scrollTop) || (body&&body.scrollTop) || 0);
   };
+  resetHorizontalScroll();
+  window.addEventListener('scroll',resetHorizontalScroll,{passive:true});
+  if(window.visualViewport) window.visualViewport.addEventListener('scroll',resetHorizontalScroll,{passive:true});
+  if(!('ontouchstart' in window)) return;
   document.addEventListener('touchstart',e=>{
     if(!isMobileMoneyUi() || e.touches.length!==1) return;
     startX=e.touches[0].clientX;
@@ -5908,7 +5934,6 @@ function setupMobileHorizontalDragLock(){
       resetHorizontalScroll();
     }
   },{passive:false});
-  window.addEventListener('scroll',resetHorizontalScroll,{passive:true});
 }
 ['unitPriceInc','labour','rebate','materials','misc','powerCircuit','powerMode','installerRetainsLabour','ductedInstallerRetainsLabour','electrician','airtouch','zones','sensors','commissionModelOn'].forEach(id=>{const el=$(id); if(el){ el.addEventListener('input',()=>{ if(!finalPriceLocked) autoFinal(); render(); }); el.addEventListener('change',()=>{ if(!finalPriceLocked) autoFinal(); render(); }); }});
 INSTALL_ADDONS.map(a=>a.type==='quantity'?a.qtyId:a.id).forEach(id=>{const el=$(id); if(el){ el.addEventListener('input',()=>{ render(); }); el.addEventListener('change',()=>{ if(el.type==='number') el.value=String(Math.max(0,Math.floor(Number(el.value)||0))); render(); }); }});
