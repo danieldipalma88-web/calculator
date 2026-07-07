@@ -81,12 +81,31 @@ type WonOption = {
   installerProfitTotal: number;
   rows: {
     label: string;
+    type: string;
+    brand: string;
+    series: string;
+    size: string;
+    model: string;
     install: string;
     finalInc: number;
+    customerEx: number;
     rebate: number;
+    unitInc: number;
+    unitEx: number;
+    labourEx: number;
+    materialsInc: number;
+    materialsEx: number;
+    miscInc: number;
+    miscEx: number;
+    powerEx: number;
+    trueCostEx: number;
+    cashProfitEx: number;
     agencyCommissionInc: number;
-    salespersonCommissionInc: number;
+    agencyCommissionEx: number;
+    agencyCommissionGst: number;
     netProfit: number;
+    margin: number;
+    netMargin: number;
   }[];
 };
 
@@ -938,11 +957,8 @@ function wonExportRow(option: WonOption) {
     "Customer total inc GST": option.customerTotal.toFixed(2),
     Rebate: option.rebateTotal.toFixed(2),
     "Agency commission inc GST": option.agencyCommissionTotal.toFixed(2),
-    "Salesperson commission inc GST": option.salespersonCommissionTotal.toFixed(2),
     "Installer profit ex GST": option.installerProfitTotal.toFixed(2),
-    "System details": option.rows
-      .map((row) => `${row.label} | ${row.install} | ${formatMoney(row.finalInc)} customer`)
-      .join(" ; "),
+    Rows: option.rows,
   };
 }
 
@@ -989,9 +1005,12 @@ function summarizeSalesBySalesperson(wonOptions: WonOption[]) {
 function wonExportScript() {
   return `
 (function(){
-  function csvEscape(value) {
-    var text = String(value == null ? "" : value);
-    return /[",\\r\\n]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
+  function xmlEscape(value) {
+    return String(value == null ? "" : value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
   }
   function parseCard(card) {
     if (!card) return null;
@@ -1030,7 +1049,7 @@ function wonExportScript() {
   var selectAll = document.querySelector("[data-select-all-won]");
   function visibleWonCards() {
     return Array.prototype.slice.call(document.querySelectorAll(".won-card")).filter(function(card){
-      return !card.hidden;
+      return !card.hidden && card.getClientRects().length > 0;
     });
   }
   function updateSelectAllLabel() {
@@ -1042,11 +1061,8 @@ function wonExportScript() {
     selectAll.textContent = visibleBoxes.length && !hasVisibleUnchecked ? "Clear visible" : "Select visible";
   }
   function selectedWonCards() {
-    return visibleWonCards()
-      .map(function(card){
-        var box = card.querySelector(".won-sale-select:checked");
-        return box ? card : null;
-      })
+    return Array.prototype.slice.call(document.querySelectorAll(".won-sale-select:checked"))
+      .map(function(box){ return box.closest ? box.closest(".won-card") : null; })
       .filter(Boolean);
   }
   function selectedWonSelections() {
@@ -1191,29 +1207,146 @@ function wonExportScript() {
       refreshBulkInputs();
     });
   }
-  Array.prototype.slice.call(document.querySelectorAll(".won-sale-select")).forEach(function(box){
-    box.addEventListener("change", function(){
+  document.addEventListener("change", function(event){
+    if (event.target && event.target.classList && event.target.classList.contains("won-sale-select")) {
       updateSelectAllLabel();
       refreshBulkInputs();
-    });
+    }
   });
+  function workbookCell(value) {
+    var isNumber = typeof value === "number" && Number.isFinite(value);
+    var type = isNumber ? "Number" : "String";
+    var output = isNumber ? String(Math.round(value * 100) / 100) : xmlEscape(value);
+    return '<Cell><Data ss:Type="' + type + '">' + output + '</Data></Cell>';
+  }
+  function workbookRow(values) {
+    return "<Row>" + values.map(workbookCell).join("") + "</Row>";
+  }
+  function worksheetName(job, index) {
+    var base = String(job.Option || job.Business || "Job " + (index + 1))
+      .replace(/[\\\\\\/?*:\\[\\]]/g, " ")
+      .replace(/\\s+/g, " ")
+      .trim();
+    if (!base) base = "Job " + (index + 1);
+    return base.slice(0, 31);
+  }
+  function jobWorksheetRows(job) {
+    var rows = Array.isArray(job.Rows) ? job.Rows : [];
+    var output = [
+      ["Won job export"],
+      ["Option", job.Option || ""],
+      ["Salesperson", job.Salesperson || ""],
+      ["Email", job.Email || ""],
+      ["Business", job.Business || ""],
+      ["Source", job.Source || ""],
+      ["Won date", job["Won date"] || ""],
+      ["Status", job.Status || ""],
+      ["Paid in date", job["Paid in date"] || ""],
+      ["Paid out date", job["Paid out date"] || ""],
+      [],
+      ["Totals"],
+      ["Customer total inc GST", Number(job["Customer total inc GST"] || 0)],
+      ["Rebate", Number(job.Rebate || 0)],
+      ["Agency commission inc GST", Number(job["Agency commission inc GST"] || 0)],
+      ["Installer profit ex GST", Number(job["Installer profit ex GST"] || 0)],
+      [],
+      [
+        "Type",
+        "Brand",
+        "Series",
+        "Size",
+        "Model",
+        "Install",
+        "Customer inc GST",
+        "Customer ex GST",
+        "Rebate",
+        "Unit inc GST",
+        "Unit ex GST",
+        "Labour ex GST",
+        "Materials inc GST",
+        "Materials ex GST",
+        "Misc inc GST",
+        "Misc ex GST",
+        "Power ex GST",
+        "True cost ex GST",
+        "Cash profit ex GST",
+        "Agency commission ex GST",
+        "Agency commission GST",
+        "Agency commission inc GST",
+        "Installer profit ex GST",
+        "Margin %",
+        "Net margin %"
+      ]
+    ];
+    rows.forEach(function(row){
+      output.push([
+        row.type || "",
+        row.brand || "",
+        row.series || "",
+        row.size || "",
+        row.model || row.label || "",
+        row.install || "",
+        Number(row.finalInc || 0),
+        Number(row.customerEx || 0),
+        Number(row.rebate || 0),
+        Number(row.unitInc || 0),
+        Number(row.unitEx || 0),
+        Number(row.labourEx || 0),
+        Number(row.materialsInc || 0),
+        Number(row.materialsEx || 0),
+        Number(row.miscInc || 0),
+        Number(row.miscEx || 0),
+        Number(row.powerEx || 0),
+        Number(row.trueCostEx || 0),
+        Number(row.cashProfitEx || 0),
+        Number(row.agencyCommissionEx || 0),
+        Number(row.agencyCommissionGst || 0),
+        Number(row.agencyCommissionInc || 0),
+        Number(row.netProfit || 0),
+        Number(row.margin || 0) * 100,
+        Number(row.netMargin || 0) * 100
+      ]);
+    });
+    return output;
+  }
+  function workbookXml(jobs) {
+    var usedNames = {};
+    var worksheets = jobs.map(function(job, index){
+      var rawName = worksheetName(job, index);
+      var key = rawName.toLowerCase();
+      if (usedNames[key]) {
+        var suffix = " " + (index + 1);
+        rawName = rawName.slice(0, 31 - suffix.length) + suffix;
+        key = rawName.toLowerCase();
+      }
+      usedNames[key] = true;
+      var name = xmlEscape(rawName);
+      var rows = jobWorksheetRows(job).map(workbookRow).join("");
+      return '<Worksheet ss:Name="' + name + '"><Table>' + rows + '</Table></Worksheet>';
+    }).join("");
+    return '<?xml version="1.0"?>' +
+      '<?mso-application progid="Excel.Sheet"?>' +
+      '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" ' +
+      'xmlns:o="urn:schemas-microsoft-com:office:office" ' +
+      'xmlns:x="urn:schemas-microsoft-com:office:excel" ' +
+      'xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">' +
+      worksheets +
+      '</Workbook>';
+  }
   var exportButton = document.querySelector("[data-export-won-selected]");
   if (exportButton) {
     exportButton.addEventListener("click", function(){
-      var visibleCards = visibleWonCards();
       var cards = selectedWonCards();
-      if (!cards.length) cards = visibleCards;
-      var rows = cards.map(parseCard).filter(Boolean);
-      if (!rows.length) return;
-      var headers = Object.keys(rows[0]);
-      var csv = [headers.map(csvEscape).join(",")].concat(rows.map(function(row){
-        return headers.map(function(header){ return csvEscape(row[header]); }).join(",");
-      })).join("\\r\\n");
-      var blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      var jobs = cards.map(parseCard).filter(Boolean);
+      if (!jobs.length) {
+        window.alert("Select at least one won option first.");
+        return;
+      }
+      var blob = new Blob([workbookXml(jobs)], { type: "application/vnd.ms-excel;charset=utf-8" });
       var url = URL.createObjectURL(blob);
       var link = document.createElement("a");
       link.href = url;
-      link.download = "won-sales-export.csv";
+      link.download = "won-jobs-export.xls";
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -1445,12 +1578,31 @@ function addWonOptionsFromSnapshot({
         .find(Boolean);
       const wonRows = rows.map((quote) => ({
         label: optionRowLabel(quote) || String(quote.model || "System"),
+        type: String(quote.type || ""),
+        brand: String(quote.brand || ""),
+        series: String(quote.series || ""),
+        size: String(quote.size || quote.capacity || ""),
+        model: String(quote.model || ""),
         install: String(quote.install || ""),
         finalInc: moneyValue(quote.finalInc),
+        customerEx: moneyValue(quote.finalInc) / 1.1,
         rebate: quoteRebateValue(quote),
+        unitInc: moneyValue(quote.unitInc ?? quote.unitPriceInc ?? quote.priceIncGst),
+        unitEx: moneyValue(quote.unitInc ?? quote.unitPriceInc ?? quote.priceIncGst) / 1.1,
+        labourEx: moneyValue(quote.labour),
+        materialsInc: quoteMaterialsInc(quote),
+        materialsEx: moneyValue(quote.matsEx ?? quoteMaterialsInc(quote) / 1.1),
+        miscInc: moneyValue(quote.miscInc ?? quote.misc),
+        miscEx: moneyValue(quote.miscEx ?? moneyValue(quote.miscInc ?? quote.misc) / 1.1),
+        powerEx: moneyValue(quote.powerCost ?? quote.powerEx),
+        trueCostEx: moneyValue(quote.trueCost),
+        cashProfitEx: moneyValue(quote.cashProfit),
         agencyCommissionInc: moneyValue(quote.agencyCommissionInc ?? quote.commissionInc),
-        salespersonCommissionInc: moneyValue(quote.salespersonCommissionInc),
+        agencyCommissionEx: moneyValue(quote.agencyCommission ?? quote.commission),
+        agencyCommissionGst: moneyValue(quote.agencyCommissionGst ?? quote.commissionGst),
         netProfit: moneyValue(quote.netProfit),
+        margin: moneyValue(quote.margin),
+        netMargin: moneyValue(quote.netMargin),
       }));
       const existing = wonOptions.get(key);
       if (existing) {
@@ -2968,7 +3120,7 @@ export default async function AdminUsersPage({
                   Select visible
                 </button>
                 <button className="orange" type="button" data-export-won-selected>
-                  Export selected CSV
+                  Export selected Excel
                 </button>
               </div>
               <form action={bulkUpdateWonOptions} className="won-bulk-actions" data-bulk-won-form>
