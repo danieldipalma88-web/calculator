@@ -1771,6 +1771,15 @@ function andosDucted(brand,series,capacityNum,phase,indoor,outdoor,setPriceExGst
   const unitPriceInc=andosUnitPriceInc(setPriceExGst);
   return {brand,series,phase,capacity:capacityNum.toFixed(1)+'kW',size:capacityNum,capacityNum,unitPriceInc,priceIncGst:unitPriceInc,model:`${outdoor} / ${indoor}`,rebate:0};
 }
+function andosSplitInc(brand,series,capacityNum,model,unitPriceInc,capacityLabel){
+  return {brand,series,capacity:capacityLabel||capacityNum.toFixed(1)+'kW',capacityNum,unitPriceInc,priceIncGst:unitPriceInc,model,rebate:0};
+}
+function andosDuctedInc(brand,series,capacityNum,phase,model,unitPriceInc,capacityLabel){
+  return {brand,series,phase,capacity:capacityLabel||capacityNum.toFixed(1)+'kW',size:capacityNum,capacityNum,unitPriceInc,priceIncGst:unitPriceInc,model,rebate:0};
+}
+function andosAccessoryInc(brand,series,model,unitPriceInc){
+  return {brand,series,phase:'Accessory',capacity:'Controller accessory',size:0,capacityNum:0,unitPriceInc,priceIncGst:unitPriceInc,model,rebate:0,accessory:true};
+}
 const ANDOS_SPLIT_PRODUCTS = [
   andosSplit("Daikin", "Lite", 2.0, "FTXF20WVMA", "RXF20WVMA", 755),
   andosSplit("Daikin", "Lite", 2.5, "FTXF25WVMA", "RXF25WVMA", 795),
@@ -1959,6 +1968,24 @@ const ANDOS_DUCTED_PRODUCTS = [
   andosDucted("Samsung", "3 Phase", 18.0, "Three", "AC180JNHFKH/SA", "AC180JXAFNH/SA", 3595),
   andosDucted("Samsung", "3 Phase", 20.0, "Three", "AC200JNHFKH/SA", "AC200TXAPNG/SA", 4009)
 ];
+ANDOS_SPLIT_PRODUCTS.push(
+  andosSplitInc("Hisense", "Eros R32 / X3 Series Wall Mounted", 2.5, "HAWJ9KR / HS01025", 596.53),
+  andosSplitInc("Hisense", "Eros R32 / X3 Series Wall Mounted", 3.5, "HAWJ12KR / HS01035", 667.92),
+  andosSplitInc("Hisense", "Eros R32 / X3 Series Wall Mounted", 5.0, "HAWJ18KR / HS01053", 908.71, "5.0kW (5.3kW variant)"),
+  andosSplitInc("Hisense", "Eros R32 / X3 Series Wall Mounted", 7.1, "HAWJ24KR / HS01071", 1118.44),
+  andosSplitInc("Hisense", "Eros R32 / X3 Series Wall Mounted", 8.0, "HAWJ28KR / HS01080", 1279.61)
+);
+ANDOS_DUCTED_PRODUCTS.push(
+  andosDuctedInc("Hisense", "Air Q Compact Ducted Hi-Nano", 8.5, "", "AUD-85UXHT-SET (AUD-85UX4RTH1 / AUW-85U4RK1)", 2158.20, "8.5kW ducted set"),
+  andosDuctedInc("Hisense", "Air Q Compact Ducted Hi-Nano", 10.0, "", "AUD-100UXHT-SET (AUD-100UX4RTH1 / AUW-100U4RK1)", 2491.50, "10.0kW ducted set"),
+  andosDuctedInc("Hisense", "Air Q Compact Ducted Hi-Nano", 12.5, "", "AUD-125UXHT-SET (AUD-125UX4RTH1 / AUW-125U4RQ1)", 3138.96, "12.5kW ducted set"),
+  andosDuctedInc("Hisense", "Air Q Premium Splittable Ducted", 12.5, "Single", "AUD-125UX-Set / HS02112", 3298.90, "12.5kW high static"),
+  andosDuctedInc("Hisense", "Air Q Premium Splittable Ducted", 14.0, "Single", "AUD-140UX-Set / HS02114", 3415.50, "14.0kW high static"),
+  andosDuctedInc("Hisense", "Air Q Premium Splittable Ducted", 16.0, "Single", "AUD-160UX-Set / HS02116", 3577.73, "16.0kW high static"),
+  andosAccessoryInc("Hisense", "8 Zone Touchscreen Wi-Fi Controller + Relay Box", "HAACZ01-SET", 619.15),
+  andosAccessoryInc("Hisense", "Touchscreen Coloured Wi-Fi Controller", "HACZ01", 308.00),
+  andosAccessoryInc("Hisense", "Standard Wired Controller", "HACW02", 93.50)
+);
 const PRODUCT_SUPPORT_DEFAULT={wifiStatus:'unknown',wifiLabel:'Wi-Fi TBC',warrantyYears:null,warrantyLabel:'Warranty TBC',originLabel:'Origin TBC'};
 const BRAND_ORIGIN_LABELS={
   'Actron':'Australian',
@@ -2018,7 +2045,8 @@ const ANDOS_SPLIT_PRODUCT_SUPPORT=[
   {brand:'TCL',series:'Breeze In',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:7,warrantyLabel:'7 yrs warranty',originLabel:'Chinese'}},
   {brand:'Panasonic',series:'RZ Series',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional adaptor',warrantyYears:5,warrantyLabel:'5 yrs warranty',originLabel:'Japanese'}},
   {brand:'Panasonic',series:'Z Series',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:5,warrantyLabel:'5 yrs warranty',originLabel:'Japanese'}},
-  {brand:'Samsung',series:'Aero Series',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:5,warrantyLabel:'5 yrs warranty',originLabel:'South Korean'}}
+  {brand:'Samsung',series:'Aero Series',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:5,warrantyLabel:'5 yrs warranty',originLabel:'South Korean'}},
+  {brand:'Hisense',series:'Eros R32 / X3 Series Wall Mounted',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:7,warrantyLabel:'5 yrs standard / 7 yrs promo if eligible',originLabel:'Chinese'}}
 ];
 const ANDOS_DUCTED_PRODUCT_SUPPORT=[
   {brand:'Daikin',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional Airbase',warrantyYears:5,warrantyLabel:'5 yrs warranty',originLabel:'Japanese'}},
@@ -2026,7 +2054,12 @@ const ANDOS_DUCTED_PRODUCT_SUPPORT=[
   {brand:'Fujitsu',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional controller',warrantyYears:5,warrantyLabel:'5 yrs warranty',originLabel:'Japanese'}},
   {brand:'Gree',details:{wifiStatus:'unknown',wifiLabel:'Wi-Fi not listed',warrantyYears:6,warrantyLabel:'6 yrs warranty',originLabel:'Chinese'}},
   {brand:'Panasonic',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional controller',warrantyYears:5,warrantyLabel:'5 yrs warranty',originLabel:'Japanese'}},
-  {brand:'Samsung',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:5,warrantyLabel:'5 yrs warranty',originLabel:'South Korean'}}
+  {brand:'Samsung',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:5,warrantyLabel:'5 yrs warranty',originLabel:'South Korean'}},
+  {brand:'Hisense',series:'Air Q Compact Ducted Hi-Nano',details:{wifiStatus:'included',wifiLabel:'ConnectLife Wi-Fi included',warrantyYears:7,warrantyLabel:'5 yrs standard / 7 yrs promo if eligible',originLabel:'Chinese'}},
+  {brand:'Hisense',series:'Air Q Premium Splittable Ducted',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:7,warrantyLabel:'5 yrs standard / 7 yrs promo if eligible',originLabel:'Chinese'}},
+  {brand:'Hisense',series:'8 Zone Touchscreen Wi-Fi Controller + Relay Box',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:1,warrantyLabel:'1 yr accessory warranty',originLabel:'Chinese'}},
+  {brand:'Hisense',series:'Touchscreen Coloured Wi-Fi Controller',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:1,warrantyLabel:'1 yr accessory warranty',originLabel:'Chinese'}},
+  {brand:'Hisense',series:'Standard Wired Controller',details:{wifiStatus:'unknown',wifiLabel:'No, wired controller',warrantyYears:1,warrantyLabel:'1 yr accessory warranty',originLabel:'Chinese'}}
 ];
 function productSupportRuleMatches(rule,p){
   if(rule.brand && rule.brand!==p.brand) return false;
