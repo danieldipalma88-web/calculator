@@ -1633,6 +1633,10 @@ SPLIT_PRODUCTS.forEach(p=>{
   if(p.brand==="Hitachi" && p.series==="AirHome 600" && /^RAC-VJ/i.test(String(p.model||""))) p.deprecated=true;
 });
 SPLIT_PRODUCTS.push(
+  {"brand":"Fujitsu General","capacity":"8.5kW","capacityNum":8.5,"unitPriceInc":2250.00,"priceIncGst":2250.00,"model":"AOTG30KMTC/ASTG30KMTC","rebate":0.0,"series":"Lifestyle"},
+  {"brand":"Fujitsu General","capacity":"9.4kW","capacityNum":9.4,"unitPriceInc":2550.00,"priceIncGst":2550.00,"model":"AOTG34KMTC/ASTG34KMTC","rebate":0.0,"series":"Lifestyle"}
+);
+SPLIT_PRODUCTS.push(
   {"brand":"Panasonic","capacity":"2.5kW","capacityNum":2.5,"unitPriceInc":917.0,"model":"CS/CU-HZ25YKR","rebate":0.0,"series":"HZ Series"},
   {"brand":"Panasonic","capacity":"3.5kW","capacityNum":3.5,"unitPriceInc":1110.0,"model":"CS/CU-HZ35YKR","rebate":0.0,"series":"HZ Series"},
   {"brand":"Panasonic","capacity":"5.0kW","capacityNum":5.0,"unitPriceInc":1516.0,"model":"CS/CU-HZ50YKR","rebate":0.0,"series":"HZ Series"},
@@ -2265,6 +2269,8 @@ const REBATE_LOOKUP_MODEL_ALIASES={
   "AOTG18KMTCASTG18KMTC":["ASTG18KMTC/AOTG18KMTC"],
   "AOTG22KMTCASTG22KMTC":["ASTG22KMTC/AOTG22KMTC"],
   "AOTG24KMTCASTG24KMTC":["ASTG24KMTC/AOTG24KMTC"],
+  "AOTG30KMTCASTG30KMTC":["ASTG30KMTC/AOTG30KMTC"],
+  "AOTG34KMTCASTG34KMTC":["ASTG34KMTC/AOTG34KMTC"],
   "TAC10CHSDVEIH":["VEIH/TAC-10CHSD"],
   "TAC13CHSDVEIH":["VEIH/TAC-13CHSD"],
   "TAC18CHSDVEIH":["VEIH/TAC-18CHSD"],
