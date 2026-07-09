@@ -3129,11 +3129,41 @@ function airTypeValue(){
   return normalizeAirConditionerType(HVAC_AIR_CONDITIONER_TYPES[systemType]||HVAC_AIR_CONDITIONER_TYPES.split);
 }
 const HVAC_PRODUCT_CLASS_VALUES=['Class 5','Class 6','Class 7','Class 8','Class 9','Class 10','Class 11','Class 12','Class 18','Class 19','Class 20','Class 21'];
+const NSW_HVAC_ELIGIBLE_PRODUCT_CLASS_NUMBERS=[5,6,7,8,9,10,11,12,18,19,20,21];
+const NSW_HVAC_EFFICIENCY_REQUIREMENTS=[
+  {classes:[8,18],tcspfMixed:5.5,hspfMixed:4.5,hspfCold:4.0,aeer:4.3,acop:4.4},
+  {classes:[9,19],tcspfMixed:4.5,hspfMixed:4.0,hspfCold:3.5,aeer:3.6,acop:3.8},
+  {classes:[10,11,20],tcspfMixed:4.0,hspfMixed:3.5,hspfCold:3.0,aeer:3.5,acop:3.8},
+  {classes:[5,6,7,12,21],tcspfMixed:3.0,hspfMixed:2.5,hspfCold:2.0,aeer:3.3,acop:3.5}
+];
 function normalizeHvacProductClass(value){
   const match=String(value||'').trim().match(/^class\s*(\d+)$/i);
   if(!match) return '';
   const normalized=`Class ${Number(match[1])}`;
   return HVAC_PRODUCT_CLASS_VALUES.includes(normalized)?normalized:'';
+}
+function hvacProductClassNumber(productClass){
+  const match=String(productClass||'').match(/\d+/);
+  return match?Number(match[0]):NaN;
+}
+function nswHvacRequirementForClass(productClass){
+  const classNumber=hvacProductClassNumber(productClass);
+  return NSW_HVAC_EFFICIENCY_REQUIREMENTS.find(req=>req.classes.includes(classNumber))||null;
+}
+function nswHvacMeasuredValue(value){
+  const n=toNumber(value);
+  return Number.isFinite(n) && n>0?n:NaN;
+}
+function nswHvacPassesMetric(meta,primaryField,primaryMinimum,fallbackField,fallbackMinimum,label){
+  const primary=nswHvacMeasuredValue(meta && meta[primaryField]);
+  if(Number.isFinite(primary)){
+    return {ok:primary>=primaryMinimum, detail:`${label} ${primary.toFixed(3)} is below ${primaryMinimum}`};
+  }
+  const fallback=nswHvacMeasuredValue(meta && meta[fallbackField]);
+  if(Number.isFinite(fallback)){
+    return {ok:fallback>=fallbackMinimum, detail:`${fallbackField} ${fallback.toFixed(3)} is below ${fallbackMinimum}`};
+  }
+  return {ok:false, detail:`${label} is not recorded`};
 }
 function deriveHvacProductClass(meta){
   const direct=normalizeHvacProductClass(meta && meta['Product Class']);
@@ -3162,6 +3192,33 @@ function deriveHvacProductClass(meta){
     if(cooling<10) return 'Class 9';
   }
   return '';
+}
+function evaluateNswHvacEligibility(meta,climate){
+  const productClass=deriveHvacProductClass(meta);
+  const classNumber=hvacProductClassNumber(productClass);
+  const req=nswHvacRequirementForClass(productClass);
+  const essReasons=[], prcReasons=[];
+  if(!productClass || !NSW_HVAC_ELIGIBLE_PRODUCT_CLASS_NUMBERS.includes(classNumber) || !req){
+    const reason=`${productClass||'Product class'} is not eligible under NSW HVAC1/D16`;
+    return {productClass,essEligible:false,prcEligible:false,essReasons:[reason],prcReasons:[reason],message:reason};
+  }
+  const cooling=toNumber(meta && meta['Cooling Capacity']);
+  if(Number.isFinite(cooling) && cooling>0){
+    const coolingCheck=nswHvacPassesMetric(meta,'Residential TCSPF_mixed',req.tcspfMixed,'Rated AEER',req.aeer,'Residential TCSPF_mixed');
+    if(!coolingCheck.ok){
+      essReasons.push(coolingCheck.detail);
+      prcReasons.push(coolingCheck.detail);
+    }
+  }
+  const heating=toNumber(meta && meta['Heating Capacity']);
+  if(Number.isFinite(heating) && heating>0){
+    const heatField=climate && climate.climateZone==='cold'?'Residential HSPF_cold':'Residential HSPF_mixed';
+    const heatMinimum=heatField==='Residential HSPF_cold'?req.hspfCold:req.hspfMixed;
+    const heatCheck=nswHvacPassesMetric(meta,heatField,heatMinimum,'Rated ACOP',req.acop,heatField);
+    if(!heatCheck.ok) essReasons.push(heatCheck.detail);
+  }
+  const allReasons=[...new Set([...essReasons,...prcReasons])];
+  return {productClass,essEligible:essReasons.length===0,prcEligible:prcReasons.length===0,essReasons,prcReasons,message:allReasons.join('; ')};
 }
 const CERTIFICATE_OUTPUT_FIELDS=[
   'HVAC1_PDRSAug24_electricity_savings',
@@ -3235,8 +3292,10 @@ async function calculateCertificatesForModel(meta,climate){
   const hspfMixed=toNumber(meta['Residential HSPF_mixed']);
   const hspfCold=toNumber(meta['Residential HSPF_cold']);
   const productClass=deriveHvacProductClass(meta);
+  const eligibility=evaluateNswHvacEligibility(meta,climate);
   if([cooling,heating,ratedAeer,ratedAcop,inputPower,tcec,thec,tcspf,hspfMixed,hspfCold].some(v=>!Number.isFinite(v))) throw new Error('Incomplete model energy rating data');
   if(!productClass) throw new Error('Incomplete model energy rating data: missing product class');
+  if(!eligibility.essEligible && !eligibility.prcEligible) return {esc:0, prc:0, officialEsc:0, officialPrc:0, eligibility};
   const baseBuilding={
     HVAC1_PDRSAug24_Activity:{[ESS_CALC_DATE]:activityValue()},
     HVAC1_PDRSAug24_Air_Conditioner_type:{[ESS_CALC_DATE]:airTypeValue()},
@@ -3262,15 +3321,11 @@ async function calculateCertificatesForModel(meta,climate){
   }
   const esc=((resp||{}).buildings||{}).building_1?.HVAC1_PDRSAug24_ESC_calculation?.[ESS_CALC_DATE];
   const prc=((resp||{}).buildings||{}).building_1?.HVAC1_PDRSAug24_PRC_calculation?.[ESS_CALC_DATE];
-  const electricitySavings=toNumber(((resp||{}).buildings||{}).building_1?.HVAC1_PDRSAug24_electricity_savings?.[ESS_CALC_DATE]);
-  const regionalNetworkFactor=toNumber(((resp||{}).buildings||{}).building_1?.HVAC1_PDRSAug24_PDRS__regional_network_factor?.[ESS_CALC_DATE]);
-  const peakCapacity=toNumber(((resp||{}).buildings||{}).building_1?.HVAC1_PDRSAug24_peak_demand_reduction_capacity?.[ESS_CALC_DATE]);
-  const networkLossFactor=toNumber(((resp||{}).buildings||{}).building_1?.HVAC1_PDRSAug24_get_network_loss_factor_by_postcode?.[ESS_CALC_DATE]);
   const escNum=Number(esc), prcNum=Number(prc);
   if(!Number.isFinite(escNum) || !Number.isFinite(prcNum)) throw new Error('Unable to calculate certificates');
-  const escRaw=(Number.isFinite(electricitySavings) && Number.isFinite(regionalNetworkFactor)) ? (electricitySavings*regionalNetworkFactor*1.06) : escNum;
-  const prcRaw=(Number.isFinite(peakCapacity) && Number.isFinite(networkLossFactor)) ? (peakCapacity*networkLossFactor*10) : prcNum;
-  return {esc:escRaw, prc:prcRaw, officialEsc:escNum, officialPrc:prcNum};
+  const escEffective=eligibility.essEligible?escNum:0;
+  const prcEffective=eligibility.prcEligible?prcNum:0;
+  return {esc:escEffective, prc:prcEffective, officialEsc:escNum, officialPrc:prcNum, eligibility};
 }
 async function estimateLiveEssRebate(localBrand,localModel){
   const resolved=await resolveModelMetadataForRebate(localBrand,localModel);
@@ -3281,7 +3336,7 @@ async function estimateLiveEssRebate(localBrand,localModel){
   if(!(escRate>0)) throw new Error('Enter a valid ESS $ per ESC');
   if(!(prcRate>0)) throw new Error('Enter a valid PERC (PRC) $ per cert');
   const escValue=certs.esc*escRate, prcValue=certs.prc*prcRate;
-  return {apiBrand:resolved.brand,apiModel:resolved.model,lookupSource:resolved.source,esc:certs.esc,prc:certs.prc,officialEsc:certs.officialEsc,officialPrc:certs.officialPrc,zone:climate.climateZone,bcaZone:climate.bcaZone,escRate,prcRate,escValue,prcValue,rebate:escValue+prcValue};
+  return {apiBrand:resolved.brand,apiModel:resolved.model,lookupSource:resolved.source,esc:certs.esc,prc:certs.prc,officialEsc:certs.officialEsc,officialPrc:certs.officialPrc,eligibility:certs.eligibility,zone:climate.climateZone,bcaZone:climate.bcaZone,escRate,prcRate,escValue,prcValue,rebate:escValue+prcValue};
 }
 async function loadLiveCertificatePriceIfNeeded(){
   if(!rebatesEnabled()) return;
@@ -3343,7 +3398,8 @@ async function refreshLiveRebateForCurrentProduct(){
     $('rebate').value=(Math.round(result.rebate*100)/100).toFixed(2);
     render();
     setCertificateBreakdown(result,'',false);
-    setRebateCalcMeta(`${result.lookupSource}: ESC ${certCountText(result.esc)} x ${money(result.escRate)} = ${money(result.escValue)} | PERC ${certCountText(result.prc)} x ${money(result.prcRate)} = ${money(result.prcValue)} | Total ${money(result.rebate)} (${certValues.source}, ${result.zone}, ${result.bcaZone}, ${installType})`,false);
+    const eligibilityNote=result.eligibility&&result.eligibility.message?`NSW HVAC eligibility: ${result.eligibility.message}. `:'';
+    setRebateCalcMeta(`${eligibilityNote}${result.lookupSource}: ESC ${certCountText(result.esc)} x ${money(result.escRate)} = ${money(result.escValue)} | PERC ${certCountText(result.prc)} x ${money(result.prcRate)} = ${money(result.prcValue)} | Total ${money(result.rebate)} (${certValues.source}, ${result.zone}, ${result.bcaZone}, ${installType})`,false);
   }catch(e){
     if(requestId!==essCache.requestSeq) return;
     clearCertificateRuntime();
