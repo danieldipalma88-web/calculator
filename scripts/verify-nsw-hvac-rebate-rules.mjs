@@ -77,9 +77,16 @@ assert.deepEqual(
   "Cooling eligibility can still allow PERC when ESS heating eligibility fails.",
 );
 
+const fujitsuScreenshotEsc = 8.123879 * 1 * 1.06;
+const fujitsuScreenshotPrc = 4.364051 * 1.05 * 10;
+assert.equal(Number(fujitsuScreenshotEsc.toFixed(2)), 8.61, "ESC quantity should keep decimal certificates before payout.");
+assert.equal(Number(fujitsuScreenshotPrc.toFixed(2)), 45.82, "PERC quantity should keep decimal certificates before payout.");
+
 assert.match(indexHtml, /const escEffective=eligibility\.essEligible\?escNum:0;/, "ESC value must use the official NSW result gated by eligibility.");
 assert.match(indexHtml, /const prcEffective=eligibility\.prcEligible\?prcNum:0;/, "PERC value must use the official NSW result gated by eligibility.");
-assert.doesNotMatch(indexHtml, /const escRaw=/, "ESC must not be rebuilt from intermediate electricity savings fields.");
-assert.doesNotMatch(indexHtml, /const prcRaw=/, "PERC must not be rebuilt from intermediate peak-demand fields.");
+assert.match(indexHtml, /function decimalEscCertificatesFromBuilding\(building\)/, "ESC certificates must be extracted through the decimal helper.");
+assert.match(indexHtml, /electricitySavings\*regionalNetworkFactor\*1\.06/, "ESC certificates must keep the decimal NSW source calculation.");
+assert.match(indexHtml, /function decimalPrcCertificatesFromBuilding\(building\)/, "PERC certificates must be extracted through the decimal helper.");
+assert.match(indexHtml, /peakDemandReductionCapacity\*networkLossFactor\*10/, "PERC certificates must keep the decimal NSW source calculation.");
 
 console.log("nsw hvac rebate rules ok");

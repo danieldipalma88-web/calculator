@@ -3287,6 +3287,25 @@ async function fetchCertificateCalculation(baseBuilding,fields,postcode){
   });
 }
 function certificateBuilding(resp){return ((resp||{}).buildings||{}).building_1||{};}
+function certificateFieldNumber(building,field){
+  return toNumber(building&&building[field]&&building[field][ESS_CALC_DATE]);
+}
+function decimalEscCertificatesFromBuilding(building){
+  const electricitySavings=certificateFieldNumber(building,'HVAC1_PDRSAug24_electricity_savings');
+  const regionalNetworkFactor=certificateFieldNumber(building,'HVAC1_PDRSAug24_PDRS__regional_network_factor');
+  if(Number.isFinite(electricitySavings) && Number.isFinite(regionalNetworkFactor)){
+    return electricitySavings*regionalNetworkFactor*1.06;
+  }
+  return certificateFieldNumber(building,'HVAC1_PDRSAug24_ESC_calculation');
+}
+function decimalPrcCertificatesFromBuilding(building){
+  const peakDemandReductionCapacity=certificateFieldNumber(building,'HVAC1_PDRSAug24_peak_demand_reduction_capacity');
+  const networkLossFactor=certificateFieldNumber(building,'HVAC1_PDRSAug24_get_network_loss_factor_by_postcode');
+  if(Number.isFinite(peakDemandReductionCapacity) && Number.isFinite(networkLossFactor)){
+    return peakDemandReductionCapacity*networkLossFactor*10;
+  }
+  return certificateFieldNumber(building,'HVAC1_PDRSAug24_PRC_calculation');
+}
 async function calculateCertificatesWithPostcodeFallback(baseBuilding,climate,error){
   const message=String((error&&error.message)||error||'');
   if(!isEssClimateZoneFallbackPostcode(climate.postcode) || !/no field of name 0/i.test(message)) throw error;
@@ -3342,13 +3361,15 @@ async function calculateCertificatesForModel(meta,climate){
   }catch(e){
     resp=await calculateCertificatesWithPostcodeFallback(baseBuilding,climate,e);
   }
-  const esc=((resp||{}).buildings||{}).building_1?.HVAC1_PDRSAug24_ESC_calculation?.[ESS_CALC_DATE];
-  const prc=((resp||{}).buildings||{}).building_1?.HVAC1_PDRSAug24_PRC_calculation?.[ESS_CALC_DATE];
-  const escNum=Number(esc), prcNum=Number(prc);
+  const resultBuilding=certificateBuilding(resp);
+  const escOfficial=certificateFieldNumber(resultBuilding,'HVAC1_PDRSAug24_ESC_calculation');
+  const prcOfficial=certificateFieldNumber(resultBuilding,'HVAC1_PDRSAug24_PRC_calculation');
+  const escNum=decimalEscCertificatesFromBuilding(resultBuilding);
+  const prcNum=decimalPrcCertificatesFromBuilding(resultBuilding);
   if(!Number.isFinite(escNum) || !Number.isFinite(prcNum)) throw new Error('Unable to calculate certificates');
   const escEffective=eligibility.essEligible?escNum:0;
   const prcEffective=eligibility.prcEligible?prcNum:0;
-  return {esc:escEffective, prc:prcEffective, officialEsc:escNum, officialPrc:prcNum, eligibility};
+  return {esc:escEffective, prc:prcEffective, officialEsc:Number.isFinite(escOfficial)?escOfficial:escNum, officialPrc:Number.isFinite(prcOfficial)?prcOfficial:prcNum, eligibility};
 }
 async function estimateLiveEssRebate(localBrand,localModel){
   const resolved=await resolveModelMetadataForRebate(localBrand,localModel);
