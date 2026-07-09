@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "verify:rebates": "node scripts/verify-rebate-guards.mjs && node scripts/verify-nsw-hvac-rebate-rules.mjs",
+    "verify:rebates": "node scripts/verify-rebate-guards.mjs && node scripts/verify-nsw-hvac-rebate-rules.mjs && node scripts/verify-certificate-pricing-model.mjs",
     "build": "next build",
     "start": "next start"
   },

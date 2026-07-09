@@ -2175,8 +2175,12 @@ const GEMS_AIRCON_RESOURCE_IDS=[
 ];
 const ESS_CALC_DATE='2021-01-01';
 const SEVEN_DAYS_MS=7*24*60*60*1000;
-const DEFAULT_ESC_RATE=24.39;
-const DEFAULT_PRC_RATE=2.85;
+const DEFAULT_ESC_SPOT_PRICE=29.00;
+const DEFAULT_PRC_SPOT_PRICE=3.00;
+const DEFAULT_ESC_AGREEMENT_DEDUCTION=5.00;
+const DEFAULT_PRC_AGREEMENT_DEDUCTION=0.30;
+const DEFAULT_ESC_RATE=24.00;
+const DEFAULT_PRC_RATE=2.70;
 const $=id=>document.getElementById(id); const money=n=>(Number(n)||0).toLocaleString('en-AU',{style:'currency',currency:'AUD'}); const pct=n=>((Number(n)||0)*100).toFixed(2)+'%'; const num=id=>Number($(id).value)||0;
 function legacyStorageKey(suffix){return 'green'+'Energy'+suffix;}
 function storageGet(key,legacySuffix){const current=localStorage.getItem(key); return current!==null?current:(legacySuffix?localStorage.getItem(legacyStorageKey(legacySuffix)):null);}
@@ -2186,7 +2190,7 @@ function legacyLabourRetainKey(){return 'green'+'EnergyKeepsLabour';}
 let essCache={brands:null,modelsByBrand:{},metadata:{},gemsByLookup:{},zoneByPostcode:{},requestSeq:0};
 let essRuntime={lastEsc:0,lastPrc:0,lastOfficialEsc:0,lastOfficialPrc:0,lastZone:'',lastBcaZone:'',lastBrand:'',lastModel:''};
 let essBestValueRuntime={requestSeq:0,cache:{},lastEntry:null};
-let certValues={escRate:DEFAULT_ESC_RATE,prcRate:DEFAULT_PRC_RATE,source:'Electric Future',locked:true,updatedAt:''};
+let certValues={escRate:DEFAULT_ESC_RATE,prcRate:DEFAULT_PRC_RATE,escSpotPrice:DEFAULT_ESC_SPOT_PRICE,prcSpotPrice:DEFAULT_PRC_SPOT_PRICE,escAgreementDeduction:DEFAULT_ESC_AGREEMENT_DEDUCTION,prcAgreementDeduction:DEFAULT_PRC_AGREEMENT_DEDUCTION,source:'Electric Future',locked:true,updatedAt:''};
 const ENERGY_HEATING_HOURS=543;
 const ENERGY_COOLING_HOURS=350;
 const ENERGY_DEFAULT_ELECTRICITY_RATE=0.33;
@@ -2876,6 +2880,31 @@ function updateCertLockUi(){
     btn.classList.toggle('unlocked',!locked);
   }
 }
+function certMoneyValue(value,fallback,allowZero){
+  const n=Number(value);
+  return Number.isFinite(n) && (allowZero?n>=0:n>0) ? n : fallback;
+}
+function certPayoutRate(spotPrice,agreementDeduction){
+  return Math.max((Number(spotPrice)||0) - (Number(agreementDeduction)||0),0);
+}
+function normalizeCertValues(saved){
+  saved=saved && typeof saved==='object' && !Array.isArray(saved)?saved:{};
+  const escSpotPrice=certMoneyValue(saved.escSpotPrice ?? saved.escSpot ?? saved.escMarketPrice,DEFAULT_ESC_SPOT_PRICE,false);
+  const prcSpotPrice=certMoneyValue(saved.prcSpotPrice ?? saved.percSpotPrice ?? saved.prcSpot ?? saved.percSpot,DEFAULT_PRC_SPOT_PRICE,false);
+  const escAgreementDeduction=certMoneyValue(saved.escAgreementDeduction ?? saved.escAgreement ?? saved.escPriceAgreement,DEFAULT_ESC_AGREEMENT_DEDUCTION,true);
+  const prcAgreementDeduction=certMoneyValue(saved.prcAgreementDeduction ?? saved.percAgreementDeduction ?? saved.prcAgreement ?? saved.percAgreement,DEFAULT_PRC_AGREEMENT_DEDUCTION,true);
+  return {
+    escRate:certPayoutRate(escSpotPrice,escAgreementDeduction),
+    prcRate:certPayoutRate(prcSpotPrice,prcAgreementDeduction),
+    escSpotPrice,
+    prcSpotPrice,
+    escAgreementDeduction,
+    prcAgreementDeduction,
+    source:String(saved.source||'Electric Future'),
+    locked:saved.locked===undefined?true:!!saved.locked,
+    updatedAt:String(saved.updatedAt||'')
+  };
+}
 function applyLockedCertValuesToMain(){
   if($('essEscRate')) $('essEscRate').value=(Number(certValues.escRate)||0).toFixed(2);
   if($('essPrcRate')) $('essPrcRate').value=(Number(certValues.prcRate)||0).toFixed(2);
@@ -2893,13 +2922,7 @@ function loadCertValues(){
     const raw=storageGet(CERT_VALUES_STORAGE_KEY,'CertificateValuesV1');
     if(raw){
       const saved=JSON.parse(raw)||{};
-      certValues={
-        escRate:Number(saved.escRate)||DEFAULT_ESC_RATE,
-        prcRate:Number(saved.prcRate)||DEFAULT_PRC_RATE,
-        source:String(saved.source||'Electric Future'),
-        locked:!!saved.locked,
-        updatedAt:String(saved.updatedAt||'')
-      };
+      certValues=normalizeCertValues(saved);
     }
   }catch(e){}
 }

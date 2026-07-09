@@ -14,6 +14,10 @@ type WonOptionUpdateMode = "unlock" | "delete" | "paid_in" | "paid_out" | "reset
 type CertificateValues = {
   escRate: number;
   prcRate: number;
+  escSpotPrice: number;
+  prcSpotPrice: number;
+  escAgreementDeduction: number;
+  prcAgreementDeduction: number;
   source: string;
   locked: boolean;
   updatedAt: string;
@@ -217,8 +221,12 @@ const CERTIFICATE_VALUES_STORAGE_KEYS = [
   "CertificateValuesV1",
 ];
 const DEFAULT_CERTIFICATE_VALUES: CertificateValues = {
-  escRate: 24.39,
-  prcRate: 2.85,
+  escRate: 24,
+  prcRate: 2.7,
+  escSpotPrice: 29,
+  prcSpotPrice: 3,
+  escAgreementDeduction: 5,
+  prcAgreementDeduction: 0.3,
   source: "Electric Future",
   locked: true,
   updatedAt: "",
@@ -275,6 +283,21 @@ function businessIdsFromForm(formData: FormData) {
   return uniqueStrings(formData.getAll("businessIds").map((value) => String(value || "")));
 }
 
+function certificateAgreementFromForm(formData: FormData) {
+  return {
+    escAgreementDeduction: certificateMoneyValue(
+      formData.get("escAgreementDeduction"),
+      DEFAULT_CERTIFICATE_VALUES.escAgreementDeduction,
+      true,
+    ),
+    prcAgreementDeduction: certificateMoneyValue(
+      formData.get("prcAgreementDeduction"),
+      DEFAULT_CERTIFICATE_VALUES.prcAgreementDeduction,
+      true,
+    ),
+  };
+}
+
 function nullableRate(value: FormDataEntryValue | null) {
   const raw = normalizeText(value);
   if (!raw) return null;
@@ -293,6 +316,18 @@ function formatRate(value: number | null | undefined) {
     minimumFractionDigits: safe % 1 ? 1 : 0,
     maximumFractionDigits: 2,
   });
+}
+
+function formatMoneyNumber(value: number | null | undefined) {
+  return `$${Number(value ?? 0).toFixed(2)}`;
+}
+
+function certificateAgreementLabel(values: CertificateValues) {
+  return `ESC ${formatMoneyNumber(values.escAgreementDeduction)} / PERC ${formatMoneyNumber(values.prcAgreementDeduction)}`;
+}
+
+function certificatePayoutLabel(values: CertificateValues) {
+  return `Pays ESC ${formatMoneyNumber(values.escRate)} / PERC ${formatMoneyNumber(values.prcRate)}`;
 }
 
 function commissionLabel(type: string | null | undefined) {
@@ -336,19 +371,49 @@ function asNumber(value: unknown, fallback: number) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function certificateMoneyValue(value: unknown, fallback: number) {
+function certificateMoneyValue(value: unknown, fallback: number, allowZero = false) {
   const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+  return Number.isFinite(parsed) && (allowZero ? parsed >= 0 : parsed > 0) ? parsed : fallback;
+}
+
+function roundCertificateMoney(value: number) {
+  return Number(value.toFixed(2));
+}
+
+function certificatePayoutRate(spotPrice: number, agreementDeduction: number) {
+  return roundCertificateMoney(Math.max(spotPrice - agreementDeduction, 0));
 }
 
 function normalizeCertificateValues(value: unknown): CertificateValues {
   const saved = value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+  const escSpotPrice = certificateMoneyValue(
+    saved.escSpotPrice ?? saved.escSpot ?? saved.escMarketPrice,
+    DEFAULT_CERTIFICATE_VALUES.escSpotPrice,
+  );
+  const prcSpotPrice = certificateMoneyValue(
+    saved.prcSpotPrice ?? saved.percSpotPrice ?? saved.prcSpot ?? saved.percSpot,
+    DEFAULT_CERTIFICATE_VALUES.prcSpotPrice,
+  );
+  const escAgreementDeduction = certificateMoneyValue(
+    saved.escAgreementDeduction ?? saved.escAgreement ?? saved.escPriceAgreement,
+    DEFAULT_CERTIFICATE_VALUES.escAgreementDeduction,
+    true,
+  );
+  const prcAgreementDeduction = certificateMoneyValue(
+    saved.prcAgreementDeduction ?? saved.percAgreementDeduction ?? saved.prcAgreement ?? saved.percAgreement,
+    DEFAULT_CERTIFICATE_VALUES.prcAgreementDeduction,
+    true,
+  );
 
   return {
-    escRate: certificateMoneyValue(saved.escRate, DEFAULT_CERTIFICATE_VALUES.escRate),
-    prcRate: certificateMoneyValue(saved.prcRate, DEFAULT_CERTIFICATE_VALUES.prcRate),
+    escRate: certificatePayoutRate(escSpotPrice, escAgreementDeduction),
+    prcRate: certificatePayoutRate(prcSpotPrice, prcAgreementDeduction),
+    escSpotPrice,
+    prcSpotPrice,
+    escAgreementDeduction,
+    prcAgreementDeduction,
     source: String(saved.source || DEFAULT_CERTIFICATE_VALUES.source).trim() || DEFAULT_CERTIFICATE_VALUES.source,
     locked: saved.locked === undefined ? DEFAULT_CERTIFICATE_VALUES.locked : Boolean(saved.locked),
     updatedAt: String(saved.updatedAt || ""),
@@ -376,8 +441,12 @@ function certificateValuesFromStoredData(data: Record<string, unknown> | null | 
 
 function serializeCertificateValues(values: CertificateValues) {
   return JSON.stringify({
-    escRate: Number(values.escRate.toFixed(2)),
-    prcRate: Number(values.prcRate.toFixed(2)),
+    escRate: roundCertificateMoney(values.escRate),
+    prcRate: roundCertificateMoney(values.prcRate),
+    escSpotPrice: roundCertificateMoney(values.escSpotPrice),
+    prcSpotPrice: roundCertificateMoney(values.prcSpotPrice),
+    escAgreementDeduction: roundCertificateMoney(values.escAgreementDeduction),
+    prcAgreementDeduction: roundCertificateMoney(values.prcAgreementDeduction),
     source: values.source,
     locked: values.locked,
     updatedAt: values.updatedAt,
@@ -492,6 +561,7 @@ async function getPlatformCertificateValues(supabase: SupabaseServer, businesses
   if (result.error) {
     return {
       data: { ...DEFAULT_CERTIFICATE_VALUES },
+      businessValuesById: {} as Record<string, CertificateValues>,
       appliedBusinessCount: 0,
       totalBusinessCount: businesses.length,
       errorMessage: schemaSetupMessage(result.error),
@@ -502,22 +572,48 @@ async function getPlatformCertificateValues(supabase: SupabaseServer, businesses
   const businessIds = new Set(businesses.map((business) => business.id));
   const matchingRows = rows.filter((row) => row.business_id && businessIds.has(row.business_id));
   const appliedBusinessCount = matchingRows.filter((row) => certificateValuesFromStoredData(row.data)).length;
+  const businessValuesById = Object.fromEntries(
+    businesses.map((business) => {
+      const row = matchingRows.find((item) => item.business_id === business.id);
+      return [business.id, certificateValuesFromStoredData(row?.data) || { ...DEFAULT_CERTIFICATE_VALUES }];
+    }),
+  ) as Record<string, CertificateValues>;
   const existingValues = matchingRows
     .map((row) => certificateValuesFromStoredData(row.data))
     .find(Boolean);
 
   return {
     data: existingValues || { ...DEFAULT_CERTIFICATE_VALUES },
+    businessValuesById,
     appliedBusinessCount,
     totalBusinessCount: businesses.length,
     errorMessage: "",
   };
 }
 
+function certificateValuesForBusiness(
+  platformValues: CertificateValues,
+  agreementSource: Partial<CertificateValues> | null | undefined,
+) {
+  return normalizeCertificateValues({
+    escSpotPrice: platformValues.escSpotPrice,
+    prcSpotPrice: platformValues.prcSpotPrice,
+    escAgreementDeduction: agreementSource?.escAgreementDeduction ?? DEFAULT_CERTIFICATE_VALUES.escAgreementDeduction,
+    prcAgreementDeduction: agreementSource?.prcAgreementDeduction ?? DEFAULT_CERTIFICATE_VALUES.prcAgreementDeduction,
+    source: platformValues.source,
+    locked: platformValues.locked,
+    updatedAt: platformValues.updatedAt,
+  });
+}
+
 async function applyPlatformCertificateValuesToBusinesses(
   supabase: SupabaseServer,
   businesses: Business[],
   values: CertificateValues,
+  options: {
+    resetAgreements?: boolean;
+    agreementOverrides?: Map<string, Pick<CertificateValues, "escAgreementDeduction" | "prcAgreementDeduction">>;
+  } = {},
 ) {
   if (!businesses.length) return "Add a business before saving certificate values.";
 
@@ -535,7 +631,17 @@ async function applyPlatformCertificateValuesToBusinesses(
 
   const payload = businesses.map((business) => ({
     business_id: business.id,
-    data: dataWithCertificateValues(existingByBusiness.get(business.id) || {}, values),
+    data: dataWithCertificateValues(
+      existingByBusiness.get(business.id) || {},
+      certificateValuesForBusiness(
+        values,
+        options.resetAgreements
+          ? DEFAULT_CERTIFICATE_VALUES
+          : options.agreementOverrides?.get(business.id)
+            || certificateValuesFromStoredData(existingByBusiness.get(business.id) || {})
+            || DEFAULT_CERTIFICATE_VALUES,
+      ),
+    ),
     updated_at: new Date().toISOString(),
   }));
 
@@ -672,8 +778,8 @@ async function saveBusiness(
     target_salesperson_commission_rate: salespersonRate,
   });
 
-  if (!rpcResult.error) return "";
-  if (!isSchemaCacheFunctionError(rpcResult.error)) return dbMessage(rpcResult.error);
+  if (!rpcResult.error) return { id: String(rpcResult.data || businessId || ""), errorMessage: "" };
+  if (!isSchemaCacheFunctionError(rpcResult.error)) return { id: businessId, errorMessage: dbMessage(rpcResult.error) };
 
   const payload = {
     name,
@@ -685,10 +791,12 @@ async function saveBusiness(
   };
 
   const directResult = businessId
-    ? await supabase.from("businesses").update(payload).eq("id", businessId)
-    : await supabase.from("businesses").insert(payload);
+    ? await supabase.from("businesses").update(payload).eq("id", businessId).select("id").maybeSingle()
+    : await supabase.from("businesses").insert(payload).select("id").single();
 
-  return directResult.error ? schemaSetupMessage(directResult.error) : "";
+  return directResult.error
+    ? { id: businessId, errorMessage: schemaSetupMessage(directResult.error) }
+    : { id: String(directResult.data?.id || businessId || ""), errorMessage: "" };
 }
 
 async function saveApprovedUser(
@@ -2368,12 +2476,13 @@ async function upsertBusiness(formData: FormData) {
   const commissionType = normalizeCommissionOverride(formData.get("commissionType"));
   const agencyRate = rateValue(formData.get("agencyCommissionRate"), 25);
   const salespersonRate = rateValue(formData.get("salespersonCommissionRate"), 50);
+  const certificateAgreement = certificateAgreementFromForm(formData);
 
   if (!name) {
     redirect("/admin/users?error=Enter a business name.");
   }
 
-  const errorMessage = await saveBusiness(
+  const businessSave = await saveBusiness(
     supabase,
     businessId,
     name,
@@ -2383,8 +2492,8 @@ async function upsertBusiness(formData: FormData) {
     salespersonRate,
   );
 
-  if (errorMessage) {
-    redirect(`/admin/users?error=${encodeURIComponent(errorMessage)}`);
+  if (businessSave.errorMessage) {
+    redirect(`/admin/users?error=${encodeURIComponent(businessSave.errorMessage)}`);
   }
 
   const businessesResult = await listBusinesses(supabase);
@@ -2394,6 +2503,9 @@ async function upsertBusiness(formData: FormData) {
       supabase,
       businessesResult.data,
       certificateResult.data,
+      businessSave.id
+        ? { agreementOverrides: new Map([[businessSave.id, certificateAgreement]]) }
+        : {},
     );
     if (certificateError) {
       redirect(`/admin/users?error=${encodeURIComponent(`${name} was saved, but certificate values were not applied to all businesses. ${certificateError}`)}`);
@@ -2410,8 +2522,8 @@ async function savePlatformCertificateValues(formData: FormData) {
   const { supabase } = await requireAdmin();
   const businessesResult = await listBusinesses(supabase);
   const values = normalizeCertificateValues({
-    escRate: formData.get("escRate"),
-    prcRate: formData.get("prcRate"),
+    escSpotPrice: formData.get("escSpotPrice"),
+    prcSpotPrice: formData.get("prcSpotPrice"),
     source: normalizeText(formData.get("source")) || DEFAULT_CERTIFICATE_VALUES.source,
     locked: formData.get("locked") === "1",
     updatedAt: new Date().toISOString(),
@@ -2428,7 +2540,7 @@ async function savePlatformCertificateValues(formData: FormData) {
   }
 
   revalidatePath("/admin/users");
-  redirect(`/admin/users?message=${encodeURIComponent(`Certificate values were ${values.locked ? "locked" : "saved"} and applied across all businesses.`)}`);
+  redirect(`/admin/users?message=${encodeURIComponent(`Certificate spot prices were ${values.locked ? "locked" : "saved"} and applied across all businesses.`)}`);
 }
 
 async function resetPlatformCertificateValues() {
@@ -2444,6 +2556,7 @@ async function resetPlatformCertificateValues() {
     supabase,
     businessesResult.data,
     values,
+    { resetAgreements: true },
   );
 
   if (businessesResult.errorMessage || errorMessage) {
@@ -2451,7 +2564,7 @@ async function resetPlatformCertificateValues() {
   }
 
   revalidatePath("/admin/users");
-  redirect(`/admin/users?message=${encodeURIComponent("Certificate values were reset to the default locked values across all businesses.")}`);
+  redirect(`/admin/users?message=${encodeURIComponent("Certificate spot prices and pricing agreements were reset to the default locked values across all businesses.")}`);
 }
 
 async function addApprovedUser(formData: FormData) {
@@ -2768,6 +2881,7 @@ export default async function AdminUsersPage({
   const salespersonSales = summarizeSalesBySalesperson(wonOptions);
   const firstBusinessId = businesses[0]?.id || "";
   const certificateValues = certificateResult.data;
+  const businessCertificateValues = certificateResult.businessValuesById;
 
   return (
     <main className="admin-shell">
@@ -2808,7 +2922,7 @@ export default async function AdminUsersPage({
           <summary className="section-heading admin-section-summary">
             <div>
               <h2>Certificate values</h2>
-              <p>These ESC and PERC dollar values are locked and injected into every business calculator.</p>
+              <p>Spot prices are shared across NSW businesses. Each business agreement below is deducted from these prices.</p>
             </div>
             <span className="section-count">
               {certificateResult.appliedBusinessCount}/{certificateResult.totalBusinessCount} businesses
@@ -2820,26 +2934,26 @@ export default async function AdminUsersPage({
             <div className="certificate-admin-grid">
               <form action={savePlatformCertificateValues} className="certificate-admin-form">
                 <div>
-                  <label htmlFor="certificateEscRate">ESC $ per cert</label>
+                  <label htmlFor="certificateEscSpotPrice">ESC spot price</label>
                   <input
-                    id="certificateEscRate"
-                    name="escRate"
+                    id="certificateEscSpotPrice"
+                    name="escSpotPrice"
                     type="number"
                     min="0.01"
                     step="0.01"
-                    defaultValue={certificateValues.escRate.toFixed(2)}
+                    defaultValue={certificateValues.escSpotPrice.toFixed(2)}
                     required
                   />
                 </div>
                 <div>
-                  <label htmlFor="certificatePrcRate">PERC $ per cert</label>
+                  <label htmlFor="certificatePrcSpotPrice">PERC spot price</label>
                   <input
-                    id="certificatePrcRate"
-                    name="prcRate"
+                    id="certificatePrcSpotPrice"
+                    name="prcSpotPrice"
                     type="number"
                     min="0.01"
                     step="0.01"
-                    defaultValue={certificateValues.prcRate.toFixed(2)}
+                    defaultValue={certificateValues.prcSpotPrice.toFixed(2)}
                     required
                   />
                 </div>
@@ -2868,7 +2982,11 @@ export default async function AdminUsersPage({
 
               <div className="certificate-admin-status">
                 <div>
-                  <span>Current status</span>
+                  <span>Current spot</span>
+                  <strong>{`ESC ${formatMoneyNumber(certificateValues.escSpotPrice)} / PERC ${formatMoneyNumber(certificateValues.prcSpotPrice)}`}</strong>
+                </div>
+                <div>
+                  <span>Calculator fields</span>
                   <strong>{certificateValues.locked ? "Locked" : "Unlocked"}</strong>
                 </div>
                 <div>
@@ -2936,13 +3054,23 @@ export default async function AdminUsersPage({
               <label htmlFor="businessSalespersonRate">Salesperson %</label>
               <input id="businessSalespersonRate" name="salespersonCommissionRate" type="number" min="0" max="100" step="0.1" defaultValue="50" />
             </div>
+            <div>
+              <label htmlFor="businessEscAgreement">ESC agreement deduction</label>
+              <input id="businessEscAgreement" name="escAgreementDeduction" type="number" min="0" step="0.01" defaultValue={DEFAULT_CERTIFICATE_VALUES.escAgreementDeduction.toFixed(2)} />
+            </div>
+            <div>
+              <label htmlFor="businessPrcAgreement">PERC agreement deduction</label>
+              <input id="businessPrcAgreement" name="prcAgreementDeduction" type="number" min="0" step="0.01" defaultValue={DEFAULT_CERTIFICATE_VALUES.prcAgreementDeduction.toFixed(2)} />
+            </div>
             <button className="orange" type="submit">
               Add business
             </button>
             </form>
 
             <div className="business-grid">
-            {businesses.map((business) => (
+            {businesses.map((business) => {
+              const businessCertificate = businessCertificateValues[business.id] || { ...DEFAULT_CERTIFICATE_VALUES };
+              return (
               <details className="business-card business-edit-card locked-card" key={business.id}>
                 <summary className="business-summary">
                   <div>
@@ -2965,6 +3093,11 @@ export default async function AdminUsersPage({
                   <div>
                     <label>Salesperson %</label>
                     <strong>{formatRate(business.salesperson_commission_rate)}%</strong>
+                  </div>
+                  <div>
+                    <label>EF agreement</label>
+                    <strong>{business.operating_state === "NSW" ? certificateAgreementLabel(businessCertificate) : "No NSW rebate"}</strong>
+                    {business.operating_state === "NSW" ? <span>{certificatePayoutLabel(businessCertificate)}</span> : null}
                   </div>
                   <span className="locked-pill locked-state">Locked</span>
                   <span className="locked-pill unlocked-state">Unlocked</span>
@@ -3015,12 +3148,33 @@ export default async function AdminUsersPage({
                       defaultValue={formatRate(business.salesperson_commission_rate)}
                     />
                   </div>
+                  <div>
+                    <label>ESC agreement deduction</label>
+                    <input
+                      name="escAgreementDeduction"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      defaultValue={businessCertificate.escAgreementDeduction.toFixed(2)}
+                    />
+                  </div>
+                  <div>
+                    <label>PERC agreement deduction</label>
+                    <input
+                      name="prcAgreementDeduction"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      defaultValue={businessCertificate.prcAgreementDeduction.toFixed(2)}
+                    />
+                  </div>
                   <button className="orange" type="submit">
                     Save business
                   </button>
                 </form>
               </details>
-            ))}
+              );
+            })}
             {!businesses.length ? <div className="empty-card">No businesses yet.</div> : null}
             </div>
           </div>
