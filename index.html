@@ -151,30 +151,37 @@ input:focus,select:focus,textarea:focus{
   border-color:#16a34a;
   box-shadow:0 0 0 3px rgba(22,163,74,.16);
 }
-.finalPriceField{
-  position:relative;
-  padding:14px;
-  border:1px solid #93c5fd;
+.finalPriceStrip{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(220px,280px);
+  align-items:end;
+  gap:14px;
+  margin:0 0 14px;
+  padding:12px 14px;
+  border:1px solid #bfdbfe;
   border-radius:16px;
-  background:linear-gradient(180deg,#eff6ff 0%,#ffffff 100%);
-  box-shadow:0 10px 22px rgba(37,99,235,.11);
+  background:linear-gradient(180deg,#eff6ff 0%,#f8fbff 100%);
 }
-.finalPriceField label{color:#1e3a8a}
-.finalPriceField input{
-  height:52px;
+.finalPriceStrip .fieldLabelRow{
+  justify-content:flex-start;
+  flex-wrap:wrap;
+}
+.finalPriceStrip label{color:#1e3a8a}
+.finalPriceStrip input{
+  height:44px;
   border-color:#93c5fd;
   background:#fff;
   color:#0f172a;
-  font-size:20px;
+  font-size:16px;
   font-weight:900;
   font-variant-numeric:tabular-nums;
 }
-.finalPriceField input:focus{
+.finalPriceStrip input:focus{
   border-color:#2563eb;
-  box-shadow:0 0 0 4px rgba(37,99,235,.16);
+  box-shadow:0 0 0 3px rgba(37,99,235,.16);
 }
 .fieldHint{
-  margin-top:8px;
+  margin-top:6px;
   color:#475569;
   font-size:12px;
   line-height:1.35;
@@ -1089,7 +1096,7 @@ tbody tr:hover td{background:#f0f7ff}
   .summary{position:static}
 }
 @media(max-width:980px){
-  .header,.row2,.row3,.optionControls{grid-template-columns:1fr}
+  .header,.row2,.row3,.optionControls,.finalPriceStrip{grid-template-columns:1fr}
   .proposalDrawer .proposalGrid,.proposalDrawer .proposalChecks{grid-template-columns:1fr}
   .recommendationCards{grid-template-columns:1fr}
   .addonGrid{grid-template-columns:1fr}
@@ -1481,8 +1488,9 @@ tbody tr:hover td{background:#f0f7ff}
       </div>
       <div class="card">
         <h2 class="sectionTitle">Costs</h2>
+        <div class="finalPriceStrip"><div><div class="fieldLabelRow"><label for="finalInc">Final customer price inc GST</label><span class="fieldPill confirmed">Customer pays</span></div><div class="fieldHint">Main quoted price shown to the customer.</div></div><input id="finalInc" type="number" step="0.01"></div>
         <div class="row3"><div><label>Unit price inc GST</label><input id="unitPriceInc" type="number" step="0.01"></div><div><label>Labour ex GST</label><input id="labour" type="number" step="0.01"></div><div id="rebateCostField"><label>Rebate</label><input id="rebate" type="number" step="0.01"></div></div>
-        <div class="row3" style="margin-top:14px"><div><label>Materials inc GST</label><input id="materials" type="number" step="0.01"></div><div><label>Misc cost inc GST</label><input id="misc" type="number" step="0.01" value="0"></div><div class="finalPriceField"><div class="fieldLabelRow"><label for="finalInc">Final customer price inc GST</label><span class="fieldPill confirmed">Customer pays</span></div><input id="finalInc" type="number" step="0.01"><div class="fieldHint">Main quoted price shown to the customer.</div></div></div>
+        <div class="row2" style="margin-top:14px"><div><label>Materials inc GST</label><input id="materials" type="number" step="0.01"></div><div><label>Misc cost inc GST</label><input id="misc" type="number" step="0.01" value="0"></div></div>
         <div id="splitOnly" style="margin-top:14px"><div class="row2"><div><label>Power circuit ex GST</label><input id="powerCircuit" type="number" step="0.01" value="500"></div><div><label>Power circuit rule</label><select id="powerMode"><option value="auto">Auto above 3.5kW</option><option value="on">Force on</option><option value="off">Force off</option></select></div></div><div class="checkbox" style="margin-top:12px"><input id="installerRetainsLabour" type="checkbox" checked><label for="installerRetainsLabour" style="margin:0;text-transform:none;letter-spacing:0;font-size:13px;color:#0f172a">Installer retains labour profit</label></div><div class="tiny">When turned on, split-system labour is treated as owner-retained value. When turned off, split-system labour is treated as a paid expense.</div></div>
         <div id="ductedOnly" class="hidden" style="margin-top:14px"><div class="row3"><div><label>Electrician ex GST</label><input id="electrician" type="number" step="0.01" value="500"></div><div><label>Airtouch</label><select id="airtouch"><option value="no">No</option><option value="yes">Yes</option></select></div><div><label>Zones</label><input id="zones" type="number" value="0"></div></div><div class="row2" style="margin-top:14px"><div><label>Sensors</label><input id="sensors" type="number" value="0"></div><div><label>Airtouch cost rule</label><input readonly value="$1,100 + $82/sensor + $65/zone"></div></div><div class="checkbox" style="margin-top:12px"><input id="ductedInstallerRetainsLabour" type="checkbox"><label for="ductedInstallerRetainsLabour" style="margin:0;text-transform:none;letter-spacing:0;font-size:13px;color:#0f172a">Installer retains labour profit</label></div><div class="tiny">When turned on, ducted labour is treated as owner-retained value. When turned off, ducted labour is treated as a paid expense.</div></div>
         <div class="priceResetRow"><button class="secondary" type="button" onclick="resetSuggestedPrice()">Reset suggested price</button></div>
