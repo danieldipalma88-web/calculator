@@ -27,8 +27,7 @@ export default async function Home({
         <p className="kicker">Approved access only</p>
         <h1>Quote Calculator</h1>
         <p>
-          Sign in with your approved Google account to open your calculator and saved
-          quote data.
+          Sign in with your approved email address to open your calculator and saved quote data.
         </p>
         {params?.error ? <div className="notice">{params.error}</div> : null}
         {!hasSupabaseConfig() ? (
@@ -36,7 +35,7 @@ export default async function Home({
             Supabase environment variables still need to be added in Vercel.
           </div>
         ) : (
-          <LoginButton />
+          <LoginButton next={params?.next} />
         )}
       </section>
     </main>

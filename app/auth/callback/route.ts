@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
 
   if (!code) {
     const loginUrl = new URL("/", publicSiteUrl);
-    loginUrl.searchParams.set("error", "Google did not return a login code. Please try again.");
+    loginUrl.searchParams.set("error", "The login link did not return a login code. Please try again.");
     return NextResponse.redirect(loginUrl);
   }
 

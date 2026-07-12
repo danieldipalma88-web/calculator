@@ -2891,7 +2891,7 @@ export default async function AdminUsersPage({
             <p className="kicker">Platform admin</p>
             <h1>Businesses and users</h1>
             <p>
-              Add businesses, assign approved Google accounts, and control which commission
+              Add businesses, assign approved email addresses, and control which commission
               structure each user receives.
             </p>
           </div>
