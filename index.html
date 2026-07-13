@@ -2153,7 +2153,21 @@ DUCTED_PRODUCTS.push(
   {"brand":"Midea","series":"Vesta","size":10.5,"phase":"Single","model":"UCMI105OC/DUCMI105IHC","priceIncGst":2274.80,"rebate":0.0,"capacity":"10.5kW","capacityNum":10.5,"unitPriceInc":2274.80},
   {"brand":"Midea","series":"Vesta","size":12.5,"phase":"Single","model":"UCMI125OC/DUCMI125IHC","priceIncGst":2624.60,"rebate":0.0,"capacity":"12.5kW","capacityNum":12.5,"unitPriceInc":2624.60},
   {"brand":"Midea","series":"Vesta","size":14.0,"phase":"Single","model":"UCMI140OC/DUCMI140IHC","priceIncGst":2955.70,"rebate":0.0,"capacity":"14.0kW","capacityNum":14.0,"unitPriceInc":2955.70},
-  {"brand":"Midea","series":"Vesta","size":17.0,"phase":"Single","model":"UCMI170OC/DUCMI170IHC","priceIncGst":3369.30,"rebate":0.0,"capacity":"17.0kW","capacityNum":17.0,"unitPriceInc":3369.30}
+  {"brand":"Midea","series":"Vesta","size":17.0,"phase":"Single","model":"UCMI170OC/DUCMI170IHC","priceIncGst":3369.30,"rebate":0.0,"capacity":"17.0kW","capacityNum":17.0,"unitPriceInc":3369.30},
+  {"brand":"Panasonic","series":"NX High Static","size":7.1,"phase":"Single","model":"U-71PZ4R5 / S-71PE4R","priceIncGst":3058.00,"rebate":0.0,"capacity":"7.1kW","capacityNum":7.1,"unitPriceInc":3058.00},
+  {"brand":"Panasonic","series":"NX High Static 3 Phase","size":7.1,"phase":"Three","model":"U-71PZ4R8 / S-71PE4R","priceIncGst":3058.00,"rebate":0.0,"capacity":"7.1kW","capacityNum":7.1,"unitPriceInc":3058.00},
+  {"brand":"Panasonic","series":"NX High Static","size":10.0,"phase":"Single","model":"U-100PZ4R5 / S-100PE4R","priceIncGst":3905.00,"rebate":0.0,"capacity":"10.0kW","capacityNum":10.0,"unitPriceInc":3905.00},
+  {"brand":"Panasonic","series":"NX High Static 3 Phase","size":10.0,"phase":"Three","model":"U-100PZ4R8 / S-100PE4R","priceIncGst":3905.00,"rebate":0.0,"capacity":"10.0kW","capacityNum":10.0,"unitPriceInc":3905.00},
+  {"brand":"Panasonic","series":"NX High Static","size":12.5,"phase":"Single","model":"U-125PZ4R5 / S-125PE4R","priceIncGst":4455.00,"rebate":0.0,"capacity":"12.5kW","capacityNum":12.5,"unitPriceInc":4455.00},
+  {"brand":"Panasonic","series":"NX High Static 3 Phase","size":12.5,"phase":"Three","model":"U-125PZ4R8 / S-125PE4R","priceIncGst":4455.00,"rebate":0.0,"capacity":"12.5kW","capacityNum":12.5,"unitPriceInc":4455.00},
+  {"brand":"Panasonic","series":"NX High Static","size":14.0,"phase":"Single","model":"U-140PZ4R5 / S-140PE4R","priceIncGst":5005.00,"rebate":0.0,"capacity":"14.0kW","capacityNum":14.0,"unitPriceInc":5005.00},
+  {"brand":"Panasonic","series":"NX High Static 3 Phase","size":14.0,"phase":"Three","model":"U-140PZ4R8 / S-140PE4R","priceIncGst":5005.00,"rebate":0.0,"capacity":"14.0kW","capacityNum":14.0,"unitPriceInc":5005.00},
+  {"brand":"Panasonic","series":"NX High Static","size":16.0,"phase":"Single","model":"U-160PZH3R5 / S-160PE4R","priceIncGst":5445.00,"rebate":0.0,"capacity":"16.0kW","capacityNum":16.0,"unitPriceInc":5445.00},
+  {"brand":"Panasonic","series":"NX High Static 3 Phase","size":16.0,"phase":"Three","model":"U-160PZH3R8 / S-160PE4R","priceIncGst":5445.00,"rebate":0.0,"capacity":"16.0kW","capacityNum":16.0,"unitPriceInc":5445.00},
+  {"brand":"Panasonic","series":"NX High Static","size":18.0,"phase":"Single","model":"U-180PZH3R5 / S-180PE4R","priceIncGst":5775.00,"rebate":0.0,"capacity":"18.0kW","capacityNum":18.0,"unitPriceInc":5775.00},
+  {"brand":"Panasonic","series":"NX High Static 3 Phase","size":18.0,"phase":"Three","model":"U-180PZH3R8 / S-180PE4R","priceIncGst":5775.00,"rebate":0.0,"capacity":"18.0kW","capacityNum":18.0,"unitPriceInc":5775.00},
+  {"brand":"Panasonic","series":"NX High Static 3 Phase","size":20.0,"phase":"Three","model":"U-200PZH3R8 / S-200PE4R","priceIncGst":6017.00,"rebate":0.0,"capacity":"20.0kW","capacityNum":20.0,"unitPriceInc":6017.00},
+  {"brand":"Panasonic","series":"NX High Static 3 Phase","size":22.4,"phase":"Three","model":"U-224PZH3R8 / S-224PE4R","priceIncGst":7315.00,"rebate":0.0,"capacity":"22.4kW","capacityNum":22.4,"unitPriceInc":7315.00}
 );
 function andosUnitPriceInc(setPriceExGst){return Number((Number(setPriceExGst||0)*1.1).toFixed(2));}
 function andosSplit(brand,series,capacityNum,indoor,outdoor,setPriceExGst){
@@ -2427,7 +2441,9 @@ const DUCTED_PRODUCT_SUPPORT=[
   {brand:'Rinnai',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional',warrantyYears:7,warrantyLabel:'7 yrs warranty'}},
   {brand:'TCL',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:5,warrantyLabel:'5 yrs standard / 7 yrs registered'}},
   {brand:'Actron',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional controller',warrantyYears:5,warrantyLabel:'5 yrs warranty'}},
-  {brand:'Midea',series:'Vesta',details:{wifiStatus:'optional',wifiLabel:'Controller required',warrantyYears:7,warrantyLabel:'7 yrs warranty'}}
+  {brand:'Midea',series:'Vesta',details:{wifiStatus:'optional',wifiLabel:'Controller required',warrantyYears:7,warrantyLabel:'7 yrs warranty'}},
+  {brand:'Panasonic',series:'NX High Static',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional controller',warrantyYears:5,warrantyLabel:'5 yrs warranty'}},
+  {brand:'Panasonic',series:'NX High Static 3 Phase',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional controller',warrantyYears:5,warrantyLabel:'5 yrs warranty'}}
 ];
 const ANDOS_SPLIT_PRODUCT_SUPPORT=[
   {brand:'Daikin',series:'Lite',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional adaptor',warrantyYears:5,warrantyLabel:'5 yrs warranty',originLabel:'Japanese'}},
