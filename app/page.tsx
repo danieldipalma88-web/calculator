@@ -6,9 +6,15 @@ import LoginButton from "./signin-button";
 export default async function Home({
   searchParams,
 }: {
-  searchParams?: Promise<{ next?: string; error?: string }>;
+  searchParams?: Promise<{ next?: string; error?: string; code?: string }>;
 }) {
   const params = await searchParams;
+
+  if (params?.code) {
+    const callbackParams = new URLSearchParams({ code: params.code });
+    if (params.next) callbackParams.set("next", params.next);
+    redirect(`/auth/callback?${callbackParams.toString()}`);
+  }
 
   if (hasSupabaseConfig()) {
     const supabase = await createSupabaseServerClient();
