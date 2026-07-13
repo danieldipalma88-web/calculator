@@ -1720,7 +1720,7 @@ tbody tr:hover td{background:#f0f7ff}
         <div>
           <div class="kicker">Admin trial</div>
           <h2 class="sectionTitle">Multi-head split system calculator</h2>
-          <div class="sub">Hidden admin-only trial mode for multi-head pricing and NSW ESS/PDRS rebate testing. It is not connected to customer quotes yet.</div>
+          <div class="sub">Hidden admin-only trial mode for multi-head pricing, NSW ESS/PDRS rebate testing, and quote builder checks.</div>
         </div>
         <span class="trialBadge">Not live</span>
       </div>
@@ -1762,9 +1762,26 @@ tbody tr:hover td{background:#f0f7ff}
           </div>
           <div id="multiSplitIndoorRows" class="multiSplitIndoorRows"></div>
         </div>
+        <div class="card">
+          <h2 class="sectionTitle">Costs</h2>
+          <div class="finalPriceStrip"><div><div class="fieldLabelRow"><label for="multiFinalInc">Final customer price inc GST</label><span class="fieldPill confirmed">Customer pays</span></div><div class="fieldHint">Main quoted price shown to the customer.</div></div><input id="multiFinalInc" type="number" step="0.01"></div>
+          <div class="row3">
+            <div><label>Equipment price inc GST</label><input id="multiUnitPriceInc" type="number" step="0.01" readonly></div>
+            <div><label>Labour ex GST</label><input id="multiLabour" type="number" step="0.01" value="500"></div>
+            <div><label>Rebate</label><input id="multiRebate" type="number" step="0.01" value="0"></div>
+          </div>
+          <div class="row3" style="margin-top:14px">
+            <div><label>Materials inc GST</label><input id="multiMaterials" type="number" step="0.01" value="150"></div>
+            <div><label>Misc cost inc GST</label><input id="multiMisc" type="number" step="0.01" value="0"></div>
+            <div><label>Power / electrical ex GST</label><input id="multiPower" type="number" step="0.01" value="500"></div>
+          </div>
+          <div class="checkbox" style="margin-top:12px"><input id="multiInstallerRetainsLabour" type="checkbox" checked><label for="multiInstallerRetainsLabour" style="margin:0;text-transform:none;letter-spacing:0;font-size:13px;color:#0f172a">Installer retains labour profit</label></div>
+          <div class="tiny">When turned on, multi-head labour is treated as owner-retained value. When turned off, labour is treated as a paid expense.</div>
+          <div class="priceResetRow"><button class="secondary" type="button" onclick="resetMultiSplitSuggestedPrice()">Reset suggested price</button></div>
+        </div>
       </main>
       <aside class="summary card multiSplitSummaryCard">
-        <div class="multiSplitFinal"><span>Net equipment after trial rebate</span><strong id="multiSplitNetEquipment">-</strong></div>
+        <div class="final"><div class="finalCopy"><span>Final customer price inc GST</span><strong id="multiFinalBig">$0.00</strong></div><div class="finalBumpGroup"><button class="finalBumpBtn" type="button" onclick="applyMoneyStep('multiFinalInc',-50)">- $50</button><button class="finalBumpBtn" type="button" onclick="applyMoneyStep('multiFinalInc',50)">+ $50</button></div></div>
         <div class="multiSplitSummaryGrid">
           <div class="multiSplitMetric"><span>Equipment inc GST</span><strong id="multiSplitEquipmentTotal">$0.00</strong></div>
           <div class="multiSplitMetric"><span>Trial rebate</span><strong id="multiSplitRebateValue">-</strong></div>
@@ -1772,12 +1789,32 @@ tbody tr:hover td{background:#f0f7ff}
           <div class="multiSplitMetric"><span>Connected capacity</span><strong id="multiSplitConnectedCapacity">0.0kW</strong></div>
         </div>
         <div class="multiSplitSummaryLines">
+          <div class="summaryLine"><span>Sell price ex GST</span><strong id="multiSellEx">$0.00</strong></div>
+          <div class="summaryLine"><span>Original price before rebate inc GST</span><strong id="multiOriginalInc">$0.00</strong></div>
           <div class="summaryLine"><span>Outdoor inc GST</span><strong id="multiSplitOutdoorTotal">$0.00</strong></div>
           <div class="summaryLine"><span>Indoor inc GST</span><strong id="multiSplitIndoorTotal">$0.00</strong></div>
+          <div class="summaryLine"><span>Equipment ex GST</span><strong id="multiSummaryUnitEx">$0.00</strong></div>
+          <div class="summaryLine"><span>Labour ex GST</span><strong id="multiSummaryLabourEx">$0.00</strong></div>
+          <div class="summaryLine"><span>Materials ex GST</span><strong id="multiSummaryMaterialsEx">$0.00</strong></div>
+          <div class="summaryLine"><span>Misc ex GST</span><strong id="multiSummaryMiscEx">$0.00</strong></div>
+          <div class="summaryLine"><span>Power / electrical ex GST</span><strong id="multiSummaryServiceEx">$0.00</strong></div>
+          <div class="summaryLine"><span>True cost ex GST</span><strong id="multiSummaryTrueCost">$0.00</strong></div>
+          <div class="summaryLine"><span>Rebate retained</span><strong id="multiSummaryRebateOut">$0.00</strong></div>
           <div class="summaryLine"><span>ESC generated</span><strong id="multiSplitEscCount">-</strong></div>
           <div class="summaryLine"><span>PERC generated</span><strong id="multiSplitPrcCount">-</strong></div>
         </div>
+        <div class="summaryLine"><span>Margin incl rebate</span><strong id="multiMargin">$0.00</strong></div>
+        <div class="summaryLine cash"><span>Cash profit before commission ex GST</span><strong id="multiCashProfit">$0.00</strong></div>
+        <div id="multiCommissionRow" class="summaryLine"><span id="multiCommissionLabel">Agency commission ex GST</span><strong id="multiCommission">$0.00</strong></div>
+        <div id="multiCommissionGstRow" class="summaryLine"><span>GST on agency commission</span><strong id="multiCommissionGst">$0.00</strong></div>
+        <div id="multiCommissionIncRow" class="summaryLine"><span>Agency commission payable inc GST</span><strong id="multiCommissionInc">$0.00</strong></div>
+        <div id="multiSalespersonCommissionRow" class="summaryLine"><span id="multiSalespersonCommissionLabel">Salesperson commission inc GST</span><strong id="multiSalespersonCommission">$0.00</strong></div>
+        <div id="multiSalespersonCommissionGstRow" class="summaryLine"><span>GST on salesperson commission</span><strong id="multiSalespersonCommissionGst">$0.00</strong></div>
+        <div id="multiSalespersonCommissionIncRow" class="summaryLine"><span>Salesperson commission payable inc GST</span><strong id="multiSalespersonCommissionInc">$0.00</strong></div>
+        <div id="multiNetProfitRow" class="summaryLine cash profitHighlight"><span>Installer profit after commission ex GST</span><strong><span id="multiNetProfit">$0.00</span><small id="multiNetProfitMargin"></small></strong></div>
         <div id="multiSplitHeadsList" class="multiSplitHeadsList"></div>
+        <div class="actions"><button class="orange" onclick="addToQuote()">Add to Quote</button><button class="secondary" onclick="openDrawer()">View Options (<span id="multiQuoteCount">0</span>)</button><button class="green" onclick="openWonJobsDrawer()">Won Jobs (<span data-won-jobs-count>0</span>)</button><button class="secondary" onclick="openPriceDrawer()">Price Manager</button><button class="secondary" onclick="openCertDrawer()">Certificate Values</button></div>
+        <div style="margin-top:12px"><label>Add current unit to option</label><div class="row2"><select id="multiAddOptionSelect" onchange="onOptionSelectionChange(this.value)"></select><button class="secondary" type="button" onclick="createNewOption(true)">+ New Option</button></div><div style="margin-top:10px"><label>Selected option name</label><input id="multiMainOptionName" placeholder="Option name" onchange="renameCurrentMainOption(this.value)"></div></div>
         <div class="multiSplitTrialActions"><button class="green" type="button" onclick="calculateMultiSplitTrialRebate()">Check rebate</button></div>
         <div id="multiSplitStatus" class="multiSplitStatus">Select a system and click Check rebate to test NSW multi-split eligibility.</div>
       </aside>
@@ -1813,7 +1850,7 @@ tbody tr:hover td{background:#f0f7ff}
   </div>
   <div class="totalsManager">
     <div class="drawerHead" style="margin-bottom:10px;align-items:flex-end">
-      <div><div class="kicker">Quote totals manager</div><h3 style="margin:4px 0 0">Distribute totals across saved options</h3><div class="sub">Enter a total and apply it evenly across every saved option. Customer inc, labour, materials and misc distribute across all rows. Power only distributes across split-system rows.</div></div>
+      <div><div class="kicker">Quote totals manager</div><h3 style="margin:4px 0 0">Distribute totals across saved options</h3><div class="sub">Enter a total and apply it evenly across every saved option. Customer inc, labour, materials and misc distribute across all rows. Power only distributes across split and multi-head rows.</div></div>
       <div class="actions" style="margin-top:0"><button class="secondary" onclick="fillCurrentQuoteTotals()">Load current totals</button><button class="orange" onclick="applyEvenDistribution()">Apply even distribution</button></div>
     </div>
     <div class="totalsGrid">
@@ -2440,6 +2477,7 @@ applyProductSupportDetails();
 let systemType='split', installType='new', activeCalculatorView='standard', quotes=[];
 let currentOptionEditMessage='';
 let finalPriceLocked=false;
+let multiFinalPriceLocked=false;
 let priceLocks={};
 let multiSplitIndoorSelections=[];
 let multiSplitTrialRequestSeq=0;
@@ -4510,8 +4548,6 @@ function updateCalculatorSectionVisibility(){
   if($('splitTab')) $('splitTab').classList.toggle('active',!multiActive&&systemType==='split');
   if($('ductedTab')) $('ductedTab').classList.toggle('active',!multiActive&&systemType==='ducted');
   if($('standardCalculatorSection')) $('standardCalculatorSection').classList.toggle('hidden',multiActive);
-  if($('standardCurrentOptionSection')) $('standardCurrentOptionSection').classList.toggle('hidden',multiActive);
-  if($('standardFloatingActionBar')) $('standardFloatingActionBar').classList.toggle('hidden',multiActive);
   if($('multiSplitTrialCard')) $('multiSplitTrialCard').classList.toggle('visible',multiActive);
 }
 function setMultiSplitSection(){
@@ -4520,6 +4556,7 @@ function setMultiSplitSection(){
   updateCalculatorSectionVisibility();
   if($('multiSplitBrand')&&!$('multiSplitBrand').options.length) populateMultiSplitBrands();
   renderMultiSplitTrial();
+  renderCurrentOptionPanel();
 }
 function applyMultiSplitTrialVisibility(){
   updateCalculatorSectionVisibility();
@@ -4558,6 +4595,103 @@ function multiSplitEquipmentTotals(){
   const connectedCapacity=indoorItems.reduce((sum,item)=>sum+(Number(item.row.capacityNum)||0)*item.qty,0);
   return {outdoor,indoorItems,outdoorTotal,indoorTotal,total:outdoorTotal+indoorTotal,headCount,connectedCapacity};
 }
+function isMultiHeadQuoteType(type){return String(type||'').toLowerCase().includes('multi-head');}
+function quoteUsesPowerCost(r){return r&& (r.type==='Split' || isMultiHeadQuoteType(r.type));}
+function multiNum(id){const el=$(id); return el?Number(el.value)||0:0;}
+function selectedMultiSplitInstallType(){
+  return String(($('multiSplitInstallType')&&$('multiSplitInstallType').value)||'replacement')==='new'?'new':'replacement';
+}
+function calculateMultiSplitCosts(){
+  const totals=multiSplitEquipmentTotals();
+  const unitInc=multiNum('multiUnitPriceInc') || totals.total;
+  const unitEx=unitInc/1.1;
+  const labour=multiNum('multiLabour');
+  const materialsInc=multiNum('multiMaterials');
+  const matsEx=materialsInc/1.1;
+  const miscInc=multiNum('multiMisc');
+  const miscEx=miscInc/1.1;
+  const service=multiNum('multiPower');
+  const rebate=rebatesEnabled()?multiNum('multiRebate'):0;
+  const finalInc=multiNum('multiFinalInc');
+  const sellEx=finalInc/1.1;
+  const trueCost=unitEx+labour+matsEx+miscEx+service;
+  const profit=sellEx-trueCost;
+  const dealProfit=profit+rebate;
+  const labourRetained=$('multiInstallerRetainsLabour')?$('multiInstallerRetainsLabour').checked:true;
+  const retainedLabour=labourRetained?labour:0;
+  const labourTreatment=labourRetained?'Retained':'Expense';
+  const cashProfit=dealProfit+retainedLabour;
+  const commissionType=effectiveCommissionType();
+  const commissionModelOn=shouldUseCommissionModel();
+  const agencyCommissionRate=commissionModelOn?commissionRatePercent('agency'):0;
+  const salespersonCommissionRate=commissionModelOn?commissionRatePercent('salesperson'):0;
+  let agencyCommission=0, salespersonCommission=0;
+  if(commissionModelOn && commissionType==='agency'){
+    agencyCommission=cashProfit*(agencyCommissionRate/100);
+    salespersonCommission=agencyCommission*(salespersonCommissionRate/100);
+  } else if(commissionModelOn && commissionType==='standard'){
+    salespersonCommission=cashProfit*(agencyCommissionRate/100);
+  }
+  const agencyCommissionGst=commissionModelOn?agencyCommission*.1:0;
+  const agencyCommissionInc=agencyCommission+agencyCommissionGst;
+  const salespersonCommissionGst=commissionModelOn?salespersonCommission*.1:0;
+  const salespersonCommissionInc=salespersonCommission+salespersonCommissionGst;
+  const netProfit=cashProfit-(commissionType==='standard'?salespersonCommission:agencyCommission);
+  const margin=sellEx?cashProfit/sellEx:0;
+  const netMargin=sellEx?netProfit/sellEx:0;
+  return {...totals,unitInc,unitEx,labour,materialsInc,matsEx,miscInc,miscEx,service,rebate,finalInc,sellEx,trueCost,profit,dealProfit,retainedLabour,labourTreatment,cashProfit,commissionType,commissionModelOn,agencyCommissionRate,salespersonCommissionRate,commissionRate:agencyCommissionRate,agencyCommission,agencyCommissionGst,agencyCommissionInc,salespersonCommission,salespersonCommissionGst,salespersonCommissionInc,commission:agencyCommission,commissionGst:agencyCommissionGst,commissionInc:agencyCommissionInc,netProfit,margin,netMargin};
+}
+function autoMultiSplitFinal(){
+  const totals=multiSplitEquipmentTotals();
+  if($('multiUnitPriceInc')) $('multiUnitPriceInc').value=totals.total.toFixed(2);
+  const unitEx=totals.total/1.1;
+  const labour=multiNum('multiLabour');
+  const matsEx=multiNum('multiMaterials')/1.1;
+  const miscEx=multiNum('multiMisc')/1.1;
+  const service=multiNum('multiPower');
+  if($('multiFinalInc')) $('multiFinalInc').value=((unitEx+labour+matsEx+miscEx+service+350)*1.1).toFixed(2);
+}
+function resetMultiSplitSuggestedPrice(){
+  multiFinalPriceLocked=false;
+  autoMultiSplitFinal();
+  renderMultiSplitFinancials();
+}
+function renderMultiSplitFinancials(){
+  if(!multiSplitTrialEnabled()) return;
+  const x=calculateMultiSplitCosts();
+  const showPrivate=canSeeProfitDetails();
+  const showLimitedSales=!showPrivate&&canSeeSalespersonCommission();
+  const showAgency=x.commissionModelOn&&x.commissionType==='agency'&&showPrivate;
+  const showSales=x.commissionModelOn&&['agency','standard'].includes(x.commissionType)&&(showPrivate||showLimitedSales);
+  const showNetProfit=x.commissionModelOn&&(showPrivate||showLimitedSales);
+  const set=(id,value)=>{const el=$(id); if(el) el.textContent=value;};
+  set('multiFinalBig',money(x.finalInc));
+  set('multiSellEx',money(x.sellEx));
+  set('multiOriginalInc',money(x.finalInc+x.rebate));
+  set('multiSummaryUnitEx',money(x.unitEx));
+  set('multiSummaryLabourEx',money(x.labour));
+  set('multiSummaryMaterialsEx',money(x.matsEx));
+  set('multiSummaryMiscEx',money(x.miscEx));
+  set('multiSummaryServiceEx',money(x.service));
+  set('multiSummaryTrueCost',money(x.trueCost));
+  set('multiSummaryRebateOut',money(x.rebate));
+  set('multiMargin',pct(x.margin));
+  set('multiCashProfit',money(x.cashProfit));
+  set('multiCommissionLabel',`Agency commission ${formatCommissionRate(x.agencyCommissionRate)}% ex GST`);
+  set('multiCommission',money(x.agencyCommission));
+  set('multiCommissionGst',money(x.agencyCommissionGst));
+  set('multiCommissionInc',money(x.agencyCommissionInc));
+  set('multiSalespersonCommissionLabel',x.commissionType==='standard'?`Salesperson commission ${formatCommissionRate(x.agencyCommissionRate)}% ex GST`:`Salesperson commission ${formatCommissionRate(x.salespersonCommissionRate)}% of agency ex GST`);
+  set('multiSalespersonCommission',money(x.salespersonCommission));
+  set('multiSalespersonCommissionGst',money(x.salespersonCommissionGst));
+  set('multiSalespersonCommissionInc',money(x.salespersonCommissionInc));
+  set('multiNetProfit',money(x.netProfit));
+  set('multiNetProfitMargin',`Net margin ${pct(x.netMargin)}`);
+  ['multiCommissionRow','multiCommissionGstRow','multiCommissionIncRow'].forEach(id=>{if($(id)) $(id).classList.toggle('hidden',!showAgency);});
+  ['multiSalespersonCommissionRow'].forEach(id=>{if($(id)) $(id).classList.toggle('hidden',!showSales);});
+  ['multiSalespersonCommissionGstRow','multiSalespersonCommissionIncRow'].forEach(id=>{if($(id)) $(id).classList.toggle('hidden',!showSales||showLimitedSales);});
+  if($('multiNetProfitRow')) $('multiNetProfitRow').classList.toggle('hidden',!showNetProfit);
+}
 function setMultiSplitStatus(message,type){
   const el=$('multiSplitStatus');
   if(!el) return;
@@ -4568,8 +4702,9 @@ function resetMultiSplitRebateMetrics(message){
   if($('multiSplitEscCount')) $('multiSplitEscCount').textContent='-';
   if($('multiSplitPrcCount')) $('multiSplitPrcCount').textContent='-';
   if($('multiSplitRebateValue')) $('multiSplitRebateValue').textContent='-';
-  if($('multiSplitNetEquipment')) $('multiSplitNetEquipment').textContent='-';
+  if($('multiRebate')) $('multiRebate').value='0.00';
   if(message) setMultiSplitStatus(message,'');
+  renderMultiSplitFinancials();
 }
 function updateMultiSplitInstallTabs(){
   const install=String(($('multiSplitInstallType')&&$('multiSplitInstallType').value)||'replacement');
@@ -4597,6 +4732,8 @@ function renderMultiSplitTrial(){
   if($('multiSplitOutdoorTotal')) $('multiSplitOutdoorTotal').textContent=money(outdoorTotal);
   if($('multiSplitIndoorTotal')) $('multiSplitIndoorTotal').textContent=money(indoorTotal);
   if($('multiSplitEquipmentTotal')) $('multiSplitEquipmentTotal').textContent=money(total);
+  if($('multiUnitPriceInc')) $('multiUnitPriceInc').value=total.toFixed(2);
+  if(!multiFinalPriceLocked) autoMultiSplitFinal();
   if($('multiSplitHeadCount')) $('multiSplitHeadCount').textContent=maxHeads?`${headCount}/${maxHeads}`:String(headCount);
   if($('multiSplitLimitHint')){
     const capacityText=outdoor?`${connectedCapacity.toFixed(1)}kW connected against ${outdoor.capacity} outdoor`:'Choose an outdoor unit first.';
@@ -4625,6 +4762,7 @@ function renderMultiSplitTrial(){
   }
   if(headCount>maxHeads && maxHeads){
     setMultiSplitStatus(`This trial combination has ${headCount} heads, above the selected outdoor unit limit of ${maxHeads}. Remove heads or select a larger outdoor unit before using the rebate result.`,'error');
+    renderMultiSplitFinancials();
   }else{
     resetMultiSplitRebateMetrics('Select a system and click Check rebate to test NSW multi-split eligibility.');
   }
@@ -4710,7 +4848,8 @@ async function calculateMultiSplitTrialRebate(){
     if($('multiSplitEscCount')) $('multiSplitEscCount').textContent=certCountText(certs.esc);
     if($('multiSplitPrcCount')) $('multiSplitPrcCount').textContent=certCountText(certs.prc);
     if($('multiSplitRebateValue')) $('multiSplitRebateValue').textContent=money(rebate);
-    if($('multiSplitNetEquipment')) $('multiSplitNetEquipment').textContent=money(total-rebate);
+    if($('multiRebate')) $('multiRebate').value=rebate.toFixed(2);
+    renderMultiSplitFinancials();
     const capText=certs.caps&&Number.isFinite(certs.caps.esc)?` Caps applied: ${certs.caps.esc} ESC / ${certs.caps.prc} PERC.`:'';
     const eligibilityText=certs.eligibility&&certs.eligibility.message?` Eligibility: ${certs.eligibility.message}.`:' Eligibility passed.';
     setMultiSplitStatus(`${resolved.source}: ${resolved.brand} ${resolved.model}. ESC ${certCountText(certs.esc)} x ${money(escRate)} = ${money(escValue)} | PERC ${certCountText(certs.prc)} x ${money(prcRate)} = ${money(prcValue)} | Total ${money(rebate)}. ${climate.climateZone}, ${climate.bcaZone}, ${install}.${capText}${eligibilityText}`,'');
@@ -4740,6 +4879,7 @@ function render(){
   const x=calculate();
   applyOwnerVisibility();
   applyMultiSplitTrialVisibility();
+  if(multiSplitViewActive()) renderMultiSplitFinancials();
   const showPrivate=canSeeProfitDetails();
   const showLimitedSales=x.commissionModelOn&&!showPrivate&&canSeeSalespersonCommission();
   const showAgency=x.commissionModelOn&&x.commissionType==='agency'&&showPrivate;
@@ -5266,7 +5406,7 @@ function recomputeSavedQuote(r){
   const matsEx=materialsInc/1.1;
   const miscInc=savedMiscInc(r);
   const miscEx=miscInc/1.1;
-  const isSplit=r.type==='Split';
+  const isSplit=quoteUsesPowerCost(r);
   let service=0;
   if(isSplit){ service=Number(r.powerCost)||0; }
   else if(r.state && r.state.electrician!==undefined){ service=Number(r.state.electrician)||0; }
@@ -5332,15 +5472,15 @@ function recomputeSavedQuote(r){
   return r;
 }
 function quoteTotalsSnapshot(){
-  const splitRows=quotes.filter(r=>r.type==='Split');
+  const powerRows=quotes.filter(quoteUsesPowerCost);
   return {
     count:quotes.length,
-    splitCount:splitRows.length,
+    splitCount:powerRows.length,
     customer:quotes.reduce((a,r)=>a+(Number(r.finalInc)||0),0),
     labour:quotes.reduce((a,r)=>a+(Number(r.labour)||0),0),
     materials:quotes.reduce((a,r)=>a+savedMaterialsInc(r),0),
     misc:quotes.reduce((a,r)=>a+savedMiscInc(r),0),
-    power:splitRows.reduce((a,r)=>a+(Number(r.powerCost)||0),0)
+    power:quotes.filter(quoteUsesPowerCost).reduce((a,r)=>a+(Number(r.powerCost)||0),0)
   };
 }
 function fillCurrentQuoteTotals(){
@@ -5360,7 +5500,7 @@ function applyEvenDistribution(){
     return;
   }
   const count=quotes.length;
-  const splitRows=quotes.filter(r=>r.type==='Split');
+  const powerRows=quotes.filter(quoteUsesPowerCost);
   const applyIfEntered=(id)=>{ const el=$(id); return el && String(el.value).trim()!==''; };
   const customerEntered=applyIfEntered('distCustomerTotal');
   const labourEntered=applyIfEntered('distLabourTotal');
@@ -5371,13 +5511,13 @@ function applyEvenDistribution(){
   const labourEach=labourEntered ? (Number($('distLabourTotal').value)||0)/count : null;
   const materialsEach=materialsEntered ? (Number($('distMaterialsTotal').value)||0)/count : null;
   const miscEach=miscEntered ? (Number($('distMiscTotal').value)||0)/count : null;
-  const powerEach=(powerEntered && splitRows.length) ? (Number($('distPowerTotal').value)||0)/splitRows.length : null;
+  const powerEach=(powerEntered && powerRows.length) ? (Number($('distPowerTotal').value)||0)/powerRows.length : null;
   quotes.forEach(r=>{
     if(customerEach!==null){ r.finalInc=customerEach; if(r.state) r.state.finalInc=String(customerEach.toFixed(2)); }
     if(labourEach!==null){ r.labour=labourEach; if(r.state) r.state.labour=String(labourEach.toFixed(2)); }
     if(materialsEach!==null){ r.materialsInc=materialsEach; r.matsEx=materialsEach/1.1; if(r.state) r.state.materials=String(materialsEach.toFixed(2)); }
     if(miscEach!==null){ r.miscInc=miscEach; if(r.state) r.state.misc=String(miscEach.toFixed(2)); }
-    if(r.type==='Split' && powerEach!==null){ r.powerCost=powerEach; if(r.state){ r.state.powerCircuit=String(powerEach.toFixed(2)); r.state.powerMode='on'; } }
+    if(quoteUsesPowerCost(r) && powerEach!==null){ r.powerCost=powerEach; if(r.state){ r.state.powerCircuit=String(powerEach.toFixed(2)); r.state.powerMode='on'; if(r.state.systemType==='multi_split') r.state.multiPower=String(powerEach.toFixed(2)); } }
     recomputeSavedQuote(r);
   });
   persistQuotes();
@@ -5387,7 +5527,7 @@ function applyEvenDistribution(){
   if(labourEntered) details.push(`labour ${money(labourEach)} each`);
   if(materialsEntered) details.push(`materials ${money(materialsEach)} inc GST each`);
   if(miscEntered) details.push(`misc ${money(miscEach)} inc GST each`);
-  if(powerEntered) details.push(splitRows.length?`power ${money(powerEach)} ex GST across split rows`:'power skipped because there are no split rows');
+  if(powerEntered) details.push(powerRows.length?`power ${money(powerEach)} ex GST across split/multi-head rows`:'power skipped because there are no split or multi-head rows');
   if($('distHint')) $('distHint').textContent='Applied: '+(details.join(', ')||'no totals entered')+'.';
 }
 function renderQuotes(){
@@ -5400,12 +5540,12 @@ function renderQuotes(){
   if(!quotes.length){$('quoteRows').innerHTML='<tr><td colspan="16">No options added yet.</td></tr>'; $('quoteTotals').innerHTML=''; return}
   $('quoteRows').innerHTML=quotes.map((r,i)=>{
     const materialsInc=savedMaterialsInc(r);
-    const power=(r.type==='Split')?money(r.powerCost!==undefined?r.powerCost:0):'N/A';
-    return `<tr><td>${r.type}</td><td>${r.brand}</td><td>${r.size}</td><td>${r.model}</td><td>${r.install}</td><td class="money">${money(r.finalInc)}</td><td class="money">${money(r.rebate)}</td><td class="money">${money(r.unitInc)}</td><td class="money">${money(r.labour)}</td><td>${r.labourTreatment || (r.type==='Split' ? 'Retained' : 'Expense')}</td><td class="money">${money(materialsInc)}</td><td class="money">${power}</td><td class="money">${money(r.commissionInc)}</td><td class="money">${money(r.salespersonCommissionInc)}</td><td class="money">${money(r.netProfit)}</td><td><button class="load" onclick="loadQuote(${i})">Load</button> <button class="danger" onclick="removeQuote(${i})">Remove</button></td></tr>`;
+    const power=quoteUsesPowerCost(r)?money(r.powerCost!==undefined?r.powerCost:0):'N/A';
+    return `<tr><td>${r.type}</td><td>${r.brand}</td><td>${r.size}</td><td>${r.model}</td><td>${r.install}</td><td class="money">${money(r.finalInc)}</td><td class="money">${money(r.rebate)}</td><td class="money">${money(r.unitInc)}</td><td class="money">${money(r.labour)}</td><td>${quoteLabourTreatment(r)}</td><td class="money">${money(materialsInc)}</td><td class="money">${power}</td><td class="money">${money(r.commissionInc)}</td><td class="money">${money(r.salespersonCommissionInc)}</td><td class="money">${money(r.netProfit)}</td><td><button class="load" onclick="loadQuote(${i})">Load</button> <button class="danger" onclick="removeQuote(${i})">Remove</button></td></tr>`;
   }).join('');
   const sum=k=>quotes.reduce((a,r)=>a+(Number(r[k])||0),0);
   const sumMaterials=quotes.reduce((a,r)=>a+savedMaterialsInc(r),0);
-  const sumPower=quotes.reduce((a,r)=>a+(r.type==='Split'?(Number(r.powerCost)||0):0),0);
+  const sumPower=quotes.reduce((a,r)=>a+(quoteUsesPowerCost(r)?(Number(r.powerCost)||0):0),0);
   $('quoteTotals').innerHTML=`<tr><th colspan="5">Totals</th><th class="money">${money(sum('finalInc'))}</th><th class="money">${money(sum('rebate'))}</th><th class="money">${money(sum('unitInc'))}</th><th class="money">${money(sum('labour'))}</th><th></th><th class="money">${money(sumMaterials)}</th><th class="money">${money(sumPower)}</th><th class="money">${money(sum('commissionInc'))}</th><th class="money">${money(sum('salespersonCommissionInc'))}</th><th class="money">${money(sum('netProfit'))}</th><th></th></tr>`;
 }
 function removeQuote(i){quotes.splice(i,1); persistQuotes(); renderQuotes();}
@@ -5454,9 +5594,100 @@ function productLookupIndexFromState(s,list){
   }
   return -1;
 }
+function findMultiSplitOutdoorFromState(s){
+  const directIdx=Number(s && s.outdoorIndex);
+  if(Number.isInteger(directIdx) && directIdx>=0 && directIdx<MULTI_SPLIT_OUTDOORS.length) return directIdx;
+  const brand=String((s && s.brand) || '').trim();
+  const modelNorm=normalizeLookup((s && (s.outdoorModel || s.model)) || '');
+  if(brand && modelNorm){
+    const idx=MULTI_SPLIT_OUTDOORS.findIndex(row=>brandsEquivalent(row.brand,brand) && normalizeLookup(row.model)===modelNorm);
+    if(idx>=0) return idx;
+  }
+  if(modelNorm){
+    const idx=MULTI_SPLIT_OUTDOORS.findIndex(row=>normalizeLookup(row.model)===modelNorm);
+    if(idx>=0) return idx;
+  }
+  if(brand){
+    const idx=MULTI_SPLIT_OUTDOORS.findIndex(row=>brandsEquivalent(row.brand,brand));
+    if(idx>=0) return idx;
+  }
+  return MULTI_SPLIT_OUTDOORS.length?0:-1;
+}
+function normaliseMultiSplitIndoorSelections(s,outdoor){
+  const compatible=multiSplitCompatibleIndoorIndexes(outdoor);
+  if(!compatible.length) return [];
+  const saved=Array.isArray(s && s.indoorSelections)?s.indoorSelections:[];
+  const fromSelections=saved.map(item=>{
+    const direct=Number(item && item.indoorIndex);
+    let indoorIndex=Number.isInteger(direct)&&compatible.includes(direct)?direct:-1;
+    const modelNorm=normalizeLookup(item && (item.model || item.indoorModel || item.rebateModel || ''));
+    if(indoorIndex<0 && modelNorm){
+      indoorIndex=compatible.find(index=>normalizeLookup(MULTI_SPLIT_INDOORS[index].model)===modelNorm);
+    }
+    if(indoorIndex<0) return null;
+    return {indoorIndex,qty:Math.max(1,Math.floor(Number(item.qty)||1))};
+  }).filter(Boolean);
+  if(fromSelections.length) return fromSelections;
+  const heads=Array.isArray(s && s.indoorHeads)?s.indoorHeads:[];
+  const fromHeads=heads.map(item=>{
+    const modelNorm=normalizeLookup(item && item.model || '');
+    const capacity=Number(item && item.capacityNum)||Number(String(item && item.capacity || '').replace(/[^0-9.]/g,''));
+    let indoorIndex=modelNorm?compatible.find(index=>normalizeLookup(MULTI_SPLIT_INDOORS[index].model)===modelNorm):-1;
+    if(indoorIndex<0 && Number.isFinite(capacity) && capacity>0){
+      indoorIndex=compatible.find(index=>Math.abs((Number(MULTI_SPLIT_INDOORS[index].capacityNum)||0)-capacity)<0.05);
+    }
+    if(indoorIndex<0) return null;
+    return {indoorIndex,qty:Math.max(1,Math.floor(Number(item.qty)||1))};
+  }).filter(Boolean);
+  return fromHeads.length?fromHeads:[{indoorIndex:compatible[0],qty:1}];
+}
+function loadMultiSplitQuote(q,s){
+  if(!multiSplitTrialEnabled()){
+    setRebateCalcMeta('Multi-head split quotes are currently only available in admin trial mode.',true);
+    return;
+  }
+  setMultiSplitSection();
+  if(s.customer!==undefined && $('customer')) $('customer').value=s.customer;
+  if(s.address!==undefined && $('address')) $('address').value=s.address;
+  if(s.date!==undefined && $('date')) $('date').value=s.date;
+  const outdoorIdx=findMultiSplitOutdoorFromState(s);
+  if(outdoorIdx<0){
+    setMultiSplitStatus('Could not find the saved multi-head outdoor unit in the trial price list.','error');
+    return;
+  }
+  const outdoor=MULTI_SPLIT_OUTDOORS[outdoorIdx];
+  if($('multiSplitBrand')) $('multiSplitBrand').value=outdoor.brand;
+  populateMultiSplitOutdoors();
+  if($('multiSplitOutdoor')) $('multiSplitOutdoor').value=String(outdoorIdx);
+  multiSplitIndoorSelections=normaliseMultiSplitIndoorSelections(s,outdoor);
+  if($('multiSplitPostcode')) $('multiSplitPostcode').value=String(s.postcode || (s.ess&&s.ess.postcode) || q.postcode || '').trim();
+  if($('multiSplitInstallType')) $('multiSplitInstallType').value=s.installType==='new'?'new':'replacement';
+  if($('multiLabour')) $('multiLabour').value=s.labour!==undefined?s.labour:(q.labour!==undefined?q.labour:'0');
+  if($('multiRebate')) $('multiRebate').value=s.rebate!==undefined?s.rebate:(q.rebate!==undefined?q.rebate:'0');
+  if($('multiMaterials')) $('multiMaterials').value=s.materials!==undefined?s.materials:(q.materialsInc!==undefined?q.materialsInc:'0');
+  if($('multiMisc')) $('multiMisc').value=s.misc!==undefined?s.misc:(q.miscInc!==undefined?q.miscInc:'0');
+  if($('multiPower')) $('multiPower').value=s.multiPower!==undefined?s.multiPower:(s.powerCircuit!==undefined?s.powerCircuit:(q.powerCost!==undefined?q.powerCost:'0'));
+  if($('multiFinalInc')) $('multiFinalInc').value=s.finalInc!==undefined?s.finalInc:(q.finalInc!==undefined?q.finalInc:'0');
+  if($('multiInstallerRetainsLabour')) $('multiInstallerRetainsLabour').checked=s.installerRetainsLabour!==undefined?!!s.installerRetainsLabour:(q.installerRetainsLabour!==undefined?!!q.installerRetainsLabour:quoteLabourTreatment(q)==='Retained');
+  if($('commissionModelOn')) $('commissionModelOn').checked=s.commissionModelOn !== false;
+  if(s.commissionType===undefined) s.commissionType=q.commissionType||effectiveCommissionType();
+  if(s.agencyCommissionRate===undefined && s.commissionRate===undefined) s.agencyCommissionRate=q.agencyCommissionRate!==undefined?q.agencyCommissionRate:(q.commissionRate!==undefined?q.commissionRate:25);
+  if(s.salespersonCommissionRate===undefined) s.salespersonCommissionRate=q.salespersonCommissionRate!==undefined?q.salespersonCommissionRate:50;
+  applyCommissionSettingsFromState(s);
+  multiFinalPriceLocked=true;
+  renderMultiSplitTrial();
+  if($('multiRebate')) $('multiRebate').value=s.rebate!==undefined?s.rebate:(q.rebate!==undefined?Number(q.rebate).toFixed(2):'0.00');
+  renderMultiSplitFinancials();
+  closeDrawer();
+  document.querySelector('.wrap').scrollIntoView({behavior:'smooth',block:'start'});
+}
 function loadQuote(i){
   const q=quotes[i]; if(!q||!q.state) return;
   const s=Object.assign({}, q.state||{});
+  if(s.systemType==='multi_split' || isMultiHeadQuoteType(q.type)){
+    loadMultiSplitQuote(q,s);
+    return;
+  }
   if(!s.systemType && q.type) s.systemType=String(q.type).toLowerCase()==='ducted'?'ducted':'split';
   if(!s.installType && q.install) s.installType=String(q.install).toLowerCase().startsWith('rep')?'replacement':'new';
   if(!s.brand && q.brand!==undefined) s.brand=String(q.brand||'');
@@ -5650,8 +5881,8 @@ function downloadCsv(){
   const heads=['Quote Name','Type','Brand','Series','Size','Model','Install','Customer inc','Rebate','Unit inc','Labour ex','Installer Labour','Materials inc','Power','Agency Comm inc','Salesperson Comm inc','Installer Profit ex'];
   const rows=quotes.map(r=>{
     const materialsInc=savedMaterialsInc(r);
-    const power=(r.type==='Split')?(r.powerCost!==undefined?Number(r.powerCost):0):'N/A';
-    return [quoteName,r.type,r.brand,r.series||'',r.size,r.model,r.install,r.finalInc,r.rebate,r.unitInc,r.labour,(r.labourTreatment || (r.type==='Split' ? 'Retained' : 'Expense')),materialsInc,power,r.commissionInc,r.salespersonCommissionInc,r.netProfit];
+    const power=quoteUsesPowerCost(r)?(r.powerCost!==undefined?Number(r.powerCost):0):'N/A';
+    return [quoteName,r.type,r.brand,r.series||'',r.size,r.model,r.install,r.finalInc,r.rebate,r.unitInc,r.labour,quoteLabourTreatment(r),materialsInc,power,r.commissionInc,r.salespersonCommissionInc,r.netProfit];
   });
   const csv=[heads,...rows].map(row=>row.map(v=>'"'+String(v).replaceAll('"','""')+'"').join(',')).join('\n');
   const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download='installer-quote-'+cleanFileName(quoteName)+'.csv'; a.click();
@@ -5764,7 +5995,7 @@ function updateCurrentOptionWonButton(def,rows){
   btn.title=rows&&rows.length?'Mark the selected option as won.':'Add at least one system before marking this option as won.';
 }
 function syncAddOptionSelects(value){
-  ['addOptionSelect','drawerAddOptionSelect'].forEach(id=>{const el=$(id); if(el && value) el.value=value;});
+  ['addOptionSelect','drawerAddOptionSelect','multiAddOptionSelect'].forEach(id=>{const el=$(id); if(el && value) el.value=value;});
 }
 function onOptionSelectionChange(value){
   syncAddOptionSelects(value);
@@ -5773,13 +6004,15 @@ function onOptionSelectionChange(value){
   updateWonJobsCount();
 }
 function updateMainOptionNameInput(){
-  const input=$('mainOptionName');
-  if(!input) return;
   ensureOptionDefs();
-  const selector=$('addOptionSelect')||$('drawerAddOptionSelect');
+  const selector=$('addOptionSelect')||$('multiAddOptionSelect')||$('drawerAddOptionSelect');
   const id=selector&&selector.value?selector.value:quoteOptionDefs[0].id;
-  input.value=optionNameById(id);
-  input.disabled=optionIsWon(id);
+  ['mainOptionName','multiMainOptionName'].forEach(inputId=>{
+    const input=$(inputId);
+    if(!input) return;
+    input.value=optionNameById(id);
+    input.disabled=optionIsWon(id);
+  });
 }
 function renameCurrentMainOption(value){
   const id=currentAddOptionId();
@@ -5789,7 +6022,7 @@ function renameCurrentMainOption(value){
 function renderOptionSelectors(){
   ensureOptionDefs();
   const html=quoteOptionDefs.map(o=>`<option value="${htmlEscape(o.id)}">${htmlEscape(o.name)}</option>`).join('');
-  ['addOptionSelect','drawerAddOptionSelect'].forEach(id=>{
+  ['addOptionSelect','drawerAddOptionSelect','multiAddOptionSelect'].forEach(id=>{
     const el=$(id); if(!el) return;
     const old=el.value;
     el.innerHTML=html;
@@ -5800,7 +6033,7 @@ function renderOptionSelectors(){
 }
 function currentAddOptionId(){
   ensureOptionDefs();
-  const el=$('addOptionSelect')||$('drawerAddOptionSelect');
+  const el=multiSplitViewActive()?($('multiAddOptionSelect')||$('addOptionSelect')||$('drawerAddOptionSelect')):($('addOptionSelect')||$('multiAddOptionSelect')||$('drawerAddOptionSelect'));
   const id=el&&el.value?el.value:quoteOptionDefs[0].id;
   syncAddOptionSelects(id);
   return id;
@@ -5852,7 +6085,7 @@ function optionGroups(){
 }
 function groupTotals(rows){
   const sum=(fn)=>rows.reduce((a,r)=>a+(Number(fn(r))||0),0);
-  return {customer:sum(r=>r.finalInc), rebate:sum(r=>r.rebate), unit:sum(r=>r.unitInc), labour:sum(r=>r.labour), materials:sum(r=>savedMaterialsInc(r)), misc:sum(r=>savedMiscInc(r)), power:sum(r=>r.type==='Split'?(Number(r.powerCost)||0):0), commission:sum(r=>r.commissionInc), salespersonCommission:sum(r=>r.salespersonCommissionInc), profit:sum(r=>r.netProfit)};
+  return {customer:sum(r=>r.finalInc), rebate:sum(r=>r.rebate), unit:sum(r=>r.unitInc), labour:sum(r=>r.labour), materials:sum(r=>savedMaterialsInc(r)), misc:sum(r=>savedMiscInc(r)), power:sum(r=>quoteUsesPowerCost(r)?(Number(r.powerCost)||0):0), commission:sum(r=>r.commissionInc), salespersonCommission:sum(r=>r.salespersonCommissionInc), profit:sum(r=>r.netProfit)};
 }
 function jsArg(value){return encodeURIComponent(String(value||''));}
 function formatWonDate(value){
@@ -6042,7 +6275,7 @@ function rebateCellHtml(value,row){return rowShowsRebate(row)?`<td class="money"
 function rebateMetricHtml(value,rows){return rowsShowRebates(rows)?`<div class="currentOptionMetric"><span>Rebate</span><strong>${money(value)}</strong></div>`:'';}
 function optionRebateTotalHtml(value,rows){return rowsShowRebates(rows)?`<span>Rebate<strong>${money(value)}</strong></span>`:'';}
 function quoteTotalsRebateCells(value,rows){return rowsShowRebates(rows)?`<td>Total rebate</td><td class="money">${money(value)}</td>`:'';}
-function quoteLabourTreatment(r){return r.labourTreatment || (r.type==='Split' ? 'Retained' : 'Expense');}
+function quoteLabourTreatment(r){return r.labourTreatment || (quoteUsesPowerCost(r) ? 'Retained' : 'Expense');}
 function currentOptionSelection(){
   ensureOptionDefs();
   const id=currentAddOptionId();
@@ -6121,7 +6354,7 @@ function renderCurrentOptionPanel(){
   const privateHeads=showPrivate?'<th>Agency comm inc</th><th>Salesperson comm inc</th><th>Installer profit ex</th>':(showLimitedSales?'<th>Salesperson commission</th><th>Installer profit ex</th>':'');
   const rowsHtml=rows.map(r=>{
     const materialsInc=savedMaterialsInc(r);
-    const power=(r.type==='Split')?money(r.powerCost!==undefined?r.powerCost:0):'N/A';
+    const power=quoteUsesPowerCost(r)?money(r.powerCost!==undefined?r.powerCost:0):'N/A';
     const privateCells=showPrivate?`<td class="money">${money(r.commissionInc)}</td><td class="money">${money(r.salespersonCommissionInc)}</td><td class="money">${money(r.netProfit)}</td>`:(showLimitedSales?`<td class="money">${money(r.salespersonCommissionInc)}</td><td class="money">${money(r.netProfit)}</td>`:'');
     const actionCell=isWon?`<button class="load" onclick="loadQuote(${r._index})">Load</button> <button class="secondary smallBtn" disabled>Locked</button>`:`<button class="load" onclick="loadQuote(${r._index})">Load</button> <button class="danger" onclick="removeQuote(${r._index})">Remove</button>`;
     return `<tr><td>${htmlEscape(r.type)}</td><td>${htmlEscape(r.brand)}</td><td>${htmlEscape(r.size)}</td><td>${htmlEscape(r.model)}</td><td>${htmlEscape(r.install)}</td><td class="money">${money(r.finalInc)}</td>${rebateCellHtml(r.rebate,r)}<td class="money">${money(r.labour)}</td><td class="money">${money(materialsInc)}</td><td class="money">${power}</td>${privateCells}<td>${actionCell}</td></tr>`;
@@ -6131,7 +6364,68 @@ function renderCurrentOptionPanel(){
   const unlockAction=isWon&&canUnlockWonOptions()?`<button class="secondary" type="button" onclick="unlockWonOption('${def.id}')">Unlock won option</button>`:'';
   body.innerHTML=`${lockNotice}<div class="currentOptionSummaryGrid"><div class="currentOptionMetric editable"><span>Customer total inc GST</span><input id="currentOptionCustomerTotal" type="number" step="0.01" value="${t.customer.toFixed(2)}"${lockedAttr}></div>${rebateMetricHtml(t.rebate,rows)}<div class="currentOptionMetric editable"><span>Labour ex GST</span><input id="currentOptionLabourTotal" type="number" step="0.01" value="${t.labour.toFixed(2)}"${lockedAttr}></div><div class="currentOptionMetric editable"><span>Materials inc GST</span><input id="currentOptionMaterialsTotal" type="number" step="0.01" value="${t.materials.toFixed(2)}"${lockedAttr}></div><div class="currentOptionMetric editable"><span>Misc inc GST</span><input id="currentOptionMiscTotal" type="number" step="0.01" value="${t.misc.toFixed(2)}"${lockedAttr}></div>${commissionMetrics}</div><div class="currentOptionEditActions"><button class="secondary" type="button" onclick="fillCurrentOptionTotals()"${lockedAttr}>Load option totals</button><button class="orange" type="button" onclick="applyCurrentOptionDistribution()"${lockedAttr}>Apply to current option</button>${unlockAction}</div><div class="currentOptionEditHint" id="currentOptionEditHint">${htmlEscape(isWon?'This option is marked as won and locked.':(currentOptionEditMessage||'Adjust customer, labour, materials or misc, then apply them evenly across only the systems in this option.'))}</div><div class="tableWrap" style="margin-top:12px"><table><thead><tr><th>Type</th><th>Brand</th><th>Size</th><th>Model</th><th>Install</th><th>Customer inc</th>${rebateHeadHtml('Rebate',rows)}<th>Labour ex</th><th>Materials inc</th><th>Power</th>${privateHeads}<th>Actions</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
 }
+function currentMultiSplitState(x){
+  const outdoor=x&&x.outdoor?x.outdoor:selectedMultiSplitOutdoor();
+  const indoorItems=x&&x.indoorItems?x.indoorItems:selectedMultiSplitIndoorItems();
+  const install=selectedMultiSplitInstallType();
+  return {
+    systemType:'multi_split',
+    businessOperatingState:activeBusinessState(), rebateScheme:activeRebateScheme(), rebatesEnabled:rebatesEnabled(),
+    customer:$('customer').value, address:$('address').value, date:$('date').value,
+    ess:{postcode:String(($('multiSplitPostcode')&&$('multiSplitPostcode').value)||'').trim(), climateZone:'auto'},
+    postcode:String(($('multiSplitPostcode')&&$('multiSplitPostcode').value)||'').trim(),
+    essClimateZone:'auto',
+    installType:install,
+    brand:outdoor?outdoor.brand:'',
+    series:outdoor?outdoor.series:'',
+    model:outdoor?outdoor.model:'',
+    size:outdoor?outdoor.capacity:'',
+    capacityNum:outdoor?outdoor.capacityNum:0,
+    outdoorModel:outdoor?outdoor.model:'',
+    outdoorIndex:Math.max(0,MULTI_SPLIT_OUTDOORS.indexOf(outdoor)),
+    indoorSelections:multiSplitIndoorSelections.map(item=>({indoorIndex:Number(item.indoorIndex),qty:Math.max(1,Math.floor(Number(item.qty)||1))})),
+    indoorHeads:indoorItems.map(item=>({brand:item.row.brand,series:item.row.series,capacity:item.row.capacity,model:item.row.model,qty:item.qty,unitPriceInc:item.row.unitPriceInc})),
+    connectedCapacity:x?x.connectedCapacity:multiSplitEquipmentTotals().connectedCapacity,
+    unitPriceInc:$('multiUnitPriceInc')?$('multiUnitPriceInc').value:'0',
+    labour:$('multiLabour')?$('multiLabour').value:'0',
+    rebate:rebatesEnabled()&&$('multiRebate')?$('multiRebate').value:'0',
+    materials:$('multiMaterials')?$('multiMaterials').value:'0',
+    misc:$('multiMisc')?$('multiMisc').value:'0',
+    finalInc:$('multiFinalInc')?$('multiFinalInc').value:'0',
+    powerCircuit:$('multiPower')?$('multiPower').value:'0',
+    multiPower:$('multiPower')?$('multiPower').value:'0',
+    commissionModelOn:shouldUseCommissionModel(),
+    commissionType:effectiveCommissionType(),
+    agencyCommissionRate:canSeeCommissionDetails()?commissionRatePercent('agency'):undefined,
+    agencyCommissionRateLocked:canSeeCommissionDetails()?commissionSettings.agencyLocked:undefined,
+    salespersonCommissionRate:canSeeCommissionDetails()?commissionRatePercent('salesperson'):undefined,
+    salespersonCommissionRateLocked:canSeeCommissionDetails()?commissionSettings.salespersonLocked:undefined,
+    installerRetainsLabour:$('multiInstallerRetainsLabour')?$('multiInstallerRetainsLabour').checked:true
+  };
+}
+function addMultiSplitToQuote(){
+  const optionId=currentAddOptionId();
+  if(!assertOptionEditable(optionId)) return;
+  const x=calculateMultiSplitCosts();
+  if(!x.outdoor || !x.headCount){alert('Add at least one indoor head before adding this multi-head system to the quote.');return;}
+  const state=currentMultiSplitState(x);
+  const optionName=optionNameById(optionId);
+  const headsLabel=x.indoorItems.map(item=>`${item.qty}x ${item.row.capacity}`).join(', ');
+  quotes.unshift({
+    id:'quote_'+Date.now(), timestamp:Date.now(), state, optionId, optionName,
+    postcode:state.postcode, essClimateZone:state.essClimateZone,
+    profitLabel:'Cash profit',
+    type:'Multi-head Split',brand:x.outdoor.brand,series:x.outdoor.series||'',size:`${x.outdoor.capacity} outdoor / ${x.connectedCapacity.toFixed(1)}kW heads`,model:`${x.outdoor.model} + ${x.headCount} head${x.headCount===1?'':'s'}${headsLabel?' ('+headsLabel+')':''}`,
+    install:state.installType==='new'?'New':'Replacement',unitInc:x.unitInc,rebate:x.rebate,labour:x.labour,labourTreatment:x.labourTreatment,installerRetainsLabour:x.labourTreatment==='Retained',
+    installAddons:[],addonLabour:0,addonMaterialsInc:0,
+    materialsInc:x.materialsInc,matsEx:x.matsEx,miscInc:x.miscInc,powerCost:x.service,otherEx:x.miscEx+x.service,trueCost:x.trueCost,finalInc:x.finalInc,
+    cashProfit:x.cashProfit,commissionType:x.commissionType,commissionRate:x.commissionRate,agencyCommissionRate:x.agencyCommissionRate,agencyCommission:x.agencyCommission,agencyCommissionGst:x.agencyCommissionGst,agencyCommissionInc:x.agencyCommissionInc,salespersonCommissionRate:x.salespersonCommissionRate,salespersonCommission:x.salespersonCommission,salespersonCommissionGst:x.salespersonCommissionGst,salespersonCommissionInc:x.salespersonCommissionInc,commission:x.commission,commissionGst:x.commissionGst,commissionInc:x.commissionInc,
+    netProfit:x.netProfit,margin:x.margin,netMargin:x.netMargin
+  });
+  persistQuotes(); renderQuotes(); openDrawer();
+}
 function addToQuote(){
+  if(multiSplitViewActive()) return addMultiSplitToQuote();
   const optionId=currentAddOptionId();
   if(!assertOptionEditable(optionId)) return;
   const x=calculate();
@@ -6155,6 +6449,7 @@ function renderQuotes(){
   quotes=quotes.filter(q=>quoteRowIsWon(q)||(q.timestamp||0)>=cutoff).map(q=>recomputeSavedQuote(normalizeQuoteLocation(q)));
   ensureOptionDefs(); persistQuotes();
   const countEl=$('quoteCount'); if(countEl) countEl.textContent=quotes.length;
+  const multiCountEl=$('multiQuoteCount'); if(multiCountEl) multiCountEl.textContent=quotes.length;
   if($('distRowsAffected')) $('distRowsAffected').textContent=String(quotes.length);
   renderOptionSelectors();
   const container=$('optionGroups');
@@ -6173,10 +6468,10 @@ function renderQuotes(){
         const emptyColspan=(showPrivate?16:(showLimitedSales?15:13))-(showGroupRebates?0:1);
         const bodyRows=g.rows.length?g.rows.map(r=>{
           const materialsInc=savedMaterialsInc(r);
-          const power=(r.type==='Split')?money(r.powerCost!==undefined?r.powerCost:0):'N/A';
+          const power=quoteUsesPowerCost(r)?money(r.powerCost!==undefined?r.powerCost:0):'N/A';
           const privateCells=showPrivate?`<td class="money">${money(r.commissionInc)}</td><td class="money">${money(r.salespersonCommissionInc)}</td><td class="money">${money(r.netProfit)}</td>`:(showLimitedSales?`<td class="money">${money(r.salespersonCommissionInc)}</td><td class="money">${money(r.netProfit)}</td>`:'');
           const actionCell=isWon?`<button class="load" onclick="loadQuote(${r._index})">Load</button> <button class="secondary smallBtn" disabled>Locked</button>`:`<button class="load" onclick="loadQuote(${r._index})">Load</button> <button class="danger" onclick="removeQuote(${r._index})">Remove</button>`;
-          return `<tr><td>${htmlEscape(r.type)}</td><td>${htmlEscape(r.brand)}</td><td>${htmlEscape(r.size)}</td><td>${htmlEscape(r.model)}</td><td>${htmlEscape(r.install)}</td><td class="money">${money(r.finalInc)}</td>${rebateCellHtml(r.rebate,r)}<td class="money">${money(r.unitInc)}</td><td class="money">${money(r.labour)}</td><td>${htmlEscape(r.labourTreatment || (r.type==='Split' ? 'Retained' : 'Expense'))}</td><td class="money">${money(materialsInc)}</td><td class="money">${power}</td>${privateCells}<td>${actionCell}</td></tr>`;
+          return `<tr><td>${htmlEscape(r.type)}</td><td>${htmlEscape(r.brand)}</td><td>${htmlEscape(r.size)}</td><td>${htmlEscape(r.model)}</td><td>${htmlEscape(r.install)}</td><td class="money">${money(r.finalInc)}</td>${rebateCellHtml(r.rebate,r)}<td class="money">${money(r.unitInc)}</td><td class="money">${money(r.labour)}</td><td>${htmlEscape(quoteLabourTreatment(r))}</td><td class="money">${money(materialsInc)}</td><td class="money">${power}</td>${privateCells}<td>${actionCell}</td></tr>`;
         }).join(''):`<tr><td colspan="${emptyColspan}">No units in this option yet.</td></tr>`;
         const privateSummary=(showPrivate||showLimitedSales)?` | Installer profit ${money(t.profit)} ex GST`:'';
         const privateHeads=showPrivate?'<th>Agency comm inc</th><th>Salesperson comm inc</th><th>Installer Profit ex</th>':(showLimitedSales?'<th>Salesperson commission</th><th>Installer Profit ex</th>':'');
@@ -6234,8 +6529,8 @@ function downloadCsv(){
   const heads=['Quote Name','Option','Type','Brand','Series','Size','Model','Install','Customer inc'].concat(showExportRebates?['Rebate']:[],['Unit inc','Labour ex','Installer Labour','Materials inc','Power']).concat(showPrivate?['Agency Comm inc','Salesperson Comm inc','Installer Profit ex']:(showLimitedSales?['Salesperson commission','Installer Profit ex']:[]));
   const rows=[];
   optionGroups().forEach(g=>g.rows.forEach(r=>{
-    const materialsInc=savedMaterialsInc(r); const power=(r.type==='Split')?(r.powerCost!==undefined?Number(r.powerCost):0):'N/A';
-    rows.push([quoteName,g.def.name,r.type,r.brand,r.series||'',r.size,r.model,r.install,r.finalInc].concat(showExportRebates?[r.rebate]:[],[r.unitInc,r.labour,(r.labourTreatment || (r.type==='Split' ? 'Retained' : 'Expense')),materialsInc,power]).concat(showPrivate?[r.commissionInc,r.salespersonCommissionInc,r.netProfit]:(showLimitedSales?[r.salespersonCommissionInc,r.netProfit]:[])));
+    const materialsInc=savedMaterialsInc(r); const power=quoteUsesPowerCost(r)?(r.powerCost!==undefined?Number(r.powerCost):0):'N/A';
+    rows.push([quoteName,g.def.name,r.type,r.brand,r.series||'',r.size,r.model,r.install,r.finalInc].concat(showExportRebates?[r.rebate]:[],[r.unitInc,r.labour,quoteLabourTreatment(r),materialsInc,power]).concat(showPrivate?[r.commissionInc,r.salespersonCommissionInc,r.netProfit]:(showLimitedSales?[r.salespersonCommissionInc,r.netProfit]:[])));
   }));
   const csv=[heads,...rows].map(row=>row.map(v=>'"'+String(v).replaceAll('"','""')+'"').join(',')).join('\n');
   const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download='installer-quote-'+cleanFileName(quoteName)+'.csv'; a.click();
@@ -6398,6 +6693,7 @@ function openProposalDrawer(source){
   syncOverlayState();
 }
 function currentProposalRow(){
+  if(multiSplitViewActive()) return currentMultiSplitProposalRow();
   const x=calculate();
   return {
     id:'current_'+Date.now(),
@@ -6428,6 +6724,39 @@ function currentProposalRow(){
     netProfit:x.netProfit
   };
 }
+function currentMultiSplitProposalRow(){
+  const x=calculateMultiSplitCosts();
+  const state=currentMultiSplitState(x);
+  const headsLabel=x.indoorItems.map(item=>`${item.qty}x ${item.row.capacity}`).join(', ');
+  return {
+    id:'current_multi_'+Date.now(),
+    timestamp:Date.now(),
+    optionId:'current',
+    optionName:'Current selected multi-head system',
+    state,
+    type:'Multi-head Split',
+    brand:x.outdoor?x.outdoor.brand:'',
+    series:x.outdoor?x.outdoor.series:'',
+    size:x.outdoor?`${x.outdoor.capacity} outdoor / ${x.connectedCapacity.toFixed(1)}kW heads`:'',
+    model:x.outdoor?`${x.outdoor.model} + ${x.headCount} head${x.headCount===1?'':'s'}${headsLabel?' ('+headsLabel+')':''}`:'',
+    install:state.installType==='new'?'New':'Replacement',
+    unitInc:x.unitInc,
+    rebate:x.rebate,
+    labour:x.labour,
+    labourTreatment:x.labourTreatment,
+    installAddons:[],
+    addonLabour:0,
+    addonMaterialsInc:0,
+    materialsInc:x.materialsInc,
+    matsEx:x.matsEx,
+    miscInc:x.miscInc,
+    powerCost:x.service,
+    finalInc:x.finalInc,
+    commissionInc:x.commissionInc,
+    salespersonCommissionInc:x.salespersonCommissionInc,
+    netProfit:x.netProfit
+  };
+}
 function proposalGroupsForSource(){
   const source=($('proposalSource')&&$('proposalSource').value)||'quote';
   if(source==='current') return [{def:{id:'current',name:'Current selected system'},number:1,rows:[currentProposalRow()]}];
@@ -6452,7 +6781,8 @@ function renderProposalSourceSummary(){
   el.innerHTML=`<strong>${systemCount} system${systemCount===1?'':'s'} ready.</strong> ${htmlEscape(types)}<div class="proposalPreviewList">${preview}</div>`;
 }
 function proposalSystemTitle(r){
-  return `${r.type==='Split'?'Split System':'Ducted System'} ${r.install==='Replacement'?'Replacement':'New'} Install`;
+  const label=isMultiHeadQuoteType(r.type)?'Multi-head Split System':(r.type==='Split'?'Split System':'Ducted System');
+  return `${label} ${r.install==='Replacement'?'Replacement':'New'} Install`;
 }
 function proposalDuctedDetailsForRow(r,details){
   const manual=details.ductedDetails;
@@ -6461,21 +6791,22 @@ function proposalDuctedDetailsForRow(r,details){
   return zones;
 }
 function proposalScopeForRow(r,details){
-  const isSplit=r.type==='Split';
+  const isMulti=isMultiHeadQuoteType(r.type);
+  const isSplit=quoteUsesPowerCost(r);
   const isReplacement=r.install==='Replacement';
   const hasPower=isSplit && Number(r.powerCost||0)>0;
   if(isSplit){
     return {
       scope:[
-        `Supply and installation of ${r.size} split system air conditioner`,
-        isReplacement?'Removal and decommissioning of existing split system where required':'Back-to-back installation where suitable',
+        `Supply and installation of ${r.size} ${isMulti?'multi-head split system':'split system air conditioner'}`,
+        isReplacement?`Removal and decommissioning of existing ${isMulti?'multi-head split':'split'} system where required`:(isMulti?'Installation of selected outdoor unit and indoor head combination where suitable':'Back-to-back installation where suitable'),
         'Installation of refrigeration pipework and interconnect cabling',
         'Installation of condensate drainage',
         'Mounting of indoor and outdoor units',
         'Pressure testing, evacuation, commissioning and customer handover'
       ],
       inclusions:[
-        'Up to 3 metres of pipework and cabling for standard installation',
+        isMulti?'Standard pipework and cabling allowance for selected indoor head combination':'Up to 3 metres of pipework and cabling for standard installation',
         hasPower?'New power circuit included as allowed for in this proposal':'Standard electrical connection or reuse where compliant',
         'Basic trunking and standard drainage',
         'Manufacturer warranty and installation workmanship warranty',
@@ -6678,6 +7009,11 @@ const MOBILE_MONEY_STEPS={
   materials:50,
   misc:100,
   finalInc:50,
+  multiLabour:100,
+  multiMaterials:50,
+  multiMisc:100,
+  multiPower:50,
+  multiFinalInc:50,
   powerCircuit:50,
   distCustomerTotal:50,
   distLabourTotal:100,
@@ -6777,6 +7113,23 @@ function setupMobileHorizontalDragLock(){
 INSTALL_ADDONS.map(a=>a.type==='quantity'?a.qtyId:a.id).forEach(id=>{const el=$(id); if(el){ el.addEventListener('input',()=>{ render(); }); el.addEventListener('change',()=>{ if(el.type==='number') el.value=String(Math.max(0,Math.floor(Number(el.value)||0))); render(); }); }});
 const finalInput=$('finalInc');
 if(finalInput){ finalInput.addEventListener('input',()=>{ finalPriceLocked=true; render(); }); finalInput.addEventListener('change',()=>{ finalPriceLocked=true; render(); }); }
+['multiLabour','multiMaterials','multiMisc','multiPower','multiInstallerRetainsLabour'].forEach(id=>{
+  const el=$(id);
+  if(!el) return;
+  const fn=()=>{ if(!multiFinalPriceLocked) autoMultiSplitFinal(); renderMultiSplitFinancials(); };
+  el.addEventListener('input',fn);
+  el.addEventListener('change',fn);
+});
+const multiRebateInput=$('multiRebate');
+if(multiRebateInput){
+  multiRebateInput.addEventListener('input',()=>renderMultiSplitFinancials());
+  multiRebateInput.addEventListener('change',()=>renderMultiSplitFinancials());
+}
+const multiFinalInput=$('multiFinalInc');
+if(multiFinalInput){
+  multiFinalInput.addEventListener('input',()=>{ multiFinalPriceLocked=true; renderMultiSplitFinancials(); });
+  multiFinalInput.addEventListener('change',()=>{ multiFinalPriceLocked=true; renderMultiSplitFinancials(); });
+}
 [
   ['agencyCommissionRate','agency'],
   ['salespersonCommissionRate','salesperson']
