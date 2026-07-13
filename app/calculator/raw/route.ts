@@ -23,6 +23,7 @@ type CalculatorUserContext = {
   agencyCommissionRate: number;
   salespersonCommissionRate: number;
   canManageUsers: boolean;
+  currentUserCanManageUsers: boolean;
   canSeeCommissionDetails: boolean;
   canSeeProfitDetails: boolean;
   canSeeOwnerDetails: boolean;
@@ -871,6 +872,7 @@ export async function GET(request: Request) {
       agencyCommissionRate,
       salespersonCommissionRate,
       canManageUsers: effectiveCanManageUsers,
+      currentUserCanManageUsers: canManage,
       canSeeCommissionDetails: useAdminVisibility || canSeeCommissionDetails(contextRole),
       canSeeProfitDetails: useAdminVisibility || canSeeProfitDetails(contextRole),
       canSeeOwnerDetails: useAdminVisibility,

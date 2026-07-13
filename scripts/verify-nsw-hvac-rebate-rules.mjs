@@ -82,8 +82,9 @@ const fujitsuScreenshotPrc = 4.364051 * 1.05 * 10;
 assert.equal(Number(fujitsuScreenshotEsc.toFixed(2)), 8.61, "ESC quantity should keep decimal certificates before payout.");
 assert.equal(Number(fujitsuScreenshotPrc.toFixed(2)), 45.82, "PERC quantity should keep decimal certificates before payout.");
 
-assert.match(indexHtml, /const escEffective=eligibility\.essEligible\?escNum:0;/, "ESC value must use the official NSW result gated by eligibility.");
-assert.match(indexHtml, /const prcEffective=eligibility\.prcEligible\?prcNum:0;/, "PERC value must use the official NSW result gated by eligibility.");
+assert.match(indexHtml, /const escEffective=eligibility\.essEligible\?Math\.min\(escNum,caps\.esc\):0;/, "ESC value must use the official NSW result gated by eligibility and multi-split caps.");
+assert.match(indexHtml, /const prcEffective=eligibility\.prcEligible\?Math\.min\(prcNum,caps\.prc\):0;/, "PERC value must use the official NSW result gated by eligibility and multi-split caps.");
+assert.match(indexHtml, /non_ducted_multi_split_system/, "Multi-split trial calculations must use the NSW multi-split air-conditioner type.");
 assert.match(indexHtml, /function decimalEscCertificatesFromBuilding\(building\)/, "ESC certificates must be extracted through the decimal helper.");
 assert.match(indexHtml, /electricitySavings\*regionalNetworkFactor\*1\.06/, "ESC certificates must keep the decimal NSW source calculation.");
 assert.match(indexHtml, /function decimalPrcCertificatesFromBuilding\(building\)/, "PERC certificates must be extracted through the decimal helper.");

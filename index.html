@@ -742,6 +742,129 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
 .productSupportChip.included{border-color:#b9e7cf;background:#f3fff8}
 .productSupportChip.optional{border-color:#dbe4f0;background:#f8fbfd}
 .productSupportChip.unknown{border-color:#fde68a;background:#fffbeb}
+.multiSplitTrialCard{display:none}
+.multiSplitTrialCard.visible{display:block}
+.multiSplitTrialIntro{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:14px;
+  margin-bottom:14px;
+}
+.trialBadge{
+  display:inline-flex;
+  align-items:center;
+  min-height:32px;
+  padding:7px 12px;
+  border-radius:999px;
+  border:1px solid #fed7aa;
+  background:#fff7ed;
+  color:#9a3412;
+  font-size:12px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+  white-space:nowrap;
+}
+.multiSplitBuilderGrid{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(280px,360px);
+  gap:14px;
+  align-items:start;
+}
+.multiSplitPanel{
+  border:1px solid #dbe7ef;
+  background:linear-gradient(180deg,#fff,#f8fafc);
+  border-radius:16px;
+  padding:14px;
+}
+.multiSplitPanelHead{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:12px;
+}
+.multiSplitPanelHead h3{margin:0;font-size:16px}
+.multiSplitIndoorRows{display:grid;gap:10px}
+.multiSplitIndoorRow{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 86px 38px;
+  gap:8px;
+  align-items:end;
+}
+.multiSplitIndoorRow button{
+  height:45px;
+  padding:0;
+}
+.multiSplitSummaryGrid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+  margin-top:10px;
+}
+.multiSplitMetric{
+  border:1px solid #dbe7ef;
+  border-radius:12px;
+  padding:10px;
+  background:#fff;
+}
+.multiSplitMetric span{
+  display:block;
+  color:#64748b;
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  margin-bottom:4px;
+}
+.multiSplitMetric strong{
+  display:block;
+  font-size:18px;
+  color:#0f172a;
+}
+.multiSplitStatus{
+  margin-top:12px;
+  border:1px solid #dbe7ef;
+  background:#f8fafc;
+  color:#334155;
+  border-radius:12px;
+  padding:10px;
+  font-size:12px;
+  line-height:1.45;
+}
+.multiSplitStatus.loading{
+  border-color:#99f6e4;
+  background:#ecfdf5;
+  color:#0f766e;
+}
+.multiSplitStatus.error{
+  border-color:#fecaca;
+  background:#fff1f2;
+  color:#b91c1c;
+}
+.multiSplitHeadsList{
+  margin-top:10px;
+  display:grid;
+  gap:8px;
+}
+.multiSplitHeadItem{
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:8px;
+  border-bottom:1px solid #e2e8f0;
+  padding-bottom:8px;
+  font-size:12px;
+}
+.multiSplitHeadItem:last-child{
+  border-bottom:0;
+  padding-bottom:0;
+}
+.multiSplitHeadItem small{
+  display:block;
+  color:#64748b;
+  margin-top:2px;
+}
 .energySavingsCard{
   padding:0;
   overflow:hidden;
@@ -1099,6 +1222,7 @@ tbody tr:hover td{background:#f0f7ff}
   .header,.row2,.row3,.optionControls,.finalPriceStrip{grid-template-columns:1fr}
   .proposalDrawer .proposalGrid,.proposalDrawer .proposalChecks{grid-template-columns:1fr}
   .recommendationCards{grid-template-columns:1fr}
+  .multiSplitBuilderGrid{grid-template-columns:1fr}
   .addonGrid{grid-template-columns:1fr}
   .addonQtyItem{align-items:flex-start}
   .qtyControl{width:100%;justify-content:flex-end}
@@ -1140,6 +1264,19 @@ tbody tr:hover td{background:#f0f7ff}
   }
   .productSupportChip{
     padding:10px;
+  }
+  .multiSplitTrialIntro{
+    display:grid;
+    gap:10px;
+  }
+  .trialBadge{
+    justify-self:start;
+  }
+  .multiSplitIndoorRow{
+    grid-template-columns:minmax(0,1fr) 78px 36px;
+  }
+  .multiSplitSummaryGrid{
+    grid-template-columns:1fr;
   }
   .energySavingsToggle{
     min-height:66px;
@@ -1465,6 +1602,54 @@ tbody tr:hover td{background:#f0f7ff}
           <div class="mobileHideRebateConfig"><label>Live calc source</label><input readonly value="NSW ESS/PDRS API"></div>
         </div>
         <div class="selected"><div class="selectedText"><div class="selectedHeader"><strong id="selectedModel"></strong><button type="button" class="copyModelBtn" onclick="copyCurrentModel()">Copy model</button></div><div class="tiny" id="modelMeta"></div><div class="tiny rebateSchemeUi" id="rebateCalcMeta">Live ESS/PERC rebate status will appear here.</div><div class="certificateBreakdown rebateSchemeUi" id="certificateBreakdown"><div class="certificateMetric"><span>ESC generated</span><strong id="escCertCount">-</strong><small id="escCertValue">Waiting for live lookup</small></div><div class="certificateMetric"><span>PERC generated</span><strong id="prcCertCount">-</strong><small id="prcCertValue">Waiting for live lookup</small></div><div class="certificateMetric"><span>Rebate calculation</span><strong id="certRebateValue">-</strong><small id="certRebateMeta">Waiting for live lookup</small></div></div><div class="recommendationCards rebateSchemeUi"><div class="recommendationCard" id="bestValueMeta"><div class="recommendationEyebrow">Best rebate</div><div class="recommendationStatus">Best rebate indicator will appear here.</div></div><div class="recommendationCard net" id="bestNetCostMeta"><div class="recommendationEyebrow">Best net unit cost</div><div class="recommendationStatus">Best net unit cost indicator will appear here.</div></div></div></div></div>
+      </div>
+      <div class="card multiSplitTrialCard" id="multiSplitTrialCard">
+        <div class="multiSplitTrialIntro">
+          <div>
+            <div class="kicker">Admin trial</div>
+            <h2 class="sectionTitle">Multi-head split system builder</h2>
+            <div class="sub">Hidden trial area for multi-head pricing and NSW ESS/PDRS rebate testing. These selections are not added to customer quotes yet.</div>
+          </div>
+          <span class="trialBadge">Not live</span>
+        </div>
+        <div class="multiSplitBuilderGrid">
+          <div class="multiSplitPanel">
+            <div class="multiSplitPanelHead">
+              <div><h3>System selection</h3><div class="sub">Select one outdoor unit, then add compatible indoor heads.</div></div>
+            </div>
+            <div class="row2">
+              <div><label>Brand</label><select id="multiSplitBrand" onchange="populateMultiSplitOutdoors()"></select></div>
+              <div><label>Outdoor unit</label><select id="multiSplitOutdoor" onchange="onMultiSplitOutdoorChange()"></select></div>
+            </div>
+            <div class="row2" style="margin-top:12px">
+              <div><label>Customer postcode</label><input id="multiSplitPostcode" type="text" inputmode="numeric" maxlength="4" value="2170"></div>
+              <div><label>Install type</label><select id="multiSplitInstallType" onchange="renderMultiSplitTrial()"><option value="new">New install</option><option value="replacement" selected>Replacement</option></select></div>
+            </div>
+            <div class="multiSplitPanelHead" style="margin-top:14px">
+              <div><h3>Indoor units</h3><div class="sub" id="multiSplitLimitHint">Choose an outdoor unit first.</div></div>
+              <button class="secondary" type="button" onclick="addMultiSplitIndoorRow()">+ Add head</button>
+            </div>
+            <div id="multiSplitIndoorRows" class="multiSplitIndoorRows"></div>
+          </div>
+          <div class="multiSplitPanel">
+            <div class="multiSplitPanelHead">
+              <div><h3>Trial totals</h3><div class="sub">Equipment pricing from ACD Jun-26 sheet.</div></div>
+              <button class="green" type="button" onclick="calculateMultiSplitTrialRebate()">Check rebate</button>
+            </div>
+            <div class="multiSplitSummaryGrid">
+              <div class="multiSplitMetric"><span>Outdoor inc GST</span><strong id="multiSplitOutdoorTotal">$0.00</strong></div>
+              <div class="multiSplitMetric"><span>Indoor inc GST</span><strong id="multiSplitIndoorTotal">$0.00</strong></div>
+              <div class="multiSplitMetric"><span>Equipment inc GST</span><strong id="multiSplitEquipmentTotal">$0.00</strong></div>
+              <div class="multiSplitMetric"><span>Connected heads</span><strong id="multiSplitHeadCount">0</strong></div>
+              <div class="multiSplitMetric"><span>ESC generated</span><strong id="multiSplitEscCount">-</strong></div>
+              <div class="multiSplitMetric"><span>PERC generated</span><strong id="multiSplitPrcCount">-</strong></div>
+              <div class="multiSplitMetric"><span>Trial rebate</span><strong id="multiSplitRebateValue">-</strong></div>
+              <div class="multiSplitMetric"><span>Net equipment</span><strong id="multiSplitNetEquipment">-</strong></div>
+            </div>
+            <div id="multiSplitHeadsList" class="multiSplitHeadsList"></div>
+            <div id="multiSplitStatus" class="multiSplitStatus">Select a system and click Check rebate to test NSW multi-split eligibility.</div>
+          </div>
+        </div>
       </div>
       <div class="card energySavingsCard" id="energySavingsCard">
         <button type="button" class="energySavingsToggle" id="energySavingsToggle" onclick="toggleEnergySavingsPanel()" aria-expanded="false">
@@ -2202,6 +2387,8 @@ let systemType='split', installType='new', quotes=[];
 let currentOptionEditMessage='';
 let finalPriceLocked=false;
 let priceLocks={};
+let multiSplitIndoorSelections=[];
+let multiSplitTrialRequestSeq=0;
 const INSTALL_ADDONS=[
   {id:'addonExtraPipeRun',qtyId:'addonExtraPipeRunQty',type:'quantity',label:'Extra 5m pipe run',labour:200,materialsInc:100},
   {id:'addonCondensatePump',label:'Condensate pump',labour:200,materialsInc:200},
@@ -2398,6 +2585,114 @@ const REBATE_LOOKUP_MODEL_ALIASES={
   "HONRPX70HINRPX70M":["HSNRPX70"],
   "HONRPX80HINRPX80M":["HSNRPX80"]
 };
+function multiOutdoor(brand,series,capacityNum,model,unitPriceInc,maxHeads,extra){
+  return Object.assign({brand,series,capacity:`${capacityNum.toFixed(1)}kW`,capacityNum,model,unitPriceInc,priceIncGst:unitPriceInc,maxHeads},extra||{});
+}
+function multiIndoor(brand,series,capacityNum,model,unitPriceInc,pipe,dimensions,extra){
+  return Object.assign({brand,series,capacity:`${capacityNum.toFixed(1)}kW`,capacityNum,model,unitPriceInc,priceIncGst:unitPriceInc,pipe:pipe||'',dimensions:dimensions||''},extra||{});
+}
+const MULTI_SPLIT_OUTDOORS=[
+  multiOutdoor('Daikin','Cooling Only North Qld & Darwin Only',5.0,'3MKM52RZVMA',1630,3,{family:'daikin-cooling-only'}),
+  multiOutdoor('Daikin','Cooling Only North Qld & Darwin Only',6.0,'4MKM68R2VMA',2020,4,{family:'daikin-cooling-only'}),
+  multiOutdoor('Daikin','Cooling Only North Qld & Darwin Only',8.0,'4MKM80RZVMA',2305,4,{family:'daikin-cooling-only'}),
+  multiOutdoor('Daikin','Cooling Only North Qld & Darwin Only',10.0,'5MKM100R2VMA',2965,5,{family:'daikin-cooling-only'}),
+  multiOutdoor('Daikin','Reverse Cycle Lite',7.1,'2MXF70T2VMA',1520,2,{family:'daikin-lite',rebateModel:'2MXF70TVMA'}),
+  multiOutdoor('Daikin','Reverse Cycle Cora',5.0,'3MXM52R2VMA',1980,3,{family:'daikin-cora'}),
+  multiOutdoor('Daikin','Reverse Cycle Cora',6.0,'4MXM68R2VMA',2375,4,{family:'daikin-cora'}),
+  multiOutdoor('Daikin','Reverse Cycle Cora',8.0,'4MXM80R2VMA',2745,4,{family:'daikin-cora'}),
+  multiOutdoor('Daikin','Reverse Cycle Cora',10.0,'5MXM100R2VMA',3600,5,{family:'daikin-cora'}),
+  multiOutdoor('Mitsubishi Electric','Reverse Cycle Outdoor',5.2,'MXZ-2F52VF-A1',1541,2,{family:'mitsubishi-electric',rebateModel:'MXZ-2F52VF'}),
+  multiOutdoor('Mitsubishi Electric','Reverse Cycle Outdoor',5.2,'MXZ-2F52VGD-A1',1541,2,{family:'mitsubishi-electric',rebateModel:'MXZ-2F52VGD'}),
+  multiOutdoor('Mitsubishi Electric','Reverse Cycle Outdoor',5.4,'MXZ-3F54VGD-A1',2021,3,{family:'mitsubishi-electric',rebateModel:'MXZ-3F54VGD'}),
+  multiOutdoor('Mitsubishi Electric','Reverse Cycle Outdoor',7.1,'MXZ-4F71VGD-A1',2515,4,{family:'mitsubishi-electric',rebateModel:'MXZ-4F71VGD'}),
+  multiOutdoor('Mitsubishi Electric','Reverse Cycle Outdoor',8.0,'MXZ-4F80VGD-A1',2722,4,{family:'mitsubishi-electric',rebateModel:'MXZ-4F80VGD'}),
+  multiOutdoor('Mitsubishi Electric','Reverse Cycle Outdoor',10.0,'MXZ-5F100VGD-A1',3335,5,{family:'mitsubishi-electric',rebateModel:'MXZ-5F100VGD'}),
+  multiOutdoor('Mitsubishi Electric','Reverse Cycle Outdoor',12.0,'MXZ-6F120VGD-A1',4211,6,{family:'mitsubishi-electric',rebateModel:'MXZ-6F120VGD'}),
+  multiOutdoor('Fujitsu General','Airstage Reverse Cycle',6.8,'AOTH24KBCA3',1910,4,{family:'fujitsu-airstage'}),
+  multiOutdoor('Fujitsu General','Airstage Reverse Cycle',8.0,'AOTH30KBTA4',2365,4,{family:'fujitsu-airstage'}),
+  multiOutdoor('Fujitsu General','Airstage Reverse Cycle',10.0,'AOTH36KBTA5',2895,5,{family:'fujitsu-airstage'}),
+  multiOutdoor('Fujitsu General','Airstage Reverse Cycle',12.5,'AOTH45KBTA5',3610,5,{family:'fujitsu-airstage'}),
+  multiOutdoor('Gree','Pullar Free Match Outdoor',5.0,'GWH(D18)NK6PO',1370,2,{family:'gree-free-match'}),
+  multiOutdoor('Gree','Pullar Free Match Outdoor',7.0,'GWH(D24)NK6PO',1730,3,{family:'gree-free-match'}),
+  multiOutdoor('Gree','Pullar Free Match Outdoor',8.0,'GWH(D28)NK6PO',1785,4,{family:'gree-free-match'}),
+  multiOutdoor('Gree','Pullar Free Match Outdoor',10.0,'GWH(D36)NK6PO',2615,4,{family:'gree-free-match'}),
+  multiOutdoor('Gree','Pullar Free Match Outdoor',12.0,'GWH(D42)NK6PO',2680,5,{family:'gree-free-match'}),
+  multiOutdoor('Panasonic','Multi Splits Outdoor',5.0,'CU-2Z52VBR',1660,2,{family:'panasonic-multi'}),
+  multiOutdoor('Panasonic','Multi Splits Outdoor',6.0,'CU-3Z54VBR',1925,3,{family:'panasonic-multi'}),
+  multiOutdoor('Panasonic','Multi Splits Outdoor',7.0,'CU-4Z71VBR',2120,4,{family:'panasonic-multi'}),
+  multiOutdoor('Panasonic','Multi Splits Outdoor',8.0,'CU-4Z80VBR',2575,4,{family:'panasonic-multi'}),
+  multiOutdoor('Panasonic','Multi Splits Outdoor',10.0,'CU-5Z100VBR',3270,5,{family:'panasonic-multi'}),
+  multiOutdoor('Samsung','Multi Splits Outdoor',5.0,'AJ050TXJ2KH/EA',1068,2,{family:'samsung-multi'}),
+  multiOutdoor('Samsung','Multi Splits Outdoor',7.0,'AJ068TXJ3KH/EA',1260,3,{family:'samsung-multi'}),
+  multiOutdoor('Samsung','Multi Splits Outdoor',8.0,'AJ080TXJ4KH/EA',1350,4,{family:'samsung-multi'}),
+  multiOutdoor('Samsung','Multi Splits Outdoor',10.0,'AJ100TXJ5KH/EA',1710,5,{family:'samsung-multi'}),
+  multiOutdoor('Samsung','Multi Splits Outdoor',12.0,'AJ125TXJ5KH/EA',2010,5,{family:'samsung-multi'})
+];
+const MULTI_SPLIT_INDOORS=[
+  multiIndoor('Daikin','Cooling Only North Qld & Darwin Only',2.0,'CTKM20RVMA',230,'1/4 & 3/8','285 x 770 x 223',{family:'daikin-cooling-only'}),
+  multiIndoor('Daikin','Cooling Only North Qld & Darwin Only',2.5,'CTKM25RVMA',240,'1/4 & 3/8','285 x 770 x 223',{family:'daikin-cooling-only'}),
+  multiIndoor('Daikin','Cooling Only North Qld & Darwin Only',3.5,'CTKM35RVMA',280,'1/4 & 3/8','285 x 770 x 223',{family:'daikin-cooling-only'}),
+  multiIndoor('Daikin','Cooling Only North Qld & Darwin Only',4.0,'CTKM46RVMA',290,'1/4 & 1/2','285 x 770 x 223',{family:'daikin-cooling-only'}),
+  multiIndoor('Daikin','Cooling Only North Qld & Darwin Only',5.0,'CTKM50RVMA',310,'1/4 & 1/2','295 x 990 x 263',{family:'daikin-cooling-only'}),
+  multiIndoor('Daikin','Cooling Only North Qld & Darwin Only',6.0,'CTKM60RVMA',360,'1/4 & 1/2','295 x 990 x 263',{family:'daikin-cooling-only'}),
+  multiIndoor('Daikin','Reverse Cycle Lite',2.0,'CTXF20TVMA',240,'1/4 & 3/8','285 x 770 x 223',{family:'daikin-lite'}),
+  multiIndoor('Daikin','Reverse Cycle Lite',2.5,'CTXF25TVMA',252,'1/4 & 3/8','285 x 770 x 223',{family:'daikin-lite'}),
+  multiIndoor('Daikin','Reverse Cycle Lite',3.5,'CTXF35TVMA',285,'1/4 & 3/8','285 x 770 x 223',{family:'daikin-lite'}),
+  multiIndoor('Daikin','Reverse Cycle Lite',5.0,'CTXF50TVMA',366,'1/4 & 1/2','285 x 770 x 223',{family:'daikin-lite'}),
+  multiIndoor('Daikin','Reverse Cycle Cora',2.0,'CTXM20RVMA',275,'1/4 & 3/8','285 x 770 x 223',{family:'daikin-cora'}),
+  multiIndoor('Daikin','Reverse Cycle Cora',2.5,'CTXM25RVMA',290,'1/4 & 3/8','285 x 770 x 223',{family:'daikin-cora'}),
+  multiIndoor('Daikin','Reverse Cycle Cora',3.5,'CTXM35RVMA',330,'1/4 & 3/8','285 x 770 x 223',{family:'daikin-cora'}),
+  multiIndoor('Daikin','Reverse Cycle Cora',4.0,'CTXM46RVMA',340,'1/4 & 1/2','285 x 770 x 223',{family:'daikin-cora'}),
+  multiIndoor('Daikin','Reverse Cycle Cora',5.0,'CTXM50RVMA',370,'1/4 & 1/2','295 x 990 x 263',{family:'daikin-cora'}),
+  multiIndoor('Daikin','Reverse Cycle Cora',6.0,'CTXM60RVMA',425,'1/4 & 1/2','295 x 990 x 263',{family:'daikin-cora'}),
+  multiIndoor('Daikin','Reverse Cycle Cora',7.1,'CTXM71RVMA',440,'1/4 & 5/8','295 x 990 x 263',{family:'daikin-cora'}),
+  multiIndoor('Daikin','Reverse Cycle Cora',8.0,'CTXM85RVMA',545,'1/4 & 5/8','340 x 1200 x 259',{family:'daikin-cora'}),
+  multiIndoor('Daikin','Reverse Cycle Cora',10.0,'CTXM95RVMA',590,'1/4 & 5/8','340 x 1200 x 259',{family:'daikin-cora'}),
+  multiIndoor('Mitsubishi Electric','AP Series Indoor',1.5,'MSZ-AP15VGD-A1',278,'1/4 & 3/8','250 x 760 x 178',{family:'mitsubishi-electric',note:'Non WiFi'}),
+  multiIndoor('Mitsubishi Electric','AP Series Indoor',2.0,'MSZ-AP20VGD-A1',280,'1/4 & 3/8','250 x 760 x 178',{family:'mitsubishi-electric',note:'Non WiFi'}),
+  multiIndoor('Mitsubishi Electric','AP Series Indoor',2.5,'MSZ-AP25VGKD2-A2',300,'1/4 & 3/8','299 x 798 x 219',{family:'mitsubishi-electric'}),
+  multiIndoor('Mitsubishi Electric','AP Series Indoor',3.5,'MSZ-AP35VGKD2-A2',300,'1/4 & 3/8','299 x 798 x 219',{family:'mitsubishi-electric'}),
+  multiIndoor('Mitsubishi Electric','AP Series Indoor',4.2,'MSZ-AP42VGKD2-A2',335,'1/4 & 1/2','299 x 798 x 219',{family:'mitsubishi-electric'}),
+  multiIndoor('Mitsubishi Electric','AP Series Indoor',5.0,'MSZ-AP50VGKD2-A2',360,'1/4 & 1/2','299 x 798 x 219',{family:'mitsubishi-electric'}),
+  multiIndoor('Mitsubishi Electric','AP Series Indoor',6.0,'MSZ-AP60VGKD2-A2',400,'1/4 & 1/2','325 x 1100 x 257',{family:'mitsubishi-electric'}),
+  multiIndoor('Mitsubishi Electric','AP Series Indoor',7.1,'MSZ-AP71VGKD2-A2',440,'1/4 & 1/2','325 x 1100 x 257',{family:'mitsubishi-electric',note:'Wi-Fi only on 2.5kW-8.0kW'}),
+  multiIndoor('Mitsubishi Electric','AP Series Indoor',8.0,'MSZ-AP80VGKD2-A2',548,'1/4 & 1/2','325 x 1100 x 257',{family:'mitsubishi-electric'}),
+  multiIndoor('Fujitsu General','Airstage Reverse Cycle Indoor',2.3,'ASTH07KMCD',275,'1/4 & 3/8','293 x 790 x 225',{family:'fujitsu-airstage'}),
+  multiIndoor('Fujitsu General','Airstage Reverse Cycle Indoor',2.7,'ASTH09KMCD',285,'1/4 & 3/8','293 x 790 x 225',{family:'fujitsu-airstage'}),
+  multiIndoor('Fujitsu General','Airstage Reverse Cycle Indoor',3.5,'ASTH12KMCD',335,'1/4 & 3/8','293 x 790 x 225',{family:'fujitsu-airstage'}),
+  multiIndoor('Fujitsu General','Airstage Reverse Cycle Indoor',4.2,'ASTH14KMCD',360,'1/4 & 1/2','280 x 980 x 240',{family:'fujitsu-airstage'}),
+  multiIndoor('Fujitsu General','Airstage Reverse Cycle Indoor',5.0,'ASTH18KMTD',385,'1/4 & 1/2','280 x 980 x 240',{family:'fujitsu-airstage'}),
+  multiIndoor('Fujitsu General','Airstage Reverse Cycle Indoor',6.8,'ASTH22KMTD',425,'1/4 & 1/2','280 x 980 x 240',{family:'fujitsu-airstage'}),
+  multiIndoor('Fujitsu General','Airstage Reverse Cycle Indoor',8.0,'ASTH24KMTE',450,'1/4 & 1/2','280 x 980 x 240',{family:'fujitsu-airstage'}),
+  multiIndoor('Gree','Pullar Free Match Indoor',2.0,'GWH07AGAXB-K6DNA1A/I',190,'1/4 & 3/8','704 x 260 x 185',{family:'gree-free-match'}),
+  multiIndoor('Gree','Pullar Free Match Indoor',2.5,'GWH09AGCXB-K6DNA1A/I',215,'1/4 & 3/8','825 x 293 x 196',{family:'gree-free-match'}),
+  multiIndoor('Gree','Pullar Free Match Indoor',3.5,'GWH12AGCXD-K6DNA1A/I',270,'1/4 & 3/8','825 x 293 x 196',{family:'gree-free-match'}),
+  multiIndoor('Gree','Pullar Free Match Indoor',5.0,'GWH18AGDXE-K6DNA1A/I',305,'1/4 & 1/2','982 x 311 x 221',{family:'gree-free-match'}),
+  multiIndoor('Gree','Pullar Free Match Indoor',6.0,'GWH21AGEXF-K6DNA1A/I',355,'1/4 & 1/2','1075 x 333 x 246',{family:'gree-free-match'}),
+  multiIndoor('Gree','Pullar Free Match Indoor',7.0,'GWH24AGEXF-K6DNA1A/I',400,'1/4 & 5/8','1075 x 333 x 246',{family:'gree-free-match'}),
+  multiIndoor('Gree','Alto Free Match Indoor',2.5,'GWH09ATBXB-K6DNA1C/I',195,'1/4 & 1/2','943 x 333 x 246',{family:'gree-free-match'}),
+  multiIndoor('Gree','Alto Free Match Indoor',3.5,'GWH12ATCXB-K6DNA1B/I',255,'1/4 & 1/2','943 x 333 x 246',{family:'gree-free-match'}),
+  multiIndoor('Gree','Alto Free Match Indoor',5.0,'GWH18ATDXD-K6DNA1C/I',310,'1/4 & 1/2','943 x 333 x 246',{family:'gree-free-match'}),
+  multiIndoor('Gree','Alto Free Match Indoor',7.0,'GWH24ATEXF-K6DNA1E/I',420,'1/4 & 1/2','1078 x 333 x 246',{family:'gree-free-match'}),
+  multiIndoor('Panasonic','RZ Series Indoor',2.0,'CS-MRZ20WKR',315,'1/4 & 3/8','290 x 799 x 209',{family:'panasonic-multi'}),
+  multiIndoor('Panasonic','RZ Series Indoor',2.5,'CS-RZ25XKRW',325,'1/4 & 3/8','290 x 799 x 209',{family:'panasonic-multi'}),
+  multiIndoor('Panasonic','RZ Series Indoor',3.5,'CS-RZ35XKRW',375,'1/4 & 3/8','290 x 799 x 209',{family:'panasonic-multi'}),
+  multiIndoor('Panasonic','RZ Series Indoor',4.2,'CS-RZ42XKRW',395,'1/4 & 3/8','290 x 799 x 209',{family:'panasonic-multi'}),
+  multiIndoor('Panasonic','RZ Series Indoor',5.0,'CS-RZ50XKRW',420,'1/4 & 3/8','290 x 799 x 209',{family:'panasonic-multi'}),
+  multiIndoor('Panasonic','RZ Series Indoor',6.0,'CS-RZ60XKRW',485,'1/4 & 1/2','295 x 1040 x 244',{family:'panasonic-multi'}),
+  multiIndoor('Panasonic','RZ Series Indoor',7.1,'CS-RZ71XKRW',500,'1/4 & 1/2','295 x 1040 x 244',{family:'panasonic-multi'}),
+  multiIndoor('Panasonic','Z Series Indoor',2.5,'CS-Z25XKRW',360,'1/4 & 3/8','290 x 799 x 209',{family:'panasonic-multi'}),
+  multiIndoor('Panasonic','Z Series Indoor',3.5,'CS-Z35XKRW',405,'1/4 & 3/8','290 x 799 x 209',{family:'panasonic-multi'}),
+  multiIndoor('Panasonic','Z Series Indoor',4.2,'CS-Z42XKRW',425,'1/4 & 3/8','290 x 799 x 209',{family:'panasonic-multi'}),
+  multiIndoor('Panasonic','Z Series Indoor',5.0,'CS-Z50XKRW',450,'1/4 & 3/8','290 x 799 x 209',{family:'panasonic-multi'}),
+  multiIndoor('Panasonic','Z Series Indoor',6.0,'CS-Z60XKRW',515,'1/4 & 1/2','295 x 1040 x 244',{family:'panasonic-multi'}),
+  multiIndoor('Panasonic','Z Series Indoor',7.1,'CS-Z71XKRW',530,'1/4 & 1/2','295 x 1040 x 244',{family:'panasonic-multi'}),
+  multiIndoor('Samsung','Multi Splits Indoor',2.0,'AJ020TNTDKH/EA',165,'1/4 & 3/8','820 x 299 x 215',{family:'samsung-multi'}),
+  multiIndoor('Samsung','Multi Splits Indoor',2.5,'AJ025TNTDKH/EA',177,'1/4 & 3/8','820 x 299 x 215',{family:'samsung-multi'}),
+  multiIndoor('Samsung','Multi Splits Indoor',3.5,'AJ035TNTDKH/EA',195,'1/4 & 3/8','820 x 299 x 215',{family:'samsung-multi'}),
+  multiIndoor('Samsung','Multi Splits Indoor',5.0,'AJ050TNTDKH/EA',225,'1/4 & 1/2','1055 x 299 x 215',{family:'samsung-multi'}),
+  multiIndoor('Samsung','Multi Splits Indoor',6.8,'AJ068TNTDKH/EA',255,'3/8 & 5/8','1055 x 299 x 215',{family:'samsung-multi'})
+];
 function normaliseBrandName(b){return BRAND_ALIASES[b]||b||'';}
 function normaliseModelName(m){return PRODUCT_MODEL_DISPLAY_ALIASES[m]||MODEL_ALIASES[m]||m||'';}
 function productDisplayBrandName(b){return b==='Actron'?'Actron Air':(b||'');}
@@ -3213,15 +3508,16 @@ async function resolvePostcodeZones(postcode){
   essCache.zoneByPostcode[postcode]={zone,bcaZone};
   return essCache.zoneByPostcode[postcode];
 }
-async function getClimateContext(){
-  const postcode=getEssPostcode();
+async function getClimateContext(postcodeOverride){
+  const postcode=String(postcodeOverride||getEssPostcode()||'').trim();
   if(!/^\d{4}$/.test(postcode)) throw new Error('Enter a valid 4-digit postcode');
   const resolved=await resolvePostcodeZones(postcode);
-  const selected=getEssZoneSelection();
+  const selected=postcodeOverride?'auto':getEssZoneSelection();
   const climateZone=(selected==='hot'||selected==='mixed'||selected==='cold')?selected:resolved.zone;
   return {postcode, climateZone, bcaZone:resolved.bcaZone};
 }
-function activityValue(){return installType==='new'?'new_installation_activity':'replacement_activity';}
+function activityValueForInstall(type){return type==='new'?'new_installation_activity':'replacement_activity';}
+function activityValue(){return activityValueForInstall(installType);}
 const HVAC_AIR_CONDITIONER_TYPES={
   split:'non_ducted_single_split_system',
   ducted:'ducted_single_split_system'
@@ -3418,7 +3714,16 @@ async function calculateCertificatesWithPostcodeFallback(baseBuilding,climate,er
   }
   return {buildings:{building_1:merged},persons:{person1:{}}};
 }
-async function calculateCertificatesForModel(meta,climate){
+function nswCertificateCapsForAirType(airConditionerType,climateZone){
+  if(airConditionerType==='non_ducted_multi_split_system' || airConditionerType==='ducted_multi_split_system'){
+    return {esc:climateZone==='cold'?90:70,prc:500};
+  }
+  return {esc:Infinity,prc:Infinity};
+}
+async function calculateCertificatesForModel(meta,climate,options){
+  const calcOptions=options||{};
+  const airConditionerType=normalizeAirConditionerType(calcOptions.airConditionerType||airTypeValue());
+  const calcInstallType=calcOptions.installType||installType;
   const cooling=toNumber(meta['Cooling Capacity']);
   const heating=toNumber(meta['Heating Capacity']);
   const ratedAeer=toNumber(meta['Rated AEER']);
@@ -3431,12 +3736,13 @@ async function calculateCertificatesForModel(meta,climate){
   const hspfCold=toNumber(meta['Residential HSPF_cold']);
   const productClass=deriveHvacProductClass(meta);
   const eligibility=evaluateNswHvacEligibility(meta,climate);
+  const caps=nswCertificateCapsForAirType(airConditionerType,climate.climateZone);
   if([cooling,heating,ratedAeer,ratedAcop,inputPower,tcec,thec,tcspf,hspfMixed,hspfCold].some(v=>!Number.isFinite(v))) throw new Error('Incomplete model energy rating data');
   if(!productClass) throw new Error('Incomplete model energy rating data: missing product class');
-  if(!eligibility.essEligible && !eligibility.prcEligible) return {esc:0, prc:0, officialEsc:0, officialPrc:0, eligibility};
+  if(!eligibility.essEligible && !eligibility.prcEligible) return {esc:0, prc:0, officialEsc:0, officialPrc:0, eligibility,caps,airConditionerType};
   const baseBuilding={
-    HVAC1_PDRSAug24_Activity:{[ESS_CALC_DATE]:activityValue()},
-    HVAC1_PDRSAug24_Air_Conditioner_type:{[ESS_CALC_DATE]:airTypeValue()},
+    HVAC1_PDRSAug24_Activity:{[ESS_CALC_DATE]:activityValueForInstall(calcInstallType)},
+    HVAC1_PDRSAug24_Air_Conditioner_type:{[ESS_CALC_DATE]:airConditionerType},
     HVAC1_PDRSAug24_product_class_input:{[ESS_CALC_DATE]:productClass},
     HVAC1_PDRSAug24_HSPF_cold:{[ESS_CALC_DATE]:hspfCold},
     HVAC1_PDRSAug24_HSPF_mixed:{[ESS_CALC_DATE]:hspfMixed},
@@ -3463,9 +3769,9 @@ async function calculateCertificatesForModel(meta,climate){
   const escNum=decimalEscCertificatesFromBuilding(resultBuilding);
   const prcNum=decimalPrcCertificatesFromBuilding(resultBuilding);
   if(!Number.isFinite(escNum) || !Number.isFinite(prcNum)) throw new Error('Unable to calculate certificates');
-  const escEffective=eligibility.essEligible?escNum:0;
-  const prcEffective=eligibility.prcEligible?prcNum:0;
-  return {esc:escEffective, prc:prcEffective, officialEsc:Number.isFinite(escOfficial)?escOfficial:escNum, officialPrc:Number.isFinite(prcOfficial)?prcOfficial:prcNum, eligibility};
+  const escEffective=eligibility.essEligible?Math.min(escNum,caps.esc):0;
+  const prcEffective=eligibility.prcEligible?Math.min(prcNum,caps.prc):0;
+  return {esc:escEffective, prc:prcEffective, officialEsc:Number.isFinite(escOfficial)?escOfficial:escNum, officialPrc:Number.isFinite(prcOfficial)?prcOfficial:prcNum, eligibility,caps,airConditionerType};
 }
 async function estimateLiveEssRebate(localBrand,localModel){
   const resolved=await resolveModelMetadataForRebate(localBrand,localModel);
@@ -4127,9 +4433,212 @@ function initEnergySavingsControls(){
     rateEl.addEventListener('change',()=>refreshEnergySavingsEstimate(true));
   }
 }
+function multiSplitTrialEnabled(){
+  const u=calculatorUserContext();
+  return !!(u.currentUserCanManageUsers||u.canManageUsers);
+}
+function applyMultiSplitTrialVisibility(){
+  const card=$('multiSplitTrialCard');
+  if(!card) return;
+  card.classList.toggle('visible',multiSplitTrialEnabled());
+}
+function multiSplitBrands(){
+  return [...new Set(MULTI_SPLIT_OUTDOORS.map(row=>row.brand))].sort((a,b)=>a.localeCompare(b));
+}
+function selectedMultiSplitOutdoor(){
+  const idx=Number(($('multiSplitOutdoor')&&$('multiSplitOutdoor').value)||0);
+  return MULTI_SPLIT_OUTDOORS[idx]||MULTI_SPLIT_OUTDOORS[0]||null;
+}
+function multiSplitCompatibleIndoorIndexes(outdoor){
+  if(!outdoor) return [];
+  return MULTI_SPLIT_INDOORS
+    .map((row,index)=>({row,index}))
+    .filter(item=>item.row.brand===outdoor.brand && (!outdoor.family || item.row.family===outdoor.family))
+    .map(item=>item.index);
+}
+function multiSplitIndoorLabel(row){
+  const note=row.note?` - ${row.note}`:'';
+  return `${row.capacity} - ${row.series} - ${row.model} - ${money(row.unitPriceInc)}${note}`;
+}
+function selectedMultiSplitIndoorItems(){
+  return multiSplitIndoorSelections.map(selection=>{
+    const row=MULTI_SPLIT_INDOORS[Number(selection.indoorIndex)];
+    const qty=Math.max(1,Math.floor(Number(selection.qty)||1));
+    return row?{row,qty}:null;
+  }).filter(Boolean);
+}
+function multiSplitEquipmentTotals(){
+  const outdoor=selectedMultiSplitOutdoor();
+  const indoorItems=selectedMultiSplitIndoorItems();
+  const outdoorTotal=Number(outdoor&&outdoor.unitPriceInc)||0;
+  const indoorTotal=indoorItems.reduce((sum,item)=>sum+(Number(item.row.unitPriceInc)||0)*item.qty,0);
+  const headCount=indoorItems.reduce((sum,item)=>sum+item.qty,0);
+  const connectedCapacity=indoorItems.reduce((sum,item)=>sum+(Number(item.row.capacityNum)||0)*item.qty,0);
+  return {outdoor,indoorItems,outdoorTotal,indoorTotal,total:outdoorTotal+indoorTotal,headCount,connectedCapacity};
+}
+function setMultiSplitStatus(message,type){
+  const el=$('multiSplitStatus');
+  if(!el) return;
+  el.textContent=message||'';
+  el.className=`multiSplitStatus${type?` ${type}`:''}`;
+}
+function resetMultiSplitRebateMetrics(message){
+  if($('multiSplitEscCount')) $('multiSplitEscCount').textContent='-';
+  if($('multiSplitPrcCount')) $('multiSplitPrcCount').textContent='-';
+  if($('multiSplitRebateValue')) $('multiSplitRebateValue').textContent='-';
+  if($('multiSplitNetEquipment')) $('multiSplitNetEquipment').textContent='-';
+  if(message) setMultiSplitStatus(message,'');
+}
+function renderMultiSplitTrial(){
+  if(!multiSplitTrialEnabled()) return;
+  const {outdoor,indoorItems,outdoorTotal,indoorTotal,total,headCount,connectedCapacity}=multiSplitEquipmentTotals();
+  const maxHeads=Number(outdoor&&outdoor.maxHeads)||0;
+  if($('multiSplitOutdoorTotal')) $('multiSplitOutdoorTotal').textContent=money(outdoorTotal);
+  if($('multiSplitIndoorTotal')) $('multiSplitIndoorTotal').textContent=money(indoorTotal);
+  if($('multiSplitEquipmentTotal')) $('multiSplitEquipmentTotal').textContent=money(total);
+  if($('multiSplitHeadCount')) $('multiSplitHeadCount').textContent=maxHeads?`${headCount}/${maxHeads}`:String(headCount);
+  if($('multiSplitLimitHint')){
+    const capacityText=outdoor?`${connectedCapacity.toFixed(1)}kW connected against ${outdoor.capacity} outdoor`:'Choose an outdoor unit first.';
+    $('multiSplitLimitHint').textContent=outdoor?`Max ${maxHeads||'?'} indoor heads. ${capacityText}.`:capacityText;
+  }
+  const compatible=multiSplitCompatibleIndoorIndexes(outdoor);
+  const rows=$('multiSplitIndoorRows');
+  if(rows){
+    rows.innerHTML=multiSplitIndoorSelections.map((selection,rowIndex)=>{
+      const options=compatible.map(index=>{
+        const row=MULTI_SPLIT_INDOORS[index];
+        const selected=Number(selection.indoorIndex)===index?' selected':'';
+        return `<option value="${index}"${selected}>${htmlEscape(multiSplitIndoorLabel(row))}</option>`;
+      }).join('');
+      const qty=Math.max(1,Math.floor(Number(selection.qty)||1));
+      return `<div class="multiSplitIndoorRow"><div><label>Indoor head ${rowIndex+1}</label><select onchange="updateMultiSplitIndoorRow(${rowIndex},'indoorIndex',this.value)">${options}</select></div><div><label>Qty</label><input type="number" min="1" step="1" value="${qty}" onchange="updateMultiSplitIndoorRow(${rowIndex},'qty',this.value)" oninput="updateMultiSplitIndoorRow(${rowIndex},'qty',this.value)"></div><button class="secondary" type="button" onclick="removeMultiSplitIndoorRow(${rowIndex})">x</button></div>`;
+    }).join('') || '<div class="sub">No indoor heads selected.</div>';
+  }
+  const list=$('multiSplitHeadsList');
+  if(list){
+    list.innerHTML=indoorItems.map(item=>{
+      const row=item.row;
+      const detail=[row.pipe?`Pipe ${row.pipe}`:'',row.dimensions?`Dim ${row.dimensions}`:'',row.note||''].filter(Boolean).join(' - ');
+      return `<div class="multiSplitHeadItem"><div><strong>${htmlEscape(`${item.qty} x ${row.capacity} ${row.model}`)}</strong><small>${htmlEscape(row.series)}${detail?` - ${htmlEscape(detail)}`:''}</small></div><div class="money">${money((Number(row.unitPriceInc)||0)*item.qty)}</div></div>`;
+    }).join('');
+  }
+  if(headCount>maxHeads && maxHeads){
+    setMultiSplitStatus(`This trial combination has ${headCount} heads, above the selected outdoor unit limit of ${maxHeads}. Remove heads or select a larger outdoor unit before using the rebate result.`,'error');
+  }else{
+    resetMultiSplitRebateMetrics('Select a system and click Check rebate to test NSW multi-split eligibility.');
+  }
+}
+function populateMultiSplitBrands(){
+  const brandEl=$('multiSplitBrand');
+  if(!brandEl || !multiSplitTrialEnabled()) return;
+  brandEl.innerHTML=multiSplitBrands().map(brand=>`<option>${htmlEscape(brand)}</option>`).join('');
+  populateMultiSplitOutdoors();
+}
+function populateMultiSplitOutdoors(){
+  const brand=String(($('multiSplitBrand')&&$('multiSplitBrand').value)||'');
+  const outdoorEl=$('multiSplitOutdoor');
+  if(!outdoorEl) return;
+  const rows=MULTI_SPLIT_OUTDOORS.map((row,index)=>({row,index})).filter(item=>item.row.brand===brand);
+  outdoorEl.innerHTML=rows.map(item=>`<option value="${item.index}">${htmlEscape(`${item.row.capacity} - ${item.row.series} - ${item.row.model} - ${money(item.row.unitPriceInc)}`)}</option>`).join('');
+  onMultiSplitOutdoorChange();
+}
+function onMultiSplitOutdoorChange(){
+  const outdoor=selectedMultiSplitOutdoor();
+  const compatible=multiSplitCompatibleIndoorIndexes(outdoor);
+  if(!compatible.length){
+    multiSplitIndoorSelections=[];
+  }else if(!multiSplitIndoorSelections.length){
+    multiSplitIndoorSelections=[{indoorIndex:compatible[0],qty:1}];
+  }else{
+    multiSplitIndoorSelections=multiSplitIndoorSelections.map(selection=>{
+      const current=Number(selection.indoorIndex);
+      return compatible.includes(current)?selection:{...selection,indoorIndex:compatible[0]};
+    });
+  }
+  renderMultiSplitTrial();
+}
+function addMultiSplitIndoorRow(){
+  const outdoor=selectedMultiSplitOutdoor();
+  const compatible=multiSplitCompatibleIndoorIndexes(outdoor);
+  if(!compatible.length) return;
+  const {headCount}=multiSplitEquipmentTotals();
+  const maxHeads=Number(outdoor&&outdoor.maxHeads)||12;
+  if(headCount>=maxHeads){
+    setMultiSplitStatus(`The selected outdoor unit allows ${maxHeads} indoor heads.`, 'error');
+    return;
+  }
+  multiSplitIndoorSelections.push({indoorIndex:compatible[0],qty:1});
+  renderMultiSplitTrial();
+}
+function removeMultiSplitIndoorRow(index){
+  multiSplitIndoorSelections.splice(index,1);
+  renderMultiSplitTrial();
+}
+function updateMultiSplitIndoorRow(index,field,value){
+  if(!multiSplitIndoorSelections[index]) return;
+  if(field==='qty'){
+    multiSplitIndoorSelections[index].qty=Math.max(1,Math.floor(Number(value)||1));
+  }else{
+    multiSplitIndoorSelections[index].indoorIndex=Number(value);
+  }
+  renderMultiSplitTrial();
+}
+async function calculateMultiSplitTrialRebate(){
+  const requestId=++multiSplitTrialRequestSeq;
+  const {outdoor,total,headCount}=multiSplitEquipmentTotals();
+  if(!outdoor){setMultiSplitStatus('Select an outdoor unit first.','error'); return;}
+  if(!headCount){setMultiSplitStatus('Add at least one indoor head before checking the rebate.','error'); return;}
+  if(Number(outdoor.maxHeads)&&headCount>Number(outdoor.maxHeads)){
+    setMultiSplitStatus(`This combination has ${headCount} heads, above the selected outdoor limit of ${outdoor.maxHeads}.`,'error');
+    return;
+  }
+  const postcode=String(($('multiSplitPostcode')&&$('multiSplitPostcode').value)||'').trim();
+  const install=String(($('multiSplitInstallType')&&$('multiSplitInstallType').value)||'replacement');
+  if(!/^\d{4}$/.test(postcode)){setMultiSplitStatus('Enter a valid 4-digit postcode for the trial rebate calculation.','error'); return;}
+  setMultiSplitStatus('Checking GEMS data and NSW multi-split certificate calculation...','loading');
+  try{
+    const resolved=await resolveModelMetadataForRebate(outdoor.brand,outdoor.rebateModel||outdoor.model);
+    const climate=await getClimateContext(postcode);
+    const certs=await calculateCertificatesForModel(resolved.meta,climate,{airConditionerType:'non_ducted_multi_split_system',installType:install});
+    if(requestId!==multiSplitTrialRequestSeq) return;
+    const escRate=getEssEscRate();
+    const prcRate=getEssPrcRate();
+    const escValue=(Number(certs.esc)||0)*escRate;
+    const prcValue=(Number(certs.prc)||0)*prcRate;
+    const rebate=escValue+prcValue;
+    if($('multiSplitEscCount')) $('multiSplitEscCount').textContent=certCountText(certs.esc);
+    if($('multiSplitPrcCount')) $('multiSplitPrcCount').textContent=certCountText(certs.prc);
+    if($('multiSplitRebateValue')) $('multiSplitRebateValue').textContent=money(rebate);
+    if($('multiSplitNetEquipment')) $('multiSplitNetEquipment').textContent=money(total-rebate);
+    const capText=certs.caps&&Number.isFinite(certs.caps.esc)?` Caps applied: ${certs.caps.esc} ESC / ${certs.caps.prc} PERC.`:'';
+    const eligibilityText=certs.eligibility&&certs.eligibility.message?` Eligibility: ${certs.eligibility.message}.`:' Eligibility passed.';
+    setMultiSplitStatus(`${resolved.source}: ${resolved.brand} ${resolved.model}. ESC ${certCountText(certs.esc)} x ${money(escRate)} = ${money(escValue)} | PERC ${certCountText(certs.prc)} x ${money(prcRate)} = ${money(prcValue)} | Total ${money(rebate)}. ${climate.climateZone}, ${climate.bcaZone}, ${install}.${capText}${eligibilityText}`,'');
+  }catch(e){
+    if(requestId!==multiSplitTrialRequestSeq) return;
+    resetMultiSplitRebateMetrics();
+    setMultiSplitStatus(`Unable to calculate this multi-head rebate yet. ${String(e.message||e||'Live data unavailable')}`,'error');
+  }
+}
+function initMultiSplitTrial(){
+  applyMultiSplitTrialVisibility();
+  if(!multiSplitTrialEnabled()) return;
+  const postcode=$('multiSplitPostcode');
+  if(postcode && $('essPostcode')) postcode.value=$('essPostcode').value||postcode.value||'2170';
+  const trialInstallType=$('multiSplitInstallType');
+  if(trialInstallType && !trialInstallType.value) trialInstallType.value='replacement';
+  populateMultiSplitBrands();
+  ['multiSplitPostcode','multiSplitInstallType'].forEach(id=>{
+    const el=$(id);
+    if(el){
+      el.addEventListener('input',()=>{resetMultiSplitRebateMetrics('Selection changed. Click Check rebate to refresh the multi-split trial calculation.');});
+      el.addEventListener('change',()=>{renderMultiSplitTrial();});
+    }
+  });
+}
 function render(){
   const x=calculate();
   applyOwnerVisibility();
+  applyMultiSplitTrialVisibility();
   const showPrivate=canSeeProfitDetails();
   const showLimitedSales=x.commissionModelOn&&!showPrivate&&canSeeSalespersonCommission();
   const showAgency=x.commissionModelOn&&x.commissionType==='agency'&&showPrivate;
@@ -6188,6 +6697,7 @@ stripManagedRebateOverridesFromStorage();
 loadManagedPrices();
 initEssControls();
 initEnergySavingsControls();
+initMultiSplitTrial();
 const defaultCostRowsEl=$('defaultCostRows');
 if(defaultCostRowsEl){
   defaultCostRowsEl.addEventListener('input', function(e){
