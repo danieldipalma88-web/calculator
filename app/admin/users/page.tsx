@@ -1065,6 +1065,7 @@ function wonExportRow(option: WonOption) {
     "Customer total inc GST": option.customerTotal.toFixed(2),
     Rebate: option.rebateTotal.toFixed(2),
     "Agency commission inc GST": option.agencyCommissionTotal.toFixed(2),
+    "Salesperson commission inc GST": option.salespersonCommissionTotal.toFixed(2),
     "Installer profit ex GST": option.installerProfitTotal.toFixed(2),
     Rows: option.rows,
   };
@@ -1320,6 +1321,97 @@ function wonExportScript() {
     if (!base) base = "Job " + (index + 1);
     return base.slice(0, 31);
   }
+  function summarySystemDetails(job) {
+    var rows = Array.isArray(job.Rows) ? job.Rows : [];
+    return rows.map(function(row){
+      return [
+        row.type || "",
+        row.brand || "",
+        row.size || "",
+        row.model || row.label || "",
+        row.install || ""
+      ].filter(Boolean).join(" ");
+    }).filter(Boolean).join("; ");
+  }
+  function summaryWorksheetRows(jobs) {
+    var output = [[
+      "Salesperson",
+      "Email",
+      "Business",
+      "Option",
+      "Source",
+      "Won date",
+      "Status",
+      "Paid in date",
+      "Paid out date",
+      "Systems",
+      "System details",
+      "Customer total inc GST",
+      "Rebate",
+      "Agency commission inc GST",
+      "Salesperson commission inc GST",
+      "Installer profit ex GST"
+    ]];
+    var totals = {
+      systems: 0,
+      customer: 0,
+      rebate: 0,
+      agency: 0,
+      salesperson: 0,
+      profit: 0
+    };
+    jobs.forEach(function(job){
+      var systems = Number(job.Systems || 0);
+      var customer = Number(job["Customer total inc GST"] || 0);
+      var rebate = Number(job.Rebate || 0);
+      var agency = Number(job["Agency commission inc GST"] || 0);
+      var salesperson = Number(job["Salesperson commission inc GST"] || 0);
+      var profit = Number(job["Installer profit ex GST"] || 0);
+      totals.systems += systems;
+      totals.customer += customer;
+      totals.rebate += rebate;
+      totals.agency += agency;
+      totals.salesperson += salesperson;
+      totals.profit += profit;
+      output.push([
+        job.Salesperson || "",
+        job.Email || "",
+        job.Business || "",
+        job.Option || "",
+        job.Source || "",
+        job["Won date"] || "",
+        job.Status || "",
+        job["Paid in date"] || "",
+        job["Paid out date"] || "",
+        systems,
+        summarySystemDetails(job),
+        customer,
+        rebate,
+        agency,
+        salesperson,
+        profit
+      ]);
+    });
+    output.push([
+      "TOTAL",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      totals.systems,
+      "",
+      totals.customer,
+      totals.rebate,
+      totals.agency,
+      totals.salesperson,
+      totals.profit
+    ]);
+    return output;
+  }
   function jobWorksheetRows(job) {
     var rows = Array.isArray(job.Rows) ? job.Rows : [];
     var output = [
@@ -1431,8 +1523,11 @@ function wonExportScript() {
       }).join("") +
       '</sheetData></worksheet>';
   }
-  function uniqueWorksheetNames(jobs) {
+  function uniqueWorksheetNames(jobs, reservedNames) {
     var usedNames = {};
+    (reservedNames || []).forEach(function(name){
+      usedNames[String(name || "").toLowerCase()] = true;
+    });
     return jobs.map(function(job, index){
       var rawName = worksheetName(job, index);
       var key = rawName.toLowerCase();
@@ -1542,7 +1637,9 @@ function wonExportScript() {
     return concatBytes(chunks.concat(central).concat([new Uint8Array(end)]), offset + centralSize + end.length);
   }
   function workbookXlsxBytes(jobs) {
-    var sheetNames = uniqueWorksheetNames(jobs);
+    var summarySheetName = "Summary";
+    var jobSheetNames = uniqueWorksheetNames(jobs, [summarySheetName]);
+    var sheetNames = [summarySheetName].concat(jobSheetNames);
     var sheetOverrides = sheetNames.map(function(name, index){
       return '<Override PartName="/xl/worksheets/sheet' + (index + 1) + '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>';
     }).join("");
@@ -1560,8 +1657,9 @@ function wonExportScript() {
       { name: "xl/workbook.xml", content: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>' + sheetsXml + '</sheets></workbook>' },
       { name: "xl/_rels/workbook.xml.rels", content: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' + workbookRels + '</Relationships>' }
     ];
+    files.push({ name: "xl/worksheets/sheet1.xml", content: xlsxWorksheetXml(summaryWorksheetRows(jobs)) });
     jobs.forEach(function(job, index){
-      files.push({ name: "xl/worksheets/sheet" + (index + 1) + ".xml", content: xlsxWorksheetXml(jobWorksheetRows(job)) });
+      files.push({ name: "xl/worksheets/sheet" + (index + 2) + ".xml", content: xlsxWorksheetXml(jobWorksheetRows(job)) });
     });
     return zipBytes(files);
   }
