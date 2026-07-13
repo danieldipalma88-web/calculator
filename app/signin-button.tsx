@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { createSupabaseBrowserClient } from "../lib/supabase/client";
 import { publicSiteUrl } from "../lib/supabase/config";
 
@@ -15,6 +15,20 @@ export default function LoginButton({ next }: { next?: string }) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [retryAfterSeconds, setRetryAfterSeconds] = useState(0);
+
+  useEffect(() => {
+    if (retryAfterSeconds <= 0) return;
+    const timer = window.setTimeout(() => {
+      setRetryAfterSeconds((current) => Math.max(0, current - 1));
+    }, 1000);
+    return () => window.clearTimeout(timer);
+  }, [retryAfterSeconds]);
+
+  function isRateLimitError(signInError: { message?: string; status?: number; code?: string }) {
+    const message = String(signInError.message || "").toLowerCase();
+    return signInError.status === 429 || signInError.code === "over_email_send_rate_limit" || message.includes("rate limit");
+  }
 
   async function signInWithGoogle() {
     const supabase = createSupabaseBrowserClient();
@@ -29,6 +43,11 @@ export default function LoginButton({ next }: { next?: string }) {
 
   async function sendMagicLink(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (retryAfterSeconds > 0) {
+      setError(`Please wait ${retryAfterSeconds} seconds before requesting another login link.`);
+      setMessage("");
+      return;
+    }
     const trimmedEmail = email.trim().toLowerCase();
     if (!trimmedEmail) {
       setError("Enter your approved email address.");
@@ -50,10 +69,18 @@ export default function LoginButton({ next }: { next?: string }) {
 
     setIsSending(false);
     if (signInError) {
+      if (isRateLimitError(signInError)) {
+        setRetryAfterSeconds(60);
+        setError(
+          "Email login links are temporarily rate limited. Wait 60 seconds and try once. If this keeps happening, the Supabase hourly email/OTP limit has been reached.",
+        );
+        return;
+      }
       setError(signInError.message);
       return;
     }
 
+    setRetryAfterSeconds(60);
     setMessage(`Check ${trimmedEmail} for your login link.`);
   }
 
@@ -66,13 +93,16 @@ export default function LoginButton({ next }: { next?: string }) {
             id="login-email"
             type="email"
             value={email}
-            onChange={(event) => setEmail(event.target.value)}
+            onChange={(event) => {
+              setEmail(event.target.value);
+              setError("");
+            }}
             placeholder="installer@example.com"
             autoComplete="email"
             required
           />
-          <button className="orange" type="submit" disabled={isSending}>
-            {isSending ? "Sending..." : "Email login link"}
+          <button className="orange" type="submit" disabled={isSending || retryAfterSeconds > 0}>
+            {isSending ? "Sending..." : retryAfterSeconds > 0 ? `Wait ${retryAfterSeconds}s` : "Email login link"}
           </button>
         </div>
       </form>

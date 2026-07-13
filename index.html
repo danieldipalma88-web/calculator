@@ -4534,7 +4534,9 @@ function initEnergySavingsControls(){
 }
 function multiSplitTrialEnabled(){
   const u=calculatorUserContext();
-  return !!(u.currentUserCanManageUsers||u.canManageUsers);
+  const signedInEmail=String(u.email||'').trim().toLowerCase();
+  const viewedEmail=String(u.viewingEmail||u.email||'').trim().toLowerCase();
+  return !!u.canManageUsers && !!signedInEmail && signedInEmail===viewedEmail && !u.isPreviewMode;
 }
 function multiSplitViewActive(){return multiSplitTrialEnabled()&&activeCalculatorView==='multiSplit';}
 function updateCalculatorSectionVisibility(){
