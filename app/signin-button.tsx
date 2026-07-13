@@ -5,7 +5,8 @@ import { createSupabaseBrowserClient } from "../lib/supabase/client";
 import { publicSiteUrl } from "../lib/supabase/config";
 
 function callbackUrl(next?: string) {
-  const url = new URL("/auth/callback", publicSiteUrl);
+  const baseUrl = typeof window !== "undefined" ? window.location.origin : publicSiteUrl;
+  const url = new URL("/auth/callback", baseUrl);
   if (next) url.searchParams.set("next", next);
   return url.toString();
 }
