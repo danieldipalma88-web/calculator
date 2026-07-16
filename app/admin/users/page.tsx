@@ -1712,6 +1712,17 @@ function wonExportScript() {
       window.alert("Excel export failed. Please try again.");
     }
   }
+  function handleWonSelectionClick(event) {
+    var selectLabel = event.target && event.target.closest ? event.target.closest(".won-card-summary .won-select") : null;
+    if (!selectLabel) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+    var selectBox = selectLabel.querySelector(".won-sale-select");
+    if (!selectBox || selectBox.disabled) return;
+    selectBox.checked = !selectBox.checked;
+    selectBox.dispatchEvent(new Event("change", { bubbles: true }));
+  }
   function handleWonClick(event) {
     var selectTarget = event.target && event.target.closest ? event.target.closest("[data-select-all-won]") : null;
     if (selectTarget) {
@@ -1784,6 +1795,7 @@ function wonExportScript() {
     setWonActionLoading(form, event.submitter);
   }
   window.__adminWonOptionsRuntime = {
+    selectionClick: handleWonSelectionClick,
     click: handleWonClick,
     keydown: handleWonKeydown,
     change: handleWonChange,
@@ -1795,6 +1807,9 @@ function wonExportScript() {
   };
   if (!window.__adminWonOptionsHandlersBound) {
     window.__adminWonOptionsHandlersBound = true;
+    document.addEventListener("click", function(event){
+      if (window.__adminWonOptionsRuntime) window.__adminWonOptionsRuntime.selectionClick(event);
+    }, true);
     document.addEventListener("click", function(event){
       if (window.__adminWonOptionsRuntime) window.__adminWonOptionsRuntime.click(event);
     });
@@ -3829,6 +3844,10 @@ export default async function AdminUsersPage({
                 key={wonOptionDomKey(option)}
               >
                 <summary className="won-card-summary">
+                  <label className="won-select">
+                    <input className="won-sale-select" type="checkbox" value={wonOptionDomKey(option)} />
+                    <span>Select</span>
+                  </label>
                   <div className="won-row-main">
                     <strong>{option.optionName}</strong>
                     <span>{option.userName} - {option.businessName}</span>
@@ -3863,10 +3882,6 @@ export default async function AdminUsersPage({
                     <span className="expanded-label">Collapse</span>
                   </span>
                 </summary>
-                <label className="won-select won-row-select">
-                  <input className="won-sale-select" type="checkbox" value={wonOptionDomKey(option)} />
-                  <span>Select</span>
-                </label>
                 <div className="won-card-body">
                 <div className="won-card-head">
                   <div className="won-title">
