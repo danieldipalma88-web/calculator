@@ -1436,12 +1436,53 @@ select {
 }
 
 .won-select-checkbox {
+  appearance: none;
+  display: inline-grid;
   width: 18px;
   height: 18px;
+  box-sizing: border-box;
+  place-items: center;
   justify-self: start;
   margin: 0;
-  accent-color: #0f766e;
+  padding: 0;
+  border: 1.5px solid rgba(100, 116, 139, 0.72);
+  border-radius: 4px;
+  background: #fff;
   cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+
+.won-select-checkbox::after {
+  width: 5px;
+  height: 9px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  content: "";
+  opacity: 0;
+  transform: rotate(45deg) translate(-1px, -1px);
+}
+
+.won-select-checkbox[aria-checked="true"] {
+  border-color: #0f766e;
+  background: #0f766e;
+}
+
+.won-select-checkbox[aria-checked="true"]::after {
+  opacity: 1;
+}
+
+.won-select-checkbox:focus-visible {
+  outline: 3px solid rgba(14, 116, 144, 0.28);
+  outline-offset: 2px;
+}
+
+.won-select-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .payment-pill {

@@ -1170,6 +1170,15 @@ function wonExportScript() {
     var hasVisibleUnchecked = visibleBoxes.some(function(box){ return !box.checked; });
     selectAll.textContent = visibleBoxes.length && !hasVisibleUnchecked ? "Clear visible" : "Select visible";
   }
+  function syncWonSelectionControl(box) {
+    if (!box || !box.closest) return;
+    var card = box.closest(".won-card");
+    var control = card ? card.querySelector("[data-won-select-toggle]") : null;
+    if (control) control.setAttribute("aria-checked", box.checked ? "true" : "false");
+  }
+  function syncWonSelectionControls() {
+    Array.prototype.slice.call(document.querySelectorAll(".won-sale-select")).forEach(syncWonSelectionControl);
+  }
   function selectedWonCards() {
     return Array.prototype.slice.call(document.querySelectorAll(".won-sale-select:checked"))
       .map(function(box){ return box.closest ? box.closest(".won-card") : null; })
@@ -1320,6 +1329,7 @@ function wonExportScript() {
         if (box) box.checked = false;
       }
     });
+    syncWonSelectionControls();
     updateSelectAllLabel();
     refreshBulkInputs();
     updateSalespersonSummaryTotals(activePayments);
@@ -1713,16 +1723,17 @@ function wonExportScript() {
     }
   }
   function handleWonSelectionClick(event) {
-    var selectBox = event.target && event.target.matches && event.target.matches(".won-card-summary .won-sale-select") ? event.target : null;
-    if (!selectBox || selectBox.disabled) return;
+    var selectControl = event.target && event.target.closest ? event.target.closest(".won-card-summary [data-won-select-toggle]") : null;
+    if (!selectControl || selectControl.disabled) return;
     event.preventDefault();
     event.stopPropagation();
     if (event.stopImmediatePropagation) event.stopImmediatePropagation();
-    var selected = selectBox.checked;
-    window.queueMicrotask(function(){
-      selectBox.checked = selected;
-      selectBox.dispatchEvent(new Event("change", { bubbles: true }));
-    });
+    var card = selectControl.closest ? selectControl.closest(".won-card") : null;
+    var selectBox = card ? card.querySelector(".won-sale-select") : null;
+    if (!selectBox || selectBox.disabled) return;
+    selectBox.checked = !selectBox.checked;
+    syncWonSelectionControl(selectBox);
+    selectBox.dispatchEvent(new Event("change", { bubbles: true }));
   }
   function handleWonClick(event) {
     var selectTarget = event.target && event.target.closest ? event.target.closest("[data-select-all-won]") : null;
@@ -1733,6 +1744,7 @@ function wonExportScript() {
         .filter(Boolean);
       var shouldCheck = boxes.some(function(box){ return !box.checked; });
       boxes.forEach(function(box){ box.checked = shouldCheck; });
+      syncWonSelectionControls();
       updateSelectAllLabel();
       refreshBulkInputs();
       setExportStatus(shouldCheck ? "Selected " + boxes.length + " visible won option" + (boxes.length === 1 ? "." : "s.") : "Cleared visible selections.", "success");
@@ -1764,6 +1776,12 @@ function wonExportScript() {
   }
   function handleWonKeydown(event) {
     if (event.key !== "Enter" && event.key !== " ") return;
+    var selectionControl = event.target && event.target.closest ? event.target.closest(".won-card-summary [data-won-select-toggle]") : null;
+    if (selectionControl) {
+      event.preventDefault();
+      selectionControl.click();
+      return;
+    }
     if (event.target && event.target.closest && event.target.closest("[data-payment-filter]")) return;
     var target = event.target && event.target.closest ? event.target.closest("[data-salesperson-filter]") : null;
     if (!target) return;
@@ -1772,6 +1790,7 @@ function wonExportScript() {
   }
   function handleWonChange(event) {
     if (event.target && event.target.classList && event.target.classList.contains("won-sale-select")) {
+      syncWonSelectionControl(event.target);
       updateSelectAllLabel();
       refreshBulkInputs();
       setExportStatus("", "");
@@ -3846,10 +3865,19 @@ export default async function AdminUsersPage({
               >
                 <summary className="won-card-summary">
                   <input
-                    aria-label={`Select ${option.optionName}`}
-                    className="won-sale-select won-select-checkbox"
+                    aria-hidden="true"
+                    className="won-sale-select won-select-hidden"
+                    tabIndex={-1}
                     type="checkbox"
                     value={wonOptionDomKey(option)}
+                  />
+                  <button
+                    aria-checked="false"
+                    aria-label={`Select ${option.optionName}`}
+                    className="won-select-checkbox"
+                    data-won-select-toggle
+                    role="checkbox"
+                    type="button"
                   />
                   <div className="won-row-main">
                     <strong>{option.optionName}</strong>
