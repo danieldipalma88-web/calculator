@@ -1178,11 +1178,32 @@ function wonExportScript() {
   function selectedWonSelections() {
     return selectedWonCards().map(parseSelectionCard).filter(Boolean);
   }
+  function updateSelectedTotals() {
+    var totalsNode = document.querySelector("[data-won-selected-totals]");
+    if (!totalsNode) return;
+    var cards = selectedWonCards();
+    if (!cards.length) {
+      totalsNode.hidden = true;
+      totalsNode.textContent = "";
+      return;
+    }
+    var totals = cards.reduce(function(total, card){
+      total.sales += numberFromCard(card, "data-won-sales-total");
+      total.agency += numberFromCard(card, "data-won-agency-total");
+      total.profit += numberFromCard(card, "data-won-profit-total");
+      return total;
+    }, { sales: 0, agency: 0, profit: 0 });
+    totalsNode.hidden = false;
+    totalsNode.textContent = "Selected totals (" + cards.length + "): Sales comm " + currency(totals.sales) +
+      " | Agency comm " + currency(totals.agency) +
+      " | Installer profit " + currency(totals.profit);
+  }
   function refreshBulkInputs() {
     var value = JSON.stringify(selectedWonSelections());
     Array.prototype.slice.call(document.querySelectorAll("[data-selected-won-input]")).forEach(function(input){
       input.value = value;
     });
+    updateSelectedTotals();
   }
   function setExportStatus(message, tone) {
     var status = document.querySelector("[data-won-export-status]");
@@ -1692,18 +1713,6 @@ function wonExportScript() {
     }
   }
   function handleWonClick(event) {
-    var selectLabel = event.target && event.target.closest ? event.target.closest(".won-card-summary .won-select") : null;
-    if (selectLabel) {
-      event.preventDefault();
-      event.stopPropagation();
-      var selectBox = selectLabel.querySelector(".won-sale-select");
-      if (selectBox) {
-        selectBox.checked = !selectBox.checked;
-        selectBox.dispatchEvent(new Event("change", { bubbles: true }));
-      }
-      return;
-    }
-
     var selectTarget = event.target && event.target.closest ? event.target.closest("[data-select-all-won]") : null;
     if (selectTarget) {
       event.preventDefault();
@@ -3794,6 +3803,7 @@ export default async function AdminUsersPage({
           <div className="won-filter-status" data-won-filter-status>
             Showing all {wonOptions.length} won options.
           </div>
+          <div className="won-selected-totals" data-won-selected-totals hidden aria-live="polite" />
 
           <div className="won-grid">
             {wonOptions.map((option) => (
@@ -3814,14 +3824,11 @@ export default async function AdminUsersPage({
                 data-payment-paid-out={option.paidOutAt ? "true" : "false"}
                 data-won-agency-total={option.agencyCommissionTotal}
                 data-won-customer-total={option.customerTotal}
+                data-won-profit-total={option.installerProfitTotal}
                 data-won-sales-total={option.salespersonCommissionTotal}
                 key={wonOptionDomKey(option)}
               >
                 <summary className="won-card-summary">
-                  <label className="won-select">
-                    <input className="won-sale-select" type="checkbox" value={wonOptionDomKey(option)} />
-                    <span>Select</span>
-                  </label>
                   <div className="won-row-main">
                     <strong>{option.optionName}</strong>
                     <span>{option.userName} - {option.businessName}</span>
@@ -3839,12 +3846,16 @@ export default async function AdminUsersPage({
                       <strong>{option.systemCount}</strong>
                     </span>
                     <span className="won-row-metric">
-                      <span>Customer</span>
-                      <strong>{formatMoney(option.customerTotal)}</strong>
+                      <span>Agency comm</span>
+                      <strong>{formatMoney(option.agencyCommissionTotal)}</strong>
                     </span>
                     <span className="won-row-metric">
                       <span>Sales comm</span>
                       <strong>{formatMoney(option.salespersonCommissionTotal)}</strong>
+                    </span>
+                    <span className="won-row-metric">
+                      <span>Installer profit</span>
+                      <strong>{formatMoney(option.installerProfitTotal)}</strong>
                     </span>
                   </div>
                   <span className="won-expand-label">
@@ -3852,6 +3863,10 @@ export default async function AdminUsersPage({
                     <span className="expanded-label">Collapse</span>
                   </span>
                 </summary>
+                <label className="won-select won-row-select">
+                  <input className="won-sale-select" type="checkbox" value={wonOptionDomKey(option)} />
+                  <span>Select</span>
+                </label>
                 <div className="won-card-body">
                 <div className="won-card-head">
                   <div className="won-title">
