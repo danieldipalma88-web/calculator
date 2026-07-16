@@ -2083,6 +2083,86 @@ function addWonOptionsFromSnapshot({
   });
 }
 
+function normalizeWonOptionText(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function wonOptionRowsFingerprint(option: WonOption) {
+  const rows = option.rows
+    .map((row) => [
+      normalizeWonOptionText(row.type),
+      normalizeWonOptionText(row.brand),
+      normalizeWonOptionText(row.series),
+      normalizeWonOptionText(row.size),
+      normalizeWonOptionText(row.model),
+      normalizeWonOptionText(row.install),
+      row.finalInc.toFixed(2),
+      row.rebate.toFixed(2),
+      row.agencyCommissionInc.toFixed(2),
+      row.netProfit.toFixed(2),
+    ].join("~"))
+    .sort();
+  return rows.length
+    ? rows.join("|")
+    : `${option.systemCount}|${option.customerTotal.toFixed(2)}|${option.rebateTotal.toFixed(2)}`;
+}
+
+function duplicateWonOptionKey(option: WonOption) {
+  return [
+    option.userEmail.toLowerCase(),
+    option.optionId,
+    normalizeWonOptionText(option.optionName),
+    wonOptionRowsFingerprint(option),
+  ].join("::");
+}
+
+function wonOptionSourcePriority(option: WonOption) {
+  if (option.recoveredFromBackup) return 0;
+  if (option.sourceId === CURRENT_WON_SOURCE_ID) return 3;
+  if (option.sourceId.startsWith("saved:") || option.sourceId.startsWith("saved-index:")) return 2;
+  return 1;
+}
+
+function paymentStatusPriority(option: WonOption) {
+  if (option.paymentStatus === "payment_complete") return 2;
+  if (option.paymentStatus === "payment_partial") return 1;
+  return 0;
+}
+
+function preferDuplicateWonOption(existing: WonOption, next: WonOption) {
+  const existingOwnerMatches = existing.dataOwnerEmail.toLowerCase() === existing.userEmail.toLowerCase();
+  const nextOwnerMatches = next.dataOwnerEmail.toLowerCase() === next.userEmail.toLowerCase();
+  if (existingOwnerMatches !== nextOwnerMatches) return nextOwnerMatches ? next : existing;
+
+  const existingPaymentPriority = paymentStatusPriority(existing);
+  const nextPaymentPriority = paymentStatusPriority(next);
+  if (existingPaymentPriority !== nextPaymentPriority) {
+    return nextPaymentPriority > existingPaymentPriority ? next : existing;
+  }
+
+  const existingSourcePriority = wonOptionSourcePriority(existing);
+  const nextSourcePriority = wonOptionSourcePriority(next);
+  if (existingSourcePriority !== nextSourcePriority) {
+    return nextSourcePriority > existingSourcePriority ? next : existing;
+  }
+
+  if (existing.rows.length !== next.rows.length) return next.rows.length > existing.rows.length ? next : existing;
+
+  const existingTime = Number(new Date(existing.wonAt || 0));
+  const nextTime = Number(new Date(next.wonAt || 0));
+  return nextTime > existingTime ? next : existing;
+}
+
+function canonicalWonOptions(options: WonOption[]) {
+  const canonical = new Map<string, WonOption>();
+  options.forEach((option) => {
+    const key = duplicateWonOptionKey(option);
+    const existing = canonical.get(key);
+    canonical.set(key, existing ? preferDuplicateWonOption(existing, option) : option);
+  });
+  return [...canonical.values()];
+}
+
 async function listWonOptions(supabase: SupabaseServer, users: ApprovedUser[], includeBackups = false) {
   const dataResult = await supabase
     .from("user_calculator_data")
@@ -2204,9 +2284,10 @@ async function listWonOptions(supabase: SupabaseServer, users: ApprovedUser[], i
   }
 
   const backupErrorMessage = backupResult.error ? dbMessage(backupResult.error) : "";
+  const dedupedWonOptions = canonicalWonOptions([...wonOptions.values()]);
 
   return {
-    data: [...wonOptions.values()].sort((a, b) => Number(new Date(b.wonAt)) - Number(new Date(a.wonAt))),
+    data: dedupedWonOptions.sort((a, b) => Number(new Date(b.wonAt)) - Number(new Date(a.wonAt))),
     errorMessage: backupErrorMessage ? `Backup won options were not checked: ${backupErrorMessage}` : "",
   };
 }
