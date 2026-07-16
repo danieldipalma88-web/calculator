@@ -1692,6 +1692,18 @@ function wonExportScript() {
     }
   }
   function handleWonClick(event) {
+    var selectLabel = event.target && event.target.closest ? event.target.closest(".won-card-summary .won-select") : null;
+    if (selectLabel) {
+      event.preventDefault();
+      event.stopPropagation();
+      var selectBox = selectLabel.querySelector(".won-sale-select");
+      if (selectBox) {
+        selectBox.checked = !selectBox.checked;
+        selectBox.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      return;
+    }
+
     var selectTarget = event.target && event.target.closest ? event.target.closest("[data-select-all-won]") : null;
     if (selectTarget) {
       event.preventDefault();
@@ -3785,7 +3797,7 @@ export default async function AdminUsersPage({
 
           <div className="won-grid">
             {wonOptions.map((option) => (
-              <article
+              <details
                 className={`won-card won-card-${option.paymentStatus}`}
                 data-export-row={JSON.stringify(wonExportRow(option))}
                 data-won-selection={JSON.stringify({
@@ -3805,11 +3817,43 @@ export default async function AdminUsersPage({
                 data-won-sales-total={option.salespersonCommissionTotal}
                 key={wonOptionDomKey(option)}
               >
-                <div className="won-card-head">
+                <summary className="won-card-summary">
                   <label className="won-select">
                     <input className="won-sale-select" type="checkbox" value={wonOptionDomKey(option)} />
                     <span>Select</span>
                   </label>
+                  <div className="won-row-main">
+                    <strong>{option.optionName}</strong>
+                    <span>{option.userName} - {option.businessName}</span>
+                  </div>
+                  <div className="won-row-metrics">
+                    <span className={`payment-pill payment-pill-${option.paymentStatus}`}>
+                      {option.paymentStatusLabel}
+                    </span>
+                    <span className="won-row-metric">
+                      <span>Won</span>
+                      <strong>{option.wonAt ? formatShortDate(option.wonAt) : "Won"}</strong>
+                    </span>
+                    <span className="won-row-metric">
+                      <span>Systems</span>
+                      <strong>{option.systemCount}</strong>
+                    </span>
+                    <span className="won-row-metric">
+                      <span>Customer</span>
+                      <strong>{formatMoney(option.customerTotal)}</strong>
+                    </span>
+                    <span className="won-row-metric">
+                      <span>Sales comm</span>
+                      <strong>{formatMoney(option.salespersonCommissionTotal)}</strong>
+                    </span>
+                  </div>
+                  <span className="won-expand-label">
+                    <span className="collapsed-label">Expand</span>
+                    <span className="expanded-label">Collapse</span>
+                  </span>
+                </summary>
+                <div className="won-card-body">
+                <div className="won-card-head">
                   <div className="won-title">
                     <strong>{option.optionName}</strong>
                     <span className="muted-line">
@@ -3927,7 +3971,8 @@ export default async function AdminUsersPage({
                     </div>
                   ))}
                 </div>
-              </article>
+                </div>
+              </details>
             ))}
             {!wonOptions.length ? <div className="empty-card">No won options yet.</div> : null}
             </div>
