@@ -1435,31 +1435,13 @@ select {
   overflow-wrap: anywhere;
 }
 
-.won-select {
-  display: inline-flex;
-  align-items: center;
+.won-select-checkbox {
+  width: 18px;
+  height: 18px;
   justify-self: start;
-  gap: 8px;
-  min-height: 36px;
-  padding: 0 10px;
-  border: 1px solid rgba(203, 213, 225, 0.95);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.84);
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 900;
-  white-space: nowrap;
-}
-
-.won-select input {
-  width: 16px;
-  height: 16px;
   margin: 0;
-}
-
-.won-select:hover {
-  border-color: rgba(14, 116, 144, 0.42);
-  color: var(--ink);
+  accent-color: #0f766e;
+  cursor: pointer;
 }
 
 .payment-pill {

@@ -1713,15 +1713,16 @@ function wonExportScript() {
     }
   }
   function handleWonSelectionClick(event) {
-    var selectLabel = event.target && event.target.closest ? event.target.closest(".won-card-summary .won-select") : null;
-    if (!selectLabel) return;
+    var selectBox = event.target && event.target.matches && event.target.matches(".won-card-summary .won-sale-select") ? event.target : null;
+    if (!selectBox || selectBox.disabled) return;
     event.preventDefault();
     event.stopPropagation();
     if (event.stopImmediatePropagation) event.stopImmediatePropagation();
-    var selectBox = selectLabel.querySelector(".won-sale-select");
-    if (!selectBox || selectBox.disabled) return;
-    selectBox.checked = !selectBox.checked;
-    selectBox.dispatchEvent(new Event("change", { bubbles: true }));
+    var selected = selectBox.checked;
+    window.queueMicrotask(function(){
+      selectBox.checked = selected;
+      selectBox.dispatchEvent(new Event("change", { bubbles: true }));
+    });
   }
   function handleWonClick(event) {
     var selectTarget = event.target && event.target.closest ? event.target.closest("[data-select-all-won]") : null;
@@ -3844,10 +3845,12 @@ export default async function AdminUsersPage({
                 key={wonOptionDomKey(option)}
               >
                 <summary className="won-card-summary">
-                  <label className="won-select">
-                    <input className="won-sale-select" type="checkbox" value={wonOptionDomKey(option)} />
-                    <span>Select</span>
-                  </label>
+                  <input
+                    aria-label={`Select ${option.optionName}`}
+                    className="won-sale-select won-select-checkbox"
+                    type="checkbox"
+                    value={wonOptionDomKey(option)}
+                  />
                   <div className="won-row-main">
                     <strong>{option.optionName}</strong>
                     <span>{option.userName} - {option.businessName}</span>
