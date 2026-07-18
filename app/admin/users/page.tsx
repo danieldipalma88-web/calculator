@@ -73,6 +73,9 @@ type WonOption = {
   optionId: string;
   optionName: string;
   wonAt: string;
+  installationAddress: string;
+  googlePlaceId: string;
+  proposedInstallationDate: string;
   paidInAt: string;
   paidOutAt: string;
   paymentStatus: WonPaymentStatus;
@@ -998,6 +1001,11 @@ function formatShortDate(value: string) {
   return value ? new Date(value).toLocaleDateString("en-AU") : "";
 }
 
+function formatDateOnly(value: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || ""));
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : formatShortDate(value);
+}
+
 function wonPaymentStatus(paidInAt: string, paidOutAt: string): WonPaymentStatus {
   if (paidInAt && paidOutAt) return "payment_complete";
   if (paidInAt || paidOutAt) return "payment_partial";
@@ -1058,6 +1066,9 @@ function wonExportRow(option: WonOption) {
     Option: option.optionName,
     Source: option.recoveredFromBackup ? "Recovered backup" : "Current calculator data",
     "Won date": formatShortDate(option.wonAt),
+    "Installation address": option.installationAddress,
+    "Google Place ID": option.googlePlaceId,
+    "Proposed installation date": formatDateOnly(option.proposedInstallationDate),
     Status: option.paymentStatusLabel,
     "Paid in date": formatShortDate(option.paidInAt),
     "Paid out date": formatShortDate(option.paidOutAt),
@@ -2042,6 +2053,12 @@ function addWonOptionsFromSnapshot({
       const firstBusinessName = rows
         .map((quote) => String(quote.businessName || ""))
         .find(Boolean);
+      const detailRow = rows.find((quote) =>
+        quote.installationAddress || quote.googlePlaceId || quote.proposedInstallationDate
+      ) || {};
+      const installationAddress = String(option.installationAddress || detailRow.installationAddress || "").trim();
+      const googlePlaceId = String(option.googlePlaceId || detailRow.googlePlaceId || "").trim();
+      const proposedInstallationDate = String(option.proposedInstallationDate || detailRow.proposedInstallationDate || "").trim();
       const wonRows = rows.map((quote) => ({
         label: optionRowLabel(quote) || String(quote.model || "System"),
         type: String(quote.type || ""),
@@ -2091,6 +2108,9 @@ function addWonOptionsFromSnapshot({
         optionId,
         optionName: String(option.name || "Option"),
         wonAt,
+        installationAddress,
+        googlePlaceId,
+        proposedInstallationDate,
         paidInAt,
         paidOutAt,
         paymentStatus,
@@ -4013,6 +4033,8 @@ export default async function AdminUsersPage({
                   </div>
                 </div>
                 <div className="won-metrics">
+                  <div><span>Installation address</span><strong>{option.installationAddress || "Not recorded"}</strong></div>
+                  <div><span>Proposed installation</span><strong>{option.proposedInstallationDate ? formatDateOnly(option.proposedInstallationDate) : "Not recorded"}</strong></div>
                   <div><span>Systems</span><strong>{option.systemCount}</strong></div>
                   <div><span>Customer</span><strong>{formatMoney(option.customerTotal)}</strong></div>
                   <div><span>Rebate</span><strong>{formatMoney(option.rebateTotal)}</strong></div>

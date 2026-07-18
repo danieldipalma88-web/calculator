@@ -1293,6 +1293,30 @@ tbody tr:hover td{background:#f0f7ff}
   overflow-wrap:anywhere;
 }
 .selectedQuoteNameBar button{flex:0 0 auto}
+.wonDetailsModalCard{width:min(560px,100%)}
+.wonDetailsFields{display:grid;gap:16px;margin-top:18px}
+.wonDetailsField label{margin:0 0 7px}
+.wonRequired{
+  margin-left:6px;
+  color:#9a3412;
+  font-size:9px;
+  font-weight:900;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+.wonAddressLookup{
+  min-height:46px;
+  border:1px solid #c9d7e6;
+  border-radius:8px;
+  background:#fff;
+  overflow:visible;
+}
+.wonAddressLookup gmp-place-autocomplete{display:block;width:100%;min-height:44px}
+.wonAddressLoading{padding:13px 14px;color:#64748b;font-size:13px}
+.wonAddressStatus{margin-top:7px;color:#64748b;font-size:12px;line-height:1.4}
+.wonAddressStatus.success{color:#166534}
+.wonAddressStatus.error{color:#b91c1c}
+.wonDetailsField input[type="date"]{min-height:46px}
 .portraitOnlyNotice{
   position:fixed;
   inset:0;
@@ -2078,6 +2102,7 @@ tbody tr:hover td{background:#f0f7ff}
 <div id="quoteActionNotice" class="quoteActionNotice" role="status" aria-live="polite"></div>
 <div id="quoteNameModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="quoteNameModalTitle" aria-describedby="quoteNameModalDescription" onclick="if(event.target===this)closeQuoteNameModal()"><div class="quoteNameModalCard"><div id="quoteNameModalKicker" class="kicker">Name this quote</div><h2 id="quoteNameModalTitle">Who is this quote for?</h2><p id="quoteNameModalDescription">Enter the customer name before adding the first system.</p><label for="quoteNameModalInput">Customer name</label><input id="quoteNameModalInput" type="text" autocomplete="name" placeholder="Example: Ash Macquarie Links" oninput="updateQuoteNameModalSubmitState()" onkeydown="if(event.key==='Enter')confirmQuoteNameModal()"><div id="quoteNameModalHint" class="hint" role="status" aria-live="polite" style="display:none"></div><div class="quoteNameModalActions"><button class="secondary" type="button" onclick="closeQuoteNameModal()">Cancel</button><button id="quoteNameModalSubmit" class="orange" type="button" onclick="confirmQuoteNameModal()" disabled>Add to Quote</button></div></div></div>
 <div id="removeSystemModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="removeSystemModalTitle" onclick="if(event.target===this)closeRemoveSystemModal()"><div class="quoteNameModalCard"><div class="kicker">Current quote</div><h2 id="removeSystemModalTitle">Remove this system?</h2><p id="removeSystemModalMessage">This system will no longer be included in the quote totals.</p><div class="quoteNameModalActions"><button class="secondary" type="button" onclick="closeRemoveSystemModal()">Cancel</button><button class="danger" type="button" onclick="confirmRemoveCurrentQuoteSystem()">Remove system</button></div></div></div>
+<div id="wonDetailsModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="wonDetailsModalTitle" aria-describedby="wonDetailsModalDescription" onclick="if(event.target===this)closeWonDetailsModal()"><div class="quoteNameModalCard wonDetailsModalCard"><div class="kicker">Won job details</div><h2 id="wonDetailsModalTitle">Complete won job</h2><p id="wonDetailsModalDescription">Confirm the installation location and proposed date before locking this quote.</p><div class="wonDetailsFields"><div class="wonDetailsField"><label id="wonAddressLabel">Installation address <span class="wonRequired">Required</span></label><div id="wonAddressLookup" class="wonAddressLookup" aria-labelledby="wonAddressLabel"><div class="wonAddressLoading">Loading Google address search...</div></div><div id="wonAddressStatus" class="wonAddressStatus" role="status" aria-live="polite">A Google address selection is required.</div></div><div class="wonDetailsField"><label for="wonInstallDate">Proposed installation date <span class="wonRequired">Required</span></label><input id="wonInstallDate" type="date" required onchange="updateWonDetailsSubmitState()" oninput="updateWonDetailsSubmitState()"></div></div><div id="wonDetailsHint" class="hint" role="status" aria-live="polite" style="display:none"></div><div class="quoteNameModalActions"><button class="secondary" type="button" onclick="closeWonDetailsModal()">Cancel</button><button id="wonDetailsSubmit" class="green" type="button" onclick="confirmWonDetails()" disabled>Mark as won</button></div></div></div>
 <div class="portraitOnlyNotice" aria-live="polite"><div><strong>Use portrait view</strong><span>Rotate your phone upright to continue quoting.</span></div></div>
 <div id="overlay" class="drawerOverlay" onclick="closeAllDrawers()"></div>
 <div id="drawer" class="quoteDrawer quoteBuilderDrawer"><div class="drawerHead"><div><div class="kicker">Quote builder</div><h2 style="margin:4px 0">View quotes</h2><div class="sub drawerIntro">Compare split and ducted quotes. Working quotes are stored for 7 days. Use Save Quote to store permanent snapshots in this browser.</div><div class="quoteExportField" style="margin-top:14px;max-width:420px"><label>Quote / customer export name</label><input id="quoteExportName" placeholder="Example: Ash Macquarie Links" oninput="saveQuoteExportName()"></div></div><div class="actions"><button class="orange" onclick="saveCurrentQuoteSet()">Save Quote</button><button class="secondary" onclick="downloadCsv()">Download CSV</button><button class="danger" onclick="clearQuotes()">Clear</button><button class="secondary" onclick="closeDrawer()">Close</button></div></div>
@@ -6263,6 +6288,185 @@ function assertOptionEditable(id){
   alert('This quote is marked as won and locked. Ask Daniel to unlock it before making changes.');
   return false;
 }
+let pendingWonOptionId='';
+let selectedWonGooglePlace=null;
+let wonAddressAutocomplete=null;
+let googlePlacesLibraryPromise=null;
+function googleMapsBrowserKey(){
+  return String(calculatorUserContext().googleMapsBrowserKey||'').trim();
+}
+function loadGooglePlacesLibrary(){
+  if(window.google&&window.google.maps&&window.google.maps.importLibrary) return window.google.maps.importLibrary('places');
+  if(googlePlacesLibraryPromise) return googlePlacesLibraryPromise;
+  const key=googleMapsBrowserKey();
+  if(!key) return Promise.reject(new Error('Google address search is not configured.'));
+  googlePlacesLibraryPromise=new Promise((resolve,reject)=>{
+    const callback='__calculatorGoogleMapsReady';
+    const script=document.createElement('script');
+    window[callback]=()=>{
+      delete window[callback];
+      if(window.google&&window.google.maps&&window.google.maps.importLibrary) resolve(window.google.maps.importLibrary('places'));
+      else reject(new Error('Google address search did not load.'));
+    };
+    script.async=true;
+    script.defer=true;
+    script.dataset.calculatorGoogleMaps='true';
+    script.src='https://maps.googleapis.com/maps/api/js?key='+encodeURIComponent(key)+'&loading=async&libraries=places&v=weekly&callback='+callback;
+    script.onerror=()=>{
+      delete window[callback];
+      reject(new Error('Google address search could not be loaded.'));
+    };
+    document.head.appendChild(script);
+  }).catch(error=>{
+    googlePlacesLibraryPromise=null;
+    throw error;
+  });
+  return googlePlacesLibraryPromise;
+}
+function setWonAddressStatus(message,state){
+  const status=$('wonAddressStatus');
+  if(!status) return;
+  status.textContent=message;
+  status.classList.toggle('success',state==='success');
+  status.classList.toggle('error',state==='error');
+}
+function updateWonDetailsSubmitState(){
+  const date=String(($('wonInstallDate')&&$('wonInstallDate').value)||'').trim();
+  const submit=$('wonDetailsSubmit');
+  if(submit) submit.disabled=!(pendingWonOptionId&&selectedWonGooglePlace&&selectedWonGooglePlace.placeId&&date);
+}
+async function mountWonAddressAutocomplete(){
+  const container=$('wonAddressLookup');
+  if(!container) return;
+  const optionId=pendingWonOptionId;
+  container.innerHTML='<div class="wonAddressLoading">Loading Google address search...</div>';
+  try{
+    const library=await loadGooglePlacesLibrary();
+    if(!pendingWonOptionId||pendingWonOptionId!==optionId) return;
+    const PlaceAutocompleteElement=library&&library.PlaceAutocompleteElement;
+    if(!PlaceAutocompleteElement) throw new Error('Google address search is unavailable.');
+    const autocomplete=new PlaceAutocompleteElement();
+    autocomplete.id='wonAddressAutocomplete';
+    autocomplete.includedRegionCodes=['au'];
+    autocomplete.requestedLanguage='en-AU';
+    autocomplete.requestedRegion='au';
+    autocomplete.placeholder='Start typing an Australian address';
+    autocomplete.setAttribute('aria-label','Installation address');
+    if(selectedWonGooglePlace&&selectedWonGooglePlace.formattedAddress) autocomplete.value=selectedWonGooglePlace.formattedAddress;
+    autocomplete.addEventListener('input',()=>{
+      selectedWonGooglePlace=null;
+      setWonAddressStatus('Select an address from the Google suggestions.','');
+      updateWonDetailsSubmitState();
+    });
+    autocomplete.addEventListener('gmp-select',async event=>{
+      selectedWonGooglePlace=null;
+      setWonAddressStatus('Confirming Google address...','');
+      updateWonDetailsSubmitState();
+      try{
+        const prediction=event&&event.placePrediction;
+        if(!prediction) throw new Error('No Google place was selected.');
+        const place=prediction.toPlace();
+        await place.fetchFields({fields:['id','formattedAddress','location']});
+        const formattedAddress=String(place.formattedAddress||'').trim();
+        const placeId=String(place.id||'').trim();
+        if(!formattedAddress||!placeId) throw new Error('That Google result does not contain a complete address.');
+        selectedWonGooglePlace={
+          formattedAddress,
+          placeId,
+          latitude:place.location&&typeof place.location.lat==='function'?place.location.lat():null,
+          longitude:place.location&&typeof place.location.lng==='function'?place.location.lng():null
+        };
+        setWonAddressStatus(formattedAddress,'success');
+        updateWonDetailsSubmitState();
+      }catch(error){
+        selectedWonGooglePlace=null;
+        setWonAddressStatus(error&&error.message?error.message:'Select a valid Google address.','error');
+        updateWonDetailsSubmitState();
+      }
+    });
+    autocomplete.addEventListener('gmp-error',()=>{
+      selectedWonGooglePlace=null;
+      setWonAddressStatus('Google could not verify that address. Try another search.','error');
+      updateWonDetailsSubmitState();
+    });
+    wonAddressAutocomplete=autocomplete;
+    container.replaceChildren(autocomplete);
+    if(selectedWonGooglePlace&&selectedWonGooglePlace.formattedAddress) setWonAddressStatus(selectedWonGooglePlace.formattedAddress,'success');
+    else setWonAddressStatus('Select an address from the Google suggestions.','');
+    updateWonDetailsSubmitState();
+    setTimeout(()=>autocomplete.focus(),0);
+  }catch(error){
+    wonAddressAutocomplete=null;
+    container.innerHTML='<div class="wonAddressLoading">Google address search unavailable</div>';
+    setWonAddressStatus(error&&error.message?error.message:'Google address search is unavailable.','error');
+    updateWonDetailsSubmitState();
+  }
+}
+function openWonDetailsModal(id){
+  const def=optionDefById(id);
+  if(!def) return;
+  pendingWonOptionId=id;
+  selectedWonGooglePlace=def.googlePlaceId&&def.installationAddress?{
+    formattedAddress:String(def.installationAddress),
+    placeId:String(def.googlePlaceId),
+    latitude:def.installationLatitude??null,
+    longitude:def.installationLongitude??null
+  }:null;
+  const date=$('wonInstallDate');
+  if(date) date.value=String(def.proposedInstallationDate||'');
+  const hint=$('wonDetailsHint');
+  if(hint){hint.textContent='';hint.style.display='none';}
+  const modal=$('wonDetailsModal');
+  if(modal) modal.classList.add('open');
+  updateWonDetailsSubmitState();
+  mountWonAddressAutocomplete();
+}
+function closeWonDetailsModal(){
+  const modal=$('wonDetailsModal');
+  if(modal) modal.classList.remove('open');
+  pendingWonOptionId='';
+  selectedWonGooglePlace=null;
+  wonAddressAutocomplete=null;
+}
+function completeOptionWon(id,details){
+  const def=optionDefById(id);
+  if(!def||def.wonAt) return;
+  const now=new Date().toISOString();
+  const u=calculatorUserContext();
+  const wonDetails={
+    wonAt:now,
+    wonByEmail:String(u.viewingEmail||u.email||''),
+    wonByName:wonOptionOwnerName(),
+    installationAddress:details.formattedAddress,
+    googlePlaceId:details.placeId,
+    installationLatitude:details.latitude,
+    installationLongitude:details.longitude,
+    proposedInstallationDate:details.proposedInstallationDate
+  };
+  Object.assign(def,wonDetails);
+  quotes.forEach(q=>{if(q.optionId===id) Object.assign(q,wonDetails);});
+  persistOptionDefs();
+  persistQuotes();
+  renderQuotes();
+  showQuoteActionNotice(`${def.name} marked as won.`);
+}
+function confirmWonDetails(){
+  const hint=$('wonDetailsHint');
+  const proposedInstallationDate=String(($('wonInstallDate')&&$('wonInstallDate').value)||'').trim();
+  if(!selectedWonGooglePlace||!selectedWonGooglePlace.placeId){
+    if(hint){hint.textContent='Select an installation address from the Google suggestions.';hint.style.display='block';}
+    return;
+  }
+  if(!proposedInstallationDate){
+    if(hint){hint.textContent='Choose a proposed installation date.';hint.style.display='block';}
+    if($('wonInstallDate')) $('wonInstallDate').focus();
+    return;
+  }
+  const id=pendingWonOptionId;
+  const details={...selectedWonGooglePlace,proposedInstallationDate};
+  closeWonDetailsModal();
+  completeOptionWon(id,details);
+}
 function markOptionWon(id){
   ensureOptionDefs();
   const def=optionDefById(id);
@@ -6270,16 +6474,7 @@ function markOptionWon(id){
   if(def.wonAt){alert('This quote is already marked as won.');return;}
   const rows=quotes.filter(q=>q.optionId===id);
   if(!rows.length){alert('Add at least one system to this quote before marking it as won.');return;}
-  if(!confirm("Please confirm that all of the details are correct. Once you've marked this as won, it will be locked and you'll need to get permission to edit it again.")) return;
-  const now=new Date().toISOString();
-  const u=calculatorUserContext();
-  def.wonAt=now;
-  def.wonByEmail=String(u.viewingEmail||u.email||'');
-  def.wonByName=wonOptionOwnerName();
-  quotes.forEach(q=>{if(q.optionId===id){q.wonAt=now;q.wonByEmail=def.wonByEmail;q.wonByName=def.wonByName;}});
-  persistOptionDefs();
-  persistQuotes();
-  renderQuotes();
+  openWonDetailsModal(id);
 }
 function unlockWonOption(id){
   ensureOptionDefs();
@@ -6428,6 +6623,12 @@ function formatWonDate(value){
   const d=new Date(value);
   return Number.isNaN(d.getTime())?'Won':`Won ${d.toLocaleDateString('en-AU')}`;
 }
+function formatProposedInstallationDate(value){
+  const match=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value||''));
+  if(match) return `${match[3]}/${match[2]}/${match[1]}`;
+  const date=new Date(value);
+  return Number.isNaN(date.getTime())?String(value||''):date.toLocaleDateString('en-AU');
+}
 function wonJobTotals(rows){
   const sum=(fn)=>rows.reduce((a,r)=>a+(Number(fn(r))||0),0);
   return {
@@ -6461,6 +6662,7 @@ function collectWonJobsFromSnapshot(source,seen,jobs){
     seen.add(key);
     const totals=wonJobTotals(optionRows);
     const customerName=String(source.customer || source.quoteExportName || '').trim();
+    const detailsRow=optionRows.find(row=>row.installationAddress||row.proposedInstallationDate||row.googlePlaceId)||{};
     jobs.push({
       sourceKind:source.sourceKind,
       sourceId:String(source.sourceId||''),
@@ -6470,8 +6672,9 @@ function collectWonJobsFromSnapshot(source,seen,jobs){
       wonAt,
       wonByName:String(def.wonByName || optionRows.find(row=>row.wonByName)?.wonByName || wonOptionOwnerName() || ''),
       customerName,
-      address:String(source.address||''),
-      date:String(source.date||''),
+      address:String(def.installationAddress || detailsRow.installationAddress || source.address || ''),
+      date:String(def.proposedInstallationDate || detailsRow.proposedInstallationDate || source.date || ''),
+      googlePlaceId:String(def.googlePlaceId || detailsRow.googlePlaceId || ''),
       savedAt:source.savedAt,
       rows:optionRows,
       totals
@@ -6570,7 +6773,7 @@ function renderWonJobs(){
     const sourceMeta=job.sourceKind==='saved'
       ? `Saved quote: ${job.sourceName}${job.savedAt?' - '+formatSavedQuoteTime(job.savedAt):''}`
       : job.sourceName;
-    const detailBits=[job.address,job.date?`Install date: ${job.date}`:'',job.wonByName?`Won by: ${job.wonByName}`:''].filter(Boolean);
+    const detailBits=[job.address,job.date?`Proposed install: ${formatProposedInstallationDate(job.date)}`:'',job.wonByName?`Won by: ${job.wonByName}`:''].filter(Boolean);
     const salesMetric=showSales?`<div><span>Salesperson comm</span><strong>${money(job.totals.salespersonCommission)}</strong></div>`:'';
     const privateMetrics=showPrivate?`<div><span>Agency comm</span><strong>${money(job.totals.agencyCommission)}</strong></div><div><span>Installer profit</span><strong>${money(job.totals.profit)}</strong></div>`:'';
     const action=job.sourceKind==='saved'
