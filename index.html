@@ -1175,6 +1175,64 @@ tbody tr:hover td{background:#f0f7ff}
 }
 .floatingView{background:#0f172a;color:#fff}
 .floatingWon{background:#16a34a;color:#fff;box-shadow:0 18px 36px rgba(22,163,74,.28)}
+.quoteActionNotice{
+  position:fixed;
+  left:50%;
+  bottom:96px;
+  z-index:90;
+  max-width:min(420px,calc(100vw - 32px));
+  transform:translate(-50%,16px);
+  opacity:0;
+  pointer-events:none;
+  border:1px solid #86efac;
+  border-radius:12px;
+  background:#f0fdf4;
+  box-shadow:0 14px 30px rgba(15,23,42,.16);
+  color:#166534;
+  padding:11px 14px;
+  font-size:13px;
+  font-weight:800;
+  transition:opacity .16s ease,transform .16s ease;
+}
+.quoteActionNotice.show{opacity:1;transform:translate(-50%,0)}
+.quoteNameModal{
+  position:fixed;
+  inset:0;
+  z-index:110;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+  background:rgba(15,23,42,.46);
+}
+.quoteNameModal.open{display:flex}
+.quoteNameModalCard{
+  width:min(440px,100%);
+  border:1px solid #d9e3ee;
+  border-radius:16px;
+  background:#fff;
+  box-shadow:0 24px 60px rgba(15,23,42,.28);
+  padding:22px;
+}
+.quoteNameModalCard h2{margin:4px 0 8px;font-size:22px}
+.quoteNameModalCard p{margin:0;color:#475569;font-size:14px;line-height:1.45}
+.quoteNameModalCard label{margin-top:18px}
+.quoteNameModalActions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
+.portraitOnlyNotice{
+  position:fixed;
+  inset:0;
+  z-index:120;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:24px;
+  background:#f1f5f9;
+  color:#0f172a;
+  text-align:center;
+}
+.portraitOnlyNotice div{max-width:280px}
+.portraitOnlyNotice strong{display:block;font-size:20px}
+.portraitOnlyNotice span{display:block;margin-top:8px;color:#475569;font-size:14px;line-height:1.45}
 
 .priceDrawer{width:min(980px,96vw)}
 .priceDrawer table{min-width:980px}
@@ -1271,7 +1329,7 @@ tbody tr:hover td{background:#f0f7ff}
   .wrap{
     width:100%;
     max-width:100%;
-    padding:12px 10px calc(150px + env(safe-area-inset-bottom, 0px));
+    padding:12px 10px calc(96px + env(safe-area-inset-bottom, 0px));
     touch-action:pan-y pinch-zoom;
   }
   .header{display:block;margin-bottom:10px}
@@ -1443,7 +1501,7 @@ tbody tr:hover td{background:#f0f7ff}
     font-size:12px;
   }
   .currentOptionSummaryGrid{
-    grid-template-columns:repeat(2,minmax(0,1fr));
+    grid-template-columns:1fr;
     gap:8px;
   }
   .currentOptionEditActions{
@@ -1559,15 +1617,17 @@ tbody tr:hover td{background:#f0f7ff}
     line-height:1.4;
   }
   .quoteDrawer .tableWrap{
-    overflow-x:hidden;
+    overflow-x:auto;
     border-radius:12px;
+    -webkit-overflow-scrolling:touch;
+    overscroll-behavior-x:contain;
   }
   .quoteDrawer table,
   .quoteDrawer .optionBody table{
-    width:100%;
-    min-width:0!important;
-    max-width:100%;
-    table-layout:fixed;
+    width:max-content;
+    min-width:720px!important;
+    max-width:none;
+    table-layout:auto;
     font-size:11px;
   }
   .quoteDrawer th,
@@ -1584,7 +1644,7 @@ tbody tr:hover td{background:#f0f7ff}
   .optionSummary{font-size:11px}
   .optionTotals{
     display:grid;
-    grid-template-columns:repeat(2,minmax(0,1fr));
+    grid-template-columns:1fr;
     gap:8px;
   }
   .wonJobsSummary,
@@ -1604,6 +1664,15 @@ tbody tr:hover td{background:#f0f7ff}
     gap:8px;
   }
   .optionTools button{width:100%}
+  .quoteActionNotice{bottom:76px;font-size:12px}
+  .quoteNameModal{align-items:flex-end;padding:12px}
+  .quoteNameModalCard{padding:18px;border-radius:14px}
+  .quoteNameModalActions{display:grid;grid-template-columns:1fr 1fr}
+  .quoteNameModalActions button{width:100%}
+}
+@media(max-width:900px) and (max-height:600px) and (orientation:landscape){
+  .portraitOnlyNotice{display:flex}
+  .wrap,.floatingActionBar,.drawerOverlay,.quoteDrawer,.quoteActionNotice,.quoteNameModal{visibility:hidden!important;pointer-events:none!important}
 }
 </style>
 <!-- Version: Option groups -->
@@ -1611,7 +1680,7 @@ tbody tr:hover td{background:#f0f7ff}
 <body>
 <div class="wrap">
   <div class="header">
-    <div class="brand"><div class="kicker">Installer quote tool</div><h1>Master Quote Calculator</h1><div class="sub">Split system and ducted internal quoting calculator with commission, GST and option comparison.</div><div class="systemTabs"><button id="splitTab" class="active" onclick="setSystem('split')">Split System</button><button id="ductedTab" onclick="setSystem('ducted')">Ducted System</button><button id="multiSplitTab" class="hidden" onclick="setMultiSplitSection()">Multi-head Split System</button></div></div>
+    <div class="brand"><div class="kicker">Installer quote tool</div><h1>Master Quote Calculator</h1><div class="sub">Split system and ducted internal quoting calculator with commission, GST and quote comparison.</div><div class="systemTabs"><button id="splitTab" class="active" onclick="setSystem('split')">Split System</button><button id="ductedTab" onclick="setSystem('ducted')">Ducted System</button><button id="multiSplitTab" class="hidden" onclick="setMultiSplitSection()">Multi-head Split System</button></div></div>
     <div style="display:none"><input id="customer" type="hidden"><input id="date" type="hidden"><input id="address" type="hidden"></div>
   </div>
   <div class="grid" id="standardCalculatorSection">
@@ -1710,8 +1779,8 @@ tbody tr:hover td{background:#f0f7ff}
       <div id="salespersonCommissionIncRow" class="summaryLine"><span>Salesperson commission payable inc GST</span><strong id="salespersonCommissionInc"></strong></div>
       <div id="netProfitRow" class="summaryLine cash profitHighlight"><span id="netProfitLabel">Installer profit after commission ex GST</span><strong><span id="netProfit"></span><small id="netProfitMargin"></small></strong></div>
       <div id="summaryInstallAddons" class="summaryAddons hidden"><div class="summaryAddonsHead"><strong>Install add-ons</strong><span>Cost only</span></div><div id="summaryInstallAddonRows" class="summaryAddonRows"></div><div id="summaryInstallAddonFoot" class="summaryAddonFoot"></div></div>
-      <div class="actions"><button class="orange" onclick="addToQuote()">Add to Quote</button><button class="secondary" onclick="openDrawer()">View Options (<span id="quoteCount">0</span>)</button><button class="green" onclick="openWonJobsDrawer()">Won Jobs (<span data-won-jobs-count>0</span>)</button><button class="secondary" onclick="openPriceDrawer()">Price Manager</button><button id="certValuesActionBtn" class="secondary" onclick="openCertDrawer()">Certificate Values</button></div>
-      <div style="margin-top:12px"><label>Add current unit to option</label><div class="row2"><select id="addOptionSelect" onchange="onOptionSelectionChange(this.value)"></select><button class="secondary" type="button" onclick="createNewOption(true)">+ New Option</button></div><div style="margin-top:10px"><label>Selected option name</label><input id="mainOptionName" placeholder="Option name" onchange="renameCurrentMainOption(this.value)"></div></div>
+      <div class="actions"><button class="orange" onclick="addToQuote()">Add to Quote</button><button class="secondary" onclick="openDrawer()">View Quotes (<span id="quoteCount">0</span>)</button><button class="green" onclick="openWonJobsDrawer()">Won Jobs (<span data-won-jobs-count>0</span>)</button><button class="secondary" onclick="openPriceDrawer()">Price Manager</button><button id="certValuesActionBtn" class="secondary" onclick="openCertDrawer()">Certificate Values</button></div>
+      <div style="margin-top:12px"><label>Add current unit to quote</label><div class="row2"><select id="addOptionSelect" onchange="onOptionSelectionChange(this.value)"></select><button class="secondary" type="button" onclick="createNewOption(true)">+ New Quote</button></div><div style="margin-top:10px"><label>Selected quote name</label><input id="mainOptionName" placeholder="Customer name" onchange="renameCurrentMainOption(this.value)"></div></div>
     </aside>
   </div>
   <div class="multiSplitTrialCard" id="multiSplitTrialCard">
@@ -1813,8 +1882,8 @@ tbody tr:hover td{background:#f0f7ff}
         <div id="multiSalespersonCommissionIncRow" class="summaryLine"><span>Salesperson commission payable inc GST</span><strong id="multiSalespersonCommissionInc">$0.00</strong></div>
         <div id="multiNetProfitRow" class="summaryLine cash profitHighlight"><span>Installer profit after commission ex GST</span><strong><span id="multiNetProfit">$0.00</span><small id="multiNetProfitMargin"></small></strong></div>
         <div id="multiSplitHeadsList" class="multiSplitHeadsList"></div>
-        <div class="actions"><button class="orange" onclick="addToQuote()">Add to Quote</button><button class="secondary" onclick="openDrawer()">View Options (<span id="multiQuoteCount">0</span>)</button><button class="green" onclick="openWonJobsDrawer()">Won Jobs (<span data-won-jobs-count>0</span>)</button><button class="secondary" onclick="openPriceDrawer()">Price Manager</button><button class="secondary" onclick="openCertDrawer()">Certificate Values</button></div>
-        <div style="margin-top:12px"><label>Add current unit to option</label><div class="row2"><select id="multiAddOptionSelect" onchange="onOptionSelectionChange(this.value)"></select><button class="secondary" type="button" onclick="createNewOption(true)">+ New Option</button></div><div style="margin-top:10px"><label>Selected option name</label><input id="multiMainOptionName" placeholder="Option name" onchange="renameCurrentMainOption(this.value)"></div></div>
+        <div class="actions"><button class="orange" onclick="addToQuote()">Add to Quote</button><button class="secondary" onclick="openDrawer()">View Quotes (<span id="multiQuoteCount">0</span>)</button><button class="green" onclick="openWonJobsDrawer()">Won Jobs (<span data-won-jobs-count>0</span>)</button><button class="secondary" onclick="openPriceDrawer()">Price Manager</button><button class="secondary" onclick="openCertDrawer()">Certificate Values</button></div>
+        <div style="margin-top:12px"><label>Add current unit to quote</label><div class="row2"><select id="multiAddOptionSelect" onchange="onOptionSelectionChange(this.value)"></select><button class="secondary" type="button" onclick="createNewOption(true)">+ New Quote</button></div><div style="margin-top:10px"><label>Selected quote name</label><input id="multiMainOptionName" placeholder="Customer name" onchange="renameCurrentMainOption(this.value)"></div></div>
         <div class="multiSplitTrialActions"><button class="green" type="button" onclick="calculateMultiSplitTrialRebate()">Check rebate</button></div>
         <div id="multiSplitStatus" class="multiSplitStatus">Select a system and click Check rebate to test NSW multi-split eligibility.</div>
       </aside>
@@ -1822,16 +1891,19 @@ tbody tr:hover td{background:#f0f7ff}
   </div>
   <div class="currentOptionPanel card" id="standardCurrentOptionSection">
     <div class="currentOptionHead">
-      <div><div class="kicker">Current option</div><h2 id="currentOptionTitle">Option 1</h2><div class="sub" id="currentOptionSummary">Add systems to the selected option to build the quote.</div></div>
-      <div class="actions"><button class="secondary" type="button" onclick="openDrawer()">View all options</button><button class="green" type="button" onclick="openWonJobsDrawer()">Won Jobs (<span data-won-jobs-count>0</span>)</button><button class="orange" type="button" onclick="addToQuote()">Add Current Unit</button><button id="currentOptionWonBtn" class="secondary" type="button" onclick="toggleCurrentOptionWon()">Mark won</button></div>
+      <div><div class="kicker">Current quote</div><h2 id="currentOptionTitle">Quote 1</h2><div class="sub" id="currentOptionSummary">Add systems to the selected quote to build the customer quote.</div></div>
+      <div class="actions"><button class="secondary" type="button" onclick="openDrawer()">View Quotes</button><button class="green" type="button" onclick="openWonJobsDrawer()">Won Jobs (<span data-won-jobs-count>0</span>)</button><button class="orange" type="button" onclick="addToQuote()">Add System</button><button id="currentOptionWonBtn" class="secondary" type="button" onclick="toggleCurrentOptionWon()">Mark won</button></div>
     </div>
     <div id="currentOptionBody"></div>
   </div>
 
 </div>
-<div class="floatingActionBar" id="standardFloatingActionBar"><button class="floatingAction floatingAdd" onclick="addToQuote()">+ Add to Quote</button><button class="floatingAction floatingView" onclick="openDrawer()">View Options</button><button class="floatingAction floatingWon" onclick="openWonJobsDrawer()">Won Jobs</button></div>
+<div class="floatingActionBar" id="standardFloatingActionBar"><button class="floatingAction floatingAdd" onclick="addToQuote()">+ Add to Quote</button><button class="floatingAction floatingView" onclick="openDrawer()">View Quotes</button></div>
+<div id="quoteActionNotice" class="quoteActionNotice" role="status" aria-live="polite"></div>
+<div id="quoteNameModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="quoteNameModalTitle" onclick="if(event.target===this)closeQuoteNameModal()"><div class="quoteNameModalCard"><div class="kicker">Name this quote</div><h2 id="quoteNameModalTitle">Who is this quote for?</h2><p>Enter the customer name before adding the first system.</p><label for="quoteNameModalInput">Customer name</label><input id="quoteNameModalInput" type="text" autocomplete="name" placeholder="Example: Ash Macquarie Links" onkeydown="if(event.key==='Enter')confirmQuoteNameAndAdd()"><div id="quoteNameModalHint" class="hint" style="display:none"></div><div class="quoteNameModalActions"><button class="secondary" type="button" onclick="closeQuoteNameModal()">Cancel</button><button class="orange" type="button" onclick="confirmQuoteNameAndAdd()">Add to Quote</button></div></div></div>
+<div class="portraitOnlyNotice" aria-live="polite"><div><strong>Use portrait view</strong><span>Rotate your phone upright to continue quoting.</span></div></div>
 <div id="overlay" class="drawerOverlay" onclick="closeAllDrawers()"></div>
-<div id="drawer" class="quoteDrawer quoteBuilderDrawer"><div class="drawerHead"><div><div class="kicker">Quote builder</div><h2 style="margin:4px 0">Saved options</h2><div class="sub drawerIntro">Compare split and ducted options. Working options are stored for 7 days. Use Save Quote to store permanent snapshots in this browser.</div><div class="quoteExportField" style="margin-top:14px;max-width:420px"><label>Quote / customer export name</label><input id="quoteExportName" placeholder="Example: Ash Macquarie Links" oninput="saveQuoteExportName()"></div></div><div class="actions"><button class="orange" onclick="saveCurrentQuoteSet()">Save Quote</button><button class="secondary" onclick="downloadCsv()">Download CSV</button><button class="danger" onclick="clearQuotes()">Clear</button><button class="secondary" onclick="closeDrawer()">Close</button></div></div>
+<div id="drawer" class="quoteDrawer quoteBuilderDrawer"><div class="drawerHead"><div><div class="kicker">Quote builder</div><h2 style="margin:4px 0">View quotes</h2><div class="sub drawerIntro">Compare split and ducted quotes. Working quotes are stored for 7 days. Use Save Quote to store permanent snapshots in this browser.</div><div class="quoteExportField" style="margin-top:14px;max-width:420px"><label>Quote / customer export name</label><input id="quoteExportName" placeholder="Example: Ash Macquarie Links" oninput="saveQuoteExportName()"></div></div><div class="actions"><button class="orange" onclick="saveCurrentQuoteSet()">Save Quote</button><button class="secondary" onclick="downloadCsv()">Download CSV</button><button class="danger" onclick="clearQuotes()">Clear</button><button class="secondary" onclick="closeDrawer()">Close</button></div></div>
   <div class="drawerFloatingActions"><button class="orange" onclick="saveCurrentQuoteSet()">Save Quote</button><button class="secondary" onclick="closeDrawer()">Close</button></div>
   <div class="totalsManager" style="margin-top:14px">
     <div class="drawerHead" style="margin-bottom:10px;align-items:flex-end">
@@ -1839,7 +1911,7 @@ tbody tr:hover td{background:#f0f7ff}
       <div class="actions" style="margin-top:0"><button class="orange" onclick="saveCurrentQuoteSet()">Save Quote</button></div>
     </div>
     <div class="row2">
-      <div><label>Save name</label><input id="savedQuoteName" placeholder="Example: Ash - Option Set A"></div>
+      <div><label>Save name</label><input id="savedQuoteName" placeholder="Example: Ash - Quote Set A"></div>
       <div><label>Saved quotes</label><select id="savedQuoteSelect" onchange="onSavedQuoteSelectionChange()"></select></div>
     </div>
     <div class="actions" style="margin-top:10px">
@@ -1850,7 +1922,7 @@ tbody tr:hover td{background:#f0f7ff}
   </div>
   <div class="totalsManager">
     <div class="drawerHead" style="margin-bottom:10px;align-items:flex-end">
-      <div><div class="kicker">Quote totals manager</div><h3 style="margin:4px 0 0">Distribute totals across saved options</h3><div class="sub">Enter a total and apply it evenly across every saved option. Customer inc, labour, materials and misc distribute across all rows. Power only distributes across split and multi-head rows.</div></div>
+      <div><div class="kicker">Quote totals manager</div><h3 style="margin:4px 0 0">Distribute totals across saved quotes</h3><div class="sub">Enter a total and apply it evenly across every saved quote. Customer inc, labour, materials and misc distribute across all rows. Power only distributes across split and multi-head rows.</div></div>
       <div class="actions" style="margin-top:0"><button class="secondary" onclick="fillCurrentQuoteTotals()">Load current totals</button><button class="orange" onclick="applyEvenDistribution()">Apply even distribution</button></div>
     </div>
     <div class="totalsGrid">
@@ -1860,24 +1932,24 @@ tbody tr:hover td{background:#f0f7ff}
       <div><label>Total misc inc GST</label><input id="distMiscTotal" type="number" step="0.01" placeholder="eg 300"></div>
       <div><label>Total power ex GST</label><input id="distPowerTotal" type="number" step="0.01" placeholder="eg 500"></div>
     </div>
-    <div class="hint" id="distHint">Add quote options first, then load current totals or type in new totals. Recalculates commission and installer net profit automatically.</div>
+    <div class="hint" id="distHint">Add quote systems first, then load current totals or type in new totals. Recalculates commission and installer net profit automatically.</div>
     <div class="miniTotal"><span>Rows affected</span><strong id="distRowsAffected">0</strong></div>
   </div>
   <div class="card" style="box-shadow:none;margin:14px 0;border-radius:18px">
     <div class="drawerHead" style="margin-bottom:10px;align-items:flex-end">
       <div>
-        <div class="kicker">Option groups</div>
-        <h3 style="margin:4px 0 0">Build customer options</h3>
-        <div class="sub">Each option can contain one or more systems. Use this for packages like three split systems under Option 1, then compare against another package under Option 2.</div>
+        <div class="kicker">Quote groups</div>
+        <h3 style="margin:4px 0 0">Build customer quotes</h3>
+        <div class="sub">Each quote can contain one or more systems. Use this for packages such as three split systems in one quote, then compare it with another quote.</div>
       </div>
-      <div class="actions" style="margin-top:0"><button class="secondary" onclick="createNewOption(true)">+ New Option</button></div>
+      <div class="actions" style="margin-top:0"><button class="secondary" onclick="createNewOption(true)">+ New Quote</button></div>
     </div>
     <div class="optionControls">
-      <div><label>Add current unit to</label><select id="drawerAddOptionSelect" onchange="onOptionSelectionChange(this.value)"></select></div>
-      <button class="orange" onclick="addToQuote()">Add Current Unit</button>
+      <div><label>Add current system to</label><select id="drawerAddOptionSelect" onchange="onOptionSelectionChange(this.value)"></select></div>
+      <button class="orange" onclick="addToQuote()">Add System</button>
     </div>
     <div id="optionGroups" class="optionCards"></div>
-    <div class="tableWrap" style="margin-top:14px"><table><thead><tr><th colspan="6">Overall quote builder totals</th></tr></thead><tbody id="quoteTotalsBody"><tr><td>No options added yet.</td></tr></tbody></table></div>
+    <div class="tableWrap" style="margin-top:14px"><table><thead><tr><th colspan="6">Overall quote builder totals</th></tr></thead><tbody id="quoteTotalsBody"><tr><td>No quotes added yet.</td></tr></tbody></table></div>
   </div>
 </div>
 <div id="wonJobsDrawer" class="quoteDrawer wonJobsDrawer">
@@ -1885,7 +1957,7 @@ tbody tr:hover td{background:#f0f7ff}
     <div>
       <div class="kicker">Won jobs</div>
       <h2 style="margin:4px 0">Jobs marked as won</h2>
-      <div class="sub">Review the options that have been marked as won in this calculator, including saved quote snapshots.</div>
+      <div class="sub">Review the quotes that have been marked as won in this calculator, including saved quote snapshots.</div>
     </div>
     <div class="actions">
       <button class="green" onclick="renderWonJobs()">Refresh</button>
@@ -1959,7 +2031,7 @@ tbody tr:hover td{background:#f0f7ff}
     <div>
       <div class="kicker">Customer proposal</div>
       <h2 style="margin:4px 0">Export proposal PDF</h2>
-      <div class="sub">Creates a printable proposal using the current system or saved quote option groups. Mixed split, ducted, new and replacement items are supported.</div>
+      <div class="sub">Creates a printable proposal using the current system or saved quote groups. Mixed split, ducted, new and replacement items are supported.</div>
     </div>
     <div class="actions">
       <button class="orange" onclick="generateProposalPdf()">Generate PDF</button>
@@ -1968,7 +2040,7 @@ tbody tr:hover td{background:#f0f7ff}
   </div>
   <div class="totalsManager">
     <div class="proposalGrid">
-      <div><label>Proposal source</label><select id="proposalSource" onchange="renderProposalSourceSummary()"><option value="quote">Saved quote / option groups</option><option value="current">Current selected system</option></select></div>
+      <div><label>Proposal source</label><select id="proposalSource" onchange="renderProposalSourceSummary()"><option value="quote">Saved quote groups</option><option value="current">Current selected system</option></select></div>
       <div><label>Install date</label><input id="proposalInstallDate" placeholder="TBC"></div>
       <div><label>Customer name</label><input id="proposalCustomerName" placeholder="Customer name"></div>
       <div><label>Install address</label><input id="proposalAddress" placeholder="Install address"></div>
@@ -5371,7 +5443,7 @@ function formatAge(ts){
   if(hrs<24) return hrs+'h ago';
   return Math.floor(hrs/24)+'d ago';
 }
-function addToQuote(){
+function addLegacyToQuote(){
   const x=calculate();
   const state=currentState();
   quotes.unshift({
@@ -5385,7 +5457,7 @@ function addToQuote(){
     cashProfit:x.cashProfit,commissionType:x.commissionType,commissionRate:x.commissionRate,agencyCommissionRate:x.agencyCommissionRate,agencyCommission:x.agencyCommission,agencyCommissionGst:x.agencyCommissionGst,agencyCommissionInc:x.agencyCommissionInc,salespersonCommissionRate:x.salespersonCommissionRate,salespersonCommission:x.salespersonCommission,salespersonCommissionGst:x.salespersonCommissionGst,salespersonCommissionInc:x.salespersonCommissionInc,commission:x.commission,commissionGst:x.commissionGst,commissionInc:x.commissionInc,
     netProfit:x.netProfit,margin:x.margin,netMargin:x.netMargin
   });
-  persistQuotes(); renderQuotes(); openDrawer();
+  persistQuotes(); renderQuotes(); showQuoteActionNotice('Added to the current quote.');
 }
 
 function savedMiscInc(r){
@@ -5546,13 +5618,13 @@ function fillCurrentQuoteTotals(){
   if($('distMaterialsTotal')) $('distMaterialsTotal').value=t.materials.toFixed(2);
   if($('distMiscTotal')) $('distMiscTotal').value=t.misc.toFixed(2);
   if($('distPowerTotal')) $('distPowerTotal').value=t.power.toFixed(2);
-  if($('distHint')) $('distHint').textContent=`Loaded current totals from ${t.count} saved option${t.count===1?'':'s'}.`;
+  if($('distHint')) $('distHint').textContent=`Loaded current totals from ${t.count} saved quote${t.count===1?'':'s'}.`;
 }
 function applyEvenDistribution(){
-  if(!quotes.length){ if($('distHint')) $('distHint').textContent='Add at least one quote option before distributing totals.'; return; }
+  if(!quotes.length){ if($('distHint')) $('distHint').textContent='Add at least one quote before distributing totals.'; return; }
   const lockedOptions=quoteOptionDefs.filter(def=>def.wonAt&&quotes.some(q=>q.optionId===def.id));
   if(lockedOptions.length){
-    if($('distHint')) $('distHint').textContent='Won options are locked. Unlock them before applying even distribution.';
+    if($('distHint')) $('distHint').textContent='Won quotes are locked. Unlock them before applying even distribution.';
     return;
   }
   const count=quotes.length;
@@ -5593,7 +5665,7 @@ function renderQuotes(){
   $('quoteCount').textContent=quotes.length;
   refreshRecommendedOptions();
   if($('distRowsAffected')) $('distRowsAffected').textContent=String(quotes.length);
-  if(!quotes.length){$('quoteRows').innerHTML='<tr><td colspan="16">No options added yet.</td></tr>'; $('quoteTotals').innerHTML=''; return}
+  if(!quotes.length){$('quoteRows').innerHTML='<tr><td colspan="16">No quotes added yet.</td></tr>'; $('quoteTotals').innerHTML=''; return}
   $('quoteRows').innerHTML=quotes.map((r,i)=>{
     const materialsInc=savedMaterialsInc(r);
     const power=quoteUsesPowerCost(r)?money(r.powerCost!==undefined?r.powerCost:0):'N/A';
@@ -5907,7 +5979,7 @@ function loadSelectedSavedQuote(){
   if(!selected){setSavedQuoteStatus('Select a saved quote set first.',true); return;}
   if(quotes.length && !confirm(`Load "${selected.name}" and replace current working quote rows?`)) return;
   quotes=cloneObj(Array.isArray(selected.quotes)?selected.quotes:[]);
-  quoteOptionDefs=cloneObj(Array.isArray(selected.optionDefs)&&selected.optionDefs.length?selected.optionDefs:[{id:'option_1',name:'Option 1'}]);
+  quoteOptionDefs=cloneObj(Array.isArray(selected.optionDefs)&&selected.optionDefs.length?selected.optionDefs:[{id:'option_1',name:'Quote 1'}]);
   recommendedOptionId=String(selected.recommendedOptionId||'');
   const now=Date.now();
   quotes.forEach((q,i)=>{q.timestamp=now+i;});
@@ -5950,17 +6022,36 @@ let quoteOptionDefs=[];
 let recommendedOptionId='';
 function loadOptionDefs(){
   try{quoteOptionDefs=JSON.parse(storageGet(OPTION_DEFS_STORAGE_KEY,'QuoteOptionDefsV1')||'[]')||[];}catch(e){quoteOptionDefs=[];}
-  if(!quoteOptionDefs.length) quoteOptionDefs=[{id:'option_1',name:'Option 1'}];
+  if(!quoteOptionDefs.length) quoteOptionDefs=[{id:'option_1',name:'Quote 1'}];
 }
 function persistOptionDefs(){try{localStorage.setItem(OPTION_DEFS_STORAGE_KEY, JSON.stringify(quoteOptionDefs));}catch(e){}}
+function displayQuoteName(value,index){
+  const name=String(value||'').trim();
+  const defaultMatch=name.match(/^option(?:\s+(\d+))?$/i);
+  if(defaultMatch) return 'Quote '+(defaultMatch[1]||index||1);
+  return name||'Quote '+(index||1);
+}
+function quoteNeedsCustomerName(value){return /^quote(?:\s+\d+)?$/i.test(String(value||'').trim());}
+function normalizeDefaultQuoteNames(){
+  let changed=false;
+  quoteOptionDefs.forEach((def,index)=>{
+    const name=displayQuoteName(def.name,index+1);
+    if(def.name!==name){def.name=name;changed=true;}
+  });
+  quotes.forEach(q=>{
+    const def=quoteOptionDefs.find(o=>o.id===q.optionId);
+    if(def && q.optionName!==def.name){q.optionName=def.name;changed=true;}
+  });
+  return changed;
+}
 function ensureOptionDefs(){
-  if(!quoteOptionDefs.length) quoteOptionDefs=[{id:'option_1',name:'Option 1'}];
+  if(!quoteOptionDefs.length) quoteOptionDefs=[{id:'option_1',name:'Quote 1'}];
   let changed=false;
   quotes.forEach((q,idx)=>{
-    if(!q.optionId){q.optionId='option_1'; q.optionName='Option 1'; changed=true;}
+    if(!q.optionId){q.optionId='option_1'; q.optionName='Quote 1'; changed=true;}
     let def=quoteOptionDefs.find(o=>o.id===q.optionId);
     if(!def){
-      def={id:q.optionId,name:q.optionName||('Option '+(quoteOptionDefs.length+1))};
+      def={id:q.optionId,name:q.optionName||('Quote '+(quoteOptionDefs.length+1))};
       quoteOptionDefs.push(def);
       changed=true;
     }
@@ -5971,9 +6062,10 @@ function ensureOptionDefs(){
       changed=true;
     }
   });
+  if(normalizeDefaultQuoteNames()) changed=true;
   if(changed){persistOptionDefs(); persistQuotes();}
 }
-function optionNameById(id){const o=quoteOptionDefs.find(x=>x.id===id); return o?o.name:'Option';}
+function optionNameById(id){const o=quoteOptionDefs.find(x=>x.id===id); return o?o.name:'Quote';}
 function optionDefById(id){return quoteOptionDefs.find(x=>x.id===id)||null;}
 function optionIsWon(id){const o=optionDefById(id); return !!(o&&o.wonAt);}
 function quoteRowIsWon(row){return !!(row&&(row.wonAt||optionIsWon(row.optionId)));}
@@ -5990,16 +6082,16 @@ function optionWonLabel(def){
 }
 function assertOptionEditable(id){
   if(!optionIsWon(id)) return true;
-  alert('This option is marked as won and locked. Ask Daniel to unlock it before making changes.');
+  alert('This quote is marked as won and locked. Ask Daniel to unlock it before making changes.');
   return false;
 }
 function markOptionWon(id){
   ensureOptionDefs();
   const def=optionDefById(id);
   if(!def) return;
-  if(def.wonAt){alert('This option is already marked as won.');return;}
+  if(def.wonAt){alert('This quote is already marked as won.');return;}
   const rows=quotes.filter(q=>q.optionId===id);
-  if(!rows.length){alert('Add at least one system to this option before marking it as won.');return;}
+  if(!rows.length){alert('Add at least one system to this quote before marking it as won.');return;}
   if(!confirm("Please confirm that all of the details are correct. Once you've marked this as won, it will be locked and you'll need to get permission to edit it again.")) return;
   const now=new Date().toISOString();
   const u=calculatorUserContext();
@@ -6013,7 +6105,7 @@ function markOptionWon(id){
 }
 function unlockWonOption(id){
   ensureOptionDefs();
-  if(!canUnlockWonOptions()){alert('Only Daniel can unlock a won option.');return;}
+  if(!canUnlockWonOptions()){alert('Only Daniel can unlock a won quote.');return;}
   const def=optionDefById(id);
   if(!def||!def.wonAt) return;
   if(!confirm(`Unlock "${def.name}" so it can be edited again?`)) return;
@@ -6029,7 +6121,7 @@ function toggleCurrentOptionWon(){
   const {id,def}=currentOptionSelection();
   if(def&&def.wonAt){
     if(canUnlockWonOptions()) unlockWonOption(id);
-    else alert('This option is already marked as won and locked.');
+    else alert('This quote is already marked as won and locked.');
     return;
   }
   markOptionWon(id);
@@ -6043,12 +6135,12 @@ function updateCurrentOptionWonButton(def,rows){
   if(isWon){
     btn.textContent=canUnlockWonOptions()?'Unlock won':optionWonLabel(def);
     btn.disabled=!canUnlockWonOptions();
-    btn.title=canUnlockWonOptions()?'Unlock this won option so it can be edited again.':'This option is marked as won and locked.';
+    btn.title=canUnlockWonOptions()?'Unlock this won quote so it can be edited again.':'This quote is marked as won and locked.';
     return;
   }
   btn.textContent='Mark won';
   btn.disabled=!rows||!rows.length;
-  btn.title=rows&&rows.length?'Mark the selected option as won.':'Add at least one system before marking this option as won.';
+  btn.title=rows&&rows.length?'Mark the selected quote as won.':'Add at least one system before marking this quote as won.';
 }
 function syncAddOptionSelects(value){
   ['addOptionSelect','drawerAddOptionSelect','multiAddOptionSelect'].forEach(id=>{const el=$(id); if(el && value) el.value=value;});
@@ -6097,7 +6189,7 @@ function currentAddOptionId(){
 function createNewOption(selectIt){
   ensureOptionDefs();
   const n=quoteOptionDefs.length+1;
-  const opt={id:'option_'+Date.now()+'_'+Math.floor(Math.random()*1000),name:'Option '+n};
+  const opt={id:'option_'+Date.now()+'_'+Math.floor(Math.random()*1000),name:'Quote '+n};
   quoteOptionDefs.push(opt); persistOptionDefs(); renderOptionSelectors();
   if(selectIt) syncAddOptionSelects(opt.id);
   updateMainOptionNameInput();
@@ -6114,10 +6206,10 @@ function renameOption(id,value){
 function deleteOptionGroup(id){
   const name=optionNameById(id);
   if(!assertOptionEditable(id)) return;
-  if(!confirm('Delete '+name+' and all units inside it?')) return;
+  if(!confirm('Delete '+name+' and all systems inside it?')) return;
   quotes=quotes.filter(q=>q.optionId!==id);
   quoteOptionDefs=quoteOptionDefs.filter(o=>o.id!==id);
-  if(!quoteOptionDefs.length) quoteOptionDefs=[{id:'option_1',name:'Option 1'}];
+  if(!quoteOptionDefs.length) quoteOptionDefs=[{id:'option_1',name:'Quote 1'}];
   persistOptionDefs(); persistQuotes(); renderQuotes();
 }
 function duplicateOptionGroup(id){
@@ -6163,7 +6255,7 @@ function normalizeWonJobRows(rows){
     .map(row=>{
       const normalized=recomputeSavedQuote(normalizeQuoteLocation(cloneObj(row)));
       if(normalized && !normalized.optionId) normalized.optionId='option_1';
-      if(normalized && !normalized.optionName) normalized.optionName='Option 1';
+      if(normalized && !normalized.optionName) normalized.optionName='Quote 1';
       return normalized;
     })
     .filter(row=>row && row.optionId);
@@ -6186,7 +6278,7 @@ function collectWonJobsFromSnapshot(source,seen,jobs){
       sourceId:String(source.sourceId||''),
       sourceName:String(source.sourceName||'Current quote builder'),
       optionId,
-      optionName:String(def.name || optionRows[0]?.optionName || 'Option'),
+      optionName:String(def.name || optionRows[0]?.optionName || 'Quote'),
       wonAt,
       wonByName:String(def.wonByName || optionRows.find(row=>row.wonByName)?.wonByName || wonOptionOwnerName() || ''),
       customerName,
@@ -6211,7 +6303,7 @@ function collectWonJobsFromSnapshot(source,seen,jobs){
   });
   rowWonGroups.forEach((optionRows,optionId)=>{
     const first=optionRows[0]||{};
-    addJob({id:optionId,name:first.optionName||'Option',wonAt:first.wonAt,wonByName:first.wonByName},optionRows);
+    addJob({id:optionId,name:first.optionName||'Quote',wonAt:first.wonAt,wonByName:first.wonByName},optionRows);
   });
 }
 function collectWonJobs(){
@@ -6280,7 +6372,7 @@ function renderWonJobs(){
     : `<div class="wonJobsSummaryCard"><span>Systems won</span><strong>${totalSystems}</strong></div>`;
   summary.innerHTML=`<div class="wonJobsSummaryCard"><span>Won jobs</span><strong>${jobs.length}</strong></div><div class="wonJobsSummaryCard"><span>Customer total</span><strong>${money(totalCustomer)}</strong></div>${thirdSummary}`;
   if(!jobs.length){
-    list.innerHTML='<div class="emptyWonJobs"><strong>No won jobs yet.</strong><div class="sub" style="margin-top:6px">When an option is marked as won, it will appear here for this calculator user.</div></div>';
+    list.innerHTML='<div class="emptyWonJobs"><strong>No won jobs yet.</strong><div class="sub" style="margin-top:6px">When a quote is marked as won, it will appear here for this calculator user.</div></div>';
     return;
   }
   const showPrivate=canSeeProfitDetails();
@@ -6295,7 +6387,7 @@ function renderWonJobs(){
     const privateMetrics=showPrivate?`<div><span>Agency comm</span><strong>${money(job.totals.agencyCommission)}</strong></div><div><span>Installer profit</span><strong>${money(job.totals.profit)}</strong></div>`:'';
     const action=job.sourceKind==='saved'
       ? `<button class="secondary" type="button" onclick="loadWonSavedQuote('${jsArg(job.sourceId)}')">Load saved quote</button>`
-      : `<button class="secondary" type="button" onclick="viewWonCurrentOption('${jsArg(job.optionId)}')">View option</button>`;
+      : `<button class="secondary" type="button" onclick="viewWonCurrentOption('${jsArg(job.optionId)}')">View quote</button>`;
     const rowHtml=job.rows.map(row=>{
       const system=[row.size,row.brand,row.type].filter(Boolean).join(' ');
       const details=[row.model,row.install].filter(Boolean).join(' - ');
@@ -6335,29 +6427,29 @@ function quoteLabourTreatment(r){return r.labourTreatment || (quoteUsesPowerCost
 function currentOptionSelection(){
   ensureOptionDefs();
   const id=currentAddOptionId();
-  const def=quoteOptionDefs.find(o=>o.id===id)||quoteOptionDefs[0]||{id:'option_1',name:'Option 1'};
+  const def=quoteOptionDefs.find(o=>o.id===id)||quoteOptionDefs[0]||{id:'option_1',name:'Quote 1'};
   const rows=quotes.map((q,i)=>({...q,_index:i})).filter(q=>q.optionId===def.id);
   return {id:def.id,def,rows};
 }
 function setCurrentOptionEditHint(message){
   currentOptionEditMessage=message||'';
   const hint=$('currentOptionEditHint');
-  if(hint) hint.textContent=currentOptionEditMessage||'Adjust customer, labour, materials or misc, then apply them evenly across only the systems in this option.';
+  if(hint) hint.textContent=currentOptionEditMessage||'Adjust customer, labour, materials or misc, then apply them evenly across only the systems in this quote.';
 }
 function fillCurrentOptionTotals(){
   const {rows}=currentOptionSelection();
-  if(!rows.length){setCurrentOptionEditHint('Add systems to this option before loading totals.');return;}
+  if(!rows.length){setCurrentOptionEditHint('Add systems to this quote before loading totals.');return;}
   const t=groupTotals(rows);
   if($('currentOptionCustomerTotal')) $('currentOptionCustomerTotal').value=t.customer.toFixed(2);
   if($('currentOptionLabourTotal')) $('currentOptionLabourTotal').value=t.labour.toFixed(2);
   if($('currentOptionMaterialsTotal')) $('currentOptionMaterialsTotal').value=t.materials.toFixed(2);
   if($('currentOptionMiscTotal')) $('currentOptionMiscTotal').value=t.misc.toFixed(2);
-  setCurrentOptionEditHint(`Loaded current totals from ${rows.length} system${rows.length===1?'':'s'} in this option.`);
+  setCurrentOptionEditHint(`Loaded current totals from ${rows.length} system${rows.length===1?'':'s'} in this quote.`);
 }
 function applyCurrentOptionDistribution(){
   const {id,rows}=currentOptionSelection();
-  if(!assertOptionEditable(id)){setCurrentOptionEditHint('This option is marked as won and locked. Ask Daniel to unlock it before making changes.');return;}
-  if(!rows.length){setCurrentOptionEditHint('Add systems to this option before applying totals.');return;}
+  if(!assertOptionEditable(id)){setCurrentOptionEditHint('This quote is marked as won and locked. Ask Daniel to unlock it before making changes.');return;}
+  if(!rows.length){setCurrentOptionEditHint('Add systems to this quote before applying totals.');return;}
   const entered=id=>{const el=$(id); return el&&String(el.value).trim()!=='';};
   const customerEntered=entered('currentOptionCustomerTotal');
   const labourEntered=entered('currentOptionLabourTotal');
@@ -6386,7 +6478,7 @@ function applyCurrentOptionDistribution(){
   if(labourEntered) details.push(`labour ${money(labourEach)} ex GST each`);
   if(materialsEntered) details.push(`materials ${money(materialsEach)} inc GST each`);
   if(miscEntered) details.push(`misc ${money(miscEach)} inc GST each`);
-  currentOptionEditMessage='Applied to this option: '+details.join(', ')+'.';
+  currentOptionEditMessage='Applied to this quote: '+details.join(', ')+'.';
   persistQuotes();
   renderQuotes();
 }
@@ -6398,14 +6490,14 @@ function renderCurrentOptionPanel(){
   const isWon=!!def.wonAt;
   title.textContent=def.name;
   if(!rows.length){
-    summary.textContent='No systems in this option yet.';
-    body.innerHTML='<div class="currentOptionBodyEmpty"><strong>No systems added to this option yet.</strong><div class="sub" style="margin-top:6px">Select a system above, then add it to this option.</div></div>';
+    summary.textContent='No systems in this quote yet.';
+    body.innerHTML='<div class="currentOptionBodyEmpty"><strong>No systems added to this quote yet.</strong><div class="sub" style="margin-top:6px">Select a system above, then add it to this quote.</div></div>';
     return;
   }
   const t=groupTotals(rows);
   const showPrivate=canSeeProfitDetails();
   const showLimitedSales=!showPrivate&&canSeeSalespersonCommission();
-  summary.textContent=`${rows.length} system${rows.length===1?'':'s'} in this option. Customer total ${money(t.customer)} inc GST.${isWon?' Marked as won and locked.':''}`;
+  summary.textContent=`${rows.length} system${rows.length===1?'':'s'} in this quote. Customer total ${money(t.customer)} inc GST.${isWon?' Marked as won and locked.':''}`;
   const commissionMetrics=(showPrivate||showLimitedSales)?`<div class="currentOptionMetric"><span>Salesperson commission inc</span><strong>${money(t.salespersonCommission)}</strong></div><div class="currentOptionMetric"><span>Installer profit ex</span><strong>${money(t.profit)}</strong></div>`:'';
   const privateHeads=showPrivate?'<th>Agency comm inc</th><th>Salesperson comm inc</th><th>Installer profit ex</th>':(showLimitedSales?'<th>Salesperson commission</th><th>Installer profit ex</th>':'');
   const rowsHtml=rows.map(r=>{
@@ -6416,9 +6508,13 @@ function renderCurrentOptionPanel(){
     return `<tr><td>${htmlEscape(r.type)}</td><td>${htmlEscape(r.brand)}</td><td>${htmlEscape(r.size)}</td><td>${htmlEscape(r.model)}</td><td>${htmlEscape(r.install)}</td><td class="money">${money(r.finalInc)}</td>${rebateCellHtml(r.rebate,r)}<td class="money">${money(r.labour)}</td><td class="money">${money(materialsInc)}</td><td class="money">${power}</td>${privateCells}<td>${actionCell}</td></tr>`;
   }).join('');
   const lockedAttr=isWon?' disabled':'';
-  const lockNotice=isWon?`<div class="wonNotice"><strong>${htmlEscape(optionWonLabel(def))}</strong><span>This option is locked. Ask Daniel to unlock it before making changes.</span></div>`:'';
-  const unlockAction=isWon&&canUnlockWonOptions()?`<button class="secondary" type="button" onclick="unlockWonOption('${def.id}')">Unlock won option</button>`:'';
-  body.innerHTML=`${lockNotice}<div class="currentOptionSummaryGrid"><div class="currentOptionMetric editable"><span>Customer total inc GST</span><input id="currentOptionCustomerTotal" type="number" step="0.01" value="${t.customer.toFixed(2)}"${lockedAttr}></div>${rebateMetricHtml(t.rebate,rows)}<div class="currentOptionMetric editable"><span>Labour ex GST</span><input id="currentOptionLabourTotal" type="number" step="0.01" value="${t.labour.toFixed(2)}"${lockedAttr}></div><div class="currentOptionMetric editable"><span>Materials inc GST</span><input id="currentOptionMaterialsTotal" type="number" step="0.01" value="${t.materials.toFixed(2)}"${lockedAttr}></div><div class="currentOptionMetric editable"><span>Misc inc GST</span><input id="currentOptionMiscTotal" type="number" step="0.01" value="${t.misc.toFixed(2)}"${lockedAttr}></div>${commissionMetrics}</div><div class="currentOptionEditActions"><button class="secondary" type="button" onclick="fillCurrentOptionTotals()"${lockedAttr}>Load option totals</button><button class="orange" type="button" onclick="applyCurrentOptionDistribution()"${lockedAttr}>Apply to current option</button>${unlockAction}</div><div class="currentOptionEditHint" id="currentOptionEditHint">${htmlEscape(isWon?'This option is marked as won and locked.':(currentOptionEditMessage||'Adjust customer, labour, materials or misc, then apply them evenly across only the systems in this option.'))}</div><div class="tableWrap" style="margin-top:12px"><table><thead><tr><th>Type</th><th>Brand</th><th>Size</th><th>Model</th><th>Install</th><th>Customer inc</th>${rebateHeadHtml('Rebate',rows)}<th>Labour ex</th><th>Materials inc</th><th>Power</th>${privateHeads}<th>Actions</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
+  const lockNotice=isWon?`<div class="wonNotice"><strong>${htmlEscape(optionWonLabel(def))}</strong><span>This quote is locked. Ask Daniel to unlock it before making changes.</span></div>`:'';
+  const unlockAction=isWon&&canUnlockWonOptions()?`<button class="secondary" type="button" onclick="unlockWonOption('${def.id}')">Unlock won quote</button>`:'';
+  const canAdjustQuoteTotals=rows.length>1;
+  const quoteMetric=(label,id,value)=>`<div class="currentOptionMetric${canAdjustQuoteTotals?' editable':''}"><span>${label}</span>${canAdjustQuoteTotals?`<input id="${id}" type="number" step="0.01" value="${value.toFixed(2)}"${lockedAttr}>`:`<strong>${money(value)}</strong>`}</div>`;
+  const editActions=canAdjustQuoteTotals?`<div class="currentOptionEditActions"><button class="secondary" type="button" onclick="fillCurrentOptionTotals()"${lockedAttr}>Load quote totals</button><button class="orange" type="button" onclick="applyCurrentOptionDistribution()"${lockedAttr}>Apply to this quote</button>${unlockAction}</div>`:(unlockAction?`<div class="currentOptionEditActions">${unlockAction}</div>`:'');
+  const editHint=isWon?'This quote is marked as won and locked.':(canAdjustQuoteTotals?(currentOptionEditMessage||'This quote has multiple systems. Adjust the shared totals above, then apply them evenly across the systems in this quote.'):'These totals are calculated for one system. Add another system to this quote to adjust shared totals.');
+  body.innerHTML=`${lockNotice}<div class="currentOptionSummaryGrid">${quoteMetric('Customer total inc GST','currentOptionCustomerTotal',t.customer)}${rebateMetricHtml(t.rebate,rows)}${quoteMetric('Labour ex GST','currentOptionLabourTotal',t.labour)}${quoteMetric('Materials inc GST','currentOptionMaterialsTotal',t.materials)}${quoteMetric('Misc inc GST','currentOptionMiscTotal',t.misc)}${commissionMetrics}</div>${editActions}<div class="currentOptionEditHint" id="currentOptionEditHint">${htmlEscape(editHint)}</div><div class="tableWrap" style="margin-top:12px"><table><thead><tr><th>Type</th><th>Brand</th><th>Size</th><th>Model</th><th>Install</th><th>Customer inc</th>${rebateHeadHtml('Rebate',rows)}<th>Labour ex</th><th>Materials inc</th><th>Power</th>${privateHeads}<th>Actions</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
 }
 function currentMultiSplitState(x){
   const outdoor=x&&x.outdoor?x.outdoor:selectedMultiSplitOutdoor();
@@ -6459,7 +6555,48 @@ function currentMultiSplitState(x){
     installerRetainsLabour:$('multiInstallerRetainsLabour')?$('multiInstallerRetainsLabour').checked:true
   };
 }
-function addMultiSplitToQuote(){
+let pendingQuoteAddKind='';
+let quoteActionNoticeTimer=null;
+function showQuoteActionNotice(message){
+  const notice=$('quoteActionNotice');
+  if(!notice) return;
+  notice.textContent=message;
+  notice.classList.add('show');
+  if(quoteActionNoticeTimer) clearTimeout(quoteActionNoticeTimer);
+  quoteActionNoticeTimer=setTimeout(()=>notice.classList.remove('show'),3200);
+}
+function openQuoteNameModal(){
+  const modal=$('quoteNameModal');
+  const input=$('quoteNameModalInput');
+  const hint=$('quoteNameModalHint');
+  if(!modal||!input) return;
+  if(hint){hint.textContent='';hint.style.display='none';}
+  input.value='';
+  modal.classList.add('open');
+  setTimeout(()=>input.focus(),0);
+}
+function closeQuoteNameModal(){
+  const modal=$('quoteNameModal');
+  if(modal) modal.classList.remove('open');
+  pendingQuoteAddKind='';
+}
+function confirmQuoteNameAndAdd(){
+  const input=$('quoteNameModalInput');
+  const hint=$('quoteNameModalHint');
+  const name=String(input&&input.value||'').trim();
+  if(!name){
+    if(hint){hint.textContent='Enter a customer name to continue.';hint.style.display='block';}
+    if(input) input.focus();
+    return;
+  }
+  const optionId=currentAddOptionId();
+  renameOption(optionId,name);
+  const kind=pendingQuoteAddKind;
+  closeQuoteNameModal();
+  if(kind==='multi') addMultiSplitToQuoteNow();
+  else addStandardSystemToQuoteNow();
+}
+function addMultiSplitToQuoteNow(){
   const optionId=currentAddOptionId();
   if(!assertOptionEditable(optionId)) return;
   const x=calculateMultiSplitCosts();
@@ -6478,10 +6615,20 @@ function addMultiSplitToQuote(){
     cashProfit:x.cashProfit,commissionType:x.commissionType,commissionRate:x.commissionRate,agencyCommissionRate:x.agencyCommissionRate,agencyCommission:x.agencyCommission,agencyCommissionGst:x.agencyCommissionGst,agencyCommissionInc:x.agencyCommissionInc,salespersonCommissionRate:x.salespersonCommissionRate,salespersonCommission:x.salespersonCommission,salespersonCommissionGst:x.salespersonCommissionGst,salespersonCommissionInc:x.salespersonCommissionInc,commission:x.commission,commissionGst:x.commissionGst,commissionInc:x.commissionInc,
     netProfit:x.netProfit,margin:x.margin,netMargin:x.netMargin
   });
-  persistQuotes(); renderQuotes(); openDrawer();
+  persistQuotes(); renderQuotes(); showQuoteActionNotice(`Added to ${optionName}.`);
 }
 function addToQuote(){
-  if(multiSplitViewActive()) return addMultiSplitToQuote();
+  const optionId=currentAddOptionId();
+  if(!assertOptionEditable(optionId)) return;
+  if(quoteNeedsCustomerName(optionNameById(optionId))){
+    pendingQuoteAddKind=multiSplitViewActive()?'multi':'standard';
+    openQuoteNameModal();
+    return;
+  }
+  if(multiSplitViewActive()) return addMultiSplitToQuoteNow();
+  return addStandardSystemToQuoteNow();
+}
+function addStandardSystemToQuoteNow(){
   const optionId=currentAddOptionId();
   if(!assertOptionEditable(optionId)) return;
   const x=calculate();
@@ -6498,7 +6645,7 @@ function addToQuote(){
     cashProfit:x.cashProfit,commissionType:x.commissionType,commissionRate:x.commissionRate,agencyCommissionRate:x.agencyCommissionRate,agencyCommission:x.agencyCommission,agencyCommissionGst:x.agencyCommissionGst,agencyCommissionInc:x.agencyCommissionInc,salespersonCommissionRate:x.salespersonCommissionRate,salespersonCommission:x.salespersonCommission,salespersonCommissionGst:x.salespersonCommissionGst,salespersonCommissionInc:x.salespersonCommissionInc,commission:x.commission,commissionGst:x.commissionGst,commissionInc:x.commissionInc,
     netProfit:x.netProfit,margin:x.margin,netMargin:x.netMargin
   });
-  persistQuotes(); renderQuotes(); openDrawer();
+  persistQuotes(); renderQuotes(); showQuoteActionNotice(`Added to ${optionName}.`);
 }
 function renderQuotes(){
   const cutoff=Date.now()-SEVEN_DAYS_MS;
@@ -6514,7 +6661,7 @@ function renderQuotes(){
     const showPrivate=canSeeProfitDetails();
     const showLimitedSales=!showPrivate&&canSeeSalespersonCommission();
     if(!quotes.length){
-      container.innerHTML='<div class="card" style="box-shadow:none;margin:0"><strong>No options added yet.</strong><div class="sub" style="margin-top:6px">Choose a system, select the option group, then click Add to Quote.</div></div>';
+      container.innerHTML='<div class="card" style="box-shadow:none;margin:0"><strong>No quotes added yet.</strong><div class="sub" style="margin-top:6px">Choose a system, select the quote, then click Add to Quote.</div></div>';
     } else {
       container.innerHTML=groups.map(g=>{
         const t=groupTotals(g.rows);
@@ -6528,13 +6675,13 @@ function renderQuotes(){
           const privateCells=showPrivate?`<td class="money">${money(r.commissionInc)}</td><td class="money">${money(r.salespersonCommissionInc)}</td><td class="money">${money(r.netProfit)}</td>`:(showLimitedSales?`<td class="money">${money(r.salespersonCommissionInc)}</td><td class="money">${money(r.netProfit)}</td>`:'');
           const actionCell=isWon?`<button class="load" onclick="loadQuote(${r._index})">Load</button> <button class="secondary smallBtn" disabled>Locked</button>`:`<button class="load" onclick="loadQuote(${r._index})">Load</button> <button class="danger" onclick="removeQuote(${r._index})">Remove</button>`;
           return `<tr><td>${htmlEscape(r.type)}</td><td>${htmlEscape(r.brand)}</td><td>${htmlEscape(r.size)}</td><td>${htmlEscape(r.model)}</td><td>${htmlEscape(r.install)}</td><td class="money">${money(r.finalInc)}</td>${rebateCellHtml(r.rebate,r)}<td class="money">${money(r.unitInc)}</td><td class="money">${money(r.labour)}</td><td>${htmlEscape(quoteLabourTreatment(r))}</td><td class="money">${money(materialsInc)}</td><td class="money">${power}</td>${privateCells}<td>${actionCell}</td></tr>`;
-        }).join(''):`<tr><td colspan="${emptyColspan}">No units in this option yet.</td></tr>`;
+        }).join(''):`<tr><td colspan="${emptyColspan}">No systems in this quote yet.</td></tr>`;
         const privateSummary=(showPrivate||showLimitedSales)?` | Installer profit ${money(t.profit)} ex GST`:'';
         const privateHeads=showPrivate?'<th>Agency comm inc</th><th>Salesperson comm inc</th><th>Installer Profit ex</th>':(showLimitedSales?'<th>Salesperson commission</th><th>Installer Profit ex</th>':'');
         const privateTotals=showPrivate?`<span>Agency commission inc<strong>${money(t.commission)}</strong></span><span>Salesperson commission inc<strong>${money(t.salespersonCommission)}</strong></span><span>Installer profit ex<strong>${money(t.profit)}</strong></span>`:(showLimitedSales?`<span>Salesperson commission<strong>${money(t.salespersonCommission)}</strong></span><span>Installer profit ex<strong>${money(t.profit)}</strong></span>`:'');
         const wonBadge=isWon?`<span class="wonBadge">${htmlEscape(optionWonLabel(g.def))}</span>`:'';
         const wonTools=isWon
-          ? (canUnlockWonOptions()?`<button class="smallBtn secondary" onclick="unlockWonOption('${g.def.id}')">Unlock won</button>`:`<button class="smallBtn secondary" disabled>Locked</button>`)
+          ? (canUnlockWonOptions()?`<button class="smallBtn secondary" onclick="unlockWonOption('${g.def.id}')">Unlock won quote</button>`:`<button class="smallBtn secondary" disabled>Locked</button>`)
           : `<button class="smallBtn orange" onclick="markOptionWon('${g.def.id}')">Mark won</button>`;
         return `<div class="optionCard${isWon?' wonOption':''}">
           <div class="optionHeader">
@@ -6542,7 +6689,7 @@ function renderQuotes(){
               <div class="optionNameRow"><input class="optionNameInput" value="${htmlEscape(g.def.name)}" onchange="renameOption('${g.def.id}', this.value)"${isWon?' disabled':''}>${rec?'<span class="recommendedBadge">Recommended</span>':''}${wonBadge}</div>
               <div class="optionSummary">${g.rows.length} system${g.rows.length===1?'':'s'} | Customer total ${money(t.customer)} inc GST | Misc total ${money(t.misc)} inc GST${privateSummary}</div>
             </div>
-            <div class="optionTools">${wonTools}<button class="smallBtn secondary" onclick="markRecommendedOption('${g.def.id}')">Recommend</button><button class="smallBtn secondary" onclick="duplicateOptionGroup('${g.def.id}')">Duplicate</button><button class="smallBtn danger" onclick="deleteOptionGroup('${g.def.id}')">Delete option</button></div>
+            <div class="optionTools">${wonTools}<button class="smallBtn secondary" onclick="markRecommendedOption('${g.def.id}')">Recommend</button><button class="smallBtn secondary" onclick="duplicateOptionGroup('${g.def.id}')">Duplicate</button><button class="smallBtn danger" onclick="deleteOptionGroup('${g.def.id}')">Delete quote</button></div>
           </div>
           <div class="optionBody">
             <div class="tableWrap"><table><thead><tr><th>Type</th><th>Brand</th><th>Size</th><th>Model</th><th>Install</th><th>Customer inc</th>${rebateHeadHtml('Rebate',g.rows)}<th>Unit inc</th><th>Labour ex</th><th>Installer Labour</th><th>Materials inc</th><th>Power</th>${privateHeads}<th>Actions</th></tr></thead><tbody>${bodyRows}</tbody></table></div>
@@ -6554,7 +6701,7 @@ function renderQuotes(){
   }
   const totalBody=$('quoteTotalsBody');
   if(totalBody){
-    if(!quotes.length){totalBody.innerHTML='<tr><td>No options added yet.</td></tr>';}
+    if(!quotes.length){totalBody.innerHTML='<tr><td>No quotes added yet.</td></tr>';}
     else{
       const all=groupTotals(quotes);
       totalBody.innerHTML=canSeeProfitDetails()
@@ -6569,12 +6716,12 @@ function renderQuotes(){
 }
 function removeQuote(i){
   const q=quotes[i];
-  if(q&&optionIsWon(q.optionId)){alert('This option is marked as won and locked. Ask Daniel to unlock it before removing systems.');return;}
+  if(q&&optionIsWon(q.optionId)){alert('This quote is marked as won and locked. Ask Daniel to unlock it before removing systems.');return;}
   quotes.splice(i,1); persistQuotes(); renderQuotes();
 }
 function clearQuotes(){
-  if(quoteOptionDefs.some(def=>def.wonAt&&quotes.some(q=>q.optionId===def.id))){alert('Won options are locked. Unlock them before clearing the quote builder.');return;}
-  quotes=[]; quoteOptionDefs=[{id:'option_1',name:'Option 1'}]; recommendedOptionId=''; persistOptionDefs(); persistQuotes(); renderQuotes();
+  if(quoteOptionDefs.some(def=>def.wonAt&&quotes.some(q=>q.optionId===def.id))){alert('Won quotes are locked. Unlock them before clearing the quote builder.');return;}
+  quotes=[]; quoteOptionDefs=[{id:'option_1',name:'Quote 1'}]; recommendedOptionId=''; persistOptionDefs(); persistQuotes(); renderQuotes();
 }
 function refreshRecommendedOptions(){}
 function downloadCsv(){
@@ -6582,7 +6729,7 @@ function downloadCsv(){
   const showPrivate=canSeeProfitDetails();
   const showLimitedSales=!showPrivate&&canSeeSalespersonCommission();
   const showExportRebates=rowsShowRebates(quotes);
-  const heads=['Quote Name','Option','Type','Brand','Series','Size','Model','Install','Customer inc'].concat(showExportRebates?['Rebate']:[],['Unit inc','Labour ex','Installer Labour','Materials inc','Power']).concat(showPrivate?['Agency Comm inc','Salesperson Comm inc','Installer Profit ex']:(showLimitedSales?['Salesperson commission','Installer Profit ex']:[]));
+  const heads=['Quote Name','Quote','Type','Brand','Series','Size','Model','Install','Customer inc'].concat(showExportRebates?['Rebate']:[],['Unit inc','Labour ex','Installer Labour','Materials inc','Power']).concat(showPrivate?['Agency Comm inc','Salesperson Comm inc','Installer Profit ex']:(showLimitedSales?['Salesperson commission','Installer Profit ex']:[]));
   const rows=[];
   optionGroups().forEach(g=>g.rows.forEach(r=>{
     const materialsInc=savedMaterialsInc(r); const power=quoteUsesPowerCost(r)?(r.powerCost!==undefined?Number(r.powerCost):0):'N/A';
@@ -6832,7 +6979,7 @@ function renderProposalSourceSummary(){
   const preview=groups.map(g=>{
     const t=groupTotals(g.rows);
     const systems=g.rows.map(r=>`${htmlEscape(r.size)} ${htmlEscape(r.brand)} ${htmlEscape(r.type)} (${htmlEscape(r.install)})`).join(', ');
-    return `<div class="proposalPreviewItem"><strong>${htmlEscape(g.def.name||('Option '+g.number))}</strong> - ${g.rows.length} system${g.rows.length===1?'':'s'} - ${money(t.customer)} inc GST<br>${systems}</div>`;
+    return `<div class="proposalPreviewItem"><strong>${htmlEscape(g.def.name||('Quote '+g.number))}</strong> - ${g.rows.length} system${g.rows.length===1?'':'s'} - ${money(t.customer)} inc GST<br>${systems}</div>`;
   }).join('');
   el.innerHTML=`<strong>${systemCount} system${systemCount===1?'':'s'} ready.</strong> ${htmlEscape(types)}<div class="proposalPreviewList">${preview}</div>`;
 }
@@ -6935,7 +7082,7 @@ function proposalPricingHtml(groups){
     const gst=t.customer-subtotal;
     const rows=g.rows.map((r,i)=>`<tr><td>${i+1}</td><td>${htmlEscape(proposalSystemTitle(r))}<br><span>${htmlEscape([r.size,r.brand,r.series].filter(Boolean).join(' '))}</span><br><span>Model: ${htmlEscape(r.model)}</span></td><td>${htmlEscape(r.install)}</td><td class="money">${money(r.finalInc)}</td></tr>`).join('');
     return `<section class="price-block">
-      <h3>${htmlEscape(g.def.name||('Option '+g.number))}</h3>
+      <h3>${htmlEscape(g.def.name||('Quote '+g.number))}</h3>
       <table><thead><tr><th>Item</th><th>Description</th><th>Install</th><th>Total inc GST</th></tr></thead><tbody>${rows}</tbody></table>
       <div class="totals-box"><div><span>Subtotal</span><strong>${money(subtotal)}</strong></div><div><span>GST</span><strong>${money(gst)}</strong></div><div><span>Amount due</span><strong>${money(t.customer)}</strong></div></div>
       <p class="deposit-note">Upon acceptance we require a 10% deposit to lock in your install date.</p>
@@ -6971,9 +7118,9 @@ function buildProposalHtml(groups,details){
   const allRows=groups.flatMap(g=>g.rows);
   const oneOption=groups.length===1;
   const total=oneOption?groupTotals(groups[0].rows).customer:0;
-  const proposalLabel=oneOption?money(total):`${groups.length} options included`;
+  const proposalLabel=oneOption?money(total):`${groups.length} quotes included`;
   const generatedDate=new Date().toLocaleDateString('en-AU');
-  const systemCards=groups.map(g=>`<section class="page"><h2>${htmlEscape(g.def.name||('Option '+g.number))}</h2>${g.rows.map((r,i)=>proposalSystemCard(r,i,details)).join('')}</section>`).join('');
+  const systemCards=groups.map(g=>`<section class="page"><h2>${htmlEscape(g.def.name||('Quote '+g.number))}</h2>${g.rows.map((r,i)=>proposalSystemCard(r,i,details)).join('')}</section>`).join('');
   const notes=details.notes?`<section class="page"><h2>Additional Notes</h2><p>${htmlEscape(details.notes).replace(/\n/g,'<br>')}</p></section>`:'';
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${htmlEscape(details.ref)} Proposal</title><style>
     @page{size:A4;margin:16mm}
