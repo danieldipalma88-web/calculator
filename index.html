@@ -1263,6 +1263,36 @@ tbody tr:hover td{background:#f0f7ff}
 .quoteNameModalCard p{margin:0;color:#475569;font-size:14px;line-height:1.45}
 .quoteNameModalCard label{margin-top:18px}
 .quoteNameModalActions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
+.quoteTargetControl{margin-top:12px}
+.selectedQuoteNameBar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-top:10px;
+  padding:10px 12px;
+  border:1px solid #d8e2ec;
+  border-radius:8px;
+  background:#f8fafc;
+}
+.selectedQuoteNameCopy{min-width:0}
+.selectedQuoteNameCopy span{
+  display:block;
+  color:#64748b;
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+.selectedQuoteNameCopy strong{
+  display:block;
+  margin-top:3px;
+  color:#0f172a;
+  font-size:15px;
+  line-height:1.35;
+  overflow-wrap:anywhere;
+}
+.selectedQuoteNameBar button{flex:0 0 auto}
 .portraitOnlyNotice{
   position:fixed;
   inset:0;
@@ -1301,7 +1331,7 @@ tbody tr:hover td{background:#f0f7ff}
 .optionHeader{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:14px 16px;background:#f8fbfd;border-bottom:1px solid var(--line)}
 .optionHeaderLeft{display:grid;gap:6px;min-width:0}
 .optionNameRow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.optionNameInput{height:36px;max-width:280px;font-weight:800}
+.optionNameDisplay{font-size:16px;color:#0f172a;line-height:1.35;overflow-wrap:anywhere}
 .optionSummary{font-size:12px;color:#64748b}
 .optionBody{padding:14px 16px}
 .optionBody table{min-width:1120px}
@@ -1787,7 +1817,6 @@ tbody tr:hover td{background:#f0f7ff}
   .optionBody{
     padding:10px;
   }
-  .optionNameInput{max-width:none}
   .optionSummary{font-size:11px}
   .optionTotals{
     display:grid;
@@ -1927,7 +1956,7 @@ tbody tr:hover td{background:#f0f7ff}
       <div id="netProfitRow" class="summaryLine cash profitHighlight"><span id="netProfitLabel">Installer profit after commission ex GST</span><strong><span id="netProfit"></span><small id="netProfitMargin"></small></strong></div>
       <div id="summaryInstallAddons" class="summaryAddons hidden"><div class="summaryAddonsHead"><strong>Install add-ons</strong><span>Cost only</span></div><div id="summaryInstallAddonRows" class="summaryAddonRows"></div><div id="summaryInstallAddonFoot" class="summaryAddonFoot"></div></div>
       <div class="actions"><button class="orange" onclick="addToQuote()">Add to Quote</button><button class="secondary" onclick="openDrawer()">View Quotes (<span id="quoteCount">0</span>)</button><button class="green" onclick="openWonJobsDrawer()">Won Jobs (<span data-won-jobs-count>0</span>)</button><button class="secondary" onclick="openPriceDrawer()">Price Manager</button><button id="certValuesActionBtn" class="secondary" onclick="openCertDrawer()">Certificate Values</button></div>
-      <div style="margin-top:12px"><label>Add current unit to quote</label><div class="row2"><select id="addOptionSelect" onchange="onOptionSelectionChange(this.value)"></select><button class="secondary" type="button" onclick="createNewOption(true)">+ New Quote</button></div><div style="margin-top:10px"><label>Selected quote name</label><input id="mainOptionName" placeholder="Customer name" onchange="renameCurrentMainOption(this.value)"></div></div>
+      <div class="quoteTargetControl"><label>Add current unit to quote</label><div class="row2"><select id="addOptionSelect" onchange="onOptionSelectionChange(this.value)"></select><button class="secondary" type="button" onclick="createNewOption(true)">+ New Quote</button></div><div class="selectedQuoteNameBar"><div class="selectedQuoteNameCopy"><span>Selected quote</span><strong id="mainOptionName">Quote 1</strong></div><button id="mainOptionRenameButton" class="secondary smallBtn" type="button" onclick="openRenameQuoteModal()">Rename</button></div></div>
     </aside>
   </div>
   <div class="multiSplitTrialCard" id="multiSplitTrialCard">
@@ -2030,7 +2059,7 @@ tbody tr:hover td{background:#f0f7ff}
         <div id="multiNetProfitRow" class="summaryLine cash profitHighlight"><span>Installer profit after commission ex GST</span><strong><span id="multiNetProfit">$0.00</span><small id="multiNetProfitMargin"></small></strong></div>
         <div id="multiSplitHeadsList" class="multiSplitHeadsList"></div>
         <div class="actions"><button class="orange" onclick="addToQuote()">Add to Quote</button><button class="secondary" onclick="openDrawer()">View Quotes (<span id="multiQuoteCount">0</span>)</button><button class="green" onclick="openWonJobsDrawer()">Won Jobs (<span data-won-jobs-count>0</span>)</button><button class="secondary" onclick="openPriceDrawer()">Price Manager</button><button class="secondary" onclick="openCertDrawer()">Certificate Values</button></div>
-        <div style="margin-top:12px"><label>Add current unit to quote</label><div class="row2"><select id="multiAddOptionSelect" onchange="onOptionSelectionChange(this.value)"></select><button class="secondary" type="button" onclick="createNewOption(true)">+ New Quote</button></div><div style="margin-top:10px"><label>Selected quote name</label><input id="multiMainOptionName" placeholder="Customer name" onchange="renameCurrentMainOption(this.value)"></div></div>
+        <div class="quoteTargetControl"><label>Add current unit to quote</label><div class="row2"><select id="multiAddOptionSelect" onchange="onOptionSelectionChange(this.value)"></select><button class="secondary" type="button" onclick="createNewOption(true)">+ New Quote</button></div><div class="selectedQuoteNameBar"><div class="selectedQuoteNameCopy"><span>Selected quote</span><strong id="multiMainOptionName">Quote 1</strong></div><button id="multiMainOptionRenameButton" class="secondary smallBtn" type="button" onclick="openRenameQuoteModal()">Rename</button></div></div>
         <div class="multiSplitTrialActions"><button class="green" type="button" onclick="calculateMultiSplitTrialRebate()">Check rebate</button></div>
         <div id="multiSplitStatus" class="multiSplitStatus">Select a system and click Check rebate to test NSW multi-split eligibility.</div>
       </aside>
@@ -2047,7 +2076,7 @@ tbody tr:hover td{background:#f0f7ff}
 </div>
 <div class="floatingActionBar" id="standardFloatingActionBar"><button class="floatingAction floatingAdd" onclick="addToQuote()">+ Add to Quote</button><button class="floatingAction floatingView" onclick="openDrawer()">View Quotes</button></div>
 <div id="quoteActionNotice" class="quoteActionNotice" role="status" aria-live="polite"></div>
-<div id="quoteNameModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="quoteNameModalTitle" onclick="if(event.target===this)closeQuoteNameModal()"><div class="quoteNameModalCard"><div class="kicker">Name this quote</div><h2 id="quoteNameModalTitle">Who is this quote for?</h2><p>Enter the customer name before adding the first system.</p><label for="quoteNameModalInput">Customer name</label><input id="quoteNameModalInput" type="text" autocomplete="name" placeholder="Example: Ash Macquarie Links" onkeydown="if(event.key==='Enter')confirmQuoteNameAndAdd()"><div id="quoteNameModalHint" class="hint" style="display:none"></div><div class="quoteNameModalActions"><button class="secondary" type="button" onclick="closeQuoteNameModal()">Cancel</button><button class="orange" type="button" onclick="confirmQuoteNameAndAdd()">Add to Quote</button></div></div></div>
+<div id="quoteNameModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="quoteNameModalTitle" aria-describedby="quoteNameModalDescription" onclick="if(event.target===this)closeQuoteNameModal()"><div class="quoteNameModalCard"><div id="quoteNameModalKicker" class="kicker">Name this quote</div><h2 id="quoteNameModalTitle">Who is this quote for?</h2><p id="quoteNameModalDescription">Enter the customer name before adding the first system.</p><label for="quoteNameModalInput">Customer name</label><input id="quoteNameModalInput" type="text" autocomplete="name" placeholder="Example: Ash Macquarie Links" oninput="updateQuoteNameModalSubmitState()" onkeydown="if(event.key==='Enter')confirmQuoteNameModal()"><div id="quoteNameModalHint" class="hint" role="status" aria-live="polite" style="display:none"></div><div class="quoteNameModalActions"><button class="secondary" type="button" onclick="closeQuoteNameModal()">Cancel</button><button id="quoteNameModalSubmit" class="orange" type="button" onclick="confirmQuoteNameModal()" disabled>Add to Quote</button></div></div></div>
 <div id="removeSystemModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="removeSystemModalTitle" onclick="if(event.target===this)closeRemoveSystemModal()"><div class="quoteNameModalCard"><div class="kicker">Current quote</div><h2 id="removeSystemModalTitle">Remove this system?</h2><p id="removeSystemModalMessage">This system will no longer be included in the quote totals.</p><div class="quoteNameModalActions"><button class="secondary" type="button" onclick="closeRemoveSystemModal()">Cancel</button><button class="danger" type="button" onclick="confirmRemoveCurrentQuoteSystem()">Remove system</button></div></div></div>
 <div class="portraitOnlyNotice" aria-live="polite"><div><strong>Use portrait view</strong><span>Rotate your phone upright to continue quoting.</span></div></div>
 <div id="overlay" class="drawerOverlay" onclick="closeAllDrawers()"></div>
@@ -6306,17 +6335,16 @@ function updateMainOptionNameInput(){
   ensureOptionDefs();
   const selector=$('addOptionSelect')||$('multiAddOptionSelect')||$('drawerAddOptionSelect');
   const id=selector&&selector.value?selector.value:quoteOptionDefs[0].id;
-  ['mainOptionName','multiMainOptionName'].forEach(inputId=>{
-    const input=$(inputId);
-    if(!input) return;
-    input.value=optionNameById(id);
-    input.disabled=optionIsWon(id);
+  ['mainOptionName','multiMainOptionName'].forEach(displayId=>{
+    const display=$(displayId);
+    if(display) display.textContent=optionNameById(id);
   });
-}
-function renameCurrentMainOption(value){
-  const id=currentAddOptionId();
-  renameOption(id,value);
-  updateMainOptionNameInput();
+  ['mainOptionRenameButton','multiMainOptionRenameButton'].forEach(buttonId=>{
+    const button=$(buttonId);
+    if(!button) return;
+    button.disabled=optionIsWon(id);
+    button.title=optionIsWon(id)?'Won quotes must be unlocked before renaming.':'Rename the selected quote';
+  });
 }
 function renderOptionSelectors(){
   ensureOptionDefs();
@@ -6338,13 +6366,16 @@ function currentAddOptionId(){
   return id;
 }
 function createNewOption(selectIt){
+  openQuoteNameModal({mode:'create',selectIt:selectIt!==false});
+}
+function createNewOptionNow(name,selectIt){
   ensureOptionDefs();
-  const n=quoteOptionDefs.length+1;
-  const opt={id:'option_'+Date.now()+'_'+Math.floor(Math.random()*1000),name:'Quote '+n};
+  const opt={id:'option_'+Date.now()+'_'+Math.floor(Math.random()*1000),name:String(name||'').trim()};
   quoteOptionDefs.push(opt); persistOptionDefs(); renderOptionSelectors();
   if(selectIt) syncAddOptionSelects(opt.id);
   updateMainOptionNameInput();
   renderQuotes();
+  showQuoteActionNotice(`Created quote for ${opt.name}.`);
   return opt;
 }
 function renameOption(id,value){
@@ -6367,11 +6398,17 @@ function duplicateOptionGroup(id){
   if(!assertOptionEditable(id)) return;
   const rows=quotes.filter(q=>q.optionId===id);
   if(!rows.length) return;
-  const newOpt={id:'option_'+Date.now()+'_'+Math.floor(Math.random()*1000),name:optionNameById(id)+' Copy'};
+  openQuoteNameModal({mode:'duplicate',targetId:id,initialName:optionNameById(id)+' Copy'});
+}
+function duplicateOptionGroupNow(id,name){
+  const rows=quotes.filter(q=>q.optionId===id);
+  if(!rows.length) return;
+  const newOpt={id:'option_'+Date.now()+'_'+Math.floor(Math.random()*1000),name:String(name||'').trim()};
   quoteOptionDefs.push(newOpt);
   const copies=rows.map(r=>{const c=JSON.parse(JSON.stringify(r)); c.id='quote_'+Date.now()+'_'+Math.floor(Math.random()*100000); c.timestamp=Date.now(); c.optionId=newOpt.id; c.optionName=newOpt.name; return c;});
   quotes=[...copies,...quotes];
-  persistOptionDefs(); persistQuotes(); renderQuotes(); syncAddOptionSelects(newOpt.id);
+  persistOptionDefs(); persistQuotes(); renderOptionSelectors(); syncAddOptionSelects(newOpt.id); renderQuotes();
+  showQuoteActionNotice(`Duplicated as ${newOpt.name}.`);
 }
 function markRecommendedOption(id){
   recommendedOptionId=id;
@@ -6745,6 +6782,7 @@ function currentMultiSplitState(x){
 let pendingQuoteAddKind='';
 let quoteActionNoticeTimer=null;
 let pendingCurrentQuoteRemoveIndex=-1;
+let quoteNameModalContext={mode:'',targetId:'',addKind:'',selectIt:true};
 function showQuoteActionNotice(message){
   const notice=$('quoteActionNotice');
   if(!notice) return;
@@ -6753,22 +6791,57 @@ function showQuoteActionNotice(message){
   if(quoteActionNoticeTimer) clearTimeout(quoteActionNoticeTimer);
   quoteActionNoticeTimer=setTimeout(()=>notice.classList.remove('show'),3200);
 }
-function openQuoteNameModal(){
+function openQuoteNameModal(config){
   const modal=$('quoteNameModal');
   const input=$('quoteNameModalInput');
   const hint=$('quoteNameModalHint');
+  const kicker=$('quoteNameModalKicker');
+  const title=$('quoteNameModalTitle');
+  const description=$('quoteNameModalDescription');
+  const submit=$('quoteNameModalSubmit');
   if(!modal||!input) return;
+  const settings=config||{};
+  const mode=settings.mode||'add';
+  quoteNameModalContext={
+    mode,
+    targetId:settings.targetId||currentAddOptionId(),
+    addKind:settings.addKind||pendingQuoteAddKind,
+    selectIt:settings.selectIt!==false
+  };
+  const content=mode==='create'
+    ? {kicker:'New quote',title:'Who is this quote for?',description:'Enter the customer name to create and select the new quote.',submit:'Create Quote'}
+    : (mode==='rename'
+      ? {kicker:'Quote details',title:'Rename quote',description:'Update the customer name shown throughout this quote.',submit:'Save Name'}
+      : (mode==='duplicate'
+        ? {kicker:'Duplicate quote',title:'Name the copied quote',description:'Confirm or update the customer name for this copy.',submit:'Duplicate Quote'}
+        : {kicker:'Name this quote',title:'Who is this quote for?',description:'Enter the customer name before adding the first system.',submit:'Add to Quote'}));
+  if(kicker) kicker.textContent=content.kicker;
+  if(title) title.textContent=content.title;
+  if(description) description.textContent=content.description;
+  if(submit) submit.textContent=content.submit;
   if(hint){hint.textContent='';hint.style.display='none';}
-  input.value='';
+  input.value=String(settings.initialName||'');
+  updateQuoteNameModalSubmitState();
   modal.classList.add('open');
-  setTimeout(()=>input.focus(),0);
+  setTimeout(()=>{input.focus();if(input.value) input.select();},0);
+}
+function openRenameQuoteModal(id){
+  const targetId=id||currentAddOptionId();
+  if(!assertOptionEditable(targetId)) return;
+  openQuoteNameModal({mode:'rename',targetId,initialName:optionNameById(targetId)});
+}
+function updateQuoteNameModalSubmitState(){
+  const input=$('quoteNameModalInput');
+  const submit=$('quoteNameModalSubmit');
+  if(submit) submit.disabled=!String(input&&input.value||'').trim();
 }
 function closeQuoteNameModal(){
   const modal=$('quoteNameModal');
   if(modal) modal.classList.remove('open');
   pendingQuoteAddKind='';
+  quoteNameModalContext={mode:'',targetId:'',addKind:'',selectIt:true};
 }
-function confirmQuoteNameAndAdd(){
+function confirmQuoteNameModal(){
   const input=$('quoteNameModalInput');
   const hint=$('quoteNameModalHint');
   const name=String(input&&input.value||'').trim();
@@ -6777,11 +6850,13 @@ function confirmQuoteNameAndAdd(){
     if(input) input.focus();
     return;
   }
-  const optionId=currentAddOptionId();
-  renameOption(optionId,name);
-  const kind=pendingQuoteAddKind;
+  const context={...quoteNameModalContext};
   closeQuoteNameModal();
-  if(kind==='multi') addMultiSplitToQuoteNow();
+  if(context.mode==='create') return createNewOptionNow(name,context.selectIt);
+  if(context.mode==='rename') return renameOption(context.targetId,name);
+  if(context.mode==='duplicate') return duplicateOptionGroupNow(context.targetId,name);
+  renameOption(context.targetId,name);
+  if(context.addKind==='multi') addMultiSplitToQuoteNow();
   else addStandardSystemToQuoteNow();
 }
 function toggleCurrentQuoteMobileDetails(index){
@@ -6907,7 +6982,7 @@ function renderQuotes(){
         return `<div class="optionCard${isWon?' wonOption':''}">
           <div class="optionHeader">
             <div class="optionHeaderLeft">
-              <div class="optionNameRow"><input class="optionNameInput" value="${htmlEscape(g.def.name)}" onchange="renameOption('${g.def.id}', this.value)"${isWon?' disabled':''}>${rec?'<span class="recommendedBadge">Recommended</span>':''}${wonBadge}</div>
+              <div class="optionNameRow"><strong class="optionNameDisplay">${htmlEscape(g.def.name)}</strong><button class="smallBtn secondary" type="button" onclick="openRenameQuoteModal('${g.def.id}')"${isWon?' disabled title="Won quotes must be unlocked before renaming."':' title="Rename this quote"'}>Rename</button>${rec?'<span class="recommendedBadge">Recommended</span>':''}${wonBadge}</div>
               <div class="optionSummary">${g.rows.length} system${g.rows.length===1?'':'s'} | Customer total ${money(t.customer)} inc GST | Misc total ${money(t.misc)} inc GST${privateSummary}</div>
             </div>
             <div class="optionTools">${wonTools}<button class="smallBtn secondary" onclick="markRecommendedOption('${g.def.id}')">Recommend</button><button class="smallBtn secondary" onclick="duplicateOptionGroup('${g.def.id}')">Duplicate</button><button class="smallBtn danger" onclick="deleteOptionGroup('${g.def.id}')">Delete quote</button></div>
