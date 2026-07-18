@@ -491,6 +491,28 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
   padding:18px;
   color:#475569;
 }
+.currentQuoteSystemsSection{margin-top:4px}
+.currentQuoteSectionHead{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:flex-end;
+  margin-bottom:10px;
+}
+.currentQuoteSectionHead h3{margin:3px 0 0;font-size:17px}
+.currentQuoteSectionHead .sub{margin-top:3px}
+.currentQuoteTotalsIntro{
+  display:flex;
+  justify-content:space-between;
+  gap:16px;
+  align-items:center;
+  margin-top:20px;
+  padding-top:18px;
+  border-top:1px solid #e2e8f0;
+}
+.currentQuoteTotalsIntro h3{margin:3px 0 0;font-size:18px}
+.currentQuoteTotalsIntro .sub{margin-top:4px}
+.currentQuoteAdjustBtn{flex:0 0 auto}
 .currentOptionSummaryGrid{
   display:grid;
   grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
@@ -535,6 +557,27 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
   font-variant-numeric:tabular-nums;
 }
 .currentOptionMetric input:focus{outline:2px solid rgba(37,99,235,.18);border-color:#93c5fd;background:#fff}
+.currentOptionMetric.editing{
+  border-color:#93c5fd;
+  box-shadow:inset 0 0 0 1px rgba(59,130,246,.08);
+}
+.currentOptionMetricInputWrap{
+  display:flex;
+  align-items:baseline;
+  gap:2px;
+  margin-top:4px;
+  border-bottom:2px solid #bfdbfe;
+}
+.currentOptionMetricInputWrap b{font-size:15px;color:#0f172a}
+.currentOptionMetricInputWrap input{
+  min-width:0;
+  margin:0;
+  border:0;
+  border-radius:0;
+  padding:3px 0 2px;
+  background:transparent;
+}
+.currentOptionMetricInputWrap input:focus{outline:0;border:0;background:transparent}
 .currentOptionEditActions{
   display:flex;
   justify-content:flex-end;
@@ -1504,6 +1547,12 @@ tbody tr:hover td{background:#f0f7ff}
     grid-template-columns:1fr;
     gap:8px;
   }
+  .currentQuoteSectionHead,
+  .currentQuoteTotalsIntro{
+    align-items:stretch;
+    flex-direction:column;
+  }
+  .currentQuoteAdjustBtn{width:100%}
   .currentOptionEditActions{
     display:grid;
     grid-template-columns:repeat(2,minmax(0,1fr));
@@ -2579,6 +2628,7 @@ function applyProductSupportDetails(){
 applyProductSupportDetails();
 let systemType='split', installType='new', activeCalculatorView='standard', quotes=[];
 let currentOptionEditMessage='';
+let currentQuoteTotalsEditing=false;
 let finalPriceLocked=false;
 let multiFinalPriceLocked=false;
 let priceLocks={};
@@ -6146,6 +6196,8 @@ function syncAddOptionSelects(value){
   ['addOptionSelect','drawerAddOptionSelect','multiAddOptionSelect'].forEach(id=>{const el=$(id); if(el && value) el.value=value;});
 }
 function onOptionSelectionChange(value){
+  currentQuoteTotalsEditing=false;
+  currentOptionEditMessage='';
   syncAddOptionSelects(value);
   updateMainOptionNameInput();
   renderCurrentOptionPanel();
@@ -6446,7 +6498,7 @@ function fillCurrentOptionTotals(){
   if($('currentOptionMiscTotal')) $('currentOptionMiscTotal').value=t.misc.toFixed(2);
   setCurrentOptionEditHint(`Loaded current totals from ${rows.length} system${rows.length===1?'':'s'} in this quote.`);
 }
-function applyCurrentOptionDistribution(){
+function applyCurrentOptionDistribution(beforeRender){
   const {id,rows}=currentOptionSelection();
   if(!assertOptionEditable(id)){setCurrentOptionEditHint('This quote is marked as won and locked. Ask Daniel to unlock it before making changes.');return;}
   if(!rows.length){setCurrentOptionEditHint('Add systems to this quote before applying totals.');return;}
@@ -6479,8 +6531,25 @@ function applyCurrentOptionDistribution(){
   if(materialsEntered) details.push(`materials ${money(materialsEach)} inc GST each`);
   if(miscEntered) details.push(`misc ${money(miscEach)} inc GST each`);
   currentOptionEditMessage='Applied to this quote: '+details.join(', ')+'.';
+  if(typeof beforeRender==='function') beforeRender();
   persistQuotes();
   renderQuotes();
+}
+function beginCurrentQuoteTotalsEdit(){
+  const {id,rows}=currentOptionSelection();
+  if(!rows.length) return;
+  if(!assertOptionEditable(id)) return;
+  currentQuoteTotalsEditing=true;
+  currentOptionEditMessage='';
+  renderCurrentOptionPanel();
+}
+function cancelCurrentQuoteTotalsEdit(){
+  currentQuoteTotalsEditing=false;
+  currentOptionEditMessage='';
+  renderCurrentOptionPanel();
+}
+function saveCurrentQuoteTotals(){
+  applyCurrentOptionDistribution(()=>{currentQuoteTotalsEditing=false;});
 }
 function renderCurrentOptionPanel(){
   const title=$('currentOptionTitle'), summary=$('currentOptionSummary'), body=$('currentOptionBody');
@@ -6490,6 +6559,7 @@ function renderCurrentOptionPanel(){
   const isWon=!!def.wonAt;
   title.textContent=def.name;
   if(!rows.length){
+    currentQuoteTotalsEditing=false;
     summary.textContent='No systems in this quote yet.';
     body.innerHTML='<div class="currentOptionBodyEmpty"><strong>No systems added to this quote yet.</strong><div class="sub" style="margin-top:6px">Select a system above, then add it to this quote.</div></div>';
     return;
@@ -6507,14 +6577,16 @@ function renderCurrentOptionPanel(){
     const actionCell=isWon?`<button class="load" onclick="loadQuote(${r._index})">Load</button> <button class="secondary smallBtn" disabled>Locked</button>`:`<button class="load" onclick="loadQuote(${r._index})">Load</button> <button class="danger" onclick="removeQuote(${r._index})">Remove</button>`;
     return `<tr><td>${htmlEscape(r.type)}</td><td>${htmlEscape(r.brand)}</td><td>${htmlEscape(r.size)}</td><td>${htmlEscape(r.model)}</td><td>${htmlEscape(r.install)}</td><td class="money">${money(r.finalInc)}</td>${rebateCellHtml(r.rebate,r)}<td class="money">${money(r.labour)}</td><td class="money">${money(materialsInc)}</td><td class="money">${power}</td>${privateCells}<td>${actionCell}</td></tr>`;
   }).join('');
-  const lockedAttr=isWon?' disabled':'';
+  if(isWon) currentQuoteTotalsEditing=false;
   const lockNotice=isWon?`<div class="wonNotice"><strong>${htmlEscape(optionWonLabel(def))}</strong><span>This quote is locked. Ask Daniel to unlock it before making changes.</span></div>`:'';
-  const unlockAction=isWon&&canUnlockWonOptions()?`<button class="secondary" type="button" onclick="unlockWonOption('${def.id}')">Unlock won quote</button>`:'';
-  const canAdjustQuoteTotals=rows.length>1;
-  const quoteMetric=(label,id,value)=>`<div class="currentOptionMetric${canAdjustQuoteTotals?' editable':''}"><span>${label}</span>${canAdjustQuoteTotals?`<input id="${id}" type="number" step="0.01" value="${value.toFixed(2)}"${lockedAttr}>`:`<strong>${money(value)}</strong>`}</div>`;
-  const editActions=canAdjustQuoteTotals?`<div class="currentOptionEditActions"><button class="secondary" type="button" onclick="fillCurrentOptionTotals()"${lockedAttr}>Load quote totals</button><button class="orange" type="button" onclick="applyCurrentOptionDistribution()"${lockedAttr}>Apply to this quote</button>${unlockAction}</div>`:(unlockAction?`<div class="currentOptionEditActions">${unlockAction}</div>`:'');
-  const editHint=isWon?'This quote is marked as won and locked.':(canAdjustQuoteTotals?(currentOptionEditMessage||'This quote has multiple systems. Adjust the shared totals above, then apply them evenly across the systems in this quote.'):'These totals are calculated for one system. Add another system to this quote to adjust shared totals.');
-  body.innerHTML=`${lockNotice}<div class="currentOptionSummaryGrid">${quoteMetric('Customer total inc GST','currentOptionCustomerTotal',t.customer)}${rebateMetricHtml(t.rebate,rows)}${quoteMetric('Labour ex GST','currentOptionLabourTotal',t.labour)}${quoteMetric('Materials inc GST','currentOptionMaterialsTotal',t.materials)}${quoteMetric('Misc inc GST','currentOptionMiscTotal',t.misc)}${commissionMetrics}</div>${editActions}<div class="currentOptionEditHint" id="currentOptionEditHint">${htmlEscape(editHint)}</div><div class="tableWrap" style="margin-top:12px"><table><thead><tr><th>Type</th><th>Brand</th><th>Size</th><th>Model</th><th>Install</th><th>Customer inc</th>${rebateHeadHtml('Rebate',rows)}<th>Labour ex</th><th>Materials inc</th><th>Power</th>${privateHeads}<th>Actions</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
+  const isEditing=currentQuoteTotalsEditing&&!isWon;
+  const quoteMetric=(label,id,value)=>`<div class="currentOptionMetric${isEditing?' editing':''}"><span>${label}</span>${isEditing?`<div class="currentOptionMetricInputWrap"><b>$</b><input id="${id}" type="number" inputmode="decimal" step="0.01" value="${value.toFixed(2)}" aria-label="${htmlEscape(label)}"></div>`:`<strong>${money(value)}</strong>`}</div>`;
+  const systemsTable=`<div class="currentQuoteSystemsSection"><div class="currentQuoteSectionHead"><div><div class="kicker">Systems in this quote</div><h3>${rows.length} system${rows.length===1?'':'s'} included</h3></div></div><div class="tableWrap"><table><thead><tr><th>Type</th><th>Brand</th><th>Size</th><th>Model</th><th>Install</th><th>Customer inc</th>${rebateHeadHtml('Rebate',rows)}<th>Labour ex</th><th>Materials inc</th><th>Power</th>${privateHeads}<th>Actions</th></tr></thead><tbody>${rowsHtml}</tbody></table></div></div>`;
+  const adjustAction=!isWon&&!isEditing?'<button class="secondary currentQuoteAdjustBtn" type="button" onclick="beginCurrentQuoteTotalsEdit()">Adjust totals</button>':'';
+  const totalsIntro=`<div class="currentQuoteTotalsIntro"><div><div class="kicker">Quote totals</div><h3>Combined totals for every system in this quote</h3><div class="sub">${isEditing?'Update the adjustable values below, then save your changes.':'Review the complete quote totals below.'}</div></div>${adjustAction}</div>`;
+  const editActions=isEditing?'<div class="currentOptionEditActions"><button class="secondary" type="button" onclick="cancelCurrentQuoteTotalsEdit()">Cancel</button><button class="orange" type="button" onclick="saveCurrentQuoteTotals()">Save changes</button></div>':'';
+  const editStatus=currentOptionEditMessage?`<div class="currentOptionEditHint" id="currentOptionEditHint">${htmlEscape(currentOptionEditMessage)}</div>`:(isEditing?'<div class="currentOptionEditHint" id="currentOptionEditHint">Customer total, labour, materials and miscellaneous costs can be adjusted. Rebate, commissions and profit remain calculated automatically.</div>':'');
+  body.innerHTML=`${lockNotice}${systemsTable}${totalsIntro}<div class="currentOptionSummaryGrid">${quoteMetric('Customer total inc GST','currentOptionCustomerTotal',t.customer)}${rebateMetricHtml(t.rebate,rows)}${quoteMetric('Labour ex GST','currentOptionLabourTotal',t.labour)}${quoteMetric('Materials inc GST','currentOptionMaterialsTotal',t.materials)}${quoteMetric('Misc inc GST','currentOptionMiscTotal',t.misc)}${commissionMetrics}</div>${editActions}${editStatus}`;
 }
 function currentMultiSplitState(x){
   const outdoor=x&&x.outdoor?x.outdoor:selectedMultiSplitOutdoor();
@@ -6615,6 +6687,7 @@ function addMultiSplitToQuoteNow(){
     cashProfit:x.cashProfit,commissionType:x.commissionType,commissionRate:x.commissionRate,agencyCommissionRate:x.agencyCommissionRate,agencyCommission:x.agencyCommission,agencyCommissionGst:x.agencyCommissionGst,agencyCommissionInc:x.agencyCommissionInc,salespersonCommissionRate:x.salespersonCommissionRate,salespersonCommission:x.salespersonCommission,salespersonCommissionGst:x.salespersonCommissionGst,salespersonCommissionInc:x.salespersonCommissionInc,commission:x.commission,commissionGst:x.commissionGst,commissionInc:x.commissionInc,
     netProfit:x.netProfit,margin:x.margin,netMargin:x.netMargin
   });
+  currentQuoteTotalsEditing=false;
   persistQuotes(); renderQuotes(); showQuoteActionNotice(`Added to ${optionName}.`);
 }
 function addToQuote(){
@@ -6645,6 +6718,7 @@ function addStandardSystemToQuoteNow(){
     cashProfit:x.cashProfit,commissionType:x.commissionType,commissionRate:x.commissionRate,agencyCommissionRate:x.agencyCommissionRate,agencyCommission:x.agencyCommission,agencyCommissionGst:x.agencyCommissionGst,agencyCommissionInc:x.agencyCommissionInc,salespersonCommissionRate:x.salespersonCommissionRate,salespersonCommission:x.salespersonCommission,salespersonCommissionGst:x.salespersonCommissionGst,salespersonCommissionInc:x.salespersonCommissionInc,commission:x.commission,commissionGst:x.commissionGst,commissionInc:x.commissionInc,
     netProfit:x.netProfit,margin:x.margin,netMargin:x.netMargin
   });
+  currentQuoteTotalsEditing=false;
   persistQuotes(); renderQuotes(); showQuoteActionNotice(`Added to ${optionName}.`);
 }
 function renderQuotes(){
@@ -6717,11 +6791,11 @@ function renderQuotes(){
 function removeQuote(i){
   const q=quotes[i];
   if(q&&optionIsWon(q.optionId)){alert('This quote is marked as won and locked. Ask Daniel to unlock it before removing systems.');return;}
-  quotes.splice(i,1); persistQuotes(); renderQuotes();
+  quotes.splice(i,1); currentQuoteTotalsEditing=false; persistQuotes(); renderQuotes();
 }
 function clearQuotes(){
   if(quoteOptionDefs.some(def=>def.wonAt&&quotes.some(q=>q.optionId===def.id))){alert('Won quotes are locked. Unlock them before clearing the quote builder.');return;}
-  quotes=[]; quoteOptionDefs=[{id:'option_1',name:'Quote 1'}]; recommendedOptionId=''; persistOptionDefs(); persistQuotes(); renderQuotes();
+  quotes=[]; quoteOptionDefs=[{id:'option_1',name:'Quote 1'}]; recommendedOptionId=''; currentQuoteTotalsEditing=false; persistOptionDefs(); persistQuotes(); renderQuotes();
 }
 function refreshRecommendedOptions(){}
 function downloadCsv(){
