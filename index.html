@@ -501,6 +501,8 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
 }
 .currentQuoteSectionHead h3{margin:3px 0 0;font-size:17px}
 .currentQuoteSectionHead .sub{margin-top:3px}
+.currentQuoteMobileList{display:none}
+.currentQuoteDesktopTable{display:block}
 .currentQuoteTotalsIntro{
   display:flex;
   justify-content:space-between;
@@ -1553,6 +1555,102 @@ tbody tr:hover td{background:#f0f7ff}
     flex-direction:column;
   }
   .currentQuoteAdjustBtn{width:100%}
+  .currentQuoteDesktopTable{display:none}
+  .currentQuoteMobileList{
+    display:block;
+    border-top:1px solid #e2e8f0;
+    border-bottom:1px solid #e2e8f0;
+  }
+  .currentQuoteMobileItem{
+    padding:13px 0;
+    border-bottom:1px solid #e2e8f0;
+  }
+  .currentQuoteMobileItem:last-child{border-bottom:0}
+  .currentQuoteMobileHead{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto;
+    gap:12px;
+    align-items:start;
+  }
+  .currentQuoteMobileTitle{
+    display:block;
+    color:#0f172a;
+    font-size:14px;
+    line-height:1.35;
+    overflow-wrap:anywhere;
+  }
+  .currentQuoteMobileMeta{
+    display:flex;
+    flex-wrap:wrap;
+    gap:5px 8px;
+    margin-top:5px;
+    color:#64748b;
+    font-size:11px;
+    line-height:1.35;
+  }
+  .currentQuoteMobileMeta span{white-space:nowrap}
+  .currentQuoteMobilePrice{text-align:right;white-space:nowrap}
+  .currentQuoteMobilePrice span{
+    display:block;
+    color:#64748b;
+    font-size:9px;
+    font-weight:900;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+  }
+  .currentQuoteMobilePrice strong{
+    display:block;
+    margin-top:2px;
+    color:#0f172a;
+    font-size:15px;
+    font-variant-numeric:tabular-nums;
+  }
+  .currentQuoteMobileActions{
+    display:grid;
+    grid-template-columns:1fr auto;
+    gap:8px;
+    margin-top:10px;
+  }
+  .currentQuoteMobileActions button{
+    min-height:38px;
+    padding:8px 11px;
+    font-size:12px;
+  }
+  .currentQuoteMobileDetails{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:0 12px;
+    margin-top:12px;
+    padding-top:4px;
+    border-top:1px solid #edf2f7;
+  }
+  .currentQuoteMobileDetail{
+    min-width:0;
+    padding:9px 0;
+    border-bottom:1px solid #edf2f7;
+  }
+  .currentQuoteMobileDetail.wide{grid-column:1 / -1}
+  .currentQuoteMobileDetail span{
+    display:block;
+    color:#64748b;
+    font-size:9.5px;
+    font-weight:900;
+    letter-spacing:.05em;
+    text-transform:uppercase;
+  }
+  .currentQuoteMobileDetail strong{
+    display:block;
+    margin-top:3px;
+    color:#0f172a;
+    font-size:12px;
+    line-height:1.4;
+    overflow-wrap:anywhere;
+  }
+  .currentQuoteMobileLoad{
+    grid-column:1 / -1;
+    width:100%;
+    margin-top:10px;
+  }
   .currentOptionEditActions{
     display:grid;
     grid-template-columns:repeat(2,minmax(0,1fr));
@@ -1950,6 +2048,7 @@ tbody tr:hover td{background:#f0f7ff}
 <div class="floatingActionBar" id="standardFloatingActionBar"><button class="floatingAction floatingAdd" onclick="addToQuote()">+ Add to Quote</button><button class="floatingAction floatingView" onclick="openDrawer()">View Quotes</button></div>
 <div id="quoteActionNotice" class="quoteActionNotice" role="status" aria-live="polite"></div>
 <div id="quoteNameModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="quoteNameModalTitle" onclick="if(event.target===this)closeQuoteNameModal()"><div class="quoteNameModalCard"><div class="kicker">Name this quote</div><h2 id="quoteNameModalTitle">Who is this quote for?</h2><p>Enter the customer name before adding the first system.</p><label for="quoteNameModalInput">Customer name</label><input id="quoteNameModalInput" type="text" autocomplete="name" placeholder="Example: Ash Macquarie Links" onkeydown="if(event.key==='Enter')confirmQuoteNameAndAdd()"><div id="quoteNameModalHint" class="hint" style="display:none"></div><div class="quoteNameModalActions"><button class="secondary" type="button" onclick="closeQuoteNameModal()">Cancel</button><button class="orange" type="button" onclick="confirmQuoteNameAndAdd()">Add to Quote</button></div></div></div>
+<div id="removeSystemModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="removeSystemModalTitle" onclick="if(event.target===this)closeRemoveSystemModal()"><div class="quoteNameModalCard"><div class="kicker">Current quote</div><h2 id="removeSystemModalTitle">Remove this system?</h2><p id="removeSystemModalMessage">This system will no longer be included in the quote totals.</p><div class="quoteNameModalActions"><button class="secondary" type="button" onclick="closeRemoveSystemModal()">Cancel</button><button class="danger" type="button" onclick="confirmRemoveCurrentQuoteSystem()">Remove system</button></div></div></div>
 <div class="portraitOnlyNotice" aria-live="polite"><div><strong>Use portrait view</strong><span>Rotate your phone upright to continue quoting.</span></div></div>
 <div id="overlay" class="drawerOverlay" onclick="closeAllDrawers()"></div>
 <div id="drawer" class="quoteDrawer quoteBuilderDrawer"><div class="drawerHead"><div><div class="kicker">Quote builder</div><h2 style="margin:4px 0">View quotes</h2><div class="sub drawerIntro">Compare split and ducted quotes. Working quotes are stored for 7 days. Use Save Quote to store permanent snapshots in this browser.</div><div class="quoteExportField" style="margin-top:14px;max-width:420px"><label>Quote / customer export name</label><input id="quoteExportName" placeholder="Example: Ash Macquarie Links" oninput="saveQuoteExportName()"></div></div><div class="actions"><button class="orange" onclick="saveCurrentQuoteSet()">Save Quote</button><button class="secondary" onclick="downloadCsv()">Download CSV</button><button class="danger" onclick="clearQuotes()">Clear</button><button class="secondary" onclick="closeDrawer()">Close</button></div></div>
@@ -6577,11 +6676,27 @@ function renderCurrentOptionPanel(){
     const actionCell=isWon?`<button class="load" onclick="loadQuote(${r._index})">Load</button> <button class="secondary smallBtn" disabled>Locked</button>`:`<button class="load" onclick="loadQuote(${r._index})">Load</button> <button class="danger" onclick="removeQuote(${r._index})">Remove</button>`;
     return `<tr><td>${htmlEscape(r.type)}</td><td>${htmlEscape(r.brand)}</td><td>${htmlEscape(r.size)}</td><td>${htmlEscape(r.model)}</td><td>${htmlEscape(r.install)}</td><td class="money">${money(r.finalInc)}</td>${rebateCellHtml(r.rebate,r)}<td class="money">${money(r.labour)}</td><td class="money">${money(materialsInc)}</td><td class="money">${power}</td>${privateCells}<td>${actionCell}</td></tr>`;
   }).join('');
+  const mobileDetail=(label,value,wide)=>`<div class="currentQuoteMobileDetail${wide?' wide':''}"><span>${htmlEscape(label)}</span><strong>${htmlEscape(value)}</strong></div>`;
+  const mobileRowsHtml=rows.map(r=>{
+    const materialsInc=savedMaterialsInc(r);
+    const miscInc=savedMiscInc(r);
+    const power=quoteUsesPowerCost(r)?money(r.powerCost!==undefined?r.powerCost:0):'N/A';
+    const rebateVisible=rowShowsRebate(r);
+    const meta=[r.type,r.install].map(value=>`<span>${htmlEscape(value)}</span>`).concat(rebateVisible?[`<span>Rebate ${money(r.rebate)}</span>`]:[]).join('');
+    const rebateDetail=rebateVisible?mobileDetail('Rebate',money(r.rebate)):'';
+    const privateDetails=showPrivate
+      ? mobileDetail('Agency commission inc',money(r.commissionInc))+mobileDetail('Salesperson commission inc',money(r.salespersonCommissionInc))+mobileDetail('Installer profit ex',money(r.netProfit))
+      : (showLimitedSales?mobileDetail('Salesperson commission inc',money(r.salespersonCommissionInc))+mobileDetail('Installer profit ex',money(r.netProfit)):'');
+    const removeButton=isWon
+      ? '<button class="danger" type="button" disabled>Remove</button>'
+      : `<button class="danger" type="button" onclick="requestRemoveCurrentQuoteSystem(${r._index})">Remove</button>`;
+    return `<div class="currentQuoteMobileItem"><div class="currentQuoteMobileHead"><div><strong class="currentQuoteMobileTitle">${htmlEscape(r.brand)} - ${htmlEscape(r.size)}</strong><div class="currentQuoteMobileMeta">${meta}</div></div><div class="currentQuoteMobilePrice"><span>Customer</span><strong>${money(r.finalInc)}</strong></div></div><div class="currentQuoteMobileActions"><button id="currentQuoteMobileDetailsButton_${r._index}" class="secondary" type="button" aria-expanded="false" aria-controls="currentQuoteMobileDetails_${r._index}" onclick="toggleCurrentQuoteMobileDetails(${r._index})">Details</button>${removeButton}</div><div id="currentQuoteMobileDetails_${r._index}" class="currentQuoteMobileDetails hidden">${mobileDetail('Model',r.model||'N/A',true)}${mobileDetail('Unit price inc GST',money(r.unitInc))}${rebateDetail}${mobileDetail('Labour ex GST',money(r.labour))}${mobileDetail('Labour treatment',quoteLabourTreatment(r))}${mobileDetail('Materials inc GST',money(materialsInc))}${mobileDetail('Misc inc GST',money(miscInc))}${mobileDetail('Power ex GST',power)}${privateDetails}<button class="secondary currentQuoteMobileLoad" type="button" onclick="loadQuote(${r._index})">Load into calculator</button></div></div>`;
+  }).join('');
   if(isWon) currentQuoteTotalsEditing=false;
   const lockNotice=isWon?`<div class="wonNotice"><strong>${htmlEscape(optionWonLabel(def))}</strong><span>This quote is locked. Ask Daniel to unlock it before making changes.</span></div>`:'';
   const isEditing=currentQuoteTotalsEditing&&!isWon;
   const quoteMetric=(label,id,value)=>`<div class="currentOptionMetric${isEditing?' editing':''}"><span>${label}</span>${isEditing?`<div class="currentOptionMetricInputWrap"><b>$</b><input id="${id}" type="number" inputmode="decimal" step="0.01" value="${value.toFixed(2)}" aria-label="${htmlEscape(label)}"></div>`:`<strong>${money(value)}</strong>`}</div>`;
-  const systemsTable=`<div class="currentQuoteSystemsSection"><div class="currentQuoteSectionHead"><div><div class="kicker">Systems in this quote</div><h3>${rows.length} system${rows.length===1?'':'s'} included</h3></div></div><div class="tableWrap"><table><thead><tr><th>Type</th><th>Brand</th><th>Size</th><th>Model</th><th>Install</th><th>Customer inc</th>${rebateHeadHtml('Rebate',rows)}<th>Labour ex</th><th>Materials inc</th><th>Power</th>${privateHeads}<th>Actions</th></tr></thead><tbody>${rowsHtml}</tbody></table></div></div>`;
+  const systemsTable=`<div class="currentQuoteSystemsSection"><div class="currentQuoteSectionHead"><div><div class="kicker">Systems in this quote</div><h3>${rows.length} system${rows.length===1?'':'s'} included</h3></div></div><div class="currentQuoteDesktopTable"><div class="tableWrap"><table><thead><tr><th>Type</th><th>Brand</th><th>Size</th><th>Model</th><th>Install</th><th>Customer inc</th>${rebateHeadHtml('Rebate',rows)}<th>Labour ex</th><th>Materials inc</th><th>Power</th>${privateHeads}<th>Actions</th></tr></thead><tbody>${rowsHtml}</tbody></table></div></div><div class="currentQuoteMobileList">${mobileRowsHtml}</div></div>`;
   const adjustAction=!isWon&&!isEditing?'<button class="secondary currentQuoteAdjustBtn" type="button" onclick="beginCurrentQuoteTotalsEdit()">Adjust totals</button>':'';
   const totalsIntro=`<div class="currentQuoteTotalsIntro"><div><div class="kicker">Quote totals</div><h3>Combined totals for every system in this quote</h3><div class="sub">${isEditing?'Update the adjustable values below, then save your changes.':'Review the complete quote totals below.'}</div></div>${adjustAction}</div>`;
   const editActions=isEditing?'<div class="currentOptionEditActions"><button class="secondary" type="button" onclick="cancelCurrentQuoteTotalsEdit()">Cancel</button><button class="orange" type="button" onclick="saveCurrentQuoteTotals()">Save changes</button></div>':'';
@@ -6629,6 +6744,7 @@ function currentMultiSplitState(x){
 }
 let pendingQuoteAddKind='';
 let quoteActionNoticeTimer=null;
+let pendingCurrentQuoteRemoveIndex=-1;
 function showQuoteActionNotice(message){
   const notice=$('quoteActionNotice');
   if(!notice) return;
@@ -6667,6 +6783,37 @@ function confirmQuoteNameAndAdd(){
   closeQuoteNameModal();
   if(kind==='multi') addMultiSplitToQuoteNow();
   else addStandardSystemToQuoteNow();
+}
+function toggleCurrentQuoteMobileDetails(index){
+  const details=$('currentQuoteMobileDetails_'+index);
+  const button=$('currentQuoteMobileDetailsButton_'+index);
+  if(!details||!button) return;
+  const show=details.classList.contains('hidden');
+  details.classList.toggle('hidden',!show);
+  button.setAttribute('aria-expanded',show?'true':'false');
+  button.textContent=show?'Hide details':'Details';
+}
+function requestRemoveCurrentQuoteSystem(index){
+  const q=quotes[index];
+  if(!q) return;
+  if(optionIsWon(q.optionId)){alert('This quote is marked as won and locked. Ask Daniel to unlock it before removing systems.');return;}
+  pendingCurrentQuoteRemoveIndex=index;
+  const systemLabel=[q.brand,q.size].filter(Boolean).join(' ')||'this system';
+  const quoteName=optionNameById(q.optionId);
+  const message=$('removeSystemModalMessage');
+  if(message) message.textContent=`Remove ${systemLabel} from ${quoteName}? It will no longer be included in the quote totals.`;
+  const modal=$('removeSystemModal');
+  if(modal) modal.classList.add('open');
+}
+function closeRemoveSystemModal(){
+  const modal=$('removeSystemModal');
+  if(modal) modal.classList.remove('open');
+  pendingCurrentQuoteRemoveIndex=-1;
+}
+function confirmRemoveCurrentQuoteSystem(){
+  const index=pendingCurrentQuoteRemoveIndex;
+  closeRemoveSystemModal();
+  if(index>=0) removeQuote(index);
 }
 function addMultiSplitToQuoteNow(){
   const optionId=currentAddOptionId();
