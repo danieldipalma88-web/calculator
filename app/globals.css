@@ -1028,7 +1028,7 @@ select {
 
 .sales-status-strip {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -1064,6 +1064,19 @@ select {
 
 .won-selected-totals[hidden] {
   display: none !important;
+}
+
+.won-requested-outstanding {
+  max-width: 100%;
+  margin: -6px 0 14px;
+  padding: 10px 13px;
+  border-left: 3px solid #3b82f6;
+  background: rgba(239, 246, 255, 0.82);
+  color: #1e40af;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 .status-chip {
@@ -1124,6 +1137,21 @@ select {
 .status-chip-red strong,
 .status-chip-red span {
   color: #991b1b;
+}
+
+.status-chip-blue {
+  border-color: rgba(96, 165, 250, 0.38);
+  background: #eff6ff;
+}
+
+.status-chip-blue.is-active {
+  border-color: #3b82f6;
+  background: #dbeafe;
+}
+
+.status-chip-blue strong,
+.status-chip-blue span {
+  color: #1e40af;
 }
 
 .status-chip-amber {
@@ -1232,6 +1260,11 @@ select {
   background: linear-gradient(145deg, #fff, #fff7f7);
 }
 
+.won-card-payment_requested {
+  border-color: rgba(96, 165, 250, 0.48);
+  background: linear-gradient(145deg, #fff, #eff6ff);
+}
+
 .won-card-payment_partial {
   border-color: rgba(251, 191, 36, 0.52);
   background: linear-gradient(145deg, #fff, #fffbeb);
@@ -1268,6 +1301,10 @@ select {
 
 .won-card-payment_open::before {
   background: #ef4444;
+}
+
+.won-card-payment_requested::before {
+  background: #3b82f6;
 }
 
 .won-card-payment_partial::before {
@@ -1507,6 +1544,11 @@ select {
   color: #991b1b;
 }
 
+.payment-pill-payment_requested {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
 .payment-pill-payment_partial {
   background: #fef3c7;
   color: #92400e;
@@ -1538,6 +1580,12 @@ select {
   border-color: rgba(251, 191, 36, 0.48);
   background: #fffbeb;
   color: #92400e;
+}
+
+.payment-flag-requested {
+  border-color: rgba(96, 165, 250, 0.48);
+  background: #eff6ff;
+  color: #1e40af;
 }
 
 .won-card-payment_complete .payment-flag-on {
@@ -1616,6 +1664,36 @@ select {
   gap: 8px;
   margin-top: auto;
   padding-top: 2px;
+}
+
+.won-installation-details {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(190px, 1fr);
+  gap: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(203, 213, 225, 0.9);
+}
+
+.won-installation-details div {
+  min-width: 0;
+}
+
+.won-installation-details span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.won-installation-details strong {
+  display: block;
+  margin-top: 7px;
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 .won-line {
@@ -1823,6 +1901,10 @@ select {
   .won-card-summary,
   .won-row-metrics,
   .won-line {
+    grid-template-columns: 1fr;
+  }
+
+  .won-installation-details {
     grid-template-columns: 1fr;
   }
 

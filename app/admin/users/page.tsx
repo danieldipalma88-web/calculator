@@ -8,8 +8,8 @@ type UserRole = "admin" | "business_owner" | "agency" | "salesperson" | "user";
 type CommissionType = "none" | "standard" | "agency";
 type CommissionOverride = CommissionType | "business_default";
 type OperatingState = "NSW" | "VIC" | "QLD" | "SA" | "WA" | "TAS" | "ACT" | "NT";
-type WonPaymentStatus = "payment_open" | "payment_partial" | "payment_complete";
-type WonOptionUpdateMode = "unlock" | "delete" | "paid_in" | "paid_out" | "reset_payment";
+type WonPaymentStatus = "payment_open" | "payment_requested" | "payment_partial" | "payment_complete";
+type WonOptionUpdateMode = "unlock" | "delete" | "payment_requested" | "paid_in" | "paid_out" | "reset_payment";
 
 type CertificateValues = {
   escRate: number;
@@ -76,6 +76,7 @@ type WonOption = {
   installationAddress: string;
   googlePlaceId: string;
   proposedInstallationDate: string;
+  paymentRequestedAt: string;
   paidInAt: string;
   paidOutAt: string;
   paymentStatus: WonPaymentStatus;
@@ -123,6 +124,8 @@ type WonOptionAdminState = {
   sourceId: string;
   optionId: string;
   wonAt: string;
+  paymentRequestedAt?: string;
+  paymentRequestedByEmail?: string;
   paidInAt?: string;
   paidInByEmail?: string;
   paidOutAt?: string;
@@ -143,6 +146,7 @@ type SalespersonSalesSummary = {
   agencyCommissionTotal: number;
   salespersonCommissionTotal: number;
   notPaidInCount: number;
+  paymentRequestedCount: number;
   paidInCount: number;
   paidOutCount: number;
 };
@@ -207,6 +211,8 @@ const WON_OPTION_ADMIN_STATE_STORAGE_KEYS = [
 ];
 
 const WON_PAYMENT_KEYS = [
+  "paymentRequestedAt",
+  "paymentRequestedByEmail",
   "agencyPaidInAt",
   "agencyPaidInByEmail",
   "paidInAt",
@@ -1006,15 +1012,17 @@ function formatDateOnly(value: string) {
   return match ? `${match[3]}/${match[2]}/${match[1]}` : formatShortDate(value);
 }
 
-function wonPaymentStatus(paidInAt: string, paidOutAt: string): WonPaymentStatus {
+function wonPaymentStatus(paymentRequestedAt: string, paidInAt: string, paidOutAt: string): WonPaymentStatus {
   if (paidInAt && paidOutAt) return "payment_complete";
   if (paidInAt || paidOutAt) return "payment_partial";
+  if (paymentRequestedAt) return "payment_requested";
   return "payment_open";
 }
 
 function wonPaymentStatusLabel(status: WonPaymentStatus) {
   if (status === "payment_complete") return "Paid in and out";
   if (status === "payment_partial") return "Part paid";
+  if (status === "payment_requested") return "Payment requested";
   return "Payment open";
 }
 
@@ -1039,6 +1047,12 @@ function applyWonPaymentFields(
   const now = new Date().toISOString();
 
   if (mode === "reset_payment") return clearWonPaymentFields(next);
+
+  if (mode === "payment_requested") {
+    next.paymentRequestedAt = now;
+    next.paymentRequestedByEmail = adminEmail;
+    return next;
+  }
 
   if (mode === "paid_in") {
     next.agencyPaidInAt = now;
@@ -1070,6 +1084,8 @@ function wonExportRow(option: WonOption) {
     "Google Place ID": option.googlePlaceId,
     "Proposed installation date": formatDateOnly(option.proposedInstallationDate),
     Status: option.paymentStatusLabel,
+    "Payment requested date": formatShortDate(option.paymentRequestedAt),
+    "Requested payment outstanding": option.paymentRequestedAt && !option.paidInAt ? "Yes" : "No",
     "Paid in date": formatShortDate(option.paidInAt),
     "Paid out date": formatShortDate(option.paidOutAt),
     Systems: String(option.systemCount),
@@ -1097,6 +1113,7 @@ function summarizeSalesBySalesperson(wonOptions: WonOption[]) {
         agencyCommissionTotal: 0,
         salespersonCommissionTotal: 0,
         notPaidInCount: 0,
+        paymentRequestedCount: 0,
         paidInCount: 0,
         paidOutCount: 0,
       } satisfies SalespersonSalesSummary);
@@ -1105,6 +1122,7 @@ function summarizeSalesBySalesperson(wonOptions: WonOption[]) {
     existing.customerTotal += option.customerTotal;
     existing.agencyCommissionTotal += option.agencyCommissionTotal;
     existing.salespersonCommissionTotal += option.salespersonCommissionTotal;
+    if (option.paymentRequestedAt && !option.paidInAt) existing.paymentRequestedCount += 1;
     if (option.paidInAt) existing.paidInCount += 1;
     else existing.notPaidInCount += 1;
     if (option.paidOutAt) existing.paidOutCount += 1;
@@ -1149,6 +1167,7 @@ function wonExportScript() {
   }
   function paymentFilterLabel(value) {
     if (value === "unpaid") return "Unpaid";
+    if (value === "requested") return "Payment requested";
     if (value === "paid-in") return "Paid in";
     if (value === "paid-out") return "Paid out";
     return value;
@@ -1300,15 +1319,17 @@ function wonExportScript() {
         total.agency += numberFromCard(card, "data-won-agency-total");
         total.salesComm += numberFromCard(card, "data-won-sales-total");
         if (card.getAttribute("data-payment-unpaid") === "true") total.unpaid += 1;
+        if (card.getAttribute("data-payment-requested") === "true") total.requested += 1;
         if (card.getAttribute("data-payment-paid-in") === "true") total.paidIn += 1;
         if (card.getAttribute("data-payment-paid-out") === "true") total.paidOut += 1;
         return total;
-      }, { sales: 0, customer: 0, agency: 0, salesComm: 0, unpaid: 0, paidIn: 0, paidOut: 0 });
+      }, { sales: 0, customer: 0, agency: 0, salesComm: 0, unpaid: 0, requested: 0, paidIn: 0, paidOut: 0 });
       var salesEl = summaryCard.querySelector("[data-summary-sales]");
       var customerEl = summaryCard.querySelector("[data-summary-customer]");
       var agencyEl = summaryCard.querySelector("[data-summary-agency]");
       var salesCommEl = summaryCard.querySelector("[data-summary-sales-comm]");
       var unpaidEl = summaryCard.querySelector("[data-summary-unpaid]");
+      var requestedEl = summaryCard.querySelector("[data-summary-payment-requested]");
       var paidInEl = summaryCard.querySelector("[data-summary-paid-in]");
       var paidOutEl = summaryCard.querySelector("[data-summary-paid-out]");
       if (salesEl) salesEl.textContent = String(totals.sales);
@@ -1316,6 +1337,7 @@ function wonExportScript() {
       if (agencyEl) agencyEl.textContent = currency(totals.agency);
       if (salesCommEl) salesCommEl.textContent = currency(totals.salesComm);
       if (unpaidEl) unpaidEl.textContent = String(totals.unpaid);
+      if (requestedEl) requestedEl.textContent = String(totals.requested);
       if (paidInEl) paidInEl.textContent = String(totals.paidIn);
       if (paidOutEl) paidOutEl.textContent = String(totals.paidOut);
     });
@@ -1326,6 +1348,22 @@ function wonExportScript() {
       button.classList.toggle("is-active", isActive);
       button.setAttribute("aria-pressed", isActive ? "true" : "false");
     });
+  }
+  function updateRequestedOutstanding() {
+    var node = document.querySelector("[data-won-requested-outstanding]");
+    if (!node) return;
+    var cards = visibleWonCards().filter(function(card){
+      return card.getAttribute("data-payment-requested-outstanding") === "true";
+    });
+    var total = cards.reduce(function(sum, card){
+      return sum + numberFromCard(card, "data-won-agency-total");
+    }, 0);
+    if (!cards.length) {
+      node.textContent = "No requested payments are currently awaiting payment.";
+      return;
+    }
+    node.textContent = "Payment requested, awaiting payment: " + cards.length + " job" +
+      (cards.length === 1 ? "" : "s") + " | Outstanding agency commission: " + currency(total);
   }
   function applyWonSalespersonFilter() {
     var activeEmails = activeSalespersonEmails();
@@ -1345,6 +1383,7 @@ function wonExportScript() {
     refreshBulkInputs();
     updateSalespersonSummaryTotals(activePayments);
     updateWonFilterStatus(activeEmails, activePayments);
+    updateRequestedOutstanding();
   }
   function toggleSalespersonCard(card) {
     if (!card) return;
@@ -1964,6 +2003,8 @@ function normalizeWonAdminStateRecord(
     sourceId: String(record.sourceId || CURRENT_WON_SOURCE_ID).trim() || CURRENT_WON_SOURCE_ID,
     optionId: String(record.optionId || "option_1").trim() || "option_1",
     wonAt: String(record.wonAt || "").trim(),
+    paymentRequestedAt: String(record.paymentRequestedAt || ""),
+    paymentRequestedByEmail: lookupText(record.paymentRequestedByEmail),
     paidInAt: String(record.paidInAt || record.agencyPaidInAt || ""),
     paidInByEmail: lookupText(record.paidInByEmail || record.agencyPaidInByEmail),
     paidOutAt: String(record.paidOutAt || record.salespersonPaidOutAt || ""),
@@ -1972,7 +2013,7 @@ function normalizeWonAdminStateRecord(
     paymentResetByEmail: lookupText(record.paymentResetByEmail),
     unlockedAt: String(record.unlockedAt || ""),
     unlockedByEmail: lookupText(record.unlockedByEmail),
-    updatedAt: String(record.updatedAt || record.paidInAt || record.paidOutAt || record.unlockedAt || record.paymentResetAt || ""),
+    updatedAt: String(record.updatedAt || record.paymentRequestedAt || record.paidInAt || record.paidOutAt || record.unlockedAt || record.paymentResetAt || ""),
   };
 
   if (!wonAdminStateKey(normalized, ownerEmail, dataUserId)) return null;
@@ -1992,8 +2033,8 @@ function wonAdminStateRecordsFromData(data: Record<string, unknown>, ownerEmail:
 
 function newerAdminStateRecord(existing: WonOptionAdminState | undefined, next: WonOptionAdminState) {
   if (!existing) return next;
-  const existingTime = Number(new Date(existing.updatedAt || existing.paidInAt || existing.paidOutAt || existing.unlockedAt || existing.paymentResetAt || 0));
-  const nextTime = Number(new Date(next.updatedAt || next.paidInAt || next.paidOutAt || next.unlockedAt || next.paymentResetAt || 0));
+  const existingTime = Number(new Date(existing.updatedAt || existing.paymentRequestedAt || existing.paidInAt || existing.paidOutAt || existing.unlockedAt || existing.paymentResetAt || 0));
+  const nextTime = Number(new Date(next.updatedAt || next.paymentRequestedAt || next.paidInAt || next.paidOutAt || next.unlockedAt || next.paymentResetAt || 0));
   return nextTime >= existingTime ? next : existing;
 }
 
@@ -2043,13 +2084,16 @@ function addWonOptionsFromSnapshot({
       if (deletedWonOptions.has(key)) return;
       const adminState = adminWonStates.get(key);
       const paymentWasReset = Boolean(adminState?.paymentResetAt);
+      const paymentRequestedAt = paymentWasReset
+        ? ""
+        : String(adminState?.paymentRequestedAt ?? option.paymentRequestedAt ?? "");
       const paidInAt = paymentWasReset
         ? ""
         : String(adminState?.paidInAt ?? option.agencyPaidInAt ?? option.paidInAt ?? "");
       const paidOutAt = paymentWasReset
         ? ""
         : String(adminState?.paidOutAt ?? option.salespersonPaidOutAt ?? option.paidOutAt ?? "");
-      const paymentStatus = wonPaymentStatus(paidInAt, paidOutAt);
+      const paymentStatus = wonPaymentStatus(paymentRequestedAt, paidInAt, paidOutAt);
       const firstBusinessName = rows
         .map((quote) => String(quote.businessName || ""))
         .find(Boolean);
@@ -2111,6 +2155,7 @@ function addWonOptionsFromSnapshot({
         installationAddress,
         googlePlaceId,
         proposedInstallationDate,
+        paymentRequestedAt,
         paidInAt,
         paidOutAt,
         paymentStatus,
@@ -2200,8 +2245,9 @@ function wonOptionSourcePriority(option: WonOption) {
 }
 
 function paymentStatusPriority(option: WonOption) {
-  if (option.paymentStatus === "payment_complete") return 2;
-  if (option.paymentStatus === "payment_partial") return 1;
+  if (option.paymentStatus === "payment_complete") return 3;
+  if (option.paymentStatus === "payment_partial") return 2;
+  if (option.paymentStatus === "payment_requested") return 1;
   return 0;
 }
 
@@ -2394,7 +2440,12 @@ function upsertWonAdminState(
     updatedAt: now,
   };
 
-  if (mode === "paid_in") {
+  if (mode === "payment_requested") {
+    nextRecord.paymentRequestedAt = now;
+    nextRecord.paymentRequestedByEmail = adminEmail;
+    delete nextRecord.paymentResetAt;
+    delete nextRecord.paymentResetByEmail;
+  } else if (mode === "paid_in") {
     nextRecord.paidInAt = now;
     nextRecord.paidInByEmail = adminEmail;
     delete nextRecord.paymentResetAt;
@@ -2405,6 +2456,8 @@ function upsertWonAdminState(
     delete nextRecord.paymentResetAt;
     delete nextRecord.paymentResetByEmail;
   } else if (mode === "reset_payment") {
+    nextRecord.paymentRequestedAt = "";
+    delete nextRecord.paymentRequestedByEmail;
     nextRecord.paidInAt = "";
     delete nextRecord.paidInByEmail;
     nextRecord.paidOutAt = "";
@@ -2978,7 +3031,7 @@ async function updateWonPaymentStatus(formData: FormData) {
     redirect("/admin/users?error=Could not identify the won option to update.");
   }
 
-  if (mode !== "paid_in" && mode !== "paid_out" && mode !== "reset_payment") {
+  if (mode !== "payment_requested" && mode !== "paid_in" && mode !== "paid_out" && mode !== "reset_payment") {
     redirect("/admin/users?error=Choose a valid payment status.");
   }
 
@@ -2999,7 +3052,9 @@ async function updateWonPaymentStatus(formData: FormData) {
   }
 
   const message =
-    mode === "paid_out"
+    mode === "payment_requested"
+      ? "Payment was marked as requested."
+      : mode === "paid_out"
       ? "Sale was marked as paid out."
       : mode === "paid_in"
         ? "Sale was marked as paid in."
@@ -3070,7 +3125,7 @@ async function bulkUpdateWonOptions(formData: FormData) {
     redirect("/admin/users?error=Select at least one won option first.");
   }
 
-  if (!["paid_in", "paid_out", "reset_payment", "unlock", "delete"].includes(mode)) {
+  if (!["payment_requested", "paid_in", "paid_out", "reset_payment", "unlock", "delete"].includes(mode)) {
     redirect("/admin/users?error=Choose a valid bulk action.");
   }
 
@@ -3103,7 +3158,9 @@ async function bulkUpdateWonOptions(formData: FormData) {
   }
 
   const actionLabel =
-    mode === "paid_out"
+    mode === "payment_requested"
+      ? "marked as payment requested"
+      : mode === "paid_out"
       ? "marked as paid out"
       : mode === "paid_in"
         ? "marked as paid in"
@@ -3767,6 +3824,9 @@ export default async function AdminUsersPage({
               </div>
               <form action={bulkUpdateWonOptions} className="won-bulk-actions" data-bulk-won-form>
                 <input type="hidden" name="selectedWonOptions" data-selected-won-input />
+                <button className="secondary" type="submit" name="bulkMode" value="payment_requested">
+                  Mark payment requested
+                </button>
                 <button className="secondary" type="submit" name="bulkMode" value="paid_in">
                   Mark paid in
                 </button>
@@ -3833,6 +3893,15 @@ export default async function AdminUsersPage({
                     </button>
                     <button
                       aria-pressed="false"
+                      className="status-chip status-chip-blue"
+                      data-payment-filter="requested"
+                      type="button"
+                    >
+                      <strong data-summary-payment-requested="true">{summary.paymentRequestedCount}</strong>
+                      <span>Requested</span>
+                    </button>
+                    <button
+                      aria-pressed="false"
                       className="status-chip status-chip-amber"
                       data-payment-filter="paid-in"
                       type="button"
@@ -3858,6 +3927,9 @@ export default async function AdminUsersPage({
           <div className="won-filter-status" data-won-filter-status>
             Showing all {wonOptions.length} won options.
           </div>
+          <div className="won-requested-outstanding" data-won-requested-outstanding aria-live="polite">
+            No requested payments are currently awaiting payment.
+          </div>
           <div className="won-selected-totals" data-won-selected-totals hidden aria-live="polite" />
 
           <div className="won-grid">
@@ -3875,6 +3947,8 @@ export default async function AdminUsersPage({
                 })}
                 data-won-user-email={option.userEmail.toLowerCase()}
                 data-payment-unpaid={option.paidInAt ? "false" : "true"}
+                data-payment-requested={option.paymentRequestedAt && !option.paidInAt ? "true" : "false"}
+                data-payment-requested-outstanding={option.paymentRequestedAt && !option.paidInAt ? "true" : "false"}
                 data-payment-paid-in={option.paidInAt ? "true" : "false"}
                 data-payment-paid-out={option.paidOutAt ? "true" : "false"}
                 data-won-agency-total={option.agencyCommissionTotal}
@@ -3946,6 +4020,9 @@ export default async function AdminUsersPage({
                       <span className={`payment-pill payment-pill-${option.paymentStatus}`}>
                         {option.paymentStatusLabel}
                       </span>
+                      <span className={`payment-flag ${option.paymentRequestedAt ? "payment-flag-requested" : "payment-flag-off"}`}>
+                        Payment requested: {option.paymentRequestedAt ? formatShortDate(option.paymentRequestedAt) : "Not yet"}
+                      </span>
                       <span className={`payment-flag ${option.paidInAt ? "payment-flag-on" : "payment-flag-off"}`}>
                         Paid in: {option.paidInAt ? formatShortDate(option.paidInAt) : "Not yet"}
                       </span>
@@ -3957,6 +4034,20 @@ export default async function AdminUsersPage({
                       {option.wonAt ? formatShortDate(option.wonAt) : "Won"}
                     </span>
                     {option.recoveredFromBackup ? <span className="locked-pill">Recovered backup</span> : null}
+                    {!option.paymentRequestedAt && !option.paidInAt ? (
+                      <form action={updateWonPaymentStatus}>
+                        <input type="hidden" name="userEmail" value={option.userEmail} />
+                        <input type="hidden" name="dataUserId" value={option.dataUserId} />
+                        <input type="hidden" name="dataOwnerEmail" value={option.dataOwnerEmail} />
+                        <input type="hidden" name="sourceId" value={option.sourceId} />
+                        <input type="hidden" name="optionId" value={option.optionId} />
+                        <input type="hidden" name="wonAt" value={option.wonAt} />
+                        <input type="hidden" name="paymentMode" value="payment_requested" />
+                        <button className="secondary" type="submit">
+                          Mark payment requested
+                        </button>
+                      </form>
+                    ) : null}
                     {!option.paidInAt ? (
                       <form action={updateWonPaymentStatus}>
                         <input type="hidden" name="userEmail" value={option.userEmail} />
@@ -3985,7 +4076,7 @@ export default async function AdminUsersPage({
                         </button>
                       </form>
                     ) : null}
-                    {option.paidInAt || option.paidOutAt ? (
+                    {option.paymentRequestedAt || option.paidInAt || option.paidOutAt ? (
                       <form action={updateWonPaymentStatus}>
                         <input type="hidden" name="userEmail" value={option.userEmail} />
                         <input type="hidden" name="dataUserId" value={option.dataUserId} />
@@ -4033,14 +4124,13 @@ export default async function AdminUsersPage({
                   </div>
                 </div>
                 <div className="won-metrics">
-                  <div><span>Installation address</span><strong>{option.installationAddress || "Not recorded"}</strong></div>
-                  <div><span>Proposed installation</span><strong>{option.proposedInstallationDate ? formatDateOnly(option.proposedInstallationDate) : "Not recorded"}</strong></div>
                   <div><span>Systems</span><strong>{option.systemCount}</strong></div>
                   <div><span>Customer</span><strong>{formatMoney(option.customerTotal)}</strong></div>
                   <div><span>Rebate</span><strong>{formatMoney(option.rebateTotal)}</strong></div>
                   <div><span>Agency comm</span><strong>{formatMoney(option.agencyCommissionTotal)}</strong></div>
                   <div><span>Sales comm</span><strong>{formatMoney(option.salespersonCommissionTotal)}</strong></div>
                   <div><span>Installer profit</span><strong>{formatMoney(option.installerProfitTotal)}</strong></div>
+                  <div><span>Payment requested</span><strong>{option.paymentRequestedAt ? formatShortDate(option.paymentRequestedAt) : "Not yet"}</strong></div>
                   <div><span>Paid in</span><strong>{option.paidInAt ? formatShortDate(option.paidInAt) : "Not yet"}</strong></div>
                   <div><span>Paid out</span><strong>{option.paidOutAt ? formatShortDate(option.paidOutAt) : "Not yet"}</strong></div>
                 </div>
@@ -4053,6 +4143,16 @@ export default async function AdminUsersPage({
                       </span>
                     </div>
                   ))}
+                </div>
+                <div className="won-installation-details">
+                  <div>
+                    <span>Installation address</span>
+                    <strong>{option.installationAddress || "Not recorded"}</strong>
+                  </div>
+                  <div>
+                    <span>Proposed installation date</span>
+                    <strong>{option.proposedInstallationDate ? formatDateOnly(option.proposedInstallationDate) : "Not recorded"}</strong>
+                  </div>
                 </div>
                 </div>
               </details>
