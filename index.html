@@ -1316,7 +1316,29 @@ tbody tr:hover td{background:#f0f7ff}
 .wonAddressStatus{margin-top:7px;color:#64748b;font-size:12px;line-height:1.4}
 .wonAddressStatus.success{color:#166534}
 .wonAddressStatus.error{color:#b91c1c}
-.wonDetailsField input[type="date"]{min-height:46px}
+.wonDateControl{
+  box-sizing:border-box;
+  width:100%;
+  min-width:0;
+  max-width:100%;
+  overflow:hidden;
+  border:1px solid #c9d7e6;
+  border-radius:8px;
+  background:#fff;
+}
+.wonDateControl input[type="date"]{
+  display:block;
+  box-sizing:border-box;
+  width:100%;
+  min-width:0;
+  max-width:100%;
+  min-height:46px;
+  margin:0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+}
 .portraitOnlyNotice{
   position:fixed;
   inset:0;
@@ -1879,6 +1901,7 @@ tbody tr:hover td{background:#f0f7ff}
   .wonDetailsField,
   .wonAddressLookup,
   .wonAddressLookup gmp-place-autocomplete,
+  .wonDateControl,
   .wonDetailsField input[type="date"]{
     box-sizing:border-box;
     width:100%;
@@ -1886,7 +1909,22 @@ tbody tr:hover td{background:#f0f7ff}
     max-width:100%;
   }
   .wonAddressLookup gmp-place-autocomplete{min-inline-size:0!important}
-  .wonDetailsField input[type="date"]{display:block}
+  .wonDateControl{
+    inline-size:100%;
+    max-inline-size:100%;
+  }
+  .wonDateControl input[type="date"]{
+    display:block;
+    inline-size:-webkit-fill-available;
+    min-inline-size:0!important;
+    max-inline-size:100%!important;
+    -webkit-appearance:none;
+    appearance:none;
+  }
+  .wonDateControl input[type="date"]::-webkit-date-and-time-value{
+    min-width:0;
+    text-align:left;
+  }
   .quoteNameModalActions{display:grid;grid-template-columns:1fr 1fr}
   .quoteNameModalActions button{width:100%}
 }
@@ -2122,7 +2160,7 @@ tbody tr:hover td{background:#f0f7ff}
 <div id="quoteActionNotice" class="quoteActionNotice" role="status" aria-live="polite"></div>
 <div id="quoteNameModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="quoteNameModalTitle" aria-describedby="quoteNameModalDescription" onclick="if(event.target===this)closeQuoteNameModal()"><div class="quoteNameModalCard"><div id="quoteNameModalKicker" class="kicker">Name this quote</div><h2 id="quoteNameModalTitle">Who is this quote for?</h2><p id="quoteNameModalDescription">Enter the customer name before adding the first system.</p><label for="quoteNameModalInput">Customer name</label><input id="quoteNameModalInput" type="text" autocomplete="name" placeholder="Example: Ash Macquarie Links" oninput="updateQuoteNameModalSubmitState()" onkeydown="if(event.key==='Enter')confirmQuoteNameModal()"><div id="quoteNameModalHint" class="hint" role="status" aria-live="polite" style="display:none"></div><div class="quoteNameModalActions"><button class="secondary" type="button" onclick="closeQuoteNameModal()">Cancel</button><button id="quoteNameModalSubmit" class="orange" type="button" onclick="confirmQuoteNameModal()" disabled>Add to Quote</button></div></div></div>
 <div id="removeSystemModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="removeSystemModalTitle" onclick="if(event.target===this)closeRemoveSystemModal()"><div class="quoteNameModalCard"><div class="kicker">Current quote</div><h2 id="removeSystemModalTitle">Remove this system?</h2><p id="removeSystemModalMessage">This system will no longer be included in the quote totals.</p><div class="quoteNameModalActions"><button class="secondary" type="button" onclick="closeRemoveSystemModal()">Cancel</button><button class="danger" type="button" onclick="confirmRemoveCurrentQuoteSystem()">Remove system</button></div></div></div>
-<div id="wonDetailsModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="wonDetailsModalTitle" aria-describedby="wonDetailsModalDescription" onclick="if(event.target===this)closeWonDetailsModal()"><div class="quoteNameModalCard wonDetailsModalCard"><div class="kicker">Won job details</div><h2 id="wonDetailsModalTitle">Complete won job</h2><p id="wonDetailsModalDescription">Confirm the installation location and proposed date before locking this quote.</p><div class="wonDetailsFields"><div class="wonDetailsField"><label id="wonAddressLabel">Installation address <span class="wonRequired">Required</span></label><div id="wonAddressLookup" class="wonAddressLookup" aria-labelledby="wonAddressLabel"><div class="wonAddressLoading">Loading Google address search...</div></div><div id="wonAddressStatus" class="wonAddressStatus" role="status" aria-live="polite">A Google address selection is required.</div></div><div class="wonDetailsField"><label for="wonInstallDate">Proposed installation date <span class="wonRequired">Required</span></label><input id="wonInstallDate" type="date" required onchange="updateWonDetailsSubmitState()" oninput="updateWonDetailsSubmitState()"></div></div><div id="wonDetailsHint" class="hint" role="status" aria-live="polite" style="display:none"></div><div class="quoteNameModalActions"><button class="secondary" type="button" onclick="closeWonDetailsModal()">Cancel</button><button id="wonDetailsSubmit" class="green" type="button" onclick="confirmWonDetails()" disabled>Mark as won</button></div></div></div>
+<div id="wonDetailsModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="wonDetailsModalTitle" aria-describedby="wonDetailsModalDescription" onclick="if(event.target===this)closeWonDetailsModal()"><div class="quoteNameModalCard wonDetailsModalCard"><div class="kicker">Won job details</div><h2 id="wonDetailsModalTitle">Complete won job</h2><p id="wonDetailsModalDescription">Confirm the installation location and proposed date before locking this quote.</p><div class="wonDetailsFields"><div class="wonDetailsField"><label id="wonAddressLabel">Installation address <span class="wonRequired">Required</span></label><div id="wonAddressLookup" class="wonAddressLookup" aria-labelledby="wonAddressLabel"><div class="wonAddressLoading">Loading Google address search...</div></div><div id="wonAddressStatus" class="wonAddressStatus" role="status" aria-live="polite">A Google address selection is required.</div></div><div class="wonDetailsField"><label for="wonInstallDate">Proposed installation date <span class="wonRequired">Required</span></label><div class="wonDateControl"><input id="wonInstallDate" type="date" required onchange="updateWonDetailsSubmitState()" oninput="updateWonDetailsSubmitState()"></div></div></div><div id="wonDetailsHint" class="hint" role="status" aria-live="polite" style="display:none"></div><div class="quoteNameModalActions"><button class="secondary" type="button" onclick="closeWonDetailsModal()">Cancel</button><button id="wonDetailsSubmit" class="green" type="button" onclick="confirmWonDetails()" disabled>Mark as won</button></div></div></div>
 <div class="portraitOnlyNotice" aria-live="polite"><div><strong>Use portrait view</strong><span>Rotate your phone upright to continue quoting.</span></div></div>
 <div id="overlay" class="drawerOverlay" onclick="closeAllDrawers()"></div>
 <div id="drawer" class="quoteDrawer quoteBuilderDrawer"><div class="drawerHead"><div><div class="kicker">Quote builder</div><h2 style="margin:4px 0">View quotes</h2><div class="sub drawerIntro">Compare split and ducted quotes. Working quotes are stored for 7 days. Use Save Quote to store permanent snapshots in this browser.</div><div class="quoteExportField" style="margin-top:14px;max-width:420px"><label>Quote / customer export name</label><input id="quoteExportName" placeholder="Example: Ash Macquarie Links" oninput="saveQuoteExportName()"></div></div><div class="actions"><button class="orange" onclick="saveCurrentQuoteSet()">Save Quote</button><button class="secondary" onclick="downloadCsv()">Download CSV</button><button class="danger" onclick="clearQuotes()">Clear</button><button class="secondary" onclick="closeDrawer()">Close</button></div></div>
