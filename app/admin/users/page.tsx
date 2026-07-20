@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import Script from "next/script";
 import { canManageUsers } from "../../../lib/admin";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
+import PageLoadingOverlay from "../../page-loading-overlay";
 
 type UserRole = "admin" | "business_owner" | "agency" | "salesperson" | "user";
 type CommissionType = "none" | "standard" | "agency";
@@ -1250,6 +1251,13 @@ function wonExportScript() {
     status.textContent = message || "";
     status.setAttribute("data-tone", tone || "");
   }
+  function setWonSectionLoading(active, labelText) {
+    var section = document.querySelector(".won-options-section");
+    if (!section) return;
+    section.classList.toggle("is-loading", !!active);
+    var label = section.querySelector("[data-won-loading-label]");
+    if (label && labelText) label.textContent = labelText;
+  }
   function setWonActionLoading(form, submitter) {
     var section = form && form.closest ? form.closest(".won-options-section") : document.querySelector(".won-options-section");
     if (section) section.classList.add("is-loading");
@@ -1752,25 +1760,30 @@ function wonExportScript() {
       window.alert("Select at least one won option first.");
       return;
     }
-    try {
-      setExportStatus("Preparing XLSX export...", "loading");
-      var blob = new Blob([workbookXlsxBytes(jobs)], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-      var url = URL.createObjectURL(blob);
-      var link = document.createElement("a");
-      link.href = url;
-      link.download = jobs.length === 1 ? "won-job-export.xlsx" : "won-jobs-export.xlsx";
-      link.style.display = "none";
-      document.body.appendChild(link);
-      link.click();
-      window.setTimeout(function(){
-        URL.revokeObjectURL(url);
-        if (link.parentNode) link.parentNode.removeChild(link);
-      }, 4000);
-      setExportStatus("XLSX export started for " + jobs.length + " selected job" + (jobs.length === 1 ? "." : "s."), "success");
-    } catch (error) {
-      setExportStatus("Excel export failed. Please try again.", "error");
-      window.alert("Excel export failed. Please try again.");
-    }
+    setExportStatus("Preparing XLSX export...", "loading");
+    setWonSectionLoading(true, "Preparing Excel export...");
+    window.setTimeout(function(){
+      try {
+        var blob = new Blob([workbookXlsxBytes(jobs)], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+        var url = URL.createObjectURL(blob);
+        var link = document.createElement("a");
+        link.href = url;
+        link.download = jobs.length === 1 ? "won-job-export.xlsx" : "won-jobs-export.xlsx";
+        link.style.display = "none";
+        document.body.appendChild(link);
+        link.click();
+        window.setTimeout(function(){
+          URL.revokeObjectURL(url);
+          if (link.parentNode) link.parentNode.removeChild(link);
+        }, 4000);
+        setExportStatus("XLSX export started for " + jobs.length + " selected job" + (jobs.length === 1 ? "." : "s."), "success");
+      } catch (error) {
+        setExportStatus("Excel export failed. Please try again.", "error");
+        window.alert("Excel export failed. Please try again.");
+      } finally {
+        setWonSectionLoading(false, "Updating...");
+      }
+    }, 40);
   }
   function handleWonSelectionClick(event) {
     var selectControl = event.target && event.target.closest ? event.target.closest(".won-card-summary [data-won-select-toggle]") : null;
@@ -3197,6 +3210,7 @@ export default async function AdminUsersPage({
 
   return (
     <main className="admin-shell">
+      <PageLoadingOverlay />
       <section className="admin-card">
         <div className="admin-head">
           <div>
@@ -3207,7 +3221,7 @@ export default async function AdminUsersPage({
               structure each user receives.
             </p>
           </div>
-          <a className="button secondary" href="/calculator">
+          <a className="button secondary" href="/calculator" data-loading-label="Opening calculator...">
             Calculator
           </a>
         </div>
@@ -3244,7 +3258,7 @@ export default async function AdminUsersPage({
 
           <div className="admin-section-body">
             <div className="certificate-admin-grid">
-              <form action={savePlatformCertificateValues} className="certificate-admin-form">
+              <form action={savePlatformCertificateValues} className="certificate-admin-form" data-loading-label="Saving certificate values...">
                 <div>
                   <label htmlFor="certificateEscSpotPrice">ESC spot price</label>
                   <input
@@ -3309,7 +3323,7 @@ export default async function AdminUsersPage({
                       : "Not saved yet"}
                   </strong>
                 </div>
-                <form action={resetPlatformCertificateValues}>
+                <form action={resetPlatformCertificateValues} data-loading-label="Resetting certificate values...">
                   <button className="secondary" type="submit">
                     Reset defaults
                   </button>
@@ -3330,7 +3344,7 @@ export default async function AdminUsersPage({
           </summary>
 
           <div className="admin-section-body">
-            <form action={upsertBusiness} className="admin-form business-form">
+            <form action={upsertBusiness} className="admin-form business-form" data-loading-label="Adding business...">
             <div>
               <label htmlFor="businessName">Business name</label>
               <input
@@ -3414,7 +3428,7 @@ export default async function AdminUsersPage({
                   <span className="locked-pill locked-state">Locked</span>
                   <span className="locked-pill unlocked-state">Unlocked</span>
                 </summary>
-                <form action={upsertBusiness} className="business-edit-form">
+                <form action={upsertBusiness} className="business-edit-form" data-loading-label="Saving business...">
                   <input type="hidden" name="businessId" value={business.id} />
                   <div>
                     <label>Business name</label>
@@ -3503,7 +3517,7 @@ export default async function AdminUsersPage({
           </summary>
 
           <div className="admin-section-body">
-            <form action={addApprovedUser} className="admin-form user-form">
+            <form action={addApprovedUser} className="admin-form user-form" data-loading-label="Adding approved user...">
             <div>
               <label htmlFor="displayName">Name</label>
               <input id="displayName" name="displayName" placeholder="Alex Quinn" />
@@ -3562,10 +3576,10 @@ export default async function AdminUsersPage({
                       <span className="muted-line">{approvedUser.email}</span>
                     </div>
                     <div className="action-stack">
-                      <a className="button secondary" href={`/calculator?as=${encodeURIComponent(approvedUser.email)}`}>
+                      <a className="button secondary" href={`/calculator?as=${encodeURIComponent(approvedUser.email)}`} data-loading-label="Opening user calculator...">
                         Open
                       </a>
-                      <form action={removeApprovedUser}>
+                      <form action={removeApprovedUser} data-loading-label="Removing approved user...">
                         <input type="hidden" name="email" value={approvedUser.email} />
                         <button className="danger" type="submit" disabled={isSelf}>
                           Remove
@@ -3581,7 +3595,7 @@ export default async function AdminUsersPage({
                     <div><span>Rates</span><strong>{formatRate(approvedUser.effective_agency_commission_rate)}% / {formatRate(approvedUser.effective_salesperson_commission_rate)}%</strong></div>
                   </div>
 
-                  <form action={updateApprovedUser} className="user-edit-grid">
+                  <form action={updateApprovedUser} className="user-edit-grid" data-loading-label="Saving approved user...">
                     <input type="hidden" name="email" value={approvedUser.email} />
                     {isSelf ? <input type="hidden" name="role" value={approvedUser.role} /> : null}
                     <div>
@@ -3684,7 +3698,7 @@ export default async function AdminUsersPage({
                         </span>
                       </td>
                       <td colSpan={4}>
-                        <form action={updateApprovedUser} className="inline-form wide-inline-form">
+                        <form action={updateApprovedUser} className="inline-form wide-inline-form" data-loading-label="Saving approved user...">
                           <input type="hidden" name="email" value={approvedUser.email} />
                           {isSelf ? <input type="hidden" name="role" value={approvedUser.role} /> : null}
                           <select name="role" defaultValue={approvedUser.role} disabled={isSelf}>
@@ -3745,10 +3759,10 @@ export default async function AdminUsersPage({
                       <td>{new Date(approvedUser.created_at).toLocaleDateString("en-AU")}</td>
                       <td>
                         <div className="action-stack">
-                          <a className="button secondary" href={`/calculator?as=${encodeURIComponent(approvedUser.email)}`}>
+                          <a className="button secondary" href={`/calculator?as=${encodeURIComponent(approvedUser.email)}`} data-loading-label="Opening user calculator...">
                             Open
                           </a>
-                          <form action={removeApprovedUser}>
+                          <form action={removeApprovedUser} data-loading-label="Removing approved user...">
                             <input type="hidden" name="email" value={approvedUser.email} />
                             <button className="danger" type="submit" disabled={isSelf}>
                               Remove

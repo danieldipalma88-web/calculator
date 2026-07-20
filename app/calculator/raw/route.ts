@@ -394,6 +394,26 @@ function injectCloudStorageSync(
   var syncRetryTimer = null;
   window.CALCULATOR_USER = calculatorUser;
   window.__calculatorTrustedManagedPriceKeys = trustedManagedPriceKeys;
+  function ensureCloudSaveStatus(){
+    var existing = document.getElementById('cloudSaveStatus');
+    if (existing) return existing;
+    if (!document.body) return null;
+    var status = document.createElement('div');
+    status.id = 'cloudSaveStatus';
+    status.className = 'cloudSaveStatus';
+    status.setAttribute('role', 'status');
+    status.setAttribute('aria-live', 'polite');
+    status.dataset.tone = 'saved';
+    status.textContent = 'Saved';
+    document.body.appendChild(status);
+    return status;
+  }
+  function setCloudSaveStatus(message, tone){
+    var status = ensureCloudSaveStatus();
+    if (!status) return;
+    status.textContent = message;
+    status.dataset.tone = tone || '';
+  }
   function isAppStorageKey(key){
     return !!key && key.indexOf('sb-') !== 0 && key !== profileStorageKey;
   }
@@ -482,6 +502,7 @@ function injectCloudStorageSync(
     var request = pendingSnapshot;
     pendingSnapshot = null;
     syncRequestInFlight = true;
+    setCloudSaveStatus('Saving...', 'saving');
     fetch(calculatorSyncUrl, {
       method: 'PUT',
       headers: {'Content-Type': 'application/json'},
@@ -489,8 +510,10 @@ function injectCloudStorageSync(
     }).then(function(response){
       if (!response.ok) throw new Error('Calculator sync failed');
       lastSnapshotJson = request.json;
+      setCloudSaveStatus(pendingSnapshot ? 'Saving...' : 'Saved', pendingSnapshot ? 'saving' : 'saved');
     }).catch(function(){
       if (!pendingSnapshot) pendingSnapshot = request;
+      setCloudSaveStatus('Retrying...', 'retrying');
       clearTimeout(syncRetryTimer);
       syncRetryTimer = setTimeout(sendPendingSnapshot, 1800);
     }).finally(function(){
@@ -509,6 +532,7 @@ function injectCloudStorageSync(
   }
   function scheduleSync(force){
     if (syncing) return;
+    setCloudSaveStatus('Saving...', 'saving');
     clearTimeout(timer);
     timer = setTimeout(function(){
       writeSnapshot(!!force);
@@ -672,6 +696,8 @@ function injectCloudStorageSync(
   } catch (e) {}
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){ applyRoleUi(); wrapPrivacyRenderers(); });
   else { applyRoleUi(); wrapPrivacyRenderers(); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){ setCloudSaveStatus('Saved', 'saved'); });
+  else setCloudSaveStatus('Saved', 'saved');
 })();
 </script>`;
 

@@ -52,6 +52,41 @@ body{
     linear-gradient(180deg,var(--bg-alt) 0%, var(--bg) 100%);
 }
 body.drawerOpen{overflow:hidden}
+.cloudSaveStatus{
+  position:fixed;
+  top:12px;
+  right:12px;
+  z-index:90;
+  display:flex;
+  align-items:center;
+  gap:7px;
+  min-height:32px;
+  padding:7px 10px;
+  border:1px solid #cbd5e1;
+  border-radius:999px;
+  background:rgba(255,255,255,.96);
+  color:#475569;
+  box-shadow:0 7px 20px rgba(15,23,42,.1);
+  font-size:11px;
+  font-weight:800;
+  line-height:1;
+  pointer-events:none;
+}
+.cloudSaveStatus:before{
+  content:"";
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:#16a34a;
+}
+.cloudSaveStatus[data-tone="saving"]:before{
+  border:2px solid #fed7aa;
+  border-top-color:#ea580c;
+  background:transparent;
+  animation:sectionLoadingSpin .8s linear infinite;
+}
+.cloudSaveStatus[data-tone="retrying"]{color:#9a3412;border-color:#fed7aa;background:#fff7ed}
+.cloudSaveStatus[data-tone="retrying"]:before{background:#f97316}
 
 h1,h2,h3{
   font-family:'Space Grotesk','Manrope','Segoe UI',sans-serif;
@@ -244,6 +279,7 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
 .installTabs button.active{background:#0f172a;color:#fff}
 
 .selected{
+  position:relative;
   border:1px solid var(--success-line);
   background:var(--success-bg);
   border-radius:18px;
@@ -251,6 +287,47 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
   margin-top:14px;
   display:block;
 }
+.sectionLoadingHost{position:relative!important;isolation:isolate}
+.sectionLoadingOverlay{
+  position:absolute;
+  inset:0;
+  z-index:25;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:16px;
+  border-radius:inherit;
+  background:rgba(248,251,253,.84);
+  backdrop-filter:blur(3px);
+  -webkit-backdrop-filter:blur(3px);
+}
+.sectionLoadingHost.is-loading>.sectionLoadingOverlay{display:flex}
+.sectionLoadingPanel{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  max-width:calc(100% - 12px);
+  padding:12px 14px;
+  border:1px solid #cbd5e1;
+  border-radius:12px;
+  background:#fff;
+  color:#0f172a;
+  box-shadow:0 14px 34px rgba(15,23,42,.14);
+  font-size:13px;
+  font-weight:800;
+  line-height:1.3;
+  text-align:left;
+}
+.sectionLoadingSpinner{
+  flex:0 0 auto;
+  width:22px;
+  height:22px;
+  border:3px solid #dbe4ed;
+  border-top-color:#f97316;
+  border-radius:50%;
+  animation:sectionLoadingSpin .8s linear infinite;
+}
+@keyframes sectionLoadingSpin{to{transform:rotate(360deg)}}
 .selectedText{min-width:0;flex:1}
 .selectedHeader{
   display:flex;
@@ -1316,6 +1393,21 @@ tbody tr:hover td{background:#f0f7ff}
   border-color:#2563eb;
   box-shadow:0 0 0 2px rgba(37,99,235,.15);
 }
+.wonAddressLookup.is-loading:after{
+  content:"";
+  position:absolute;
+  top:12px;
+  right:13px;
+  z-index:3;
+  width:19px;
+  height:19px;
+  border:3px solid #dbe4ed;
+  border-top-color:#2563eb;
+  border-radius:50%;
+  animation:sectionLoadingSpin .8s linear infinite;
+  pointer-events:none;
+}
+.wonAddressLookup.is-loading .wonAddressInput{padding-right:48px}
 .wonAddressInput{
   display:block;
   box-sizing:border-box;
@@ -2005,7 +2097,7 @@ tbody tr:hover td{background:#f0f7ff}
           <div class="mobileHideRebateConfig"><label>PERC (PRC) $ per cert</label><input id="essPrcRate" type="number" step="0.01" value="2.85"></div>
           <div class="mobileHideRebateConfig"><label>Live calc source</label><input readonly value="NSW ESS/PDRS API"></div>
         </div>
-        <div class="selected"><div class="selectedText"><div class="selectedHeader"><strong id="selectedModel"></strong><button type="button" class="copyModelBtn" onclick="copyCurrentModel()">Copy model</button></div><div class="tiny" id="modelMeta"></div><div class="tiny rebateSchemeUi" id="rebateCalcMeta">Live ESS/PERC rebate status will appear here.</div><div class="certificateBreakdown rebateSchemeUi" id="certificateBreakdown"><div class="certificateMetric"><span>ESC generated</span><strong id="escCertCount">-</strong><small id="escCertValue">Waiting for live lookup</small></div><div class="certificateMetric"><span>PERC generated</span><strong id="prcCertCount">-</strong><small id="prcCertValue">Waiting for live lookup</small></div><div class="certificateMetric"><span>Rebate calculation</span><strong id="certRebateValue">-</strong><small id="certRebateMeta">Waiting for live lookup</small></div></div><div class="recommendationCards rebateSchemeUi"><div class="recommendationCard" id="bestValueMeta"><div class="recommendationEyebrow">Best rebate</div><div class="recommendationStatus">Best rebate indicator will appear here.</div></div><div class="recommendationCard net" id="bestNetCostMeta"><div class="recommendationEyebrow">Best net unit cost</div><div class="recommendationStatus">Best net unit cost indicator will appear here.</div></div></div></div></div>
+        <div class="selected" id="liveRebatePanel"><div class="selectedText"><div class="selectedHeader"><strong id="selectedModel"></strong><button type="button" class="copyModelBtn" onclick="copyCurrentModel()">Copy model</button></div><div class="tiny" id="modelMeta"></div><div class="tiny rebateSchemeUi" id="rebateCalcMeta">Live ESS/PERC rebate status will appear here.</div><div class="certificateBreakdown rebateSchemeUi" id="certificateBreakdown"><div class="certificateMetric"><span>ESC generated</span><strong id="escCertCount">-</strong><small id="escCertValue">Waiting for live lookup</small></div><div class="certificateMetric"><span>PERC generated</span><strong id="prcCertCount">-</strong><small id="prcCertValue">Waiting for live lookup</small></div><div class="certificateMetric"><span>Rebate calculation</span><strong id="certRebateValue">-</strong><small id="certRebateMeta">Waiting for live lookup</small></div></div><div class="recommendationCards rebateSchemeUi" id="bestValueComparison"><div class="recommendationCard" id="bestValueMeta"><div class="recommendationEyebrow">Best rebate</div><div class="recommendationStatus">Best rebate indicator will appear here.</div></div><div class="recommendationCard net" id="bestNetCostMeta"><div class="recommendationEyebrow">Best net unit cost</div><div class="recommendationStatus">Best net unit cost indicator will appear here.</div></div></div></div></div>
       </div>
       <div class="card energySavingsCard" id="energySavingsCard">
         <button type="button" class="energySavingsToggle" id="energySavingsToggle" onclick="toggleEnergySavingsPanel()" aria-expanded="false">
@@ -2151,7 +2243,7 @@ tbody tr:hover td{background:#f0f7ff}
           <div class="priceResetRow"><button class="secondary" type="button" onclick="resetMultiSplitSuggestedPrice()">Reset suggested price</button></div>
         </div>
       </main>
-      <aside class="summary card multiSplitSummaryCard">
+      <aside class="summary card multiSplitSummaryCard" id="multiSplitRebatePanel">
         <div class="final"><div class="finalCopy"><span>Final customer price inc GST</span><strong id="multiFinalBig">$0.00</strong></div><div class="finalBumpGroup"><button class="finalBumpBtn" type="button" onclick="applyMoneyStep('multiFinalInc',-50)">- $50</button><button class="finalBumpBtn" type="button" onclick="applyMoneyStep('multiFinalInc',50)">+ $50</button></div></div>
         <div class="multiSplitSummaryGrid">
           <div class="multiSplitMetric"><span>Equipment inc GST</span><strong id="multiSplitEquipmentTotal">$0.00</strong></div>
@@ -2186,7 +2278,7 @@ tbody tr:hover td{background:#f0f7ff}
         <div id="multiSplitHeadsList" class="multiSplitHeadsList"></div>
         <div class="actions"><button class="orange" onclick="addToQuote()">Add to Quote</button><button class="secondary" onclick="openDrawer()">View Quotes (<span id="multiQuoteCount">0</span>)</button><button class="green" onclick="openWonJobsDrawer()">Won Jobs (<span data-won-jobs-count>0</span>)</button><button class="secondary" onclick="openPriceDrawer()">Price Manager</button><button class="secondary" onclick="openCertDrawer()">Certificate Values</button></div>
         <div class="quoteTargetControl"><label>Add current unit to quote</label><div class="row2"><select id="multiAddOptionSelect" onchange="onOptionSelectionChange(this.value)"></select><button class="secondary" type="button" onclick="createNewOption(true)">+ New Quote</button></div><div class="selectedQuoteNameBar"><div class="selectedQuoteNameCopy"><span>Selected quote</span><strong id="multiMainOptionName">Quote 1</strong></div><button id="multiMainOptionRenameButton" class="secondary smallBtn" type="button" onclick="openRenameQuoteModal()">Rename</button></div></div>
-        <div class="multiSplitTrialActions"><button class="green" type="button" onclick="calculateMultiSplitTrialRebate()">Check rebate</button></div>
+        <div class="multiSplitTrialActions"><button id="multiSplitCheckRebateBtn" class="green" type="button" onclick="calculateMultiSplitTrialRebate()">Check rebate</button></div>
         <div id="multiSplitStatus" class="multiSplitStatus">Select a system and click Check rebate to test NSW multi-split eligibility.</div>
       </aside>
     </div>
@@ -2952,6 +3044,35 @@ const DEFAULT_PRC_AGREEMENT_DEDUCTION=0.30;
 const DEFAULT_ESC_RATE=24.00;
 const DEFAULT_PRC_RATE=2.70;
 const $=id=>document.getElementById(id); const money=n=>(Number(n)||0).toLocaleString('en-AU',{style:'currency',currency:'AUD'}); const pct=n=>((Number(n)||0)*100).toFixed(2)+'%'; const num=id=>Number($(id).value)||0;
+function setSectionLoading(containerId,busy,message){
+  const container=$(containerId);
+  if(!container) return;
+  container.classList.add('sectionLoadingHost');
+  let overlay=container.querySelector(':scope > .sectionLoadingOverlay');
+  if(!overlay){
+    overlay=document.createElement('div');
+    overlay.className='sectionLoadingOverlay';
+    overlay.setAttribute('aria-live','polite');
+    overlay.innerHTML='<div class="sectionLoadingPanel"><span class="sectionLoadingSpinner" aria-hidden="true"></span><span class="sectionLoadingLabel"></span></div>';
+    container.appendChild(overlay);
+  }
+  const label=overlay.querySelector('.sectionLoadingLabel');
+  if(label&&message) label.textContent=message;
+  container.classList.toggle('is-loading',!!busy);
+  container.setAttribute('aria-busy',busy?'true':'false');
+}
+function setLiveRebateLoading(busy){
+  setSectionLoading('liveRebatePanel',busy,'Calculating live rebate...');
+  document.querySelectorAll('button[onclick="addToQuote()"]').forEach(button=>{
+    if(busy){
+      if(!button.hasAttribute('data-rebate-disabled-before')) button.setAttribute('data-rebate-disabled-before',button.disabled?'1':'0');
+      button.disabled=true;
+      return;
+    }
+    if(button.getAttribute('data-rebate-disabled-before')==='0') button.disabled=false;
+    button.removeAttribute('data-rebate-disabled-before');
+  });
+}
 function legacyStorageKey(suffix){return 'green'+'Energy'+suffix;}
 function storageGet(key,legacySuffix){const current=localStorage.getItem(key); return current!==null?current:(legacySuffix?localStorage.getItem(legacyStorageKey(legacySuffix)):null);}
 function storageRemove(key,legacySuffix){localStorage.removeItem(key); if(legacySuffix) localStorage.removeItem(legacyStorageKey(legacySuffix));}
@@ -3725,6 +3846,7 @@ function formatBestNetCostMessage(entry,currentProduct,categoryLabel,postcode,fa
   return `${prefix}: ${bestText}${failedCount?` (${failedCount} unavailable).`:'.'}`;
 }
 async function refreshBestValueIndicator(){
+  setSectionLoading('bestValueComparison',false);
   if(!rebatesEnabled()){
     essBestValueRuntime.lastEntry=null;
     setBestValueMeta(rebateSchemeStatusText(),false);
@@ -3760,16 +3882,22 @@ async function refreshBestValueIndicator(){
   const requestId=++essBestValueRuntime.requestSeq;
   setBestValueMeta(`Checking best rebate in ${categoryLabel} category...`,false);
   setBestNetCostMeta(`Checking best net unit cost in ${categoryLabel} category...`,false);
-  const settled=await Promise.all(uniqueCandidates.map(async item=>{
-    try{
-      const p=item.p;
-      const result=await estimateLiveEssRebate(p.brand,p.model);
-      const unitCost=Number(p.unitPriceInc||p.priceIncGst||0);
-      return {ok:true,brand:p.brand,series:p.series||'',model:p.model,productIndex:item.i,productManagedKey:managedProductKey(systemType,item.i),unitCost,rebate:result.rebate,netCost:unitCost-result.rebate};
-    }catch(e){
-      return {ok:false,error:String(e && e.message ? e.message : e)};
-    }
-  }));
+  setSectionLoading('bestValueComparison',true,`Comparing ${categoryLabel} models...`);
+  let settled=[];
+  try{
+    settled=await Promise.all(uniqueCandidates.map(async item=>{
+      try{
+        const p=item.p;
+        const result=await estimateLiveEssRebate(p.brand,p.model);
+        const unitCost=Number(p.unitPriceInc||p.priceIncGst||0);
+        return {ok:true,brand:p.brand,series:p.series||'',model:p.model,productIndex:item.i,productManagedKey:managedProductKey(systemType,item.i),unitCost,rebate:result.rebate,netCost:unitCost-result.rebate};
+      }catch(e){
+        return {ok:false,error:String(e && e.message ? e.message : e)};
+      }
+    }));
+  }finally{
+    if(requestId===essBestValueRuntime.requestSeq) setSectionLoading('bestValueComparison',false);
+  }
   if(requestId!==essBestValueRuntime.requestSeq) return;
   const winners=settled.filter(r=>r.ok).map(r=>({brand:r.brand,series:r.series||'',model:r.model,productIndex:r.productIndex,productManagedKey:r.productManagedKey,unitCost:r.unitCost,rebate:r.rebate,netCost:r.netCost}));
   const failedCount=settled.length-winners.length;
@@ -4368,6 +4496,7 @@ async function loadLiveCertificatePriceIfNeeded(){
 }
 async function refreshLiveRebateForCurrentProduct(){
   const p=product();
+  setLiveRebateLoading(false);
   if(!p) return;
   if(!rebatesEnabled()){
     essCache.requestSeq++;
@@ -4387,6 +4516,7 @@ async function refreshLiveRebateForCurrentProduct(){
   clearCertificateRuntime();
   setCertificateBreakdown(null,'Loading live certificate counts...',false);
   setRebateCalcMeta('Loading live ESS/PERC rebate...',false);
+  setLiveRebateLoading(true);
   try{
     const result=await estimateLiveEssRebate(p.brand,p.model);
     if(requestId!==essCache.requestSeq) return;
@@ -4410,6 +4540,8 @@ async function refreshLiveRebateForCurrentProduct(){
     clearCertificateRuntime();
     setCertificateBreakdown(null,`Unable to calculate live ESC/PERC counts. ${String(e.message||'Live data unavailable')}`,true);
     setRebateCalcMeta(`Using saved rebate. ${String(e.message||'Live data unavailable')}`,true);
+  }finally{
+    if(requestId===essCache.requestSeq) setLiveRebateLoading(false);
   }
 }
 function onProductChange(){
@@ -4956,6 +5088,7 @@ function renderEnergySavingsEstimate(result,productRow){
   setEnergySavingsStatus(`Estimate based on ${partText}, ${money(result.rate)}/kWh, ${result.zone} climate GEMS HSPF/TCSPF data and ${result.existing.assumption}.${skipText}`,'');
 }
 async function refreshEnergySavingsEstimate(force){
+  setSectionLoading('energySavingsBody',false);
   if(!force && !energyPanelOpen()) return;
   const p=product();
   if(!p){resetEnergySavingsResults('Select a unit to calculate energy savings.'); return;}
@@ -4963,6 +5096,7 @@ async function refreshEnergySavingsEstimate(force){
   const settings=readEnergySavingsInputs();
   resetEnergySavingsResults('Calculating estimated annual energy savings...');
   setEnergySavingsStatus('Calculating estimated annual energy savings from GEMS efficiency data...','loading');
+  setSectionLoading('energySavingsBody',true,'Calculating energy savings...');
   try{
     const [resolved,zone]=await Promise.all([
       resolveModelMetadataForRebate(p.brand,p.model),
@@ -4975,6 +5109,8 @@ async function refreshEnergySavingsEstimate(force){
     if(requestId!==energySavingsRequestSeq) return;
     resetEnergySavingsResults('');
     setEnergySavingsStatus(`Unable to calculate estimated energy savings. ${String(e.message||'GEMS efficiency data unavailable')}`,'error');
+  }finally{
+    if(requestId===energySavingsRequestSeq) setSectionLoading('energySavingsBody',false);
   }
 }
 function initEnergySavingsControls(){
@@ -5285,6 +5421,7 @@ function updateMultiSplitIndoorRow(index,field,value){
   renderMultiSplitTrial();
 }
 async function calculateMultiSplitTrialRebate(){
+  setSectionLoading('multiSplitRebatePanel',false);
   const requestId=++multiSplitTrialRequestSeq;
   const {outdoor,total,headCount}=multiSplitEquipmentTotals();
   if(!outdoor){setMultiSplitStatus('Select an outdoor unit first.','error'); return;}
@@ -5297,6 +5434,8 @@ async function calculateMultiSplitTrialRebate(){
   const install=String(($('multiSplitInstallType')&&$('multiSplitInstallType').value)||'replacement');
   if(!/^\d{4}$/.test(postcode)){setMultiSplitStatus('Enter a valid 4-digit postcode for the trial rebate calculation.','error'); return;}
   setMultiSplitStatus('Checking GEMS data and NSW multi-split certificate calculation...','loading');
+  setSectionLoading('multiSplitRebatePanel',true,'Calculating multi-head rebate...');
+  if($('multiSplitCheckRebateBtn')) $('multiSplitCheckRebateBtn').disabled=true;
   try{
     const resolved=await resolveModelMetadataForRebate(outdoor.brand,outdoor.rebateModel||outdoor.model);
     const climate=await getClimateContext(postcode);
@@ -5319,6 +5458,11 @@ async function calculateMultiSplitTrialRebate(){
     if(requestId!==multiSplitTrialRequestSeq) return;
     resetMultiSplitRebateMetrics();
     setMultiSplitStatus(`Unable to calculate this multi-head rebate yet. ${String(e.message||e||'Live data unavailable')}`,'error');
+  }finally{
+    if(requestId===multiSplitTrialRequestSeq){
+      setSectionLoading('multiSplitRebatePanel',false);
+      if($('multiSplitCheckRebateBtn')) $('multiSplitCheckRebateBtn').disabled=false;
+    }
   }
 }
 function initMultiSplitTrial(){
@@ -6443,6 +6587,7 @@ let wonAddressSearchTimer=null;
 let wonAddressSearchController=null;
 let wonAddressSearchSequence=0;
 let wonAddressSessionToken='';
+let wonAddressBusy=false;
 function newWonAddressSessionToken(){
   if(window.crypto&&typeof window.crypto.randomUUID==='function') return window.crypto.randomUUID();
   return `${Date.now()}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
@@ -6454,10 +6599,19 @@ function setWonAddressStatus(message,state){
   status.classList.toggle('success',state==='success');
   status.classList.toggle('error',state==='error');
 }
+function setWonAddressBusy(busy){
+  wonAddressBusy=!!busy;
+  const lookup=$('wonAddressLookup');
+  if(lookup){
+    lookup.classList.toggle('is-loading',wonAddressBusy);
+    lookup.setAttribute('aria-busy',wonAddressBusy?'true':'false');
+  }
+  updateWonDetailsSubmitState();
+}
 function updateWonDetailsSubmitState(){
   const date=String(($('wonInstallDate')&&$('wonInstallDate').value)||'').trim();
   const submit=$('wonDetailsSubmit');
-  if(submit) submit.disabled=!(pendingWonOptionId&&selectedWonGooglePlace&&selectedWonGooglePlace.placeId&&date);
+  if(submit) submit.disabled=!!wonAddressBusy||!(pendingWonOptionId&&selectedWonGooglePlace&&selectedWonGooglePlace.placeId&&date);
 }
 function clearWonAddressSuggestions(){
   const list=$('wonAddressSuggestions');
@@ -6485,7 +6639,7 @@ async function selectWonAddressSuggestion(suggestion){
   clearWonAddressSuggestions();
   selectedWonGooglePlace=null;
   setWonAddressStatus('Confirming Google address...','');
-  updateWonDetailsSubmitState();
+  setWonAddressBusy(true);
   try{
     const result=await googleAddressRequest({
       action:'details',
@@ -6511,6 +6665,8 @@ async function selectWonAddressSuggestion(suggestion){
     selectedWonGooglePlace=null;
     setWonAddressStatus(error&&error.message?error.message:'Select a valid Google address.','error');
     updateWonDetailsSubmitState();
+  }finally{
+    if(pendingWonOptionId===optionId) setWonAddressBusy(false);
   }
 }
 function renderWonAddressSuggestions(suggestions){
@@ -6538,6 +6694,7 @@ function renderWonAddressSuggestions(suggestions){
   input.setAttribute('aria-expanded',suggestions.length?'true':'false');
 }
 function searchWonAddresses(value){
+  setWonAddressBusy(false);
   if(wonAddressSearchTimer) clearTimeout(wonAddressSearchTimer);
   if(wonAddressSearchController) wonAddressSearchController.abort();
   if(selectedWonGooglePlace) wonAddressSessionToken=newWonAddressSessionToken();
@@ -6551,6 +6708,7 @@ function searchWonAddresses(value){
     return;
   }
   setWonAddressStatus('Searching Google addresses...','');
+  setWonAddressBusy(true);
   wonAddressSearchTimer=setTimeout(async()=>{
     wonAddressSearchController=new AbortController();
     try{
@@ -6567,6 +6725,8 @@ function searchWonAddresses(value){
       if(error&&error.name==='AbortError') return;
       if(sequence!==wonAddressSearchSequence||!pendingWonOptionId) return;
       setWonAddressStatus(error&&error.message?error.message:'Google address search is temporarily unavailable. Please try again.','error');
+    }finally{
+      if(sequence===wonAddressSearchSequence&&pendingWonOptionId) setWonAddressBusy(false);
     }
   },300);
 }
@@ -6574,6 +6734,7 @@ function mountWonAddressAutocomplete(){
   const container=$('wonAddressLookup');
   if(!container) return;
   wonAddressSessionToken=newWonAddressSessionToken();
+  setWonAddressBusy(false);
   container.innerHTML='<input id="wonAddressInput" class="wonAddressInput" type="search" autocomplete="off" spellcheck="false" aria-label="Installation address" aria-autocomplete="list" aria-controls="wonAddressSuggestions" aria-expanded="false" placeholder="Start typing an Australian address"><div id="wonAddressSuggestions" class="wonAddressSuggestions" role="listbox" aria-label="Google address suggestions" hidden></div>';
   const input=$('wonAddressInput');
   wonAddressAutocomplete=input;
@@ -6623,6 +6784,7 @@ function closeWonDetailsModal(){
   pendingWonOptionId='';
   selectedWonGooglePlace=null;
   wonAddressAutocomplete=null;
+  setWonAddressBusy(false);
 }
 function completeOptionWon(id,details){
   const def=optionDefById(id);

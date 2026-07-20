@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { canManageUsers } from "../../lib/admin";
 import { createSupabaseServerClient } from "../../lib/supabase/server";
+import PageLoadingOverlay, { CalculatorFrame } from "../page-loading-overlay";
 
 type ApprovedUser = {
   email: string;
@@ -142,6 +143,7 @@ export default async function CalculatorPage({
   if (error || !approvedUser) {
     return (
       <main className="auth-shell">
+        <PageLoadingOverlay />
         <section className="auth-panel">
           <p className="kicker">Access pending</p>
           <h1>Your account is not approved yet</h1>
@@ -149,7 +151,7 @@ export default async function CalculatorPage({
             You are signed in as {user.email}, but this email is not on the approved
             calculator user list.
           </p>
-          <form action="/auth/signout" method="post" className="button-row">
+          <form action="/auth/signout" method="post" className="button-row" data-loading-label="Signing out...">
             <button className="secondary" type="submit">
               Sign out
             </button>
@@ -221,10 +223,10 @@ export default async function CalculatorPage({
         <div className="topbar-actions">
           {canManage ? (
             <>
-              <a className="button secondary" href="/admin/users">
+              <a className="button secondary" href="/admin/users" data-loading-label="Loading Platform Admin...">
                 Users
               </a>
-              <form action="/calculator" method="get" className="account-switcher">
+              <form action="/calculator" method="get" className="account-switcher" data-loading-label="Opening user calculator...">
                 <select name="as" defaultValue={viewingEmail} aria-label="Open user account">
                   {approvedUsers.map((approvedUser) => (
                     <option key={approvedUser.email} value={approvedUser.email}>
@@ -239,15 +241,15 @@ export default async function CalculatorPage({
               {isViewingAnotherUser ? (
                 <>
                   {isPreviewingAsUser ? (
-                    <a className="button secondary" href={`/calculator?as=${encodeURIComponent(viewingEmail)}${selectedBusinessParam}`}>
+                    <a className="button secondary" href={`/calculator?as=${encodeURIComponent(viewingEmail)}${selectedBusinessParam}`} data-loading-label="Changing calculator view...">
                       Show Admin Details
                     </a>
                   ) : (
-                    <a className="button secondary" href={`/calculator?as=${encodeURIComponent(viewingEmail)}&preview=1${selectedBusinessParam}`}>
+                    <a className="button secondary" href={`/calculator?as=${encodeURIComponent(viewingEmail)}&preview=1${selectedBusinessParam}`} data-loading-label="Changing calculator view...">
                       Preview as {viewingName}
                     </a>
                   )}
-                  <a className="button orange" href="/calculator">
+                  <a className="button orange" href="/calculator" data-loading-label="Returning to your account...">
                     Return to My Account
                   </a>
                 </>
@@ -255,7 +257,7 @@ export default async function CalculatorPage({
             </>
           ) : null}
           {businessOptions.length > 1 ? (
-            <form action="/calculator" method="get" className="business-switcher">
+            <form action="/calculator" method="get" className="business-switcher" data-loading-label="Switching business...">
               {isViewingAnotherUser ? <input type="hidden" name="as" value={viewingEmail} /> : null}
               {isPreviewingAsUser ? <input type="hidden" name="preview" value="1" /> : null}
               <select name="businessId" defaultValue={selectedBusiness?.id || ""} aria-label="Business workspace">
@@ -270,7 +272,7 @@ export default async function CalculatorPage({
               </button>
             </form>
           ) : null}
-          <form action="/auth/signout" method="post">
+          <form action="/auth/signout" method="post" data-loading-label="Signing out...">
             <button className="secondary" type="submit">
               Sign out
             </button>
@@ -289,7 +291,7 @@ export default async function CalculatorPage({
         </div>
       ) : null}
       {rememberBusinessScript ? <script dangerouslySetInnerHTML={{ __html: rememberBusinessScript }} /> : null}
-      <iframe className="calculator-frame" src={rawSrc} title="Quote calculator" />
+      <CalculatorFrame src={rawSrc} />
     </div>
   );
 }

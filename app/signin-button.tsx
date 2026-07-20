@@ -3,6 +3,7 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { createSupabaseBrowserClient } from "../lib/supabase/client";
 import { publicSiteUrl } from "../lib/supabase/config";
+import { AuthenticationLoadingOverlay } from "./page-loading-overlay";
 
 function callbackUrl(next?: string) {
   const baseUrl = typeof window !== "undefined" ? window.location.origin : publicSiteUrl;
@@ -16,6 +17,7 @@ export default function LoginButton({ next }: { next?: string }) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [isGoogleSigningIn, setIsGoogleSigningIn] = useState(false);
   const [retryAfterSeconds, setRetryAfterSeconds] = useState(0);
 
   useEffect(() => {
@@ -97,12 +99,18 @@ export default function LoginButton({ next }: { next?: string }) {
         </div>
       </form>
       <div className="auth-divider"><span>or</span></div>
-      <form className="button-row" action="/auth/google" method="post">
+      <form
+        className="button-row"
+        action="/auth/google"
+        method="post"
+        onSubmit={() => setIsGoogleSigningIn(true)}
+      >
         <input type="hidden" name="next" value={next || "/calculator"} />
-        <button className="secondary" type="submit">
-          Continue with Google
+        <button className="secondary" type="submit" disabled={isGoogleSigningIn}>
+          {isGoogleSigningIn ? "Opening Google..." : "Continue with Google"}
         </button>
       </form>
+      <AuthenticationLoadingOverlay visible={isGoogleSigningIn} />
       {message ? <div className="notice success">{message}</div> : null}
       {error ? <div className="notice">{error}</div> : null}
     </>
