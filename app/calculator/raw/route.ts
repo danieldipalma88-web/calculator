@@ -389,6 +389,9 @@ function injectCloudStorageSync(
   var syncing = false;
   var timer = null;
   var lastSnapshotJson = '';
+  var pendingSnapshot = null;
+  var syncRequestInFlight = false;
+  var syncRetryTimer = null;
   window.CALCULATOR_USER = calculatorUser;
   window.__calculatorTrustedManagedPriceKeys = trustedManagedPriceKeys;
   function isAppStorageKey(key){
@@ -472,16 +475,37 @@ function injectCloudStorageSync(
       } catch(e) {}
     });
   }
-  function writeSnapshot(force){
-    var data = snapshot();
-    var nextJson = JSON.stringify(data);
-    if (!force && nextJson === lastSnapshotJson) return;
-    lastSnapshotJson = nextJson;
+  function sendPendingSnapshot(){
+    if (syncRequestInFlight || !pendingSnapshot) return;
+    clearTimeout(syncRetryTimer);
+    syncRetryTimer = null;
+    var request = pendingSnapshot;
+    pendingSnapshot = null;
+    syncRequestInFlight = true;
     fetch(calculatorSyncUrl, {
       method: 'PUT',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({data: data})
-    }).catch(function(){});
+      body: JSON.stringify({data: request.data})
+    }).then(function(response){
+      if (!response.ok) throw new Error('Calculator sync failed');
+      lastSnapshotJson = request.json;
+    }).catch(function(){
+      if (!pendingSnapshot) pendingSnapshot = request;
+      clearTimeout(syncRetryTimer);
+      syncRetryTimer = setTimeout(sendPendingSnapshot, 1800);
+    }).finally(function(){
+      syncRequestInFlight = false;
+      if (pendingSnapshot && !syncRetryTimer) sendPendingSnapshot();
+    });
+  }
+  function writeSnapshot(force){
+    var data = snapshot();
+    var nextJson = JSON.stringify(data);
+    if (!force && nextJson === lastSnapshotJson && !pendingSnapshot) return;
+    pendingSnapshot = {data: data, json: nextJson};
+    clearTimeout(syncRetryTimer);
+    syncRetryTimer = null;
+    sendPendingSnapshot();
   }
   function scheduleSync(force){
     if (syncing) return;

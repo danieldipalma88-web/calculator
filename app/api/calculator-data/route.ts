@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { canManageUsers, isOwnerEmail } from "../../../lib/admin";
+import { mergeCalculatorData } from "../../../lib/quote-sync";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
 
 const MANAGED_PRICE_STORAGE_KEYS = [
@@ -64,21 +65,6 @@ function calculatorDataHasData(data: unknown) {
   return Object.entries(data as Record<string, unknown>).some(([key, value]) => {
     return key && !key.startsWith("sb-") && key !== "__calculatorProfileEmail" && storedValueHasData(value);
   });
-}
-
-function mergeCalculatorData(existing: unknown, incoming: unknown) {
-  const merged: Record<string, unknown> =
-    existing && typeof existing === "object" ? { ...(existing as Record<string, unknown>) } : {};
-  if (!incoming || typeof incoming !== "object") return merged;
-
-  for (const [key, value] of Object.entries(incoming as Record<string, unknown>)) {
-    const existingHasData = storedValueHasData(merged[key]);
-    const incomingHasData = storedValueHasData(value);
-    if (!incomingHasData && existingHasData) continue;
-    merged[key] = value;
-  }
-
-  return merged;
 }
 
 function splitCalculatorDataByScope(data: Record<string, unknown>) {
@@ -276,6 +262,85 @@ function preserveBusinessManagedRebates(
   return output;
 }
 
+type ExistingCalculatorData = {
+  user_id: string;
+  data: unknown;
+  updated_at: string | null;
+};
+
+async function saveMergedUserData(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  targetEmail: string,
+  authenticatedUserId: string,
+  incomingData: Record<string, unknown>,
+  requireExistingProfile: boolean,
+) {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const byEmail = await supabase
+      .from("user_calculator_data")
+      .select("user_id, data, updated_at")
+      .eq("email", targetEmail)
+      .maybeSingle();
+
+    if (byEmail.error) return { error: byEmail.error.message, status: 500 };
+
+    let existing = byEmail.data as ExistingCalculatorData | null;
+    if (!existing && !requireExistingProfile) {
+      const byUserId = await supabase
+        .from("user_calculator_data")
+        .select("user_id, data, updated_at")
+        .eq("user_id", authenticatedUserId)
+        .maybeSingle();
+      if (byUserId.error) return { error: byUserId.error.message, status: 500 };
+      existing = byUserId.data as ExistingCalculatorData | null;
+    }
+
+    if (!existing) {
+      if (requireExistingProfile) {
+        return {
+          error: "That user has not opened the calculator yet, so there is no saved calculator profile to update.",
+          status: 404,
+        };
+      }
+
+      const inserted = await supabase.from("user_calculator_data").upsert({
+        user_id: authenticatedUserId,
+        email: targetEmail,
+        data: incomingData,
+        updated_at: new Date().toISOString(),
+      });
+      if (!inserted.error) return { ok: true };
+      continue;
+    }
+
+    if (!calculatorDataHasData(incomingData) && calculatorDataHasData(existing.data)) {
+      return { ok: true, skipped: "empty_snapshot_ignored" };
+    }
+
+    const nextUpdatedAt = new Date().toISOString();
+    let update = supabase
+      .from("user_calculator_data")
+      .update({
+        email: targetEmail,
+        data: mergeCalculatorData(existing.data, incomingData),
+        updated_at: nextUpdatedAt,
+      })
+      .eq("user_id", existing.user_id);
+    update = existing.updated_at
+      ? update.eq("updated_at", existing.updated_at)
+      : update.is("updated_at", null);
+    const saved = await update.select("user_id");
+
+    if (saved.error) return { error: saved.error.message, status: 500 };
+    if (saved.data?.length) return { ok: true };
+  }
+
+  return {
+    error: "Calculator data changed during save. Please retry.",
+    status: 409,
+  };
+}
+
 export async function GET(request: Request) {
   const supabase = await createSupabaseServerClient();
   const {
@@ -364,7 +429,6 @@ async function saveCalculatorData(request: Request) {
     canEditManagedRebates,
   );
   const { userData, businessData } = splitCalculatorDataByScope(stripCertificateValueKeys(calculatorData));
-  const incomingHasData = calculatorDataHasData(userData);
   const incomingBusinessHasData = calculatorDataHasData(businessData);
 
   if (businessId && incomingBusinessHasData) {
@@ -389,83 +453,17 @@ async function saveCalculatorData(request: Request) {
     }
   }
 
-  if (viewingEmail !== currentEmail) {
-    const { data: existingData } = await supabase
-      .from("user_calculator_data")
-      .select("user_id, data")
-      .eq("email", viewingEmail)
-      .maybeSingle();
-
-    if (!existingData?.user_id) {
-      return NextResponse.json(
-        { error: "That user has not opened the calculator yet, so there is no saved calculator profile to update." },
-        { status: 404 },
-      );
-    }
-
-    if (!incomingHasData && calculatorDataHasData(existingData.data)) {
-      return NextResponse.json({ ok: true, skipped: "empty_snapshot_ignored" });
-    }
-
-    const mergedData = mergeCalculatorData(existingData.data, userData);
-
-    const { error } = await supabase
-      .from("user_calculator_data")
-      .update({
-        data: mergedData,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("email", viewingEmail);
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    return NextResponse.json({ ok: true });
+  const userSave = await saveMergedUserData(
+    supabase,
+    viewingEmail,
+    user.id,
+    userData,
+    viewingEmail !== currentEmail,
+  );
+  if ("error" in userSave) {
+    return NextResponse.json({ error: userSave.error }, { status: userSave.status });
   }
-
-  let { data: existingData } = await supabase
-    .from("user_calculator_data")
-    .select("user_id, data")
-    .eq("email", currentEmail)
-    .maybeSingle();
-
-  if (!existingData) {
-    const fallback = await supabase
-      .from("user_calculator_data")
-      .select("user_id, data")
-      .eq("user_id", user.id)
-      .maybeSingle();
-    existingData = fallback.data;
-  }
-
-  if (!incomingHasData && calculatorDataHasData(existingData?.data)) {
-    return NextResponse.json({ ok: true, skipped: "empty_snapshot_ignored" });
-  }
-
-  const mergedData = mergeCalculatorData(existingData?.data, userData);
-
-  const { error } = existingData?.user_id
-    ? await supabase
-        .from("user_calculator_data")
-        .update({
-          email: currentEmail,
-          data: mergedData,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("user_id", existingData.user_id)
-    : await supabase.from("user_calculator_data").upsert({
-        user_id: user.id,
-        email: currentEmail,
-        data: mergedData,
-        updated_at: new Date().toISOString(),
-      });
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  return NextResponse.json({ ok: true });
+  return NextResponse.json(userSave);
 }
 
 export async function PUT(request: Request) {

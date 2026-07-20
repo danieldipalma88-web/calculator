@@ -2929,6 +2929,7 @@ const MANAGED_PRICE_DEFAULT_MIGRATIONS=[
   {type:'ducted',model:'RZAS200DY1 / FDYA200AV1',oldUnitPriceInc:5810,newUnitPriceInc:6040}
 ];
 const QUOTE_STORAGE_KEY='installerMasterQuoteLogV1';
+const QUOTE_SYNC_TOMBSTONES_STORAGE_KEY='installerQuoteSyncTombstonesV1';
 const SAVED_QUOTES_STORAGE_KEY='installerSavedQuoteSetsV1';
 const ESS_SETTINGS_STORAGE_KEY='installerEssSettingsV1';
 const CERT_VALUES_STORAGE_KEY='installerCertificateValuesV1';
@@ -2955,6 +2956,34 @@ function legacyStorageKey(suffix){return 'green'+'Energy'+suffix;}
 function storageGet(key,legacySuffix){const current=localStorage.getItem(key); return current!==null?current:(legacySuffix?localStorage.getItem(legacyStorageKey(legacySuffix)):null);}
 function storageRemove(key,legacySuffix){localStorage.removeItem(key); if(legacySuffix) localStorage.removeItem(legacyStorageKey(legacySuffix));}
 function storageHas(key,legacySuffix){return storageGet(key,legacySuffix)!==null;}
+function quoteSyncTombstones(){
+  try{
+    const parsed=JSON.parse(localStorage.getItem(QUOTE_SYNC_TOMBSTONES_STORAGE_KEY)||'{}');
+    return {
+      rows:parsed&&parsed.rows&&typeof parsed.rows==='object'?parsed.rows:{},
+      options:parsed&&parsed.options&&typeof parsed.options==='object'?parsed.options:{}
+    };
+  }catch(e){return {rows:{},options:{}};}
+}
+function recordQuoteSyncDeletions(rows,options){
+  const rowList=Array.isArray(rows)?rows:[];
+  const optionList=Array.isArray(options)?options:[];
+  if(!rowList.length&&!optionList.length) return;
+  const deletedAt=Date.now();
+  const tombstones=quoteSyncTombstones();
+  rowList.forEach(row=>{const id=String(row&&row.id||'');if(id) tombstones.rows[id]=Math.max(Number(tombstones.rows[id])||0,deletedAt);});
+  optionList.forEach(option=>{const id=String(option&&option.id||'');if(id) tombstones.options[id]=Math.max(Number(tombstones.options[id])||0,deletedAt);});
+  try{localStorage.setItem(QUOTE_SYNC_TOMBSTONES_STORAGE_KEY,JSON.stringify(tombstones));}catch(e){}
+}
+function touchQuoteRow(row,updatedAt){if(row) row.syncUpdatedAt=updatedAt||Date.now();return row;}
+function touchOptionDef(def,updatedAt){if(def) def.syncUpdatedAt=updatedAt||Date.now();return def;}
+function removeExpiredQuoteRows(rows){
+  const allRows=Array.isArray(rows)?rows:[];
+  const cutoff=Date.now()-SEVEN_DAYS_MS;
+  const expired=allRows.filter(q=>!quoteRowIsWon(q)&&(q.timestamp||0)<cutoff);
+  recordQuoteSyncDeletions(expired,[]);
+  return allRows.filter(q=>quoteRowIsWon(q)||(q.timestamp||0)>=cutoff);
+}
 function legacyLabourRetainKey(){return 'green'+'EnergyKeepsLabour';}
 let essCache={brands:null,modelsByBrand:{},metadata:{},gemsByLookup:{},zoneByPostcode:{},requestSeq:0};
 let essRuntime={lastEsc:0,lastPrc:0,lastOfficialEsc:0,lastOfficialPrc:0,lastZone:'',lastBcaZone:'',lastBrand:'',lastModel:''};
@@ -5730,8 +5759,7 @@ function loadRecentQuotes(){
   try{
     const raw=storageGet(QUOTE_STORAGE_KEY,'MasterQuoteLogV1');
     quotes=raw?JSON.parse(raw):[];
-    const cutoff=Date.now()-SEVEN_DAYS_MS;
-    quotes=quotes.filter(q=>quoteRowIsWon(q)||(q.timestamp||0)>=cutoff).map(q=>normalizeQuoteLocation(q));
+    quotes=removeExpiredQuoteRows(quotes).map(q=>normalizeQuoteLocation(q));
     persistQuotes();
   }catch(e){quotes=[];}
 }
@@ -5752,7 +5780,7 @@ function addLegacyToQuote(){
   const x=calculate();
   const state=currentState();
   quotes.unshift({
-    id:'quote_'+Date.now(), timestamp:Date.now(), state,
+    id:'quote_'+Date.now()+'_'+Math.floor(Math.random()*100000), timestamp:Date.now(), syncUpdatedAt:Date.now(), state,
     postcode:state.postcode, essClimateZone:state.essClimateZone,
     profitLabel:systemType==='ducted'?'Operating profit':'Cash profit',
     type:systemType==='split'?'Split':'Ducted',brand:x.p.brand,series:x.p.series||'',size:x.p.capacity||x.p.size+'kW',model:x.p.model,
@@ -5945,6 +5973,7 @@ function applyEvenDistribution(){
   const materialsEach=materialsEntered ? (Number($('distMaterialsTotal').value)||0)/count : null;
   const miscEach=miscEntered ? (Number($('distMiscTotal').value)||0)/count : null;
   const powerEach=(powerEntered && powerRows.length) ? (Number($('distPowerTotal').value)||0)/powerRows.length : null;
+  const syncUpdatedAt=Date.now();
   quotes.forEach(r=>{
     if(customerEach!==null){ r.finalInc=customerEach; if(r.state) r.state.finalInc=String(customerEach.toFixed(2)); }
     if(labourEach!==null){ r.labour=labourEach; if(r.state) r.state.labour=String(labourEach.toFixed(2)); }
@@ -5952,6 +5981,7 @@ function applyEvenDistribution(){
     if(miscEach!==null){ r.miscInc=miscEach; if(r.state) r.state.misc=String(miscEach.toFixed(2)); }
     if(quoteUsesPowerCost(r) && powerEach!==null){ r.powerCost=powerEach; if(r.state){ r.state.powerCircuit=String(powerEach.toFixed(2)); r.state.powerMode='on'; if(r.state.systemType==='multi_split') r.state.multiPower=String(powerEach.toFixed(2)); } }
     recomputeSavedQuote(r);
+    touchQuoteRow(r,syncUpdatedAt);
   });
   persistQuotes();
   renderQuotes();
@@ -5964,8 +5994,7 @@ function applyEvenDistribution(){
   if($('distHint')) $('distHint').textContent='Applied: '+(details.join(', ')||'no totals entered')+'.';
 }
 function renderQuotes(){
-  const cutoff=Date.now()-SEVEN_DAYS_MS;
-  quotes=quotes.filter(q=>quoteRowIsWon(q)||(q.timestamp||0)>=cutoff).map(q=>recomputeSavedQuote(normalizeQuoteLocation(q)));
+  quotes=removeExpiredQuoteRows(quotes).map(q=>recomputeSavedQuote(normalizeQuoteLocation(q)));
   persistQuotes();
   $('quoteCount').textContent=quotes.length;
   refreshRecommendedOptions();
@@ -6283,11 +6312,27 @@ function loadSelectedSavedQuote(){
   const selected=selectedSavedQuote();
   if(!selected){setSavedQuoteStatus('Select a saved quote set first.',true); return;}
   if(quotes.length && !confirm(`Load "${selected.name}" and replace current working quote rows?`)) return;
-  quotes=cloneObj(Array.isArray(selected.quotes)?selected.quotes:[]);
-  quoteOptionDefs=cloneObj(Array.isArray(selected.optionDefs)&&selected.optionDefs.length?selected.optionDefs:[{id:'option_1',name:'Quote 1'}]);
-  recommendedOptionId=String(selected.recommendedOptionId||'');
+  recordQuoteSyncDeletions(quotes,quoteOptionDefs);
+  const loadedRows=cloneObj(Array.isArray(selected.quotes)?selected.quotes:[]);
+  const loadedDefs=cloneObj(Array.isArray(selected.optionDefs)&&selected.optionDefs.length?selected.optionDefs:[{id:'option_1',name:'Quote 1'}]);
   const now=Date.now();
-  quotes.forEach((q,i)=>{q.timestamp=now+i;});
+  const optionIdMap=new Map();
+  quoteOptionDefs=loadedDefs.map((def,index)=>{
+    const newId=`option_${now}_${index}_${Math.floor(Math.random()*100000)}`;
+    optionIdMap.set(String(def.id||'option_1'),newId);
+    return {...def,id:newId,syncUpdatedAt:now+index};
+  });
+  quotes=loadedRows.map((q,i)=>{
+    const oldOptionId=String(q.optionId||'option_1');
+    let optionId=optionIdMap.get(oldOptionId);
+    if(!optionId){
+      optionId=`option_${now}_extra_${optionIdMap.size}_${Math.floor(Math.random()*100000)}`;
+      optionIdMap.set(oldOptionId,optionId);
+      quoteOptionDefs.push({id:optionId,name:String(q.optionName||'Quote'),syncUpdatedAt:now+quoteOptionDefs.length});
+    }
+    return {...q,id:`quote_${now}_${i}_${Math.floor(Math.random()*100000)}`,optionId,timestamp:now+i,syncUpdatedAt:now+i};
+  });
+  recommendedOptionId=String(optionIdMap.get(String(selected.recommendedOptionId||''))||'');
   if($('quoteExportName')) $('quoteExportName').value=String(selected.quoteExportName||'');
   if($('customer') && selected.customer!==undefined) $('customer').value=String(selected.customer||'');
   if($('address') && selected.address!==undefined) $('address').value=String(selected.address||'');
@@ -6327,7 +6372,7 @@ let quoteOptionDefs=[];
 let recommendedOptionId='';
 function loadOptionDefs(){
   try{quoteOptionDefs=JSON.parse(storageGet(OPTION_DEFS_STORAGE_KEY,'QuoteOptionDefsV1')||'[]')||[];}catch(e){quoteOptionDefs=[];}
-  if(!quoteOptionDefs.length) quoteOptionDefs=[{id:'option_1',name:'Quote 1'}];
+  if(!quoteOptionDefs.length) quoteOptionDefs=[{id:'option_1',name:'Quote 1',syncUpdatedAt:Date.now()}];
 }
 function persistOptionDefs(){try{localStorage.setItem(OPTION_DEFS_STORAGE_KEY, JSON.stringify(quoteOptionDefs));}catch(e){}}
 function displayQuoteName(value,index){
@@ -6341,22 +6386,22 @@ function normalizeDefaultQuoteNames(){
   let changed=false;
   quoteOptionDefs.forEach((def,index)=>{
     const name=displayQuoteName(def.name,index+1);
-    if(def.name!==name){def.name=name;changed=true;}
+    if(def.name!==name){def.name=name;touchOptionDef(def);changed=true;}
   });
   quotes.forEach(q=>{
     const def=quoteOptionDefs.find(o=>o.id===q.optionId);
-    if(def && q.optionName!==def.name){q.optionName=def.name;changed=true;}
+    if(def && q.optionName!==def.name){q.optionName=def.name;touchQuoteRow(q);changed=true;}
   });
   return changed;
 }
 function ensureOptionDefs(){
-  if(!quoteOptionDefs.length) quoteOptionDefs=[{id:'option_1',name:'Quote 1'}];
+  if(!quoteOptionDefs.length) quoteOptionDefs=[{id:'option_1',name:'Quote 1',syncUpdatedAt:Date.now()}];
   let changed=false;
   quotes.forEach((q,idx)=>{
-    if(!q.optionId){q.optionId='option_1'; q.optionName='Quote 1'; changed=true;}
+    if(!q.optionId){q.optionId='option_1'; q.optionName='Quote 1'; touchQuoteRow(q); changed=true;}
     let def=quoteOptionDefs.find(o=>o.id===q.optionId);
     if(!def){
-      def={id:q.optionId,name:q.optionName||('Quote '+(quoteOptionDefs.length+1))};
+      def={id:q.optionId,name:q.optionName||('Quote '+(quoteOptionDefs.length+1)),syncUpdatedAt:Date.now()};
       quoteOptionDefs.push(def);
       changed=true;
     }
@@ -6364,6 +6409,7 @@ function ensureOptionDefs(){
       def.wonAt=q.wonAt;
       def.wonByEmail=q.wonByEmail||'';
       def.wonByName=q.wonByName||'';
+      touchOptionDef(def);
       changed=true;
     }
   });
@@ -6593,8 +6639,9 @@ function completeOptionWon(id,details){
     installationLongitude:details.longitude,
     proposedInstallationDate:details.proposedInstallationDate
   };
-  Object.assign(def,wonDetails);
-  quotes.forEach(q=>{if(q.optionId===id) Object.assign(q,wonDetails);});
+  const syncUpdatedAt=Date.now();
+  Object.assign(def,wonDetails,{syncUpdatedAt});
+  quotes.forEach(q=>{if(q.optionId===id) Object.assign(q,wonDetails,{syncUpdatedAt});});
   persistOptionDefs();
   persistQuotes();
   renderQuotes();
@@ -6635,7 +6682,8 @@ function unlockWonOption(id){
   delete def.wonAt;
   delete def.wonByEmail;
   delete def.wonByName;
-  quotes.forEach(q=>{if(q.optionId===id){delete q.wonAt;delete q.wonByEmail;delete q.wonByName;}});
+  touchOptionDef(def);
+  quotes.forEach(q=>{if(q.optionId===id){delete q.wonAt;delete q.wonByEmail;delete q.wonByName;touchQuoteRow(q);}});
   persistOptionDefs();
   persistQuotes();
   renderQuotes();
@@ -6715,7 +6763,7 @@ function createNewOption(selectIt){
 }
 function createNewOptionNow(name,selectIt){
   ensureOptionDefs();
-  const opt={id:'option_'+Date.now()+'_'+Math.floor(Math.random()*1000),name:String(name||'').trim()};
+  const opt={id:'option_'+Date.now()+'_'+Math.floor(Math.random()*1000),name:String(name||'').trim(),syncUpdatedAt:Date.now()};
   quoteOptionDefs.push(opt); persistOptionDefs(); renderOptionSelectors();
   if(selectIt) syncAddOptionSelects(opt.id);
   updateMainOptionNameInput();
@@ -6727,16 +6775,19 @@ function renameOption(id,value){
   const o=quoteOptionDefs.find(x=>x.id===id); if(!o) return;
   if(!assertOptionEditable(id)){updateMainOptionNameInput();renderQuotes();return;}
   o.name=(value||'').trim()||o.name;
-  quotes.forEach(q=>{if(q.optionId===id) q.optionName=o.name;});
+  const syncUpdatedAt=Date.now();
+  touchOptionDef(o,syncUpdatedAt);
+  quotes.forEach(q=>{if(q.optionId===id){q.optionName=o.name;touchQuoteRow(q,syncUpdatedAt);}});
   persistOptionDefs(); persistQuotes(); renderOptionSelectors(); renderQuotes();
 }
 function deleteOptionGroup(id){
   const name=optionNameById(id);
   if(!assertOptionEditable(id)) return;
   if(!confirm('Delete '+name+' and all systems inside it?')) return;
+  recordQuoteSyncDeletions(quotes.filter(q=>q.optionId===id),quoteOptionDefs.filter(o=>o.id===id));
   quotes=quotes.filter(q=>q.optionId!==id);
   quoteOptionDefs=quoteOptionDefs.filter(o=>o.id!==id);
-  if(!quoteOptionDefs.length) quoteOptionDefs=[{id:'option_1',name:'Quote 1'}];
+  if(!quoteOptionDefs.length) quoteOptionDefs=[{id:'option_'+Date.now(),name:'Quote 1',syncUpdatedAt:Date.now()}];
   persistOptionDefs(); persistQuotes(); renderQuotes();
 }
 function duplicateOptionGroup(id){
@@ -6748,9 +6799,10 @@ function duplicateOptionGroup(id){
 function duplicateOptionGroupNow(id,name){
   const rows=quotes.filter(q=>q.optionId===id);
   if(!rows.length) return;
-  const newOpt={id:'option_'+Date.now()+'_'+Math.floor(Math.random()*1000),name:String(name||'').trim()};
+  const syncUpdatedAt=Date.now();
+  const newOpt={id:'option_'+syncUpdatedAt+'_'+Math.floor(Math.random()*1000),name:String(name||'').trim(),syncUpdatedAt};
   quoteOptionDefs.push(newOpt);
-  const copies=rows.map(r=>{const c=JSON.parse(JSON.stringify(r)); c.id='quote_'+Date.now()+'_'+Math.floor(Math.random()*100000); c.timestamp=Date.now(); c.optionId=newOpt.id; c.optionName=newOpt.name; return c;});
+  const copies=rows.map((r,index)=>{const c=JSON.parse(JSON.stringify(r)); c.id='quote_'+syncUpdatedAt+'_'+Math.floor(Math.random()*100000); c.timestamp=syncUpdatedAt+index; c.syncUpdatedAt=syncUpdatedAt+index; c.optionId=newOpt.id; c.optionName=newOpt.name; return c;});
   quotes=[...copies,...quotes];
   persistOptionDefs(); persistQuotes(); renderOptionSelectors(); syncAddOptionSelects(newOpt.id); renderQuotes();
   showQuoteActionNotice(`Duplicated as ${newOpt.name}.`);
@@ -7005,6 +7057,7 @@ function applyCurrentOptionDistribution(beforeRender){
   const labourEach=labourEntered?(Number($('currentOptionLabourTotal').value)||0)/count:null;
   const materialsEach=materialsEntered?(Number($('currentOptionMaterialsTotal').value)||0)/count:null;
   const miscEach=miscEntered?(Number($('currentOptionMiscTotal').value)||0)/count:null;
+  const syncUpdatedAt=Date.now();
   rows.forEach(row=>{
     const r=quotes[row._index];
     if(!r) return;
@@ -7013,6 +7066,7 @@ function applyCurrentOptionDistribution(beforeRender){
     if(materialsEach!==null){r.materialsInc=materialsEach;r.matsEx=materialsEach/1.1;if(r.state) r.state.materials=String(materialsEach.toFixed(2));}
     if(miscEach!==null){r.miscInc=miscEach;if(r.state) r.state.misc=String(miscEach.toFixed(2));}
     recomputeSavedQuote(r);
+    touchQuoteRow(r,syncUpdatedAt);
   });
   const details=[];
   if(customerEntered) details.push(`customer total ${money(customerEach)} inc GST each`);
@@ -7251,8 +7305,9 @@ function addMultiSplitToQuoteNow(){
   const state=currentMultiSplitState(x);
   const optionName=optionNameById(optionId);
   const headsLabel=x.indoorItems.map(item=>`${item.qty}x ${item.row.capacity}`).join(', ');
+  const syncUpdatedAt=Date.now();
   quotes.unshift({
-    id:'quote_'+Date.now(), timestamp:Date.now(), state, optionId, optionName,
+    id:'quote_'+syncUpdatedAt+'_'+Math.floor(Math.random()*100000), timestamp:syncUpdatedAt, syncUpdatedAt, state, optionId, optionName,
     postcode:state.postcode, essClimateZone:state.essClimateZone,
     profitLabel:'Cash profit',
     type:'Multi-head Split',brand:x.outdoor.brand,series:x.outdoor.series||'',size:`${x.outdoor.capacity} outdoor / ${x.connectedCapacity.toFixed(1)}kW heads`,model:`${x.outdoor.model} + ${x.headCount} head${x.headCount===1?'':'s'}${headsLabel?' ('+headsLabel+')':''}`,
@@ -7282,8 +7337,9 @@ function addStandardSystemToQuoteNow(){
   const x=calculate();
   const state=currentState();
   const optionName=optionNameById(optionId);
+  const syncUpdatedAt=Date.now();
   quotes.unshift({
-    id:'quote_'+Date.now(), timestamp:Date.now(), state, optionId, optionName,
+    id:'quote_'+syncUpdatedAt+'_'+Math.floor(Math.random()*100000), timestamp:syncUpdatedAt, syncUpdatedAt, state, optionId, optionName,
     postcode:state.postcode, essClimateZone:state.essClimateZone,
     profitLabel:systemType==='ducted'?'Operating profit':'Cash profit',
     type:systemType==='split'?'Split':'Ducted',brand:x.p.brand,series:x.p.series||'',size:x.p.capacity||x.p.size+'kW',model:x.p.model,
@@ -7297,8 +7353,7 @@ function addStandardSystemToQuoteNow(){
   persistQuotes(); renderQuotes(); showQuoteActionNotice(`Added to ${optionName}.`);
 }
 function renderQuotes(){
-  const cutoff=Date.now()-SEVEN_DAYS_MS;
-  quotes=quotes.filter(q=>quoteRowIsWon(q)||(q.timestamp||0)>=cutoff).map(q=>recomputeSavedQuote(normalizeQuoteLocation(q)));
+  quotes=removeExpiredQuoteRows(quotes).map(q=>recomputeSavedQuote(normalizeQuoteLocation(q)));
   ensureOptionDefs(); persistQuotes();
   const countEl=$('quoteCount'); if(countEl) countEl.textContent=quotes.length;
   const multiCountEl=$('multiQuoteCount'); if(multiCountEl) multiCountEl.textContent=quotes.length;
@@ -7366,11 +7421,14 @@ function renderQuotes(){
 function removeQuote(i){
   const q=quotes[i];
   if(q&&optionIsWon(q.optionId)){alert('This quote is marked as won and locked. Ask Daniel to unlock it before removing systems.');return;}
+  if(q) recordQuoteSyncDeletions([q],[]);
   quotes.splice(i,1); currentQuoteTotalsEditing=false; persistQuotes(); renderQuotes();
 }
 function clearQuotes(){
   if(quoteOptionDefs.some(def=>def.wonAt&&quotes.some(q=>q.optionId===def.id))){alert('Won quotes are locked. Unlock them before clearing the quote builder.');return;}
-  quotes=[]; quoteOptionDefs=[{id:'option_1',name:'Quote 1'}]; recommendedOptionId=''; currentQuoteTotalsEditing=false; persistOptionDefs(); persistQuotes(); renderQuotes();
+  recordQuoteSyncDeletions(quotes,quoteOptionDefs);
+  const syncUpdatedAt=Date.now();
+  quotes=[]; quoteOptionDefs=[{id:'option_'+syncUpdatedAt,name:'Quote 1',syncUpdatedAt}]; recommendedOptionId=''; currentQuoteTotalsEditing=false; persistOptionDefs(); persistQuotes(); renderQuotes();
 }
 function refreshRecommendedOptions(){}
 function downloadCsv(){
