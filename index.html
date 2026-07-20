@@ -1305,13 +1305,56 @@ tbody tr:hover td{background:#f0f7ff}
   text-transform:uppercase;
 }
 .wonAddressLookup{
+  position:relative;
   min-height:46px;
   border:1px solid #c9d7e6;
   border-radius:8px;
   background:#fff;
-  overflow:visible;
+  overflow:hidden;
 }
-.wonAddressLookup gmp-place-autocomplete{display:block;width:100%;min-height:44px}
+.wonAddressLookup:focus-within{
+  border-color:#2563eb;
+  box-shadow:0 0 0 2px rgba(37,99,235,.15);
+}
+.wonAddressInput{
+  display:block;
+  box-sizing:border-box;
+  width:100%;
+  min-width:0;
+  min-height:44px;
+  margin:0;
+  border:0;
+  border-radius:0;
+  background:#fff;
+  box-shadow:none;
+}
+.wonAddressInput:focus{outline:0}
+.wonAddressSuggestions{
+  max-height:210px;
+  overflow-y:auto;
+  border-top:1px solid #dbe5ef;
+  background:#fff;
+}
+.wonAddressSuggestion{
+  display:block;
+  box-sizing:border-box;
+  width:100%;
+  min-height:44px;
+  padding:10px 13px;
+  border:0;
+  border-bottom:1px solid #edf2f7;
+  border-radius:0;
+  background:#fff;
+  color:#0f172a;
+  box-shadow:none;
+  font-size:13px;
+  font-weight:700;
+  line-height:1.35;
+  text-align:left;
+}
+.wonAddressSuggestion:last-child{border-bottom:0}
+.wonAddressSuggestion:hover,
+.wonAddressSuggestion:focus{background:#f1f7fb;box-shadow:none;transform:none;outline:0}
 .wonAddressLoading{padding:13px 14px;color:#64748b;font-size:13px}
 .wonAddressStatus{margin-top:7px;color:#64748b;font-size:12px;line-height:1.4}
 .wonAddressStatus.success{color:#166534}
@@ -1900,7 +1943,7 @@ tbody tr:hover td{background:#f0f7ff}
   .wonDetailsFields,
   .wonDetailsField,
   .wonAddressLookup,
-  .wonAddressLookup gmp-place-autocomplete,
+  .wonAddressInput,
   .wonDateControl,
   .wonDetailsField input[type="date"]{
     box-sizing:border-box;
@@ -1908,7 +1951,8 @@ tbody tr:hover td{background:#f0f7ff}
     min-width:0;
     max-width:100%;
   }
-  .wonAddressLookup gmp-place-autocomplete{min-inline-size:0!important}
+  .wonAddressInput{min-inline-size:0!important}
+  .wonAddressSuggestions{max-height:156px}
   .wonDateControl{
     inline-size:100%;
     max-inline-size:100%;
@@ -6349,37 +6393,13 @@ function assertOptionEditable(id){
 let pendingWonOptionId='';
 let selectedWonGooglePlace=null;
 let wonAddressAutocomplete=null;
-let googlePlacesLibraryPromise=null;
-function googleMapsBrowserKey(){
-  return String(calculatorUserContext().googleMapsBrowserKey||'').trim();
-}
-function loadGooglePlacesLibrary(){
-  if(window.google&&window.google.maps&&window.google.maps.importLibrary) return window.google.maps.importLibrary('places');
-  if(googlePlacesLibraryPromise) return googlePlacesLibraryPromise;
-  const key=googleMapsBrowserKey();
-  if(!key) return Promise.reject(new Error('Google address search is not configured.'));
-  googlePlacesLibraryPromise=new Promise((resolve,reject)=>{
-    const callback='__calculatorGoogleMapsReady';
-    const script=document.createElement('script');
-    window[callback]=()=>{
-      delete window[callback];
-      if(window.google&&window.google.maps&&window.google.maps.importLibrary) resolve(window.google.maps.importLibrary('places'));
-      else reject(new Error('Google address search did not load.'));
-    };
-    script.async=true;
-    script.defer=true;
-    script.dataset.calculatorGoogleMaps='true';
-    script.src='https://maps.googleapis.com/maps/api/js?key='+encodeURIComponent(key)+'&loading=async&libraries=places&v=weekly&callback='+callback;
-    script.onerror=()=>{
-      delete window[callback];
-      reject(new Error('Google address search could not be loaded.'));
-    };
-    document.head.appendChild(script);
-  }).catch(error=>{
-    googlePlacesLibraryPromise=null;
-    throw error;
-  });
-  return googlePlacesLibraryPromise;
+let wonAddressSearchTimer=null;
+let wonAddressSearchController=null;
+let wonAddressSearchSequence=0;
+let wonAddressSessionToken='';
+function newWonAddressSessionToken(){
+  if(window.crypto&&typeof window.crypto.randomUUID==='function') return window.crypto.randomUUID();
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
 }
 function setWonAddressStatus(message,state){
   const status=$('wonAddressStatus');
@@ -6393,72 +6413,138 @@ function updateWonDetailsSubmitState(){
   const submit=$('wonDetailsSubmit');
   if(submit) submit.disabled=!(pendingWonOptionId&&selectedWonGooglePlace&&selectedWonGooglePlace.placeId&&date);
 }
-async function mountWonAddressAutocomplete(){
-  const container=$('wonAddressLookup');
-  if(!container) return;
+function clearWonAddressSuggestions(){
+  const list=$('wonAddressSuggestions');
+  const input=$('wonAddressInput');
+  if(list){list.replaceChildren();list.hidden=true;}
+  if(input) input.setAttribute('aria-expanded','false');
+}
+async function googleAddressRequest(payload,signal){
+  const response=await fetch('/api/google-address',{
+    method:'POST',
+    credentials:'same-origin',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(payload),
+    signal
+  });
+  const result=await response.json().catch(()=>({}));
+  if(!response.ok) throw new Error(result&&result.error?result.error:'Google address search is temporarily unavailable. Please try again.');
+  return result;
+}
+async function selectWonAddressSuggestion(suggestion){
+  if(!suggestion||!suggestion.placeId||!pendingWonOptionId) return;
   const optionId=pendingWonOptionId;
-  container.innerHTML='<div class="wonAddressLoading">Loading Google address search...</div>';
+  const input=$('wonAddressInput');
+  if(input) input.value=String(suggestion.text||'');
+  clearWonAddressSuggestions();
+  selectedWonGooglePlace=null;
+  setWonAddressStatus('Confirming Google address...','');
+  updateWonDetailsSubmitState();
   try{
-    const library=await loadGooglePlacesLibrary();
+    const result=await googleAddressRequest({
+      action:'details',
+      placeId:suggestion.placeId,
+      sessionToken:wonAddressSessionToken
+    });
     if(!pendingWonOptionId||pendingWonOptionId!==optionId) return;
-    const PlaceAutocompleteElement=library&&library.PlaceAutocompleteElement;
-    if(!PlaceAutocompleteElement) throw new Error('Google address search is unavailable.');
-    const autocomplete=new PlaceAutocompleteElement();
-    autocomplete.id='wonAddressAutocomplete';
-    autocomplete.includedRegionCodes=['au'];
-    autocomplete.requestedLanguage='en-AU';
-    autocomplete.requestedRegion='au';
-    autocomplete.placeholder='Start typing an Australian address';
-    autocomplete.setAttribute('aria-label','Installation address');
-    if(selectedWonGooglePlace&&selectedWonGooglePlace.formattedAddress) autocomplete.value=selectedWonGooglePlace.formattedAddress;
-    autocomplete.addEventListener('input',()=>{
-      selectedWonGooglePlace=null;
-      setWonAddressStatus('Select an address from the Google suggestions.','');
-      updateWonDetailsSubmitState();
-    });
-    autocomplete.addEventListener('gmp-select',async event=>{
-      selectedWonGooglePlace=null;
-      setWonAddressStatus('Confirming Google address...','');
-      updateWonDetailsSubmitState();
-      try{
-        const prediction=event&&event.placePrediction;
-        if(!prediction) throw new Error('No Google place was selected.');
-        const place=prediction.toPlace();
-        await place.fetchFields({fields:['id','formattedAddress','location']});
-        const formattedAddress=String(place.formattedAddress||'').trim();
-        const placeId=String(place.id||'').trim();
-        if(!formattedAddress||!placeId) throw new Error('That Google result does not contain a complete address.');
-        selectedWonGooglePlace={
-          formattedAddress,
-          placeId,
-          latitude:place.location&&typeof place.location.lat==='function'?place.location.lat():null,
-          longitude:place.location&&typeof place.location.lng==='function'?place.location.lng():null
-        };
-        setWonAddressStatus(formattedAddress,'success');
-        updateWonDetailsSubmitState();
-      }catch(error){
-        selectedWonGooglePlace=null;
-        setWonAddressStatus(error&&error.message?error.message:'Select a valid Google address.','error');
-        updateWonDetailsSubmitState();
-      }
-    });
-    autocomplete.addEventListener('gmp-error',()=>{
-      selectedWonGooglePlace=null;
-      setWonAddressStatus('Google could not verify that address. Try another search.','error');
-      updateWonDetailsSubmitState();
-    });
-    wonAddressAutocomplete=autocomplete;
-    container.replaceChildren(autocomplete);
-    if(selectedWonGooglePlace&&selectedWonGooglePlace.formattedAddress) setWonAddressStatus(selectedWonGooglePlace.formattedAddress,'success');
-    else setWonAddressStatus('Select an address from the Google suggestions.','');
+    const place=result&&result.place;
+    const formattedAddress=String(place&&place.formattedAddress||'').trim();
+    const placeId=String(place&&place.placeId||'').trim();
+    if(!formattedAddress||!placeId) throw new Error('That Google result does not contain a complete address.');
+    selectedWonGooglePlace={
+      formattedAddress,
+      placeId,
+      latitude:Number.isFinite(place.latitude)?place.latitude:null,
+      longitude:Number.isFinite(place.longitude)?place.longitude:null
+    };
+    if(input) input.value=formattedAddress;
+    setWonAddressStatus(formattedAddress,'success');
     updateWonDetailsSubmitState();
-    setTimeout(()=>autocomplete.focus(),0);
   }catch(error){
-    wonAddressAutocomplete=null;
-    container.innerHTML='<div class="wonAddressLoading">Google address search unavailable</div>';
-    setWonAddressStatus(error&&error.message?error.message:'Google address search is unavailable.','error');
+    if(!pendingWonOptionId||pendingWonOptionId!==optionId) return;
+    selectedWonGooglePlace=null;
+    setWonAddressStatus(error&&error.message?error.message:'Select a valid Google address.','error');
     updateWonDetailsSubmitState();
   }
+}
+function renderWonAddressSuggestions(suggestions){
+  const list=$('wonAddressSuggestions');
+  const input=$('wonAddressInput');
+  if(!list||!input) return;
+  list.replaceChildren();
+  suggestions.forEach(suggestion=>{
+    const button=document.createElement('button');
+    button.type='button';
+    button.className='wonAddressSuggestion';
+    button.setAttribute('role','option');
+    button.textContent=String(suggestion.text||'');
+    button.addEventListener('click',()=>selectWonAddressSuggestion(suggestion));
+    button.addEventListener('keydown',event=>{
+      const buttons=[...list.querySelectorAll('.wonAddressSuggestion')];
+      const index=buttons.indexOf(button);
+      if(event.key==='ArrowDown'&&buttons[index+1]){event.preventDefault();buttons[index+1].focus();}
+      if(event.key==='ArrowUp'){event.preventDefault();if(buttons[index-1]) buttons[index-1].focus();else input.focus();}
+      if(event.key==='Escape'){event.preventDefault();clearWonAddressSuggestions();input.focus();}
+    });
+    list.appendChild(button);
+  });
+  list.hidden=!suggestions.length;
+  input.setAttribute('aria-expanded',suggestions.length?'true':'false');
+}
+function searchWonAddresses(value){
+  if(wonAddressSearchTimer) clearTimeout(wonAddressSearchTimer);
+  if(wonAddressSearchController) wonAddressSearchController.abort();
+  if(selectedWonGooglePlace) wonAddressSessionToken=newWonAddressSessionToken();
+  const input=String(value||'').trim();
+  const sequence=++wonAddressSearchSequence;
+  clearWonAddressSuggestions();
+  selectedWonGooglePlace=null;
+  updateWonDetailsSubmitState();
+  if(input.length<3){
+    setWonAddressStatus(input?'Type at least 3 characters to search Google.':'Select an address from the Google suggestions.','');
+    return;
+  }
+  setWonAddressStatus('Searching Google addresses...','');
+  wonAddressSearchTimer=setTimeout(async()=>{
+    wonAddressSearchController=new AbortController();
+    try{
+      const result=await googleAddressRequest({
+        action:'autocomplete',
+        input,
+        sessionToken:wonAddressSessionToken
+      },wonAddressSearchController.signal);
+      if(sequence!==wonAddressSearchSequence||!pendingWonOptionId) return;
+      const suggestions=Array.isArray(result&&result.suggestions)?result.suggestions:[];
+      renderWonAddressSuggestions(suggestions);
+      setWonAddressStatus(suggestions.length?'Choose the matching Google address below.':'No verified Australian addresses found. Add a suburb or postcode and try again.',suggestions.length?'':'error');
+    }catch(error){
+      if(error&&error.name==='AbortError') return;
+      if(sequence!==wonAddressSearchSequence||!pendingWonOptionId) return;
+      setWonAddressStatus(error&&error.message?error.message:'Google address search is temporarily unavailable. Please try again.','error');
+    }
+  },300);
+}
+function mountWonAddressAutocomplete(){
+  const container=$('wonAddressLookup');
+  if(!container) return;
+  wonAddressSessionToken=newWonAddressSessionToken();
+  container.innerHTML='<input id="wonAddressInput" class="wonAddressInput" type="search" autocomplete="off" spellcheck="false" aria-label="Installation address" aria-autocomplete="list" aria-controls="wonAddressSuggestions" aria-expanded="false" placeholder="Start typing an Australian address"><div id="wonAddressSuggestions" class="wonAddressSuggestions" role="listbox" aria-label="Google address suggestions" hidden></div>';
+  const input=$('wonAddressInput');
+  wonAddressAutocomplete=input;
+  if(!input) return;
+  if(selectedWonGooglePlace&&selectedWonGooglePlace.formattedAddress) input.value=selectedWonGooglePlace.formattedAddress;
+  input.addEventListener('input',event=>searchWonAddresses(event.target.value));
+  input.addEventListener('keydown',event=>{
+    if(event.key==='ArrowDown'){
+      const first=container.querySelector('.wonAddressSuggestion');
+      if(first){event.preventDefault();first.focus();}
+    }
+    if(event.key==='Escape') clearWonAddressSuggestions();
+  });
+  if(selectedWonGooglePlace&&selectedWonGooglePlace.formattedAddress) setWonAddressStatus(selectedWonGooglePlace.formattedAddress,'success');
+  else setWonAddressStatus('Select an address from the Google suggestions.','');
+  updateWonDetailsSubmitState();
+  setTimeout(()=>input.focus(),0);
 }
 function openWonDetailsModal(id){
   const def=optionDefById(id);
@@ -6482,6 +6568,12 @@ function openWonDetailsModal(id){
 function closeWonDetailsModal(){
   const modal=$('wonDetailsModal');
   if(modal) modal.classList.remove('open');
+  if(wonAddressSearchTimer) clearTimeout(wonAddressSearchTimer);
+  if(wonAddressSearchController) wonAddressSearchController.abort();
+  wonAddressSearchTimer=null;
+  wonAddressSearchController=null;
+  wonAddressSearchSequence++;
+  wonAddressSessionToken='';
   pendingWonOptionId='';
   selectedWonGooglePlace=null;
   wonAddressAutocomplete=null;

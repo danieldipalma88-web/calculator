@@ -29,7 +29,6 @@ type CalculatorUserContext = {
   canSeeOwnerDetails: boolean;
   canSeeSalespersonCommission: boolean;
   isPreviewMode: boolean;
-  googleMapsBrowserKey: string;
 };
 
 type ApprovedUser = {
@@ -879,7 +878,6 @@ export async function GET(request: Request) {
       canSeeOwnerDetails: useAdminVisibility,
       canSeeSalespersonCommission: true,
       isPreviewMode: previewAsViewedUser,
-      googleMapsBrowserKey: process.env.GOOGLE_MAPS_BROWSER_KEY || "",
     },
   );
 
