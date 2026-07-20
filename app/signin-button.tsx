@@ -31,17 +31,6 @@ export default function LoginButton({ next }: { next?: string }) {
     return signInError.status === 429 || signInError.code === "over_email_send_rate_limit" || message.includes("rate limit");
   }
 
-  async function signInWithGoogle() {
-    const supabase = createSupabaseBrowserClient();
-    const { error: signInError } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: callbackUrl(next),
-      },
-    });
-    if (signInError) setError(signInError.message);
-  }
-
   async function sendMagicLink(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (retryAfterSeconds > 0) {
@@ -108,11 +97,12 @@ export default function LoginButton({ next }: { next?: string }) {
         </div>
       </form>
       <div className="auth-divider"><span>or</span></div>
-      <div className="button-row">
-        <button className="secondary" type="button" onClick={signInWithGoogle}>
+      <form className="button-row" action="/auth/google" method="post">
+        <input type="hidden" name="next" value={next || "/calculator"} />
+        <button className="secondary" type="submit">
           Continue with Google
         </button>
-      </div>
+      </form>
       {message ? <div className="notice success">{message}</div> : null}
       {error ? <div className="notice">{error}</div> : null}
     </>
