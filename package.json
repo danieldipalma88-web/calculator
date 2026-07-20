@@ -7,6 +7,7 @@
     "verify:rebates": "node scripts/verify-rebate-guards.mjs && node scripts/verify-nsw-hvac-rebate-rules.mjs && node scripts/verify-certificate-pricing-model.mjs",
     "verify:quote-sync": "node scripts/verify-quote-sync-safety.mjs",
     "verify:loading": "node scripts/verify-loading-states.mjs",
+    "verify:user-view": "node scripts/verify-user-view-default.mjs",
     "build": "next build",
     "start": "next start"
   },

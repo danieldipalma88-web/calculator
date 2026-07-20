@@ -126,7 +126,7 @@ function lastBusinessCookieName(email: string) {
 export default async function CalculatorPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ as?: string; preview?: string; businessId?: string }>;
+  searchParams?: Promise<{ as?: string; preview?: string; admin?: string; businessId?: string }>;
 }) {
   const params = await searchParams;
   const supabase = await createSupabaseServerClient();
@@ -167,7 +167,8 @@ export default async function CalculatorPage({
   const requestedBusinessId = String(params?.businessId || "").trim();
   const viewingEmail = canManage && requestedEmail ? requestedEmail : user.email.toLowerCase();
   const isViewingAnotherUser = viewingEmail !== user.email.toLowerCase();
-  const isPreviewingAsUser = isViewingAnotherUser && params?.preview === "1";
+  const isPreviewingAsAdmin = isViewingAnotherUser && params?.admin === "1";
+  const isPreviewingAsUser = isViewingAnotherUser && !isPreviewingAsAdmin;
   const approvedUsers = canManage ? await listApprovedUsers(supabase) : [];
   const viewedApprovedUser =
     approvedUsers.find((item) => item.email.toLowerCase() === viewingEmail) || {
@@ -216,7 +217,9 @@ export default async function CalculatorPage({
           <strong>Quote Calculator</strong>
           <span>
             {isViewingAnotherUser
-              ? `${isPreviewingAsUser ? "Previewing" : "Viewing"} ${viewingName} as ${user.email}`
+              ? isPreviewingAsAdmin
+                ? `Previewing ${viewingName} with admin details`
+                : `Viewing as ${viewingName}`
               : displayName(approved)}
           </span>
         </div>
@@ -241,12 +244,12 @@ export default async function CalculatorPage({
               {isViewingAnotherUser ? (
                 <>
                   {isPreviewingAsUser ? (
-                    <a className="button secondary" href={`/calculator?as=${encodeURIComponent(viewingEmail)}${selectedBusinessParam}`} data-loading-label="Changing calculator view...">
-                      Show Admin Details
+                    <a className="button secondary" href={`/calculator?as=${encodeURIComponent(viewingEmail)}&admin=1${selectedBusinessParam}`} data-loading-label="Opening admin preview...">
+                      Preview as admin
                     </a>
                   ) : (
-                    <a className="button secondary" href={`/calculator?as=${encodeURIComponent(viewingEmail)}&preview=1${selectedBusinessParam}`} data-loading-label="Changing calculator view...">
-                      Preview as {viewingName}
+                    <a className="button secondary" href={`/calculator?as=${encodeURIComponent(viewingEmail)}${selectedBusinessParam}`} data-loading-label={`Returning to ${viewingName}'s view...`}>
+                      Return to {viewingName}&apos;s view
                     </a>
                   )}
                   <a className="button orange" href="/calculator" data-loading-label="Returning to your account...">
@@ -259,7 +262,7 @@ export default async function CalculatorPage({
           {businessOptions.length > 1 ? (
             <form action="/calculator" method="get" className="business-switcher" data-loading-label="Switching business...">
               {isViewingAnotherUser ? <input type="hidden" name="as" value={viewingEmail} /> : null}
-              {isPreviewingAsUser ? <input type="hidden" name="preview" value="1" /> : null}
+              {isPreviewingAsAdmin ? <input type="hidden" name="admin" value="1" /> : null}
               <select name="businessId" defaultValue={selectedBusiness?.id || ""} aria-label="Business workspace">
                   {businessOptions.map((business) => (
                   <option key={business.id} value={business.id}>
@@ -281,11 +284,11 @@ export default async function CalculatorPage({
       </header>
       {isViewingAnotherUser ? (
         <div className={`view-mode-banner ${isPreviewingAsUser ? "preview" : "admin"}`}>
-          <strong>{isPreviewingAsUser ? `Previewing what ${viewingName} sees` : "Admin details visible"}</strong>
+          <strong>{isPreviewingAsUser ? `Viewing ${viewingName}'s calculator` : "Admin preview"}</strong>
           <span>
             {isPreviewingAsUser
-              ? "Agency/admin-only figures are hidden in this preview."
-              : `You are viewing ${viewingName}'s saved calculator with Daniel/admin visibility.`}
+              ? "This matches their view. Agency/admin-only figures are hidden."
+              : `You are viewing ${viewingName}'s saved calculator with admin-only figures visible.`}
             {selectedBusinessName ? ` Active business: ${selectedBusinessName}.` : ""}
           </span>
         </div>
