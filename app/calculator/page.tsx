@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { canManageUsers } from "../../lib/admin";
 import { createSupabaseServerClient } from "../../lib/supabase/server";
 import PageLoadingOverlay, { CalculatorFrame } from "../page-loading-overlay";
+import AutoSubmitSelect from "./auto-submit-select";
 
 type ApprovedUser = {
   email: string;
@@ -196,8 +197,9 @@ export default async function CalculatorPage({
     ? `/calculator/raw?as=${encodeURIComponent(viewingEmail)}${isPreviewingAsUser ? "&preview=1" : ""}${businessQuery ? `&${businessQuery}` : ""}`
     : `/calculator/raw${businessQuery ? `?${businessQuery}` : ""}`;
   const viewingName = displayName(viewedApprovedUser);
-  const selectedBusinessName = selectedBusiness ? businessOptionLabel(selectedBusiness) : "";
   const selectedBusinessParam = selectedBusiness ? `&businessId=${encodeURIComponent(selectedBusiness.id)}` : "";
+  const signedInName = displayName(approved);
+  const accountInitial = signedInName.trim().charAt(0).toUpperCase() || "A";
   const rememberBusinessScript = selectedBusiness
     ? `
 (function(){
@@ -223,76 +225,80 @@ export default async function CalculatorPage({
               : displayName(approved)}
           </span>
         </div>
-        <div className="topbar-actions">
-          {canManage ? (
-            <>
-              <a className="button secondary" href="/admin/users" data-loading-label="Loading Platform Admin...">
-                Users
-              </a>
-              <form action="/calculator" method="get" className="account-switcher" data-loading-label="Opening user calculator...">
-                <select name="as" defaultValue={viewingEmail} aria-label="Open user account">
-                  {approvedUsers.map((approvedUser) => (
-                    <option key={approvedUser.email} value={approvedUser.email}>
-                      {displayName(approvedUser)}
-                    </option>
-                  ))}
-                </select>
-                <button className="secondary" type="submit">
-                  Open
-                </button>
-              </form>
-              {isViewingAnotherUser ? (
-                <>
-                  {isPreviewingAsUser ? (
-                    <a className="button secondary" href={`/calculator?as=${encodeURIComponent(viewingEmail)}&admin=1${selectedBusinessParam}`} data-loading-label="Opening admin preview...">
-                      Preview as admin
-                    </a>
-                  ) : (
-                    <a className="button secondary" href={`/calculator?as=${encodeURIComponent(viewingEmail)}${selectedBusinessParam}`} data-loading-label={`Returning to ${viewingName}'s view...`}>
-                      Return to {viewingName}&apos;s view
-                    </a>
-                  )}
-                  <a className="button orange" href="/calculator" data-loading-label="Returning to your account...">
-                    Return to My Account
-                  </a>
-                </>
-              ) : null}
-            </>
-          ) : null}
+        <div className="topbar-workspace">
           {businessOptions.length > 1 ? (
-            <form action="/calculator" method="get" className="business-switcher" data-loading-label="Switching business...">
-              {isViewingAnotherUser ? <input type="hidden" name="as" value={viewingEmail} /> : null}
-              {isPreviewingAsAdmin ? <input type="hidden" name="admin" value="1" /> : null}
-              <select name="businessId" defaultValue={selectedBusiness?.id || ""} aria-label="Business workspace">
-                  {businessOptions.map((business) => (
-                  <option key={business.id} value={business.id}>
-                    {businessOptionLabel(business)}
-                  </option>
-                ))}
-              </select>
-              <button className="secondary" type="submit">
-                Switch
-              </button>
-            </form>
+            <AutoSubmitSelect
+              ariaLabel="Business workspace"
+              className="workspace-business-switcher"
+              hiddenFields={[
+                ...(isViewingAnotherUser ? [{ name: "as", value: viewingEmail }] : []),
+                ...(isPreviewingAsAdmin ? [{ name: "admin", value: "1" }] : []),
+              ]}
+              label="Business"
+              loadingLabel="Switching business..."
+              name="businessId"
+              options={businessOptions.map((business) => ({
+                label: businessOptionLabel(business),
+                value: business.id,
+              }))}
+              value={selectedBusiness?.id || ""}
+            />
+          ) : (
+            <div className="workspace-business-static">
+              <span>Business</span>
+              <strong>{selectedBusiness ? businessOptionLabel(selectedBusiness) : "No business assigned"}</strong>
+            </div>
+          )}
+          {isViewingAnotherUser ? (
+            <nav className={`view-mode-control ${isPreviewingAsAdmin ? "admin-active" : ""}`} aria-label="Calculator viewing mode">
+              {isPreviewingAsUser ? (
+                <span className="active" aria-current="page">User view</span>
+              ) : (
+                <a href={`/calculator?as=${encodeURIComponent(viewingEmail)}${selectedBusinessParam}`} data-loading-label={`Returning to ${viewingName}'s view...`}>User view</a>
+              )}
+              {isPreviewingAsAdmin ? (
+                <span className="active" aria-current="page">Admin preview</span>
+              ) : (
+                <a href={`/calculator?as=${encodeURIComponent(viewingEmail)}&admin=1${selectedBusinessParam}`} data-loading-label="Opening admin preview...">Admin preview</a>
+              )}
+            </nav>
           ) : null}
-          <form action="/auth/signout" method="post" data-loading-label="Signing out...">
-            <button className="secondary" type="submit">
-              Sign out
-            </button>
-          </form>
         </div>
+        <details className="account-menu">
+          <summary aria-label="Account menu">
+            <span className="account-avatar" aria-hidden="true">{accountInitial}</span>
+            <span className="account-summary-name">{signedInName}</span>
+            <span className="account-menu-chevron" aria-hidden="true" />
+          </summary>
+          <div className="account-menu-panel">
+            <div className="account-menu-identity">
+              <strong>{signedInName}</strong>
+              <span>{user.email}</span>
+            </div>
+            {canManage ? (
+              <AutoSubmitSelect
+                ariaLabel="View another calculator"
+                className="account-menu-switcher"
+                label="View calculator"
+                loadingLabel="Opening user calculator..."
+                name="as"
+                options={approvedUsers.map((approvedUser) => ({
+                  label: displayName(approvedUser),
+                  value: approvedUser.email,
+                }))}
+                value={viewingEmail}
+              />
+            ) : null}
+            <div className="account-menu-links">
+              <a href="/calculator" data-loading-label="Returning to your account...">My calculator</a>
+              {canManage ? <a href="/admin/users" data-loading-label="Loading Platform Admin...">Platform Admin</a> : null}
+              <form action="/auth/signout" method="post" data-loading-label="Signing out...">
+                <button type="submit">Sign out</button>
+              </form>
+            </div>
+          </div>
+        </details>
       </header>
-      {isViewingAnotherUser ? (
-        <div className={`view-mode-banner ${isPreviewingAsUser ? "preview" : "admin"}`}>
-          <strong>{isPreviewingAsUser ? `Viewing ${viewingName}'s calculator` : "Admin preview"}</strong>
-          <span>
-            {isPreviewingAsUser
-              ? "This matches their view. Agency/admin-only figures are hidden."
-              : `You are viewing ${viewingName}'s saved calculator with admin-only figures visible.`}
-            {selectedBusinessName ? ` Active business: ${selectedBusinessName}.` : ""}
-          </span>
-        </div>
-      ) : null}
       {rememberBusinessScript ? <script dangerouslySetInnerHTML={{ __html: rememberBusinessScript }} /> : null}
       <CalculatorFrame src={rawSrc} />
     </div>

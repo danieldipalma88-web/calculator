@@ -9,8 +9,8 @@ const files = {
 
 const checks = [
   [files.calculator, "<CalculatorFrame src={rawSrc} />", "initial calculator loader"],
-  [files.calculator, 'data-loading-label="Switching business..."', "business switch loader"],
-  [files.calculator, 'data-loading-label="Opening user calculator..."', "account switch loader"],
+  [files.calculator, 'loadingLabel="Switching business..."', "business switch loader"],
+  [files.calculator, 'loadingLabel="Opening user calculator..."', "account switch loader"],
   [files.admin, "<PageLoadingOverlay />", "Platform Admin loader"],
   [files.admin, "setWonActionLoading(form, submitter)", "won action loader"],
   [files.admin, 'setWonSectionLoading(true, "Preparing Excel export...")', "Excel export loader"],

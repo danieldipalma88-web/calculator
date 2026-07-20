@@ -6,7 +6,7 @@ const checks = [
   ["const isPreviewingAsUser = isViewingAnotherUser && !isPreviewingAsAdmin;", "user view default"],
   ['isPreviewingAsUser ? "&preview=1" : ""', "restricted raw calculator view"],
   ["&admin=1", "admin preview link"],
-  ['name="admin" value="1"', "admin mode preserved during business switching"],
+  ['...(isPreviewingAsAdmin ? [{ name: "admin", value: "1" }] : [])', "admin mode preserved during business switching"],
 ];
 
 const missing = checks.filter(([needle]) => !source.includes(needle));
