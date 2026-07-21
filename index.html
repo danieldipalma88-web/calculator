@@ -904,22 +904,263 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
 }
 .multiSplitPanelHead h3{margin:0;font-size:16px}
 .multiSplitSelected{margin-top:14px}
+.multiSplitPostcodeField{max-width:360px}
 .multiSplitTrialActions{
   display:flex;
   justify-content:flex-end;
-  margin-top:14px;
 }
 .multiSplitTrialActions button{min-width:180px}
-.multiSplitIndoorRows{display:grid;gap:10px}
+.multiSplitIndoorRows{
+  display:grid;
+  border-top:1px solid #e2e8f0;
+}
 .multiSplitIndoorRow{
   display:grid;
-  grid-template-columns:minmax(0,1fr) 92px 44px;
-  gap:10px;
+  grid-template-columns:minmax(0,1fr) 152px;
+  gap:16px;
+  padding:16px 0;
+  border-bottom:1px solid #e2e8f0;
+  align-items:center;
+}
+.multiSplitIndoorRowMain{min-width:0}
+.multiSplitIndoorRowTop{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-bottom:8px;
+}
+.multiSplitIndoorBadge{
+  display:inline-flex;
+  align-items:center;
+  min-height:24px;
+  padding:4px 8px;
+  border-radius:999px;
+  background:#e6f5f1;
+  color:#0f766e;
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+  white-space:nowrap;
+}
+.multiSplitIndoorSeries{
+  min-width:0;
+  color:#64748b;
+  font-size:12px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.multiSplitIndoorFacts{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:8px;
+  margin-top:10px;
+}
+.multiSplitIndoorFact{
+  padding-top:8px;
+  border-top:1px solid #edf2f7;
+}
+.multiSplitIndoorFact span{
+  display:block;
+  color:#64748b;
+  font-size:9.5px;
+  font-weight:900;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+}
+.multiSplitIndoorFact strong{
+  display:block;
+  margin-top:2px;
+  color:#0f172a;
+  font-size:13px;
+}
+.multiSplitIndoorControls{
+  display:grid;
+  grid-template-columns:1fr 38px;
+  gap:8px;
   align-items:end;
 }
-.multiSplitIndoorRow button{
-  height:45px;
+.multiSplitQtyControl{
+  display:grid;
+  grid-template-columns:38px 42px 38px;
+  align-items:center;
+  border:1px solid #cbd5e1;
+  border-radius:10px;
+  overflow:hidden;
+  background:#fff;
+}
+.multiSplitQtyControl button,
+.multiSplitRemoveButton{
+  min-width:0;
+  height:42px;
   padding:0;
+  border:0;
+  border-radius:0;
+  background:#f8fafc;
+  color:#0f172a;
+  font-size:18px;
+}
+.multiSplitQtyControl button:disabled{color:#cbd5e1;background:#f8fafc}
+.multiSplitQtyValue{
+  text-align:center;
+  color:#0f172a;
+  font-size:14px;
+  font-weight:900;
+  font-variant-numeric:tabular-nums;
+}
+.multiSplitRemoveButton{
+  border:1px solid #fecaca;
+  border-radius:10px;
+  color:#b91c1c;
+  background:#fff7f7;
+}
+.multiSplitCapacityFeedback{
+  margin-top:14px;
+  padding:14px 0 2px;
+  border-top:1px solid #dbe7ef;
+}
+.multiSplitCapacityGrid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:14px;
+}
+.multiSplitProgressHead{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:7px;
+  color:#475569;
+  font-size:12px;
+}
+.multiSplitProgressHead strong{color:#0f172a;font-variant-numeric:tabular-nums}
+.multiSplitProgressTrack{
+  height:8px;
+  overflow:hidden;
+  border-radius:999px;
+  background:#e2e8f0;
+}
+.multiSplitProgressFill{
+  width:0;
+  height:100%;
+  border-radius:inherit;
+  background:#0f766e;
+  transition:width .2s ease,background .2s ease;
+}
+.multiSplitProgressFill.capped{background:#d97706}
+.multiSplitProgressFill.invalid{background:#dc2626}
+.multiSplitCapacityMessage{
+  margin-top:10px;
+  color:#475569;
+  font-size:12px;
+  line-height:1.45;
+}
+.multiSplitCapacityMessage.capped{color:#9a3412}
+.multiSplitCapacityMessage.invalid{color:#b91c1c}
+.multiSplitRebateCard{border-color:#b8ddd4}
+.multiSplitRebateHead{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+}
+.multiSplitRebateHeadCopy{min-width:0}
+.multiSplitRebateFreshness{
+  display:inline-flex;
+  align-items:center;
+  min-height:26px;
+  margin-top:7px;
+  padding:4px 9px;
+  border-radius:999px;
+  border:1px solid #fcd34d;
+  background:#fffbeb;
+  color:#92400e;
+  font-size:11px;
+  font-weight:900;
+}
+.multiSplitRebateFreshness.fresh{
+  border-color:#86efac;
+  background:#f0fdf4;
+  color:#166534;
+}
+.multiSplitRebateFreshness.error{
+  border-color:#fca5a5;
+  background:#fff1f2;
+  color:#b91c1c;
+}
+.multiSplitRebateResults{
+  display:grid;
+  grid-template-columns:1.2fr repeat(2,minmax(0,1fr));
+  gap:10px;
+  margin-top:14px;
+}
+.multiSplitRebateResult{
+  padding:12px;
+  border:1px solid #dbe7ef;
+  border-radius:12px;
+  background:#f8fafc;
+}
+.multiSplitRebateResult.primary{border-color:#a7e4c0;background:#f0fdf4}
+.multiSplitRebateResult span{
+  display:block;
+  color:#64748b;
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+.multiSplitRebateResult strong{
+  display:block;
+  margin-top:4px;
+  color:#0f172a;
+  font-size:22px;
+  font-variant-numeric:tabular-nums;
+}
+.multiSplitRebateRates{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px 20px;
+  margin-top:12px;
+  color:#64748b;
+  font-size:12px;
+}
+.multiSplitRebateRates strong{color:#0f172a}
+.multiSplitTechnicalDetails,
+.multiSplitFinancialDetails,
+.multiSplitTools{
+  margin-top:12px;
+  border-top:1px solid #e2e8f0;
+}
+.multiSplitTechnicalDetails summary,
+.multiSplitFinancialDetails summary,
+.multiSplitTools summary{
+  cursor:pointer;
+  padding:12px 0 0;
+  color:#334155;
+  font-size:12px;
+  font-weight:900;
+  list-style:none;
+}
+.multiSplitTechnicalDetails summary::-webkit-details-marker,
+.multiSplitFinancialDetails summary::-webkit-details-marker,
+.multiSplitTools summary::-webkit-details-marker{display:none}
+.multiSplitTechnicalDetails summary::after,
+.multiSplitFinancialDetails summary::after,
+.multiSplitTools summary::after{content:' +';color:#64748b}
+.multiSplitTechnicalDetails[open] summary::after,
+.multiSplitFinancialDetails[open] summary::after,
+.multiSplitTools[open] summary::after{content:' -'}
+.multiSplitSummaryKeyGrid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+  margin-top:12px;
+}
+.multiSplitPrimaryActions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.multiSplitPrimaryActions button{width:100%}
+.multiSplitTools .actions{margin-top:10px}
+.multiSplitTools .actions button{flex:1 1 130px}
 }
 .multiSplitFinal{
   border:1px solid #b7f0c4;
@@ -1746,11 +1987,26 @@ tbody tr:hover td{background:#f0f7ff}
   .trialBadge{
     justify-self:start;
   }
-  .multiSplitIndoorRow{grid-template-columns:minmax(0,1fr) 78px 36px}
-  .multiSplitTrialActions button{width:100%}
-  .multiSplitSummaryGrid{
-    grid-template-columns:1fr;
-  }
+  .multiSplitPostcodeField{max-width:none}
+  .multiSplitPanelHead{align-items:stretch;flex-direction:column}
+  .multiSplitPanelHead>button{width:100%}
+  .multiSplitIndoorRow{grid-template-columns:1fr;gap:12px;padding:14px 0}
+  .multiSplitIndoorRowTop{align-items:flex-start}
+  .multiSplitIndoorSeries{white-space:normal;overflow:visible;text-overflow:clip}
+  .multiSplitIndoorFacts{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .multiSplitIndoorFact strong{font-size:12px;overflow-wrap:anywhere}
+  .multiSplitIndoorControls{grid-template-columns:1fr 44px}
+  .multiSplitQtyControl{grid-template-columns:44px minmax(48px,1fr) 44px}
+  .multiSplitCapacityGrid{grid-template-columns:1fr}
+  .multiSplitRebateHead{align-items:stretch;flex-direction:column}
+  .multiSplitTrialActions{width:100%}
+  .multiSplitTrialActions button{width:100%;min-width:0}
+  .multiSplitRebateResults{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .multiSplitRebateResult.primary{grid-column:1 / -1}
+  .multiSplitSummaryKeyGrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .multiSplitPrimaryActions{display:none}
+  .multiSplitTools .actions{display:grid;grid-template-columns:1fr}
+  .multiSplitTools .actions button{width:100%}
   .energySavingsToggle{
     min-height:66px;
     padding:14px;
@@ -2333,11 +2589,7 @@ tbody tr:hover td{background:#f0f7ff}
             <button id="multiSplitReplacementBtn" type="button" class="active" onclick="setMultiSplitInstall('replacement')">Replacement</button>
           </div>
           <select id="multiSplitInstallType" class="hidden" onchange="renderMultiSplitTrial()"><option value="new">New install</option><option value="replacement" selected>Replacement</option></select>
-          <div class="row3 rebateSchemeUi" style="margin-top:12px">
-            <div class="postcodeField"><div class="fieldLabelRow"><label for="multiSplitPostcode">Customer postcode</label><span class="fieldPill">Required for rebate</span></div><input id="multiSplitPostcode" type="text" inputmode="numeric" maxlength="4" value="2170"></div>
-            <div><label>ESC $ per ESC</label><input id="multiSplitEscRateDisplay" readonly value="$0.00"></div>
-            <div><label>PERC (PRC) $ per cert</label><input id="multiSplitPrcRateDisplay" readonly value="$0.00"></div>
-          </div>
+          <div class="postcodeField multiSplitPostcodeField" style="margin-top:12px"><div class="fieldLabelRow"><label for="multiSplitPostcode">Customer postcode</label><span class="fieldPill">Required for rebate</span></div><input id="multiSplitPostcode" type="text" inputmode="numeric" maxlength="4" value="2170"></div>
           <div class="selected multiSplitSelected">
             <div class="selectedText">
               <div class="selectedHeader"><strong id="multiSplitSelectedModel">Select an outdoor unit</strong></div>
@@ -2348,9 +2600,42 @@ tbody tr:hover td{background:#f0f7ff}
         <div class="card">
           <div class="multiSplitPanelHead">
             <div><h2 class="sectionTitle" style="margin-bottom:4px">Indoor units</h2><div class="sub" id="multiSplitLimitHint">Choose an outdoor unit first.</div></div>
-            <button class="secondary" type="button" onclick="addMultiSplitIndoorRow()">+ Add head</button>
+            <button id="multiSplitAddHeadBtn" class="secondary" type="button" onclick="addMultiSplitIndoorRow()">+ Add indoor head</button>
           </div>
           <div id="multiSplitIndoorRows" class="multiSplitIndoorRows"></div>
+          <div class="multiSplitCapacityFeedback" aria-live="polite">
+            <div class="multiSplitCapacityGrid">
+              <div>
+                <div class="multiSplitProgressHead"><span>Connected indoor heads</span><strong id="multiSplitHeadCount">0</strong></div>
+                <div class="multiSplitProgressTrack"><div id="multiSplitHeadProgress" class="multiSplitProgressFill"></div></div>
+              </div>
+              <div>
+                <div class="multiSplitProgressHead"><span>Rated cooling capacity</span><strong id="multiSplitConnectedCapacity">0.0kW</strong></div>
+                <div class="multiSplitProgressTrack"><div id="multiSplitCapacityProgress" class="multiSplitProgressFill"></div></div>
+              </div>
+            </div>
+            <div id="multiSplitCapacityMessage" class="multiSplitCapacityMessage">Add compatible indoor heads to build the system.</div>
+          </div>
+        </div>
+        <div class="card multiSplitRebateCard" id="multiSplitRebatePanel">
+          <div class="multiSplitRebateHead">
+            <div class="multiSplitRebateHeadCopy">
+              <div class="kicker">NSW ESS / PDRS</div>
+              <h2 class="sectionTitle" style="margin:3px 0 0">Energy savings rebate</h2>
+              <div id="multiSplitRebateFreshness" class="multiSplitRebateFreshness">Calculation required</div>
+            </div>
+            <div class="multiSplitTrialActions"><button id="multiSplitCheckRebateBtn" class="green" type="button" onclick="calculateMultiSplitTrialRebate()">Calculate rebate</button></div>
+          </div>
+          <div class="multiSplitRebateResults">
+            <div class="multiSplitRebateResult primary"><span>Calculated rebate</span><strong id="multiSplitRebateValue">-</strong></div>
+            <div class="multiSplitRebateResult"><span>ESC generated</span><strong id="multiSplitEscCount">-</strong></div>
+            <div class="multiSplitRebateResult"><span>PERC generated</span><strong id="multiSplitPrcCount">-</strong></div>
+          </div>
+          <div class="multiSplitRebateRates"><span>ESC payout rate <strong id="multiSplitEscRateDisplay">$0.00</strong></span><span>PERC payout rate <strong id="multiSplitPrcRateDisplay">$0.00</strong></span></div>
+          <details id="multiSplitTechnicalDetails" class="multiSplitTechnicalDetails">
+            <summary>Calculation details</summary>
+            <div id="multiSplitStatus" class="multiSplitStatus">Select a system and calculate its NSW multi-split rebate.</div>
+          </details>
         </div>
         <div class="card">
           <h2 class="sectionTitle">Costs</h2>
@@ -2370,43 +2655,44 @@ tbody tr:hover td{background:#f0f7ff}
           <div class="priceResetRow"><button class="secondary" type="button" onclick="resetMultiSplitSuggestedPrice()">Reset suggested price</button></div>
         </div>
       </main>
-      <aside class="summary card multiSplitSummaryCard" id="multiSplitRebatePanel">
+      <aside class="summary card multiSplitSummaryCard">
         <div class="final"><div class="finalCopy"><span>Final customer price inc GST</span><strong id="multiFinalBig">$0.00</strong></div><div class="finalBumpGroup"><button class="finalBumpBtn" type="button" onclick="applyMoneyStep('multiFinalInc',-50)">- $50</button><button class="finalBumpBtn" type="button" onclick="applyMoneyStep('multiFinalInc',50)">+ $50</button></div></div>
-        <div class="multiSplitSummaryGrid">
+        <div class="multiSplitSummaryKeyGrid">
           <div class="multiSplitMetric"><span>Equipment inc GST</span><strong id="multiSplitEquipmentTotal">$0.00</strong></div>
-          <div class="multiSplitMetric"><span>Trial rebate</span><strong id="multiSplitRebateValue">-</strong></div>
-          <div class="multiSplitMetric"><span>Connected heads</span><strong id="multiSplitHeadCount">0</strong></div>
-          <div class="multiSplitMetric"><span>Connected capacity</span><strong id="multiSplitConnectedCapacity">0.0kW</strong></div>
+          <div class="multiSplitMetric"><span>Rebate</span><strong id="multiSplitSummaryRebate">$0.00</strong></div>
+          <div class="multiSplitMetric"><span>Installer profit</span><strong id="multiSplitSummaryNetProfit">$0.00</strong></div>
+          <div class="multiSplitMetric"><span>Net margin</span><strong id="multiSplitSummaryMargin">0.00%</strong></div>
         </div>
-        <div class="multiSplitSummaryLines">
-          <div class="summaryLine"><span>Sell price ex GST</span><strong id="multiSellEx">$0.00</strong></div>
-          <div class="summaryLine"><span>Original price before rebate inc GST</span><strong id="multiOriginalInc">$0.00</strong></div>
-          <div class="summaryLine"><span>Outdoor inc GST</span><strong id="multiSplitOutdoorTotal">$0.00</strong></div>
-          <div class="summaryLine"><span>Indoor inc GST</span><strong id="multiSplitIndoorTotal">$0.00</strong></div>
-          <div class="summaryLine"><span>Equipment ex GST</span><strong id="multiSummaryUnitEx">$0.00</strong></div>
-          <div class="summaryLine"><span>Labour ex GST</span><strong id="multiSummaryLabourEx">$0.00</strong></div>
-          <div class="summaryLine"><span>Materials ex GST</span><strong id="multiSummaryMaterialsEx">$0.00</strong></div>
-          <div class="summaryLine"><span>Misc ex GST</span><strong id="multiSummaryMiscEx">$0.00</strong></div>
-          <div class="summaryLine"><span>Power / electrical ex GST</span><strong id="multiSummaryServiceEx">$0.00</strong></div>
-          <div class="summaryLine"><span>True cost ex GST</span><strong id="multiSummaryTrueCost">$0.00</strong></div>
-          <div class="summaryLine"><span>Rebate retained</span><strong id="multiSummaryRebateOut">$0.00</strong></div>
-          <div class="summaryLine"><span>ESC generated</span><strong id="multiSplitEscCount">-</strong></div>
-          <div class="summaryLine"><span>PERC generated</span><strong id="multiSplitPrcCount">-</strong></div>
-        </div>
-        <div class="summaryLine"><span>Margin incl rebate</span><strong id="multiMargin">$0.00</strong></div>
-        <div class="summaryLine cash"><span>Cash profit before commission ex GST</span><strong id="multiCashProfit">$0.00</strong></div>
-        <div id="multiCommissionRow" class="summaryLine"><span id="multiCommissionLabel">Agency commission ex GST</span><strong id="multiCommission">$0.00</strong></div>
-        <div id="multiCommissionGstRow" class="summaryLine"><span>GST on agency commission</span><strong id="multiCommissionGst">$0.00</strong></div>
-        <div id="multiCommissionIncRow" class="summaryLine"><span>Agency commission payable inc GST</span><strong id="multiCommissionInc">$0.00</strong></div>
-        <div id="multiSalespersonCommissionRow" class="summaryLine"><span id="multiSalespersonCommissionLabel">Salesperson commission inc GST</span><strong id="multiSalespersonCommission">$0.00</strong></div>
-        <div id="multiSalespersonCommissionGstRow" class="summaryLine"><span>GST on salesperson commission</span><strong id="multiSalespersonCommissionGst">$0.00</strong></div>
-        <div id="multiSalespersonCommissionIncRow" class="summaryLine"><span>Salesperson commission payable inc GST</span><strong id="multiSalespersonCommissionInc">$0.00</strong></div>
-        <div id="multiNetProfitRow" class="summaryLine cash profitHighlight"><span>Installer profit after commission ex GST</span><strong><span id="multiNetProfit">$0.00</span><small id="multiNetProfitMargin"></small></strong></div>
+        <details class="multiSplitFinancialDetails">
+          <summary>Detailed cost and commission breakdown</summary>
+          <div class="multiSplitSummaryLines">
+            <div class="summaryLine"><span>Sell price ex GST</span><strong id="multiSellEx">$0.00</strong></div>
+            <div class="summaryLine"><span>Original price before rebate inc GST</span><strong id="multiOriginalInc">$0.00</strong></div>
+            <div class="summaryLine"><span>Outdoor inc GST</span><strong id="multiSplitOutdoorTotal">$0.00</strong></div>
+            <div class="summaryLine"><span>Indoor inc GST</span><strong id="multiSplitIndoorTotal">$0.00</strong></div>
+            <div class="summaryLine"><span>Equipment ex GST</span><strong id="multiSummaryUnitEx">$0.00</strong></div>
+            <div class="summaryLine"><span>Labour ex GST</span><strong id="multiSummaryLabourEx">$0.00</strong></div>
+            <div class="summaryLine"><span>Materials ex GST</span><strong id="multiSummaryMaterialsEx">$0.00</strong></div>
+            <div class="summaryLine"><span>Misc ex GST</span><strong id="multiSummaryMiscEx">$0.00</strong></div>
+            <div class="summaryLine"><span>Power / electrical ex GST</span><strong id="multiSummaryServiceEx">$0.00</strong></div>
+            <div class="summaryLine"><span>True cost ex GST</span><strong id="multiSummaryTrueCost">$0.00</strong></div>
+            <div class="summaryLine"><span>Rebate retained</span><strong id="multiSummaryRebateOut">$0.00</strong></div>
+          </div>
+          <div class="summaryLine"><span>Margin incl rebate</span><strong id="multiMargin">$0.00</strong></div>
+          <div class="summaryLine cash"><span>Cash profit before commission ex GST</span><strong id="multiCashProfit">$0.00</strong></div>
+          <div id="multiCommissionRow" class="summaryLine"><span id="multiCommissionLabel">Agency commission ex GST</span><strong id="multiCommission">$0.00</strong></div>
+          <div id="multiCommissionGstRow" class="summaryLine"><span>GST on agency commission</span><strong id="multiCommissionGst">$0.00</strong></div>
+          <div id="multiCommissionIncRow" class="summaryLine"><span>Agency commission payable inc GST</span><strong id="multiCommissionInc">$0.00</strong></div>
+          <div id="multiSalespersonCommissionRow" class="summaryLine"><span id="multiSalespersonCommissionLabel">Salesperson commission inc GST</span><strong id="multiSalespersonCommission">$0.00</strong></div>
+          <div id="multiSalespersonCommissionGstRow" class="summaryLine"><span>GST on salesperson commission</span><strong id="multiSalespersonCommissionGst">$0.00</strong></div>
+          <div id="multiSalespersonCommissionIncRow" class="summaryLine"><span>Salesperson commission payable inc GST</span><strong id="multiSalespersonCommissionInc">$0.00</strong></div>
+          <div id="multiNetProfitRow" class="summaryLine cash profitHighlight"><span>Installer profit after commission ex GST</span><strong><span id="multiNetProfit">$0.00</span><small id="multiNetProfitMargin"></small></strong></div>
+        </details>
+        <div class="multiSplitPanelHead" style="margin-top:14px;margin-bottom:6px"><div><div class="kicker">Selected equipment</div><div class="sub">Outdoor and indoor units in this system</div></div></div>
         <div id="multiSplitHeadsList" class="multiSplitHeadsList"></div>
-        <div class="actions"><button class="orange" onclick="addToQuote()">Add to Quote</button><button class="secondary" onclick="openDrawer()">View Quotes (<span id="multiQuoteCount">0</span>)</button><button class="green" onclick="openWonJobsDrawer()">Won Jobs (<span data-won-jobs-count>0</span>)</button><button class="secondary" onclick="openPriceDrawer()">Price Manager</button><button class="secondary" onclick="openCertDrawer()">Certificate Values</button></div>
         <div class="quoteTargetControl"><label for="multiAddOptionSelectSearchInput">Add current unit to quote</label><div class="row2"><select id="multiAddOptionSelect" onchange="onOptionSelectionChange(this.value)"></select><button class="secondary" type="button" onclick="createNewOption(true)">+ New Quote</button></div><div class="selectedQuoteNameBar"><div class="selectedQuoteNameCopy"><span>Selected quote</span><strong id="multiMainOptionName">Quote 1</strong></div><button id="multiMainOptionRenameButton" class="secondary smallBtn" type="button" onclick="openRenameQuoteModal()">Rename</button></div></div>
-        <div class="multiSplitTrialActions"><button id="multiSplitCheckRebateBtn" class="green" type="button" onclick="calculateMultiSplitTrialRebate()">Check rebate</button></div>
-        <div id="multiSplitStatus" class="multiSplitStatus">Select a system and click Check rebate to test NSW multi-split eligibility.</div>
+        <div class="multiSplitPrimaryActions"><button id="multiSplitAddToQuoteBtn" class="orange" onclick="addToQuote()">Add to Quote</button><button class="secondary" onclick="openDrawer()">View Quotes (<span id="multiQuoteCount">0</span>)</button></div>
+        <details class="multiSplitTools"><summary>Tools</summary><div class="actions"><button class="green" onclick="openWonJobsDrawer()">Won Jobs (<span data-won-jobs-count>0</span>)</button><button class="secondary" onclick="openPriceDrawer()">Price Manager</button><button class="secondary" onclick="openCertDrawer()">Certificate Values</button></div></details>
       </aside>
     </div>
   </div>
@@ -3108,6 +3394,8 @@ let multiFinalPriceLocked=false;
 let priceLocks={};
 let multiSplitIndoorSelections=[];
 let multiSplitTrialRequestSeq=0;
+let multiSplitRebateFresh=false;
+let multiSplitHasCalculated=false;
 const INSTALL_ADDONS=[
   {id:'addonExtraPipeRun',qtyId:'addonExtraPipeRunQty',type:'quantity',label:'Extra 5m pipe run',labour:200,materialsInc:100},
   {id:'addonCondensatePump',label:'Condensate pump',labour:200,materialsInc:200},
@@ -5447,7 +5735,9 @@ function renderMultiSplitFinancials(){
   set('multiSummaryServiceEx',money(x.service));
   set('multiSummaryTrueCost',money(x.trueCost));
   set('multiSummaryRebateOut',money(x.rebate));
+  set('multiSplitSummaryRebate',money(x.rebate));
   set('multiMargin',pct(x.margin));
+  set('multiSplitSummaryMargin',pct(x.netMargin));
   set('multiCashProfit',money(x.cashProfit));
   set('multiCommissionLabel',`Agency commission ${formatCommissionRate(x.agencyCommissionRate)}% ex GST`);
   set('multiCommission',money(x.agencyCommission));
@@ -5458,6 +5748,7 @@ function renderMultiSplitFinancials(){
   set('multiSalespersonCommissionGst',money(x.salespersonCommissionGst));
   set('multiSalespersonCommissionInc',money(x.salespersonCommissionInc));
   set('multiNetProfit',money(x.netProfit));
+  set('multiSplitSummaryNetProfit',money(x.netProfit));
   set('multiNetProfitMargin',`Net margin ${pct(x.netMargin)}`);
   ['multiCommissionRow','multiCommissionGstRow','multiCommissionIncRow'].forEach(id=>{if($(id)) $(id).classList.toggle('hidden',!showAgency);});
   ['multiSalespersonCommissionRow'].forEach(id=>{if($(id)) $(id).classList.toggle('hidden',!showSales);});
@@ -5469,14 +5760,82 @@ function setMultiSplitStatus(message,type){
   if(!el) return;
   el.textContent=message||'';
   el.className=`multiSplitStatus${type?` ${type}`:''}`;
+  const details=$('multiSplitTechnicalDetails');
+  if(details && (type==='error'||type==='loading')) details.open=true;
+  if(details && !type && multiSplitRebateFresh) details.open=false;
+}
+function updateMultiSplitRebateFreshness(state){
+  const indicator=$('multiSplitRebateFreshness');
+  const button=$('multiSplitCheckRebateBtn');
+  const totals=multiSplitEquipmentTotals();
+  const maxHeads=Number(totals.outdoor&&totals.outdoor.maxHeads)||0;
+  const invalid=!totals.outdoor||!totals.headCount||(maxHeads&&totals.headCount>maxHeads);
+  if(indicator){
+    indicator.className='multiSplitRebateFreshness';
+    if(state==='loading'){
+      indicator.textContent='Calculating rebate';
+    }else if(state==='error'){
+      indicator.textContent='Calculation needs attention';
+      indicator.classList.add('error');
+    }else if(multiSplitRebateFresh){
+      indicator.textContent='Rebate up to date';
+      indicator.classList.add('fresh');
+    }else{
+      indicator.textContent=multiSplitHasCalculated?'Recalculation required':'Calculation required';
+    }
+  }
+  if(button){
+    button.textContent=multiSplitHasCalculated?'Recalculate rebate':'Calculate rebate';
+    button.disabled=state==='loading'||!!invalid;
+  }
+  const addButton=$('multiSplitAddToQuoteBtn');
+  if(addButton){
+    const needsRebate=rebatesEnabled()&&!multiSplitRebateFresh;
+    addButton.disabled=!!invalid||needsRebate;
+    addButton.title=invalid?'Complete a valid indoor-unit combination first.':(needsRebate?'Calculate the current rebate before adding this system.':'Add this system to the selected quote.');
+  }
 }
 function resetMultiSplitRebateMetrics(message){
+  multiSplitRebateFresh=false;
   if($('multiSplitEscCount')) $('multiSplitEscCount').textContent='-';
   if($('multiSplitPrcCount')) $('multiSplitPrcCount').textContent='-';
   if($('multiSplitRebateValue')) $('multiSplitRebateValue').textContent='-';
   if($('multiRebate')) $('multiRebate').value='0.00';
   if(message) setMultiSplitStatus(message,'');
+  updateMultiSplitRebateFreshness();
   renderMultiSplitFinancials();
+}
+function renderMultiSplitCapacityFeedback(outdoor,headCount,maxHeads,connectedCapacity){
+  const headRatio=maxHeads?headCount/maxHeads:0;
+  const outdoorCooling=Number(outdoor&&outdoor.capacityNum)||0;
+  const capacityRatio=outdoorCooling?connectedCapacity/outdoorCooling:0;
+  const tooManyHeads=!!maxHeads&&headCount>maxHeads;
+  const capacityCapped=!!outdoorCooling&&connectedCapacity>outdoorCooling+0.001;
+  const setProgress=(id,ratio,className)=>{
+    const el=$(id);
+    if(!el) return;
+    el.style.width=`${Math.max(0,Math.min(1,ratio))*100}%`;
+    el.className=`multiSplitProgressFill${className?` ${className}`:''}`;
+  };
+  setProgress('multiSplitHeadProgress',headRatio,tooManyHeads?'invalid':'');
+  setProgress('multiSplitCapacityProgress',capacityRatio,capacityCapped?'capped':'');
+  const message=$('multiSplitCapacityMessage');
+  if(message){
+    message.className='multiSplitCapacityMessage';
+    if(!headCount){
+      message.textContent='Add compatible indoor heads to build the system.';
+    }else if(tooManyHeads){
+      message.textContent=`Remove ${headCount-maxHeads} head${headCount-maxHeads===1?'':'s'} before calculating or adding this system.`;
+      message.classList.add('invalid');
+    }else if(capacityCapped){
+      message.textContent='Connected indoor cooling exceeds the outdoor rating. The rebate calculation will cap cooling capacity at the outdoor rating.';
+      message.classList.add('capped');
+    }else{
+      message.textContent='Connected indoor cooling is below the outdoor rating. The rebate calculation will use the connected indoor capacity.';
+    }
+  }
+  const addHeadButton=$('multiSplitAddHeadBtn');
+  if(addHeadButton) addHeadButton.disabled=!!maxHeads&&headCount>=maxHeads;
 }
 function updateMultiSplitInstallTabs(){
   const install=String(($('multiSplitInstallType')&&$('multiSplitInstallType').value)||'replacement');
@@ -5502,18 +5861,19 @@ function renderMultiSplitTrial(){
     const heating=indoorItems.every(item=>Number(item.row.ratedHeatingCapacity)>0)?` / ${connectedHeatingCapacity.toFixed(1)}kW heat`:'';
     $('multiSplitConnectedCapacity').textContent=`${connectedCapacity.toFixed(1)}kW cool${heating}`;
   }
-  if($('multiSplitEscRateDisplay')) $('multiSplitEscRateDisplay').value=money(getEssEscRate());
-  if($('multiSplitPrcRateDisplay')) $('multiSplitPrcRateDisplay').value=money(getEssPrcRate());
+  if($('multiSplitEscRateDisplay')) $('multiSplitEscRateDisplay').textContent=money(getEssEscRate());
+  if($('multiSplitPrcRateDisplay')) $('multiSplitPrcRateDisplay').textContent=money(getEssPrcRate());
   if($('multiSplitOutdoorTotal')) $('multiSplitOutdoorTotal').textContent=money(outdoorTotal);
   if($('multiSplitIndoorTotal')) $('multiSplitIndoorTotal').textContent=money(indoorTotal);
   if($('multiSplitEquipmentTotal')) $('multiSplitEquipmentTotal').textContent=money(total);
   if($('multiUnitPriceInc')) $('multiUnitPriceInc').value=total.toFixed(2);
   if(!multiFinalPriceLocked) autoMultiSplitFinal();
-  if($('multiSplitHeadCount')) $('multiSplitHeadCount').textContent=maxHeads?`${headCount}/${maxHeads}`:String(headCount);
+  if($('multiSplitHeadCount')) $('multiSplitHeadCount').textContent=maxHeads?`${headCount} of ${maxHeads}`:String(headCount);
   if($('multiSplitLimitHint')){
     const capacityText=outdoor?`${connectedCapacity.toFixed(1)}kW connected against ${outdoor.capacity} outdoor`:'Choose an outdoor unit first.';
     $('multiSplitLimitHint').textContent=outdoor?`Max ${maxHeads||'?'} indoor heads. ${capacityText}.`:capacityText;
   }
+  renderMultiSplitCapacityFeedback(outdoor,headCount,maxHeads,connectedCapacity);
   const compatible=multiSplitCompatibleIndoorIndexes(outdoor);
   const rows=$('multiSplitIndoorRows');
   if(rows){
@@ -5524,12 +5884,32 @@ function renderMultiSplitTrial(){
         return `<option value="${index}"${selected}>${htmlEscape(multiSplitIndoorLabel(row))}</option>`;
       }).join('');
       const qty=Math.max(1,Math.floor(Number(selection.qty)||1));
-      return `<div class="multiSplitIndoorRow"><div><label>Indoor head ${rowIndex+1}</label><select onchange="updateMultiSplitIndoorRow(${rowIndex},'indoorIndex',this.value)">${options}</select></div><div><label>Qty</label><input type="number" min="1" step="1" value="${qty}" onchange="updateMultiSplitIndoorRow(${rowIndex},'qty',this.value)" oninput="updateMultiSplitIndoorRow(${rowIndex},'qty',this.value)"></div><button class="secondary" type="button" onclick="removeMultiSplitIndoorRow(${rowIndex})">x</button></div>`;
-    }).join('') || '<div class="sub">No indoor heads selected.</div>';
+      const row=MULTI_SPLIT_INDOORS[Number(selection.indoorIndex)]||MULTI_SPLIT_INDOORS[compatible[0]];
+      const ratedCooling=Number(row&&row.ratedCoolingCapacity)||Number(row&&row.capacityNum)||0;
+      const ratedHeating=Number(row&&row.ratedHeatingCapacity)||0;
+      const canIncrease=!maxHeads||headCount<maxHeads;
+      return `<div class="multiSplitIndoorRow">
+        <div class="multiSplitIndoorRowMain">
+          <div class="multiSplitIndoorRowTop"><span class="multiSplitIndoorBadge">Indoor head ${rowIndex+1}</span><span class="multiSplitIndoorSeries">${htmlEscape(row&&row.series||'')}</span></div>
+          <label>Indoor model</label>
+          <select aria-label="Indoor head ${rowIndex+1} model" onchange="updateMultiSplitIndoorRow(${rowIndex},'indoorIndex',this.value)">${options}</select>
+          <div class="multiSplitIndoorFacts">
+            <div class="multiSplitIndoorFact"><span>Cooling</span><strong>${ratedCooling.toFixed(1)}kW</strong></div>
+            <div class="multiSplitIndoorFact"><span>Heating</span><strong>${ratedHeating?ratedHeating.toFixed(1)+'kW':'Not rated'}</strong></div>
+            <div class="multiSplitIndoorFact"><span>Price inc GST</span><strong>${money(Number(row&&row.unitPriceInc)||0)}</strong></div>
+          </div>
+        </div>
+        <div class="multiSplitIndoorControls">
+          <div><label>Quantity</label><div class="multiSplitQtyControl"><button type="button" aria-label="Decrease indoor head ${rowIndex+1} quantity" onclick="adjustMultiSplitIndoorQty(${rowIndex},-1)"${qty<=1?' disabled':''}>-</button><span class="multiSplitQtyValue">${qty}</span><button type="button" aria-label="Increase indoor head ${rowIndex+1} quantity" onclick="adjustMultiSplitIndoorQty(${rowIndex},1)"${canIncrease?'':' disabled'}>+</button></div></div>
+          <button class="multiSplitRemoveButton" type="button" title="Remove indoor head" aria-label="Remove indoor head ${rowIndex+1}" onclick="removeMultiSplitIndoorRow(${rowIndex})">x</button>
+        </div>
+      </div>`;
+    }).join('') || '<div class="sub" style="padding:14px 0">No indoor heads selected. Add an indoor head to continue.</div>';
   }
   const list=$('multiSplitHeadsList');
   if(list){
-    list.innerHTML=indoorItems.map(item=>{
+    const outdoorItem=outdoor?`<div class="multiSplitHeadItem"><div><strong>${htmlEscape(outdoor.model)}</strong><small>${htmlEscape(`${outdoor.brand} ${outdoor.series} - ${outdoor.capacity} outdoor`)}</small></div><div class="money">${money(outdoorTotal)}</div></div>`:'';
+    list.innerHTML=outdoorItem+indoorItems.map(item=>{
       const row=item.row;
       const detail=[row.pipe?`Pipe ${row.pipe}`:'',row.dimensions?`Dim ${row.dimensions}`:'',row.note||''].filter(Boolean).join(' - ');
       return `<div class="multiSplitHeadItem"><div><strong>${htmlEscape(`${item.qty} x ${row.capacity} ${row.model}`)}</strong><small>${htmlEscape(row.series)}${detail?` - ${htmlEscape(detail)}`:''}</small></div><div class="money">${money((Number(row.unitPriceInc)||0)*item.qty)}</div></div>`;
@@ -5537,9 +5917,11 @@ function renderMultiSplitTrial(){
   }
   if(headCount>maxHeads && maxHeads){
     setMultiSplitStatus(`This trial combination has ${headCount} heads, above the selected outdoor unit limit of ${maxHeads}. Remove heads or select a larger outdoor unit before using the rebate result.`,'error');
+    multiSplitRebateFresh=false;
+    updateMultiSplitRebateFreshness('error');
     renderMultiSplitFinancials();
   }else{
-    resetMultiSplitRebateMetrics('Select a system and click Check rebate to test NSW multi-split eligibility.');
+    resetMultiSplitRebateMetrics('Equipment or postcode changed. Calculate the rebate before adding this system to a quote.');
   }
 }
 function populateMultiSplitBrands(){
@@ -5588,10 +5970,24 @@ function removeMultiSplitIndoorRow(index){
   multiSplitIndoorSelections.splice(index,1);
   renderMultiSplitTrial();
 }
+function adjustMultiSplitIndoorQty(index,delta){
+  const selection=multiSplitIndoorSelections[index];
+  if(!selection) return;
+  const outdoor=selectedMultiSplitOutdoor();
+  const maxHeads=Number(outdoor&&outdoor.maxHeads)||12;
+  const current=Math.max(1,Math.floor(Number(selection.qty)||1));
+  const otherHeads=multiSplitEquipmentTotals().headCount-current;
+  const maximumForRow=Math.max(1,maxHeads-otherHeads);
+  selection.qty=Math.max(1,Math.min(maximumForRow,current+(Number(delta)||0)));
+  renderMultiSplitTrial();
+}
 function updateMultiSplitIndoorRow(index,field,value){
   if(!multiSplitIndoorSelections[index]) return;
   if(field==='qty'){
-    multiSplitIndoorSelections[index].qty=Math.max(1,Math.floor(Number(value)||1));
+    const current=Math.max(1,Math.floor(Number(multiSplitIndoorSelections[index].qty)||1));
+    const otherHeads=multiSplitEquipmentTotals().headCount-current;
+    const maxHeads=Number(selectedMultiSplitOutdoor()&&selectedMultiSplitOutdoor().maxHeads)||12;
+    multiSplitIndoorSelections[index].qty=Math.max(1,Math.min(Math.max(1,maxHeads-otherHeads),Math.floor(Number(value)||1)));
   }else{
     multiSplitIndoorSelections[index].indoorIndex=Number(value);
   }
@@ -5603,7 +5999,7 @@ async function calculateMultiSplitTrialRebate(){
   const totals=multiSplitEquipmentTotals();
   const {outdoor,total,headCount}=totals;
   if(!outdoor){setMultiSplitStatus('Select an outdoor unit first.','error'); return;}
-  if(!headCount){setMultiSplitStatus('Add at least one indoor head before checking the rebate.','error'); return;}
+  if(!headCount){setMultiSplitStatus('Add at least one indoor head before calculating the rebate.','error'); return;}
   if(Number(outdoor.maxHeads)&&headCount>Number(outdoor.maxHeads)){
     setMultiSplitStatus(`This combination has ${headCount} heads, above the selected outdoor limit of ${outdoor.maxHeads}.`,'error');
     return;
@@ -5613,7 +6009,7 @@ async function calculateMultiSplitTrialRebate(){
   if(!/^\d{4}$/.test(postcode)){setMultiSplitStatus('Enter a valid 4-digit postcode for the trial rebate calculation.','error'); return;}
   setMultiSplitStatus('Checking GEMS data and NSW multi-split certificate calculation...','loading');
   setSectionLoading('multiSplitRebatePanel',true,'Calculating multi-head rebate...');
-  if($('multiSplitCheckRebateBtn')) $('multiSplitCheckRebateBtn').disabled=true;
+  updateMultiSplitRebateFreshness('loading');
   try{
     const resolved=await resolveModelMetadataForRebate(outdoor.brand,outdoor.rebateModel||outdoor.model);
     const climate=await getClimateContext(postcode);
@@ -5635,19 +6031,25 @@ async function calculateMultiSplitTrialRebate(){
     if($('multiSplitPrcCount')) $('multiSplitPrcCount').textContent=certCountText(certs.prc);
     if($('multiSplitRebateValue')) $('multiSplitRebateValue').textContent=money(rebate);
     if($('multiRebate')) $('multiRebate').value=rebate.toFixed(2);
+    multiSplitHasCalculated=true;
+    multiSplitRebateFresh=true;
     renderMultiSplitFinancials();
     const capText=certs.caps&&Number.isFinite(certs.caps.esc)?` Caps applied: ${certs.caps.esc} ESC / ${certs.caps.prc} PERC.`:'';
     const eligibilityText=certs.eligibility&&certs.eligibility.message?` Eligibility: ${certs.eligibility.message}.`:' Eligibility passed.';
     const capacityText=` Capacity used: ${capacityInputs.coolingCapacity.toFixed(2)}kW cooling and ${capacityInputs.heatingCapacity.toFixed(2)}kW heating (the lesser of connected indoor and registered outdoor capacity). PDRS input power: ${capacityInputs.inputPower.toFixed(3)}kW at ${(capacityInputs.coolingRatio*100).toFixed(1)}% of outdoor input.`;
     setMultiSplitStatus(`${resolved.source}: ${resolved.brand} ${resolved.model}. ESC ${certCountText(certs.esc)} x ${money(escRate)} = ${money(escValue)} | PERC ${certCountText(certs.prc)} x ${money(prcRate)} = ${money(prcValue)} | Total ${money(rebate)}. ${climate.climateZone}, ${climate.bcaZone}, ${install}.${capacityText}${capText}${eligibilityText}`,'');
+    updateMultiSplitRebateFreshness();
   }catch(e){
     if(requestId!==multiSplitTrialRequestSeq) return;
     resetMultiSplitRebateMetrics();
+    multiSplitRebateFresh=false;
     setMultiSplitStatus(`Unable to calculate this multi-head rebate yet. ${String(e.message||e||'Live data unavailable')}`,'error');
+    updateMultiSplitRebateFreshness('error');
   }finally{
     if(requestId===multiSplitTrialRequestSeq){
       setSectionLoading('multiSplitRebatePanel',false);
       if($('multiSplitCheckRebateBtn')) $('multiSplitCheckRebateBtn').disabled=false;
+      updateMultiSplitRebateFreshness(multiSplitRebateFresh?'':'error');
     }
   }
 }
@@ -5662,7 +6064,7 @@ function initMultiSplitTrial(){
   ['multiSplitPostcode','multiSplitInstallType'].forEach(id=>{
     const el=$(id);
     if(el){
-      el.addEventListener('input',()=>{resetMultiSplitRebateMetrics('Selection changed. Click Check rebate to refresh the multi-split trial calculation.');});
+      el.addEventListener('input',()=>{resetMultiSplitRebateMetrics('Selection changed. Calculate the rebate again before adding this system to a quote.');});
       el.addEventListener('change',()=>{renderMultiSplitTrial();});
     }
   });
@@ -6469,6 +6871,11 @@ function loadMultiSplitQuote(q,s){
   multiFinalPriceLocked=true;
   renderMultiSplitTrial();
   if($('multiRebate')) $('multiRebate').value=s.rebate!==undefined?s.rebate:(q.rebate!==undefined?Number(q.rebate).toFixed(2):'0.00');
+  multiSplitHasCalculated=s.multiSplitRebateChecked!==false;
+  multiSplitRebateFresh=s.multiSplitRebateFresh!==false;
+  if($('multiSplitRebateValue')) $('multiSplitRebateValue').textContent=money(Number($('multiRebate')&&$('multiRebate').value)||0);
+  updateMultiSplitRebateFreshness();
+  setMultiSplitStatus('Loaded saved rebate and system values. Recalculate if the equipment, postcode or installation type changes.','');
   renderMultiSplitFinancials();
   closeDrawer();
   document.querySelector('.wrap').scrollIntoView({behavior:'smooth',block:'start'});
@@ -7768,6 +8175,8 @@ function currentMultiSplitState(x){
     indoorSelections:multiSplitIndoorSelections.map(item=>({indoorIndex:Number(item.indoorIndex),qty:Math.max(1,Math.floor(Number(item.qty)||1))})),
     indoorHeads:indoorItems.map(item=>({brand:item.row.brand,series:item.row.series,capacity:item.row.capacity,model:item.row.model,qty:item.qty,unitPriceInc:item.row.unitPriceInc})),
     connectedCapacity:x?x.connectedCapacity:multiSplitEquipmentTotals().connectedCapacity,
+    multiSplitRebateFresh,
+    multiSplitRebateChecked:multiSplitHasCalculated,
     unitPriceInc:$('multiUnitPriceInc')?$('multiUnitPriceInc').value:'0',
     labour:$('multiLabour')?$('multiLabour').value:'0',
     rebate:rebatesEnabled()&&$('multiRebate')?$('multiRebate').value:'0',
@@ -7896,11 +8305,29 @@ function confirmRemoveCurrentQuoteSystem(){
   closeRemoveSystemModal();
   if(index>=0) removeQuote(index);
 }
+function multiSplitQuoteReadiness(){
+  const totals=multiSplitEquipmentTotals();
+  const maxHeads=Number(totals.outdoor&&totals.outdoor.maxHeads)||0;
+  if(!totals.outdoor) return {ok:false,message:'Select an outdoor unit first.'};
+  if(!totals.headCount) return {ok:false,message:'Add at least one indoor head before adding this system.'};
+  if(maxHeads&&totals.headCount>maxHeads) return {ok:false,message:`Remove ${totals.headCount-maxHeads} indoor head${totals.headCount-maxHeads===1?'':'s'} to meet the selected outdoor limit.`};
+  if(rebatesEnabled()&&!/^\d{4}$/.test(String(($('multiSplitPostcode')&&$('multiSplitPostcode').value)||'').trim())) return {ok:false,message:'Enter the customer postcode and calculate the rebate before adding this system.'};
+  if(rebatesEnabled()&&!multiSplitRebateFresh) return {ok:false,message:'Calculate the current rebate before adding this system to the quote.'};
+  return {ok:true,message:''};
+}
+function showMultiSplitReadinessMessage(message){
+  setMultiSplitStatus(message,'error');
+  updateMultiSplitRebateFreshness('error');
+  showQuoteActionNotice(message);
+  const panel=$('multiSplitRebatePanel');
+  if(panel) panel.scrollIntoView({behavior:'smooth',block:'center'});
+}
 function addMultiSplitToQuoteNow(){
   const optionId=currentAddOptionId();
   if(!assertOptionEditable(optionId)) return;
+  const readiness=multiSplitQuoteReadiness();
+  if(!readiness.ok){showMultiSplitReadinessMessage(readiness.message);return;}
   const x=calculateMultiSplitCosts();
-  if(!x.outdoor || !x.headCount){alert('Add at least one indoor head before adding this multi-head system to the quote.');return;}
   const state=currentMultiSplitState(x);
   const optionName=optionNameById(optionId);
   const headsLabel=x.indoorItems.map(item=>`${item.qty}x ${item.row.capacity}`).join(', ');
@@ -7922,6 +8349,10 @@ function addMultiSplitToQuoteNow(){
 function addToQuote(){
   const optionId=currentAddOptionId();
   if(!assertOptionEditable(optionId)) return;
+  if(multiSplitViewActive()){
+    const readiness=multiSplitQuoteReadiness();
+    if(!readiness.ok){showMultiSplitReadinessMessage(readiness.message);return;}
+  }
   if(quoteNeedsCustomerName(optionNameById(optionId))){
     pendingQuoteAddKind=multiSplitViewActive()?'multi':'standard';
     openQuoteNameModal();
@@ -8631,8 +9062,16 @@ if(finalInput){ finalInput.addEventListener('input',()=>{ finalPriceLocked=true;
 });
 const multiRebateInput=$('multiRebate');
 if(multiRebateInput){
-  multiRebateInput.addEventListener('input',()=>renderMultiSplitFinancials());
-  multiRebateInput.addEventListener('change',()=>renderMultiSplitFinancials());
+  const applyManualMultiRebate=()=>{
+    multiSplitHasCalculated=true;
+    multiSplitRebateFresh=true;
+    if($('multiSplitRebateValue')) $('multiSplitRebateValue').textContent=money(Number(multiRebateInput.value)||0);
+    setMultiSplitStatus('Manual rebate value entered. Recalculate to replace it with the live NSW certificate result.','');
+    updateMultiSplitRebateFreshness();
+    renderMultiSplitFinancials();
+  };
+  multiRebateInput.addEventListener('input',applyManualMultiRebate);
+  multiRebateInput.addEventListener('change',applyManualMultiRebate);
 }
 const multiFinalInput=$('multiFinalInc');
 if(multiFinalInput){
