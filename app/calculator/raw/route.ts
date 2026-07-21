@@ -391,7 +391,10 @@ function injectCloudStorageSync(
   var lastSnapshotJson = '';
   var pendingSnapshot = null;
   var syncRequestInFlight = false;
+  var inFlightSnapshotJson = '';
   var syncRetryTimer = null;
+  var cloudSaveHideTimer = null;
+  var saveRequestTimeoutMs = 12000;
   window.CALCULATOR_USER = calculatorUser;
   window.__calculatorTrustedManagedPriceKeys = trustedManagedPriceKeys;
   function ensureCloudSaveStatus(){
@@ -403,16 +406,29 @@ function injectCloudStorageSync(
     status.className = 'cloudSaveStatus';
     status.setAttribute('role', 'status');
     status.setAttribute('aria-live', 'polite');
-    status.dataset.tone = 'saved';
-    status.textContent = 'Saved';
+    status.dataset.tone = 'idle';
+    status.textContent = '';
+    status.setAttribute('aria-hidden', 'true');
     document.body.appendChild(status);
     return status;
   }
   function setCloudSaveStatus(message, tone){
     var status = ensureCloudSaveStatus();
     if (!status) return;
-    status.textContent = message;
-    status.dataset.tone = tone || '';
+    clearTimeout(cloudSaveHideTimer);
+    cloudSaveHideTimer = null;
+    var nextTone = tone || 'idle';
+    status.textContent = message || '';
+    status.dataset.tone = nextTone;
+    status.setAttribute('aria-hidden', nextTone === 'idle' ? 'true' : 'false');
+    if (nextTone === 'saved') {
+      cloudSaveHideTimer = setTimeout(function(){
+        status.textContent = '';
+        status.dataset.tone = 'idle';
+        status.setAttribute('aria-hidden', 'true');
+        cloudSaveHideTimer = null;
+      }, 1800);
+    }
   }
   function isAppStorageKey(key){
     return !!key && key.indexOf('sb-') !== 0 && key !== profileStorageKey;
@@ -502,14 +518,20 @@ function injectCloudStorageSync(
     var request = pendingSnapshot;
     pendingSnapshot = null;
     syncRequestInFlight = true;
+    inFlightSnapshotJson = request.json;
     setCloudSaveStatus('Saving...', 'saving');
-    fetch(calculatorSyncUrl, {
+    var controller = typeof AbortController === 'function' ? new AbortController() : null;
+    var requestTimeout = controller ? setTimeout(function(){ controller.abort(); }, saveRequestTimeoutMs) : null;
+    var fetchOptions = {
       method: 'PUT',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({data: request.data})
-    }).then(function(response){
+    };
+    if (controller) fetchOptions.signal = controller.signal;
+    fetch(calculatorSyncUrl, fetchOptions).then(function(response){
       if (!response.ok) throw new Error('Calculator sync failed');
       lastSnapshotJson = request.json;
+      if (pendingSnapshot && pendingSnapshot.json === lastSnapshotJson) pendingSnapshot = null;
       setCloudSaveStatus(pendingSnapshot ? 'Saving...' : 'Saved', pendingSnapshot ? 'saving' : 'saved');
     }).catch(function(){
       if (!pendingSnapshot) pendingSnapshot = request;
@@ -517,14 +539,20 @@ function injectCloudStorageSync(
       clearTimeout(syncRetryTimer);
       syncRetryTimer = setTimeout(sendPendingSnapshot, 1800);
     }).finally(function(){
+      if (requestTimeout) clearTimeout(requestTimeout);
       syncRequestInFlight = false;
+      inFlightSnapshotJson = '';
       if (pendingSnapshot && !syncRetryTimer) sendPendingSnapshot();
     });
   }
   function writeSnapshot(force){
     var data = snapshot();
     var nextJson = JSON.stringify(data);
-    if (!force && nextJson === lastSnapshotJson && !pendingSnapshot) return;
+    if (!force) {
+      if (pendingSnapshot && nextJson === pendingSnapshot.json) return;
+      if (syncRequestInFlight && !pendingSnapshot && nextJson === inFlightSnapshotJson) return;
+      if (!syncRequestInFlight && !pendingSnapshot && nextJson === lastSnapshotJson) return;
+    }
     pendingSnapshot = {data: data, json: nextJson};
     clearTimeout(syncRetryTimer);
     syncRetryTimer = null;
@@ -532,7 +560,6 @@ function injectCloudStorageSync(
   }
   function scheduleSync(force){
     if (syncing) return;
-    setCloudSaveStatus('Saving...', 'saving');
     clearTimeout(timer);
     timer = setTimeout(function(){
       writeSnapshot(!!force);
@@ -696,8 +723,8 @@ function injectCloudStorageSync(
   } catch (e) {}
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){ applyRoleUi(); wrapPrivacyRenderers(); });
   else { applyRoleUi(); wrapPrivacyRenderers(); }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){ setCloudSaveStatus('Saved', 'saved'); });
-  else setCloudSaveStatus('Saved', 'saved');
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){ setCloudSaveStatus('', 'idle'); });
+  else setCloudSaveStatus('', 'idle');
 })();
 </script>`;
 
