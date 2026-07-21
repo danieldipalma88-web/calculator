@@ -527,6 +527,24 @@
       multiIndoor('Samsung','Multi Splits Indoor',5.0,'AJ050TNTDKH/EA',225,'1/4 & 1/2','1055 x 299 x 215',{family:'samsung-multi'}),
       multiIndoor('Samsung','Multi Splits Indoor',6.8,'AJ068TNTDKH/EA',255,'3/8 & 5/8','1055 x 299 x 215',{family:'samsung-multi'})
     ];
+    const MULTI_SPLIT_INDOOR_RATED_CAPACITIES={
+      CTXF20TVMA:[2.0,2.5],CTXF25TVMA:[2.5,3.0],CTXF35TVMA:[3.5,3.7],CTXF50TVMA:[5.0,5.2],
+      CTXM20RVMA:[2.0,2.8],CTXM25RVMA:[2.5,3.4],CTXM35RVMA:[3.5,4.3],CTXM46RVMA:[4.6,5.6],CTXM50RVMA:[5.0,6.1],CTXM60RVMA:[6.0,6.1],CTXM71RVMA:[7.1,8.6],CTXM85RVMA:[8.5,9.4],CTXM95RVMA:[9.5,10.2],
+      'MSZ-AP15VGD-A1':[1.5,1.7],'MSZ-AP20VGD-A1':[2.0,2.5],'MSZ-AP25VGKD2-A2':[2.5,3.2],'MSZ-AP35VGKD2-A2':[3.5,3.7],'MSZ-AP42VGKD2-A2':[4.2,5.4],'MSZ-AP50VGKD2-A2':[5.0,6.0],'MSZ-AP60VGKD2-A2':[6.0,6.8],'MSZ-AP71VGKD2-A2':[7.1,8.0],'MSZ-AP80VGKD2-A2':[8.0,9.0],
+      ASTH07KMCD:[2.0,2.8],ASTH09KMCD:[2.5,3.2],ASTH12KMCD:[3.5,3.7],ASTH14KMCD:[4.2,5.4],ASTH18KMTD:[5.0,6.0],ASTH22KMTD:[6.0,7.2],ASTH24KMTE:[7.1,8.0],
+      'GWH07AGAXB-K6DNA1A/I':[2.25,2.7],'GWH09AGCXB-K6DNA1A/I':[2.65,3.2],'GWH12AGCXD-K6DNA1A/I':[3.5,4.0],'GWH18AGDXE-K6DNA1A/I':[5.0,6.0],'GWH21AGEXF-K6DNA1A/I':[6.3,7.4],'GWH24AGEXF-K6DNA1A/I':[7.1,8.0],
+      'GWH09ATBXB-K6DNA1C/I':[2.7,3.0],'GWH12ATCXB-K6DNA1B/I':[3.5,3.7],'GWH18ATDXD-K6DNA1C/I':[5.2,5.8],'GWH24ATEXF-K6DNA1E/I':[7.1,7.8],
+      'CS-MRZ20WKR':[2.0,2.0],'CS-RZ25XKRW':[2.5,3.0],'CS-RZ35XKRW':[3.5,3.7],'CS-RZ42XKRW':[4.2,5.1],'CS-RZ50XKRW':[5.0,6.0],'CS-RZ60XKRW':[6.0,6.5],'CS-RZ71XKRW':[7.1,8.0],
+      'CS-Z25XKRW':[2.5,3.0],'CS-Z35XKRW':[3.5,4.0],'CS-Z42XKRW':[4.2,5.1],'CS-Z50XKRW':[5.0,6.0],'CS-Z60XKRW':[6.0,6.5],'CS-Z71XKRW':[7.1,8.0],
+      'AJ020TNTDKH/EA':[2.0,2.2],'AJ025TNTDKH/EA':[2.5,3.2],'AJ035TNTDKH/EA':[3.5,4.0],'AJ050TNTDKH/EA':[5.0,6.0],'AJ068TNTDKH/EA':[6.5,7.0]
+    };
+    INDOORS.forEach(row=>{
+      const rated=MULTI_SPLIT_INDOOR_RATED_CAPACITIES[row.model];
+      if(rated){
+        row.ratedCoolingCapacity=Number(rated[0]);
+        row.ratedHeatingCapacity=Number(rated[1]);
+      }
+    });
 
     function brandCandidates(brand){
       const list=[brand];
@@ -824,12 +842,16 @@
       }
       return {buildings:{building_1:merged},persons:{person1:{}}};
     }
-    async function calculateCertificates(meta,climate){
-      const cooling=toNumber(meta['Cooling Capacity']);
-      const heating=toNumber(meta['Heating Capacity']);
+    async function calculateCertificates(meta,climate,options){
+      const calcOptions=options||{};
+      const coolingOverride=toNumber(calcOptions.coolingCapacity);
+      const heatingOverride=toNumber(calcOptions.heatingCapacity);
+      const inputPowerOverride=toNumber(calcOptions.inputPower);
+      const cooling=Number.isFinite(coolingOverride)?coolingOverride:toNumber(meta['Cooling Capacity']);
+      const heating=Number.isFinite(heatingOverride)?heatingOverride:toNumber(meta['Heating Capacity']);
       const ratedAeer=toNumber(meta['Rated AEER']);
       const ratedAcop=toNumber(meta['Rated ACOP']);
-      const inputPower=toNumber(meta['Input Power']);
+      const inputPower=Number.isFinite(inputPowerOverride)?inputPowerOverride:toNumber(meta['Input Power']);
       const tcec=toNumber(meta['Residential tcec_'+climate.zone]);
       const thec=toNumber(meta['Residential thec_'+climate.zone]);
       const tcspf=toNumber(meta['Residential TCSPF_mixed']);
@@ -891,8 +913,34 @@
       const outdoorTotal=Number(outdoor.unitPriceInc)||0;
       const indoorTotal=indoorItems.reduce((sum,item)=>sum+(Number(item.row.unitPriceInc)||0)*item.qty,0);
       const headCount=indoorItems.reduce((sum,item)=>sum+item.qty,0);
-      const connectedCapacity=indoorItems.reduce((sum,item)=>sum+(Number(item.row.capacityNum)||0)*item.qty,0);
-      return {outdoor,indoorItems,outdoorTotal,indoorTotal,total:outdoorTotal+indoorTotal,headCount,connectedCapacity};
+      const connectedCoolingCapacity=indoorItems.reduce((sum,item)=>sum+(Number(item.row.ratedCoolingCapacity)||Number(item.row.capacityNum)||0)*item.qty,0);
+      const connectedHeatingCapacity=indoorItems.reduce((sum,item)=>sum+(Number(item.row.ratedHeatingCapacity)||0)*item.qty,0);
+      return {outdoor,indoorItems,outdoorTotal,indoorTotal,total:outdoorTotal+indoorTotal,headCount,connectedCapacity:connectedCoolingCapacity,connectedCoolingCapacity,connectedHeatingCapacity};
+    }
+    function multiSplitCertificateInputs(meta,indoorItems){
+      const outdoorCooling=toNumber(meta&&meta['Cooling Capacity']);
+      const outdoorHeating=toNumber(meta&&meta['Heating Capacity']);
+      const outdoorInputPower=toNumber(meta&&meta['Input Power']);
+      if([outdoorCooling,outdoorHeating,outdoorInputPower].some(value=>!Number.isFinite(value)||value<=0)){
+        throw new Error('Incomplete outdoor GEMS capacity data for the multi-head calculation.');
+      }
+      const unrated=(indoorItems||[]).filter(item=>{
+        const cooling=toNumber(item&&item.row&&item.row.ratedCoolingCapacity);
+        const heating=toNumber(item&&item.row&&item.row.ratedHeatingCapacity);
+        return !Number.isFinite(cooling)||cooling<=0||!Number.isFinite(heating)||heating<=0;
+      });
+      if(unrated.length){
+        const models=unrated.map(item=>item&&item.row&&item.row.model).filter(Boolean).join(', ');
+        throw new Error('Manufacturer-rated cooling and heating capacity is unavailable for '+(models||'the selected indoor head')+'.');
+      }
+      const indoorCooling=(indoorItems||[]).reduce((sum,item)=>sum+toNumber(item.row.ratedCoolingCapacity)*item.qty,0);
+      const indoorHeating=(indoorItems||[]).reduce((sum,item)=>sum+toNumber(item.row.ratedHeatingCapacity)*item.qty,0);
+      if(!(indoorCooling>0) || !(indoorHeating>0)) throw new Error('Add at least one rated indoor head before calculating certificates.');
+      const coolingCapacity=Math.min(indoorCooling,outdoorCooling);
+      const heatingCapacity=Math.min(indoorHeating,outdoorHeating);
+      const coolingRatio=Math.min(indoorCooling/outdoorCooling,1);
+      const inputPower=outdoorInputPower*coolingRatio;
+      return {indoorCooling,indoorHeating,outdoorCooling,outdoorHeating,outdoorInputPower,coolingCapacity,heatingCapacity,coolingRatio,inputPower};
     }
     function autoFinal(){
       const totals=equipmentTotals();
@@ -990,8 +1038,9 @@
       $('postcodePill').classList.toggle('ok',/^\d{4}$/.test($('postcode').value.trim()));
       $('equipmentTotal').textContent=money(totals.total);
       $('headCount').textContent=outdoor?(totals.headCount+'/'+outdoor.maxHeads):String(totals.headCount);
-      $('connectedCapacity').textContent=totals.connectedCapacity.toFixed(1)+'kW';
-      $('limitHint').textContent=outdoor?('Max '+outdoor.maxHeads+' indoor heads. '+totals.connectedCapacity.toFixed(1)+'kW connected against '+outdoor.capacity+' outdoor.'):'Choose an outdoor unit first.';
+      const heatingText=totals.indoorItems.every(item=>Number(item.row.ratedHeatingCapacity)>0)?' / '+totals.connectedHeatingCapacity.toFixed(1)+'kW heat':'';
+      $('connectedCapacity').textContent=totals.connectedCapacity.toFixed(1)+'kW cool'+heatingText;
+      $('limitHint').textContent=outdoor?('Max '+outdoor.maxHeads+' indoor heads. '+totals.connectedCapacity.toFixed(1)+'kW rated cooling connected against '+outdoor.capacity+' outdoor.'):'Choose an outdoor unit first.';
       $('unitPriceInc').value=totals.total.toFixed(2);
       const rows=$('indoorRows');
       rows.innerHTML=indoorSelections.map((sel,rowIndex)=>{
@@ -1096,10 +1145,21 @@
           ['Rated AEER',fixed(toNumber(meta['Rated AEER']))],
           ['Rated ACOP',fixed(toNumber(meta['Rated ACOP']))]
         ])+'</div>',
-        '<div class="proof-card"><h3>4. Eligibility gate</h3><p class="sub">These are the NSW HVAC1/D16 rule checks applied before certificate value is accepted.</p>'+metricsTable(certs.eligibility.checks)+'<p class="sub"><strong>ESC:</strong> '+(certs.eligibility.essEligible?'Eligible':'Not eligible')+'. <strong>PERC:</strong> '+(certs.eligibility.prcEligible?'Eligible':'Not eligible')+'. '+html(certs.eligibility.message||'All applicable checks passed.')+'</p></div>',
-        '<div class="proof-card full"><h3>5. NSW calculator output fields</h3>'+outputFieldTable(b)+'</div>',
-        '<div class="proof-card full"><h3>6. Certificate formulas used by our calculator</h3><div class="formula">'+html(rawEscFormula)+'<br>'+html(effectiveEscFormula)+'<br><br>'+html(rawPrcFormula)+'<br>'+html(effectivePrcFormula)+'<br><br>'+html(rebateFormula)+'</div></div>',
-        '<div class="proof-card"><h3>7. Certificate values</h3>'+rowTable([
+        '<div class="proof-card"><h3>4. Multi-split capacity rule</h3><p class="sub">Cooling and heating are capped separately at the lesser of the connected indoor total and registered outdoor capacity. PDRS input power is reduced by the indoor-to-outdoor cooling ratio, capped at 100%.</p>'+rowTable([
+          ['Indoor rated cooling total',fixed(r.capacityInputs.indoorCooling)+' kW'],
+          ['Outdoor registered cooling',fixed(r.capacityInputs.outdoorCooling)+' kW'],
+          ['Cooling capacity used',fixed(r.capacityInputs.coolingCapacity)+' kW'],
+          ['Indoor rated heating total',fixed(r.capacityInputs.indoorHeating)+' kW'],
+          ['Outdoor registered heating',fixed(r.capacityInputs.outdoorHeating)+' kW'],
+          ['Heating capacity used',fixed(r.capacityInputs.heatingCapacity)+' kW'],
+          ['PDRS cooling ratio',fixed(r.capacityInputs.coolingRatio*100,1)+'%'],
+          ['Outdoor input power',fixed(r.capacityInputs.outdoorInputPower)+' kW'],
+          ['Adjusted input power used',fixed(r.capacityInputs.inputPower)+' kW']
+        ])+'</div>',
+        '<div class="proof-card"><h3>5. Eligibility gate</h3><p class="sub">These are the NSW HVAC1/D16 rule checks applied before certificate value is accepted.</p>'+metricsTable(certs.eligibility.checks)+'<p class="sub"><strong>ESC:</strong> '+(certs.eligibility.essEligible?'Eligible':'Not eligible')+'. <strong>PERC:</strong> '+(certs.eligibility.prcEligible?'Eligible':'Not eligible')+'. '+html(certs.eligibility.message||'All applicable checks passed.')+'</p></div>',
+        '<div class="proof-card full"><h3>6. NSW calculator output fields</h3>'+outputFieldTable(b)+'</div>',
+        '<div class="proof-card full"><h3>7. Certificate formulas used by our calculator</h3><div class="formula">'+html(rawEscFormula)+'<br>'+html(effectiveEscFormula)+'<br><br>'+html(rawPrcFormula)+'<br>'+html(effectivePrcFormula)+'<br><br>'+html(rebateFormula)+'</div></div>',
+        '<div class="proof-card"><h3>8. Certificate values</h3>'+rowTable([
           ['ESC generated',fixed(certs.esc)],
           ['ESC rate',money(r.escRate)],
           ['ESC value',money(escValue)],
@@ -1108,7 +1168,7 @@
           ['PERC value',money(prcValue)],
           ['Total rebate',money(r.rebate)]
         ])+'</div>',
-        '<div class="proof-card"><h3>8. Commercial calculation</h3>'+rowTable([
+        '<div class="proof-card"><h3>9. Commercial calculation</h3>'+rowTable([
           ['Final customer price inc GST',money(commercial.finalInc)],
           ['Sell price ex GST',money(commercial.sellEx)],
           ['Equipment ex GST',money(commercial.unitEx)],
@@ -1142,10 +1202,15 @@
         const resolved=await resolveModelMetadata(outdoor.brand,rebateModel);
         const climateRaw=await resolvePostcodeZones(postcode);
         const climate={postcode,zone:climateRaw.zone,bcaZone:climateRaw.bcaZone};
-        const certs=await calculateCertificates(resolved.meta,climate);
+        const capacityInputs=multiSplitCertificateInputs(resolved.meta,totals.indoorItems);
+        const certs=await calculateCertificates(resolved.meta,climate,{
+          coolingCapacity:capacityInputs.coolingCapacity,
+          heatingCapacity:capacityInputs.heatingCapacity,
+          inputPower:capacityInputs.inputPower
+        });
         const escValue=certs.esc*escRate;
         const prcValue=certs.prc*prcRate;
-        lastResult={outdoor,rebateModel,totals,resolved,meta:resolved.meta,climate,certs,escRate,prcRate,rebate:escValue+prcValue};
+        lastResult={outdoor,rebateModel,totals,resolved,meta:resolved.meta,climate,capacityInputs,certs,escRate,prcRate,rebate:escValue+prcValue};
         renderSummary(lastResult);
         renderBreakdown(lastResult);
         setStatus('Calculation complete. Review each section below for the full approval trail.','ok');

@@ -3493,6 +3493,24 @@ const MULTI_SPLIT_INDOORS=[
   multiIndoor('Samsung','Multi Splits Indoor',5.0,'AJ050TNTDKH/EA',225,'1/4 & 1/2','1055 x 299 x 215',{family:'samsung-multi'}),
   multiIndoor('Samsung','Multi Splits Indoor',6.8,'AJ068TNTDKH/EA',255,'3/8 & 5/8','1055 x 299 x 215',{family:'samsung-multi'})
 ];
+const MULTI_SPLIT_INDOOR_RATED_CAPACITIES={
+  CTXF20TVMA:[2.0,2.5],CTXF25TVMA:[2.5,3.0],CTXF35TVMA:[3.5,3.7],CTXF50TVMA:[5.0,5.2],
+  CTXM20RVMA:[2.0,2.8],CTXM25RVMA:[2.5,3.4],CTXM35RVMA:[3.5,4.3],CTXM46RVMA:[4.6,5.6],CTXM50RVMA:[5.0,6.1],CTXM60RVMA:[6.0,6.1],CTXM71RVMA:[7.1,8.6],CTXM85RVMA:[8.5,9.4],CTXM95RVMA:[9.5,10.2],
+  'MSZ-AP15VGD-A1':[1.5,1.7],'MSZ-AP20VGD-A1':[2.0,2.5],'MSZ-AP25VGKD2-A2':[2.5,3.2],'MSZ-AP35VGKD2-A2':[3.5,3.7],'MSZ-AP42VGKD2-A2':[4.2,5.4],'MSZ-AP50VGKD2-A2':[5.0,6.0],'MSZ-AP60VGKD2-A2':[6.0,6.8],'MSZ-AP71VGKD2-A2':[7.1,8.0],'MSZ-AP80VGKD2-A2':[8.0,9.0],
+  ASTH07KMCD:[2.0,2.8],ASTH09KMCD:[2.5,3.2],ASTH12KMCD:[3.5,3.7],ASTH14KMCD:[4.2,5.4],ASTH18KMTD:[5.0,6.0],ASTH22KMTD:[6.0,7.2],ASTH24KMTE:[7.1,8.0],
+  'GWH07AGAXB-K6DNA1A/I':[2.25,2.7],'GWH09AGCXB-K6DNA1A/I':[2.65,3.2],'GWH12AGCXD-K6DNA1A/I':[3.5,4.0],'GWH18AGDXE-K6DNA1A/I':[5.0,6.0],'GWH21AGEXF-K6DNA1A/I':[6.3,7.4],'GWH24AGEXF-K6DNA1A/I':[7.1,8.0],
+  'GWH09ATBXB-K6DNA1C/I':[2.7,3.0],'GWH12ATCXB-K6DNA1B/I':[3.5,3.7],'GWH18ATDXD-K6DNA1C/I':[5.2,5.8],'GWH24ATEXF-K6DNA1E/I':[7.1,7.8],
+  'CS-MRZ20WKR':[2.0,2.0],'CS-RZ25XKRW':[2.5,3.0],'CS-RZ35XKRW':[3.5,3.7],'CS-RZ42XKRW':[4.2,5.1],'CS-RZ50XKRW':[5.0,6.0],'CS-RZ60XKRW':[6.0,6.5],'CS-RZ71XKRW':[7.1,8.0],
+  'CS-Z25XKRW':[2.5,3.0],'CS-Z35XKRW':[3.5,4.0],'CS-Z42XKRW':[4.2,5.1],'CS-Z50XKRW':[5.0,6.0],'CS-Z60XKRW':[6.0,6.5],'CS-Z71XKRW':[7.1,8.0],
+  'AJ020TNTDKH/EA':[2.0,2.2],'AJ025TNTDKH/EA':[2.5,3.2],'AJ035TNTDKH/EA':[3.5,4.0],'AJ050TNTDKH/EA':[5.0,6.0],'AJ068TNTDKH/EA':[6.5,7.0]
+};
+MULTI_SPLIT_INDOORS.forEach(row=>{
+  const rated=MULTI_SPLIT_INDOOR_RATED_CAPACITIES[row.model];
+  if(rated){
+    row.ratedCoolingCapacity=Number(rated[0]);
+    row.ratedHeatingCapacity=Number(rated[1]);
+  }
+});
 function normaliseBrandName(b){return BRAND_ALIASES[b]||b||'';}
 function normaliseModelName(m){return PRODUCT_MODEL_DISPLAY_ALIASES[m]||MODEL_ALIASES[m]||m||'';}
 function productDisplayBrandName(b){return b==='Actron'?'Actron Air':(b||'');}
@@ -4538,11 +4556,14 @@ async function calculateCertificatesForModel(meta,climate,options){
   const calcOptions=options||{};
   const airConditionerType=normalizeAirConditionerType(calcOptions.airConditionerType||airTypeValue());
   const calcInstallType=calcOptions.installType||installType;
-  const cooling=toNumber(meta['Cooling Capacity']);
-  const heating=toNumber(meta['Heating Capacity']);
+  const coolingOverride=toNumber(calcOptions.coolingCapacity);
+  const heatingOverride=toNumber(calcOptions.heatingCapacity);
+  const inputPowerOverride=toNumber(calcOptions.inputPower);
+  const cooling=Number.isFinite(coolingOverride)?coolingOverride:toNumber(meta['Cooling Capacity']);
+  const heating=Number.isFinite(heatingOverride)?heatingOverride:toNumber(meta['Heating Capacity']);
   const ratedAeer=toNumber(meta['Rated AEER']);
   const ratedAcop=toNumber(meta['Rated ACOP']);
-  const inputPower=toNumber(meta['Input Power']);
+  const inputPower=Number.isFinite(inputPowerOverride)?inputPowerOverride:toNumber(meta['Input Power']);
   const tcec=toNumber(meta[`Residential tcec_${climate.climateZone}`]);
   const thec=toNumber(meta[`Residential thec_${climate.climateZone}`]);
   const tcspf=toNumber(meta['Residential TCSPF_mixed']);
@@ -5317,8 +5338,34 @@ function multiSplitEquipmentTotals(){
   const outdoorTotal=Number(outdoor&&outdoor.unitPriceInc)||0;
   const indoorTotal=indoorItems.reduce((sum,item)=>sum+(Number(item.row.unitPriceInc)||0)*item.qty,0);
   const headCount=indoorItems.reduce((sum,item)=>sum+item.qty,0);
-  const connectedCapacity=indoorItems.reduce((sum,item)=>sum+(Number(item.row.capacityNum)||0)*item.qty,0);
-  return {outdoor,indoorItems,outdoorTotal,indoorTotal,total:outdoorTotal+indoorTotal,headCount,connectedCapacity};
+  const connectedCoolingCapacity=indoorItems.reduce((sum,item)=>sum+(Number(item.row.ratedCoolingCapacity)||Number(item.row.capacityNum)||0)*item.qty,0);
+  const connectedHeatingCapacity=indoorItems.reduce((sum,item)=>sum+(Number(item.row.ratedHeatingCapacity)||0)*item.qty,0);
+  return {outdoor,indoorItems,outdoorTotal,indoorTotal,total:outdoorTotal+indoorTotal,headCount,connectedCapacity:connectedCoolingCapacity,connectedCoolingCapacity,connectedHeatingCapacity};
+}
+function multiSplitCertificateInputs(meta,indoorItems){
+  const outdoorCooling=toNumber(meta&&meta['Cooling Capacity']);
+  const outdoorHeating=toNumber(meta&&meta['Heating Capacity']);
+  const outdoorInputPower=toNumber(meta&&meta['Input Power']);
+  if([outdoorCooling,outdoorHeating,outdoorInputPower].some(value=>!Number.isFinite(value)||value<=0)){
+    throw new Error('Incomplete outdoor GEMS capacity data for the multi-head calculation.');
+  }
+  const unrated=(indoorItems||[]).filter(item=>{
+    const cooling=toNumber(item&&item.row&&item.row.ratedCoolingCapacity);
+    const heating=toNumber(item&&item.row&&item.row.ratedHeatingCapacity);
+    return !Number.isFinite(cooling)||cooling<=0||!Number.isFinite(heating)||heating<=0;
+  });
+  if(unrated.length){
+    const models=unrated.map(item=>item&&item.row&&item.row.model).filter(Boolean).join(', ');
+    throw new Error(`Manufacturer-rated cooling and heating capacity is unavailable for ${models||'the selected indoor head'}.`);
+  }
+  const indoorCooling=(indoorItems||[]).reduce((sum,item)=>sum+toNumber(item.row.ratedCoolingCapacity)*item.qty,0);
+  const indoorHeating=(indoorItems||[]).reduce((sum,item)=>sum+toNumber(item.row.ratedHeatingCapacity)*item.qty,0);
+  if(!(indoorCooling>0) || !(indoorHeating>0)) throw new Error('Add at least one rated indoor head before calculating certificates.');
+  const coolingCapacity=Math.min(indoorCooling,outdoorCooling);
+  const heatingCapacity=Math.min(indoorHeating,outdoorHeating);
+  const coolingRatio=Math.min(indoorCooling/outdoorCooling,1);
+  const inputPower=outdoorInputPower*coolingRatio;
+  return {indoorCooling,indoorHeating,outdoorCooling,outdoorHeating,outdoorInputPower,coolingCapacity,heatingCapacity,coolingRatio,inputPower};
 }
 function isMultiHeadQuoteType(type){return String(type||'').toLowerCase().includes('multi-head');}
 function quoteUsesPowerCost(r){return r&& (r.type==='Split' || isMultiHeadQuoteType(r.type));}
@@ -5443,7 +5490,7 @@ function setMultiSplitInstall(type){
 }
 function renderMultiSplitTrial(){
   if(!multiSplitTrialEnabled()) return;
-  const {outdoor,indoorItems,outdoorTotal,indoorTotal,total,headCount,connectedCapacity}=multiSplitEquipmentTotals();
+  const {outdoor,indoorItems,outdoorTotal,indoorTotal,total,headCount,connectedCapacity,connectedHeatingCapacity}=multiSplitEquipmentTotals();
   const maxHeads=Number(outdoor&&outdoor.maxHeads)||0;
   updateMultiSplitInstallTabs();
   if($('multiSplitOutdoorCapacity')) $('multiSplitOutdoorCapacity').textContent=outdoor?outdoor.capacity:'Select outdoor';
@@ -5451,7 +5498,10 @@ function renderMultiSplitTrial(){
   if($('multiSplitOutdoorPrice')) $('multiSplitOutdoorPrice').textContent=money(outdoorTotal);
   if($('multiSplitSelectedModel')) $('multiSplitSelectedModel').textContent=outdoor?outdoor.model:'Select an outdoor unit';
   if($('multiSplitSelectedMeta')) $('multiSplitSelectedMeta').textContent=outdoor?`${outdoor.brand} ${outdoor.series} - ${outdoor.capacity} outdoor - ${money(outdoor.unitPriceInc)} inc GST`:'Choose a brand and outdoor unit, then add compatible indoor heads below.';
-  if($('multiSplitConnectedCapacity')) $('multiSplitConnectedCapacity').textContent=`${connectedCapacity.toFixed(1)}kW`;
+  if($('multiSplitConnectedCapacity')){
+    const heating=indoorItems.every(item=>Number(item.row.ratedHeatingCapacity)>0)?` / ${connectedHeatingCapacity.toFixed(1)}kW heat`:'';
+    $('multiSplitConnectedCapacity').textContent=`${connectedCapacity.toFixed(1)}kW cool${heating}`;
+  }
   if($('multiSplitEscRateDisplay')) $('multiSplitEscRateDisplay').value=money(getEssEscRate());
   if($('multiSplitPrcRateDisplay')) $('multiSplitPrcRateDisplay').value=money(getEssPrcRate());
   if($('multiSplitOutdoorTotal')) $('multiSplitOutdoorTotal').textContent=money(outdoorTotal);
@@ -5550,7 +5600,8 @@ function updateMultiSplitIndoorRow(index,field,value){
 async function calculateMultiSplitTrialRebate(){
   setSectionLoading('multiSplitRebatePanel',false);
   const requestId=++multiSplitTrialRequestSeq;
-  const {outdoor,total,headCount}=multiSplitEquipmentTotals();
+  const totals=multiSplitEquipmentTotals();
+  const {outdoor,total,headCount}=totals;
   if(!outdoor){setMultiSplitStatus('Select an outdoor unit first.','error'); return;}
   if(!headCount){setMultiSplitStatus('Add at least one indoor head before checking the rebate.','error'); return;}
   if(Number(outdoor.maxHeads)&&headCount>Number(outdoor.maxHeads)){
@@ -5566,7 +5617,14 @@ async function calculateMultiSplitTrialRebate(){
   try{
     const resolved=await resolveModelMetadataForRebate(outdoor.brand,outdoor.rebateModel||outdoor.model);
     const climate=await getClimateContext(postcode);
-    const certs=await calculateCertificatesForModel(resolved.meta,climate,{airConditionerType:'non_ducted_multi_split_system',installType:install});
+    const capacityInputs=multiSplitCertificateInputs(resolved.meta,totals.indoorItems);
+    const certs=await calculateCertificatesForModel(resolved.meta,climate,{
+      airConditionerType:'non_ducted_multi_split_system',
+      installType:install,
+      coolingCapacity:capacityInputs.coolingCapacity,
+      heatingCapacity:capacityInputs.heatingCapacity,
+      inputPower:capacityInputs.inputPower
+    });
     if(requestId!==multiSplitTrialRequestSeq) return;
     const escRate=getEssEscRate();
     const prcRate=getEssPrcRate();
@@ -5580,7 +5638,8 @@ async function calculateMultiSplitTrialRebate(){
     renderMultiSplitFinancials();
     const capText=certs.caps&&Number.isFinite(certs.caps.esc)?` Caps applied: ${certs.caps.esc} ESC / ${certs.caps.prc} PERC.`:'';
     const eligibilityText=certs.eligibility&&certs.eligibility.message?` Eligibility: ${certs.eligibility.message}.`:' Eligibility passed.';
-    setMultiSplitStatus(`${resolved.source}: ${resolved.brand} ${resolved.model}. ESC ${certCountText(certs.esc)} x ${money(escRate)} = ${money(escValue)} | PERC ${certCountText(certs.prc)} x ${money(prcRate)} = ${money(prcValue)} | Total ${money(rebate)}. ${climate.climateZone}, ${climate.bcaZone}, ${install}.${capText}${eligibilityText}`,'');
+    const capacityText=` Capacity used: ${capacityInputs.coolingCapacity.toFixed(2)}kW cooling and ${capacityInputs.heatingCapacity.toFixed(2)}kW heating (the lesser of connected indoor and registered outdoor capacity). PDRS input power: ${capacityInputs.inputPower.toFixed(3)}kW at ${(capacityInputs.coolingRatio*100).toFixed(1)}% of outdoor input.`;
+    setMultiSplitStatus(`${resolved.source}: ${resolved.brand} ${resolved.model}. ESC ${certCountText(certs.esc)} x ${money(escRate)} = ${money(escValue)} | PERC ${certCountText(certs.prc)} x ${money(prcRate)} = ${money(prcValue)} | Total ${money(rebate)}. ${climate.climateZone}, ${climate.bcaZone}, ${install}.${capacityText}${capText}${eligibilityText}`,'');
   }catch(e){
     if(requestId!==multiSplitTrialRequestSeq) return;
     resetMultiSplitRebateMetrics();
