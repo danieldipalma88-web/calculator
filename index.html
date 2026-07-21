@@ -1370,6 +1370,128 @@ tbody tr:hover td{background:#f0f7ff}
   overflow-wrap:anywhere;
 }
 .selectedQuoteNameBar button{flex:0 0 auto}
+.quoteSearchPicker{
+  position:relative;
+  min-width:0;
+}
+.quoteSearchNative{display:none!important}
+.quoteSearchControl{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 42px;
+  align-items:center;
+  min-width:0;
+  border:1px solid var(--line-strong);
+  border-radius:12px;
+  background:#fff;
+  transition:border-color .16s ease,box-shadow .16s ease;
+}
+.quoteSearchControl:focus-within{
+  border-color:#0f766e;
+  box-shadow:0 0 0 3px rgba(15,118,110,.13);
+}
+.quoteSearchInput{
+  min-width:0;
+  height:42px;
+  border:0;
+  border-radius:12px 0 0 12px;
+  padding:0 6px 0 12px;
+  box-shadow:none!important;
+  font-size:14px;
+  font-weight:700;
+}
+.quoteSearchInput::-webkit-search-cancel-button{cursor:pointer}
+.quoteSearchToggle{
+  position:relative;
+  width:42px;
+  height:42px;
+  padding:0;
+  border-radius:0 11px 11px 0;
+  background:#fff;
+  color:#475569;
+  box-shadow:none!important;
+}
+.quoteSearchToggle:hover{transform:none;background:#f8fafc;box-shadow:none}
+.quoteSearchChevron{
+  display:block;
+  width:8px;
+  height:8px;
+  margin:0 auto 4px;
+  border-right:2px solid currentColor;
+  border-bottom:2px solid currentColor;
+  transform:rotate(45deg);
+  transition:transform .16s ease,margin .16s ease;
+}
+.quoteSearchPicker.open .quoteSearchChevron{
+  margin:4px auto 0;
+  transform:rotate(225deg);
+}
+.quoteSearchList{
+  position:absolute;
+  z-index:95;
+  top:calc(100% + 7px);
+  left:0;
+  right:0;
+  display:none;
+  max-height:min(320px,46vh);
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  padding:6px;
+  border:1px solid #cbd8e6;
+  border-radius:12px;
+  background:#fff;
+  box-shadow:0 18px 40px rgba(15,23,42,.2);
+}
+.quoteSearchPicker.open .quoteSearchList{display:grid;gap:3px}
+.quoteSearchOption{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:4px 10px;
+  width:100%;
+  padding:10px 11px;
+  border-radius:8px;
+  background:#fff;
+  color:#0f172a;
+  text-align:left;
+  box-shadow:none!important;
+}
+.quoteSearchOption:hover,
+.quoteSearchOption.active{
+  transform:none;
+  background:#edf8f6;
+  box-shadow:none;
+}
+.quoteSearchOption.selected{background:#e4f5f1}
+.quoteSearchOptionName{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:14px;
+  font-weight:850;
+}
+.quoteSearchOptionMeta{
+  grid-column:1 / -1;
+  color:#64748b;
+  font-size:11px;
+  font-weight:650;
+  line-height:1.35;
+}
+.quoteSearchSelectedTag{
+  align-self:center;
+  color:#0f766e;
+  font-size:9px;
+  font-weight:900;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+.quoteSearchEmpty{
+  padding:16px 12px;
+  color:#64748b;
+  font-size:13px;
+  line-height:1.4;
+  text-align:center;
+}
+.quoteGroupsCard{overflow:visible}
 .wonDetailsModalCard{width:min(560px,100%)}
 .wonDetailsFields{display:grid;gap:16px;margin-top:18px}
 .wonDetailsField label{margin:0 0 7px}
@@ -1582,6 +1704,10 @@ tbody tr:hover td{background:#f0f7ff}
 }
 @media(max-width:640px){
   html,body{min-width:0}
+  .quoteSearchInput{font-size:16px}
+  .quoteSearchList{max-height:min(300px,42vh)}
+  .quoteSearchOption{padding:12px 11px}
+  .quoteSearchOptionName{white-space:normal;overflow-wrap:anywhere}
   .wrap{
     width:100%;
     max-width:100%;
@@ -1964,6 +2090,7 @@ tbody tr:hover td{background:#f0f7ff}
     overflow:hidden;
     border-radius:16px!important;
   }
+  .quoteDrawer .quoteGroupsCard{overflow:visible}
   .quoteDrawer .totalsManager{padding:12px;margin:10px 0}
   .quoteDrawer .totalsGrid{
     grid-template-columns:1fr;
@@ -2174,7 +2301,7 @@ tbody tr:hover td{background:#f0f7ff}
       <div id="netProfitRow" class="summaryLine cash profitHighlight"><span id="netProfitLabel">Installer profit after commission ex GST</span><strong><span id="netProfit"></span><small id="netProfitMargin"></small></strong></div>
       <div id="summaryInstallAddons" class="summaryAddons hidden"><div class="summaryAddonsHead"><strong>Install add-ons</strong><span>Cost only</span></div><div id="summaryInstallAddonRows" class="summaryAddonRows"></div><div id="summaryInstallAddonFoot" class="summaryAddonFoot"></div></div>
       <div class="actions"><button class="orange" onclick="addToQuote()">Add to Quote</button><button class="secondary" onclick="openDrawer()">View Quotes (<span id="quoteCount">0</span>)</button><button class="green" onclick="openWonJobsDrawer()">Won Jobs (<span data-won-jobs-count>0</span>)</button><button class="secondary" onclick="openPriceDrawer()">Price Manager</button><button id="certValuesActionBtn" class="secondary" onclick="openCertDrawer()">Certificate Values</button></div>
-      <div class="quoteTargetControl"><label>Add current unit to quote</label><div class="row2"><select id="addOptionSelect" onchange="onOptionSelectionChange(this.value)"></select><button class="secondary" type="button" onclick="createNewOption(true)">+ New Quote</button></div><div class="selectedQuoteNameBar"><div class="selectedQuoteNameCopy"><span>Selected quote</span><strong id="mainOptionName">Quote 1</strong></div><button id="mainOptionRenameButton" class="secondary smallBtn" type="button" onclick="openRenameQuoteModal()">Rename</button></div></div>
+      <div class="quoteTargetControl"><label for="addOptionSelectSearchInput">Add current unit to quote</label><div class="row2"><select id="addOptionSelect" onchange="onOptionSelectionChange(this.value)"></select><button class="secondary" type="button" onclick="createNewOption(true)">+ New Quote</button></div><div class="selectedQuoteNameBar"><div class="selectedQuoteNameCopy"><span>Selected quote</span><strong id="mainOptionName">Quote 1</strong></div><button id="mainOptionRenameButton" class="secondary smallBtn" type="button" onclick="openRenameQuoteModal()">Rename</button></div></div>
     </aside>
   </div>
   <div class="multiSplitTrialCard" id="multiSplitTrialCard">
@@ -2277,7 +2404,7 @@ tbody tr:hover td{background:#f0f7ff}
         <div id="multiNetProfitRow" class="summaryLine cash profitHighlight"><span>Installer profit after commission ex GST</span><strong><span id="multiNetProfit">$0.00</span><small id="multiNetProfitMargin"></small></strong></div>
         <div id="multiSplitHeadsList" class="multiSplitHeadsList"></div>
         <div class="actions"><button class="orange" onclick="addToQuote()">Add to Quote</button><button class="secondary" onclick="openDrawer()">View Quotes (<span id="multiQuoteCount">0</span>)</button><button class="green" onclick="openWonJobsDrawer()">Won Jobs (<span data-won-jobs-count>0</span>)</button><button class="secondary" onclick="openPriceDrawer()">Price Manager</button><button class="secondary" onclick="openCertDrawer()">Certificate Values</button></div>
-        <div class="quoteTargetControl"><label>Add current unit to quote</label><div class="row2"><select id="multiAddOptionSelect" onchange="onOptionSelectionChange(this.value)"></select><button class="secondary" type="button" onclick="createNewOption(true)">+ New Quote</button></div><div class="selectedQuoteNameBar"><div class="selectedQuoteNameCopy"><span>Selected quote</span><strong id="multiMainOptionName">Quote 1</strong></div><button id="multiMainOptionRenameButton" class="secondary smallBtn" type="button" onclick="openRenameQuoteModal()">Rename</button></div></div>
+        <div class="quoteTargetControl"><label for="multiAddOptionSelectSearchInput">Add current unit to quote</label><div class="row2"><select id="multiAddOptionSelect" onchange="onOptionSelectionChange(this.value)"></select><button class="secondary" type="button" onclick="createNewOption(true)">+ New Quote</button></div><div class="selectedQuoteNameBar"><div class="selectedQuoteNameCopy"><span>Selected quote</span><strong id="multiMainOptionName">Quote 1</strong></div><button id="multiMainOptionRenameButton" class="secondary smallBtn" type="button" onclick="openRenameQuoteModal()">Rename</button></div></div>
         <div class="multiSplitTrialActions"><button id="multiSplitCheckRebateBtn" class="green" type="button" onclick="calculateMultiSplitTrialRebate()">Check rebate</button></div>
         <div id="multiSplitStatus" class="multiSplitStatus">Select a system and click Check rebate to test NSW multi-split eligibility.</div>
       </aside>
@@ -2331,7 +2458,7 @@ tbody tr:hover td{background:#f0f7ff}
     <div class="hint" id="distHint">Add quote systems first, then load current totals or type in new totals. Recalculates commission and installer net profit automatically.</div>
     <div class="miniTotal"><span>Rows affected</span><strong id="distRowsAffected">0</strong></div>
   </div>
-  <div class="card" style="box-shadow:none;margin:14px 0;border-radius:18px">
+  <div class="card quoteGroupsCard" style="box-shadow:none;margin:14px 0;border-radius:18px">
     <div class="drawerHead" style="margin-bottom:10px;align-items:flex-end">
       <div>
         <div class="kicker">Quote groups</div>
@@ -2341,7 +2468,7 @@ tbody tr:hover td{background:#f0f7ff}
       <div class="actions" style="margin-top:0"><button class="secondary" onclick="createNewOption(true)">+ New Quote</button></div>
     </div>
     <div class="optionControls">
-      <div><label>Add current system to</label><select id="drawerAddOptionSelect" onchange="onOptionSelectionChange(this.value)"></select></div>
+      <div><label for="drawerAddOptionSelectSearchInput">Add current system to</label><select id="drawerAddOptionSelect" onchange="onOptionSelectionChange(this.value)"></select></div>
       <button class="orange" onclick="addToQuote()">Add System</button>
     </div>
     <div id="optionGroups" class="optionCards"></div>
@@ -6875,8 +7002,257 @@ function updateCurrentOptionWonButton(def,rows){
   btn.disabled=!rows||!rows.length;
   btn.title=rows&&rows.length?'Mark the selected quote as won.':'Add at least one system before marking this quote as won.';
 }
+const QUOTE_SEARCH_SELECT_IDS=['addOptionSelect','drawerAddOptionSelect','multiAddOptionSelect'];
+let quoteSearchDocumentEventsBound=false;
+function quoteSearchPickerBySelectId(selectId){
+  const select=$(selectId);
+  return select?select.closest('.quoteSearchPicker'):null;
+}
+function quoteSearchUpdatedAt(def){
+  const rowTimes=quotes.filter(row=>row.optionId===def.id).map(row=>Number(row.syncUpdatedAt||row.timestamp)||0);
+  return Math.max(Number(def.syncUpdatedAt)||0,...rowTimes,0);
+}
+function quoteSearchOrderedDefs(selectedId){
+  return [...quoteOptionDefs].sort((a,b)=>{
+    if(a.id===selectedId) return -1;
+    if(b.id===selectedId) return 1;
+    return quoteSearchUpdatedAt(b)-quoteSearchUpdatedAt(a);
+  });
+}
+function quoteSearchOptionMeta(def){
+  const systemCount=quotes.reduce((count,row)=>count+(row.optionId===def.id?1:0),0);
+  const parts=[`${systemCount} system${systemCount===1?'':'s'}`];
+  if(def.wonAt) parts.push(optionWonLabel(def));
+  else{
+    const updatedAt=quoteSearchUpdatedAt(def);
+    if(updatedAt){
+      const date=new Date(updatedAt);
+      if(!Number.isNaN(date.getTime())) parts.push(`Updated ${date.toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'})}`);
+    }
+  }
+  return parts.join(' | ');
+}
+function setQuoteSearchActive(picker,index){
+  if(!picker) return;
+  const input=picker.querySelector('.quoteSearchInput');
+  const buttons=[...picker.querySelectorAll('.quoteSearchOption')];
+  if(!buttons.length){
+    picker.dataset.activeIndex='-1';
+    if(input) input.removeAttribute('aria-activedescendant');
+    return;
+  }
+  const next=Math.max(0,Math.min(index,buttons.length-1));
+  picker.dataset.activeIndex=String(next);
+  buttons.forEach((button,buttonIndex)=>button.classList.toggle('active',buttonIndex===next));
+  const active=buttons[next];
+  if(input) input.setAttribute('aria-activedescendant',active.id);
+  active.scrollIntoView({block:'nearest'});
+}
+function renderQuoteSearchPicker(selectId,resetActive){
+  const select=$(selectId), picker=quoteSearchPickerBySelectId(selectId);
+  if(!select||!picker) return;
+  const list=picker.querySelector('.quoteSearchList');
+  const query=String(picker.dataset.query||'').trim().toLocaleLowerCase();
+  const selectedId=select.value||quoteOptionDefs[0]?.id||'';
+  const matches=quoteSearchOrderedDefs(selectedId).filter(def=>String(def.name||'').toLocaleLowerCase().includes(query));
+  list.replaceChildren();
+  if(!matches.length){
+    const empty=document.createElement('div');
+    empty.className='quoteSearchEmpty';
+    empty.textContent='No quotes found. Try another customer name.';
+    list.appendChild(empty);
+    setQuoteSearchActive(picker,-1);
+    return;
+  }
+  matches.forEach((def,index)=>{
+    const button=document.createElement('button');
+    button.type='button';
+    button.id=`${selectId}QuoteSearchOption${index}`;
+    button.className='quoteSearchOption'+(def.id===selectedId?' selected':'');
+    button.dataset.optionId=def.id;
+    button.setAttribute('role','option');
+    button.setAttribute('aria-selected',def.id===selectedId?'true':'false');
+    const name=document.createElement('span');
+    name.className='quoteSearchOptionName';
+    name.textContent=def.name;
+    button.appendChild(name);
+    if(def.id===selectedId){
+      const selected=document.createElement('span');
+      selected.className='quoteSearchSelectedTag';
+      selected.textContent='Selected';
+      button.appendChild(selected);
+    }
+    const meta=document.createElement('span');
+    meta.className='quoteSearchOptionMeta';
+    meta.textContent=quoteSearchOptionMeta(def);
+    button.appendChild(meta);
+    button.addEventListener('pointerdown',event=>event.preventDefault());
+    button.addEventListener('mouseenter',()=>setQuoteSearchActive(picker,index));
+    button.addEventListener('click',()=>{
+      onOptionSelectionChange(def.id);
+      closeQuoteSearchPicker(selectId);
+      const input=picker.querySelector('.quoteSearchInput');
+      if(input) input.blur();
+    });
+    list.appendChild(button);
+  });
+  const current=Number(picker.dataset.activeIndex);
+  setQuoteSearchActive(picker,resetActive||!Number.isInteger(current)?0:current);
+}
+function openQuoteSearchPicker(selectId){
+  const picker=quoteSearchPickerBySelectId(selectId);
+  if(!picker||picker.classList.contains('open')) return;
+  closeQuoteSearchPickers(selectId);
+  picker.classList.add('open');
+  picker.dataset.query='';
+  picker.dataset.activeIndex='0';
+  const input=picker.querySelector('.quoteSearchInput');
+  if(input){
+    input.value='';
+    input.setAttribute('aria-expanded','true');
+  }
+  renderQuoteSearchPicker(selectId,true);
+}
+function closeQuoteSearchPicker(selectId){
+  const select=$(selectId), picker=quoteSearchPickerBySelectId(selectId);
+  if(!select||!picker) return;
+  picker.classList.remove('open');
+  picker.dataset.query='';
+  picker.dataset.activeIndex='0';
+  const input=picker.querySelector('.quoteSearchInput');
+  if(input){
+    input.value=optionNameById(select.value);
+    input.setAttribute('aria-expanded','false');
+    input.removeAttribute('aria-activedescendant');
+  }
+  const list=picker.querySelector('.quoteSearchList');
+  if(list) list.replaceChildren();
+}
+function closeQuoteSearchPickers(exceptSelectId){
+  QUOTE_SEARCH_SELECT_IDS.forEach(id=>{if(id!==exceptSelectId) closeQuoteSearchPicker(id);});
+}
+function syncQuoteSearchPickerDisplay(selectId){
+  const select=$(selectId), picker=quoteSearchPickerBySelectId(selectId);
+  if(!select||!picker) return;
+  if(picker.classList.contains('open')) renderQuoteSearchPicker(selectId,false);
+  else{
+    const input=picker.querySelector('.quoteSearchInput');
+    if(input) input.value=optionNameById(select.value);
+  }
+}
+function setupQuoteSearchPickers(){
+  QUOTE_SEARCH_SELECT_IDS.forEach(selectId=>{
+    const select=$(selectId);
+    if(!select||quoteSearchPickerBySelectId(selectId)) return;
+    const picker=document.createElement('div');
+    picker.className='quoteSearchPicker';
+    picker.dataset.selectId=selectId;
+    picker.dataset.query='';
+    picker.dataset.activeIndex='0';
+    const control=document.createElement('div');
+    control.className='quoteSearchControl';
+    const input=document.createElement('input');
+    input.id=`${selectId}SearchInput`;
+    input.type='search';
+    input.className='quoteSearchInput';
+    input.placeholder='Search quotes by customer name';
+    input.autocomplete='off';
+    input.setAttribute('role','combobox');
+    input.setAttribute('aria-label','Search quotes by customer name');
+    input.setAttribute('aria-autocomplete','list');
+    input.setAttribute('aria-expanded','false');
+    const list=document.createElement('div');
+    list.id=`${selectId}SearchList`;
+    list.className='quoteSearchList';
+    list.setAttribute('role','listbox');
+    list.setAttribute('aria-label','Matching quotes');
+    input.setAttribute('aria-controls',list.id);
+    const toggle=document.createElement('button');
+    toggle.type='button';
+    toggle.className='quoteSearchToggle';
+    toggle.setAttribute('aria-label','Show quote list');
+    toggle.innerHTML='<span class="quoteSearchChevron" aria-hidden="true"></span>';
+    select.parentNode.insertBefore(picker,select);
+    picker.appendChild(control);
+    control.appendChild(input);
+    control.appendChild(toggle);
+    picker.appendChild(list);
+    picker.appendChild(select);
+    select.classList.add('quoteSearchNative');
+    select.tabIndex=-1;
+    select.setAttribute('aria-hidden','true');
+    input.addEventListener('focus',()=>openQuoteSearchPicker(selectId));
+    input.addEventListener('click',()=>openQuoteSearchPicker(selectId));
+    input.addEventListener('input',()=>{
+      if(!picker.classList.contains('open')) openQuoteSearchPicker(selectId);
+      picker.dataset.query=input.value;
+      picker.dataset.activeIndex='0';
+      renderQuoteSearchPicker(selectId,true);
+    });
+    input.addEventListener('search',()=>{
+      picker.dataset.query=input.value;
+      picker.dataset.activeIndex='0';
+      renderQuoteSearchPicker(selectId,true);
+    });
+    input.addEventListener('keydown',event=>{
+      if(event.key==='Escape'){
+        event.preventDefault();
+        closeQuoteSearchPicker(selectId);
+        input.blur();
+        return;
+      }
+      if(event.key==='Tab'){
+        closeQuoteSearchPicker(selectId);
+        return;
+      }
+      if(!picker.classList.contains('open') && (event.key==='ArrowDown'||event.key==='ArrowUp'||event.key==='Enter')){
+        event.preventDefault();
+        openQuoteSearchPicker(selectId);
+        return;
+      }
+      if(!picker.classList.contains('open')) return;
+      const buttons=[...list.querySelectorAll('.quoteSearchOption')];
+      const active=Number(picker.dataset.activeIndex)||0;
+      if(event.key==='ArrowDown'){
+        event.preventDefault();
+        setQuoteSearchActive(picker,active+1);
+      }else if(event.key==='ArrowUp'){
+        event.preventDefault();
+        setQuoteSearchActive(picker,active-1);
+      }else if(event.key==='Home'){
+        event.preventDefault();
+        setQuoteSearchActive(picker,0);
+      }else if(event.key==='End'){
+        event.preventDefault();
+        setQuoteSearchActive(picker,buttons.length-1);
+      }else if(event.key==='Enter'&&buttons[active]){
+        event.preventDefault();
+        buttons[active].click();
+      }
+    });
+    toggle.addEventListener('click',()=>{
+      if(picker.classList.contains('open')){
+        closeQuoteSearchPicker(selectId);
+        return;
+      }
+      input.focus();
+      openQuoteSearchPicker(selectId);
+    });
+  });
+  if(!quoteSearchDocumentEventsBound){
+    quoteSearchDocumentEventsBound=true;
+    document.addEventListener('pointerdown',event=>{
+      if(!event.target.closest('.quoteSearchPicker')) closeQuoteSearchPickers('');
+    });
+    window.addEventListener('resize',()=>closeQuoteSearchPickers(''));
+  }
+}
 function syncAddOptionSelects(value){
-  ['addOptionSelect','drawerAddOptionSelect','multiAddOptionSelect'].forEach(id=>{const el=$(id); if(el && value) el.value=value;});
+  QUOTE_SEARCH_SELECT_IDS.forEach(id=>{
+    const el=$(id);
+    if(el&&value) el.value=value;
+    syncQuoteSearchPickerDisplay(id);
+  });
 }
 function onOptionSelectionChange(value){
   currentQuoteTotalsEditing=false;
@@ -6903,12 +7279,14 @@ function updateMainOptionNameInput(){
 }
 function renderOptionSelectors(){
   ensureOptionDefs();
+  setupQuoteSearchPickers();
   const html=quoteOptionDefs.map(o=>`<option value="${htmlEscape(o.id)}">${htmlEscape(o.name)}</option>`).join('');
-  ['addOptionSelect','drawerAddOptionSelect','multiAddOptionSelect'].forEach(id=>{
+  QUOTE_SEARCH_SELECT_IDS.forEach(id=>{
     const el=$(id); if(!el) return;
     const old=el.value;
     el.innerHTML=html;
     if([...el.options].some(opt=>opt.value===old)) el.value=old;
+    syncQuoteSearchPickerDisplay(id);
   });
   updateMainOptionNameInput();
   refreshRecommendedOptions();
