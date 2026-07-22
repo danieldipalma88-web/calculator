@@ -14,7 +14,7 @@ const [adminPage, calculatorPage, rawRoute, dataRoute, addressRoute, authCallbac
   ]);
 
 const checks = [
-  [adminPage.includes("<h2>Wire Quotes</h2>"), "Wire Quotes heading"],
+  [adminPage.includes("<h2>Won Quotes</h2>"), "Won Quotes heading"],
   [adminPage.includes('"Clear All" : "Select All"'), "Select All label behavior"],
   [!adminPage.includes("Select visible"), "old Select visible label removed"],
   [adminPage.includes("var selectedEmails = activeSalespersonEmails();"), "salesperson-scoped payment filters"],
@@ -22,7 +22,7 @@ const checks = [
   [adminPage.includes("<BusinessMultiSelect businesses={businesses} selectedIds={[]} />"), "new users start without a business"],
   [adminPage.includes("user-card-collapsible"), "collapsible approved users"],
   [adminPage.includes("action={setApprovedUserLock}"), "approved-user lock action"],
-  [styles.includes(".won-toolbar-controls"), "compact Wire Quotes toolbar"],
+  [styles.includes(".won-toolbar-controls"), "compact Won Quotes toolbar"],
   [styles.includes(".user-card-summary"), "compact approved-user summaries"],
   [calculatorPage.includes("if (approved.is_locked)"), "calculator page lock enforcement"],
   [rawRoute.includes("if (approved.is_locked)"), "raw calculator lock enforcement"],

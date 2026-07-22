@@ -1322,17 +1322,17 @@ function wonExportScript() {
     var paymentText = activePayments.length ? " with " + activePayments.map(paymentFilterLabel).join(", ") : "";
     if (!activeEmails.length) {
       if (paymentText) {
-        status.textContent = "Showing " + visibleCount + paymentText + " wire quotes.";
+        status.textContent = "Showing " + visibleCount + paymentText + " won quotes.";
         return;
       }
-      status.textContent = "Showing all " + visibleCount + " wire quotes.";
+      status.textContent = "Showing all " + visibleCount + " won quotes.";
       return;
     }
     var names = activeEmails.map(function(email){
       var card = salespersonCardForEmail(email);
       return card ? String(card.getAttribute("data-salesperson-name") || email) : email;
     });
-    status.textContent = "Showing " + visibleCount + paymentText + " wire quotes for " + names.join(", ") + ".";
+    status.textContent = "Showing " + visibleCount + paymentText + " won quotes for " + names.join(", ") + ".";
   }
   function activeSalespersonEmails() {
     return Array.prototype.slice.call(document.querySelectorAll(".sales-summary-card.is-active"))
@@ -1799,8 +1799,8 @@ function wonExportScript() {
     var cards = selectedWonCards();
     var jobs = cards.map(parseCard).filter(Boolean);
     if (!jobs.length) {
-      setExportStatus("Select at least one wire quote first.", "error");
-      window.alert("Select at least one wire quote first.");
+      setExportStatus("Select at least one won quote first.", "error");
+      window.alert("Select at least one won quote first.");
       return;
     }
     setExportStatus("Preparing XLSX export...", "loading");
@@ -1853,7 +1853,7 @@ function wonExportScript() {
       syncWonSelectionControls();
       updateSelectAllLabel();
       refreshBulkInputs();
-      setExportStatus(shouldCheck ? "Selected all " + boxes.length + " wire quote" + (boxes.length === 1 ? "." : "s.") : "Cleared all selections.", "success");
+      setExportStatus(shouldCheck ? "Selected all " + boxes.length + " won quote" + (boxes.length === 1 ? "." : "s.") : "Cleared all selections.", "success");
       return;
     }
 
@@ -1915,7 +1915,7 @@ function wonExportScript() {
       refreshBulkInputs();
       if (!selectedWonSelections().length) {
         event.preventDefault();
-        window.alert("Select at least one wire quote first.");
+        window.alert("Select at least one won quote first.");
         return;
       }
     }
@@ -3314,7 +3314,7 @@ export default async function AdminUsersPage({
           <div className="notice">Supabase membership setup: {membershipsResult.errorMessage}</div>
         ) : null}
         {wonResult.errorMessage ? (
-          <div className="notice">Wire Quotes setup: {wonResult.errorMessage}</div>
+          <div className="notice">Won Quotes setup: {wonResult.errorMessage}</div>
         ) : null}
         {certificateResult.errorMessage ? (
           <div className="notice">Certificate values setup: {certificateResult.errorMessage}</div>
@@ -3898,7 +3898,7 @@ export default async function AdminUsersPage({
         <details className="admin-section won-options-section" id="won-options">
           <summary className="section-heading admin-section-summary">
             <div>
-              <h2>Wire Quotes</h2>
+              <h2>Won Quotes</h2>
               <p>Quotes marked as won in each calculator, including Daniel's full commission view.</p>
             </div>
             <span className="section-count">{wonOptions.length} total</span>
@@ -3916,7 +3916,7 @@ export default async function AdminUsersPage({
             <div className="won-backup-note">
               <div>
                 <strong>
-                  {includeBackupWonOptions ? "Recovered wire quotes included" : "Current wire quotes only"}
+                  {includeBackupWonOptions ? "Recovered won quotes included" : "Current won quotes only"}
                 </strong>
                 <span>
                   {includeBackupWonOptions
@@ -3962,12 +3962,12 @@ export default async function AdminUsersPage({
                   <form
                     action={bulkUpdateWonOptions}
                     data-bulk-won-form
-                    data-confirm-message="This permanently deletes the selected wire quotes from current and recovered backup data. This cannot be undone."
+                    data-confirm-message="This permanently deletes the selected won quotes from current and recovered backup data. This cannot be undone."
                   >
                     <input type="hidden" name="selectedWonOptions" data-selected-won-input />
                     <input type="hidden" name="bulkMode" value="delete" />
                     <p className="delete-warning">
-                      This permanently deletes the selected wire quotes from current and recovered backup data. This cannot be undone.
+                      This permanently deletes the selected won quotes from current and recovered backup data. This cannot be undone.
                     </p>
                     <button className="danger" type="submit">
                       Permanently delete
@@ -4044,7 +4044,7 @@ export default async function AdminUsersPage({
           ) : null}
 
           <div className="won-filter-status" data-won-filter-status>
-            Showing all {wonOptions.length} wire quotes.
+            Showing all {wonOptions.length} won quotes.
           </div>
           <div className="won-requested-outstanding" data-won-requested-outstanding aria-live="polite">
             No requested payments are currently awaiting payment.
@@ -4276,7 +4276,7 @@ export default async function AdminUsersPage({
                 </div>
               </details>
             ))}
-          {!wonOptions.length ? <div className="empty-card">No wire quotes yet.</div> : null}
+          {!wonOptions.length ? <div className="empty-card">No won quotes yet.</div> : null}
             </div>
           </div>
         </details>
