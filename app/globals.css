@@ -2028,6 +2028,10 @@ select {
   margin: 14px 0;
 }
 
+.user-facts {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
 .user-facts div,
 .won-metrics div {
   min-width: 0;

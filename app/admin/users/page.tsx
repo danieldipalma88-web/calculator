@@ -38,6 +38,7 @@ type ApprovedUser = {
   email: string;
   display_name: string;
   is_locked: boolean;
+  last_active_at: string | null;
   role: UserRole;
   business_id: string | null;
   business_name: string | null;
@@ -502,6 +503,7 @@ function normalizeApprovedUser(
     email: String(row.email || ""),
     display_name: String(row.display_name || ""),
     is_locked: Boolean(row.is_locked),
+    last_active_at: row.last_active_at ? String(row.last_active_at) : null,
     role,
     business_id: businessId,
     business_name: String(row.business_name || business?.name || ""),
@@ -741,6 +743,25 @@ async function listApprovedUsers(supabase: SupabaseServer, businesses: Business[
   };
 }
 
+async function listApprovedUserActivity(supabase: SupabaseServer) {
+  const result = await supabase.rpc("admin_list_approved_user_activity");
+  if (result.error) {
+    return {
+      data: new Map<string, string>(),
+      errorMessage: schemaSetupMessage(result.error),
+    };
+  }
+
+  const activityByEmail = new Map<string, string>();
+  ((result.data || []) as { email?: string | null; last_active_at?: string | null }[]).forEach((row) => {
+    const email = String(row.email || "").trim().toLowerCase();
+    const lastActiveAt = String(row.last_active_at || "").trim();
+    if (email && lastActiveAt) activityByEmail.set(email, lastActiveAt);
+  });
+
+  return { data: activityByEmail, errorMessage: "" };
+}
+
 async function listUserBusinessMemberships(supabase: SupabaseServer, businesses: Business[]) {
   const result = await supabase
     .from("approved_user_businesses")
@@ -782,6 +803,24 @@ function applyMembershipsToUsers(
       business_ids: membership.ids,
       business_names: membership.names,
     };
+  });
+}
+
+function applyActivityToUsers(users: ApprovedUser[], activityByEmail: Map<string, string>) {
+  return users.map((user) => ({
+    ...user,
+    last_active_at: activityByEmail.get(user.email.toLowerCase()) || user.last_active_at,
+  }));
+}
+
+function formatLastActive(value: string | null) {
+  if (!value) return "No activity recorded";
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "No activity recorded";
+  return date.toLocaleString("en-AU", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "Australia/Sydney",
   });
 }
 
@@ -3272,12 +3311,18 @@ export default async function AdminUsersPage({
   const includeBackupWonOptions = params?.checkBackups === "1";
   const { supabase, email: currentEmail } = await requireAdmin();
   const businessResult = await listBusinesses(supabase);
-  const usersResult = await listApprovedUsers(supabase, businessResult.data);
-  const membershipsResult = await listUserBusinessMemberships(supabase, businessResult.data);
-  const certificateResult = await getPlatformCertificateValues(supabase, businessResult.data);
+  const [usersResult, membershipsResult, certificateResult, activityResult] = await Promise.all([
+    listApprovedUsers(supabase, businessResult.data),
+    listUserBusinessMemberships(supabase, businessResult.data),
+    getPlatformCertificateValues(supabase, businessResult.data),
+    listApprovedUserActivity(supabase),
+  ]);
 
   const businesses = businessResult.data;
-  const users = applyMembershipsToUsers(usersResult.data, membershipsResult.data);
+  const users = applyActivityToUsers(
+    applyMembershipsToUsers(usersResult.data, membershipsResult.data),
+    activityResult.data,
+  );
   const wonResult = await listWonOptions(supabase, users, includeBackupWonOptions);
   const wonOptions = wonResult.data;
   const salespersonSales = summarizeSalesBySalesperson(wonOptions);
@@ -3312,6 +3357,9 @@ export default async function AdminUsersPage({
         ) : null}
         {membershipsResult.errorMessage ? (
           <div className="notice">Supabase membership setup: {membershipsResult.errorMessage}</div>
+        ) : null}
+        {activityResult.errorMessage ? (
+          <div className="notice">Supabase user activity setup: {activityResult.errorMessage}</div>
         ) : null}
         {wonResult.errorMessage ? (
           <div className="notice">Won Quotes setup: {wonResult.errorMessage}</div>
@@ -3676,6 +3724,7 @@ export default async function AdminUsersPage({
                     <div className="user-facts">
                       <div><span>Businesses</span><strong>{approvedUser.business_names.join(", ") || approvedUser.business_name || "No business"}</strong></div>
                       <div><span>Role</span><strong>{roleOptions.find((option) => option.value === approvedUser.role)?.label || approvedUser.role}</strong></div>
+                      <div title="Updated when this person opens or saves their calculator"><span>Last active</span><strong>{formatLastActive(approvedUser.last_active_at)}</strong></div>
                       <div><span>Commission</span><strong>{commissionLabel(approvedUser.effective_commission_type)}</strong></div>
                       <div><span>Rates</span><strong>{formatRate(approvedUser.effective_agency_commission_rate)}% / {formatRate(approvedUser.effective_salesperson_commission_rate)}%</strong></div>
                     </div>

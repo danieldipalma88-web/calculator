@@ -181,6 +181,7 @@ export default async function CalculatorPage({
       </main>
     );
   }
+  await supabase.rpc("record_current_user_activity");
   const canManage = canManageUsers(user.email, approved.role);
   const requestedEmail = String(params?.as || "").trim().toLowerCase();
   const requestedBusinessId = String(params?.businessId || "").trim();

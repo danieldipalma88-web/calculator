@@ -364,6 +364,7 @@ export async function GET(request: Request) {
   if (approvedUser?.is_locked) {
     return NextResponse.json({ error: "Account locked" }, { status: 403 });
   }
+  await supabase.rpc("record_current_user_activity");
   const canManage = canManageUsers(currentEmail, approvedUser?.role);
   const viewingEmail = targetEmailFromRequest(
     request,
@@ -430,6 +431,7 @@ async function saveCalculatorData(request: Request) {
   if (approvedUser?.is_locked) {
     return NextResponse.json({ error: "Account locked" }, { status: 403 });
   }
+  await supabase.rpc("record_current_user_activity");
   const canManage = canManageUsers(currentEmail, approvedUser?.role);
   const viewingEmail = targetEmailFromRequest(
     request,
