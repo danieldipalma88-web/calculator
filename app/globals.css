@@ -1414,8 +1414,18 @@ select {
 
 .sales-summary-metrics {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
+}
+
+.agency-profit-metric {
+  border-color: rgba(147, 197, 253, 0.9) !important;
+  background: rgba(239, 246, 255, 0.94) !important;
+}
+
+.agency-profit-metric span,
+.agency-profit-metric strong {
+  color: #1d4ed8 !important;
 }
 
 .sales-summary-metrics div {
@@ -1787,7 +1797,7 @@ select {
 
 .won-row-metrics {
   display: grid;
-  grid-template-columns: minmax(110px, auto) repeat(5, minmax(82px, 1fr));
+  grid-template-columns: minmax(110px, auto) repeat(6, minmax(82px, 1fr));
   align-items: center;
   gap: 8px;
   min-width: 0;
@@ -2086,7 +2096,7 @@ select {
 }
 
 .won-metrics {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .won-lines {

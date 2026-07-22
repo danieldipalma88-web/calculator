@@ -16,6 +16,10 @@ export function canSeeProfitDetails(role?: string | null) {
   return canSeeCommissionDetails(role);
 }
 
+export function canSeeAgencyProfit(role?: string | null) {
+  return role === "admin" || role === "business_owner";
+}
+
 export function canManageUsers(email?: string | null, role?: string | null) {
   return isOwnerEmail(email) || isAdminRole(role);
 }

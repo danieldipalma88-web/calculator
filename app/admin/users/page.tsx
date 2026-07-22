@@ -89,6 +89,7 @@ type WonOption = {
   rebateTotal: number;
   agencyCommissionTotal: number;
   salespersonCommissionTotal: number;
+  agencyProfitAfterSalesTotal: number;
   installerProfitTotal: number;
   rows: {
     label: string;
@@ -114,6 +115,8 @@ type WonOption = {
     agencyCommissionInc: number;
     agencyCommissionEx: number;
     agencyCommissionGst: number;
+    salespersonCommissionInc: number;
+    agencyProfitAfterSalesInc: number;
     netProfit: number;
     margin: number;
     netMargin: number;
@@ -148,6 +151,7 @@ type SalespersonSalesSummary = {
   customerTotal: number;
   agencyCommissionTotal: number;
   salespersonCommissionTotal: number;
+  agencyProfitAfterSalesTotal: number;
   notPaidInCount: number;
   paymentRequestedCount: number;
   paidInCount: number;
@@ -994,6 +998,12 @@ function moneyValue(value: unknown) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function quoteAgencyProfitAfterSalesInc(row: Record<string, unknown>) {
+  const agencyCommission = moneyValue(row.agencyCommissionInc ?? row.commissionInc);
+  const salespersonCommission = moneyValue(row.salespersonCommissionInc);
+  return agencyCommission > 0 ? Math.max(0, agencyCommission - salespersonCommission) : 0;
+}
+
 function quoteStateDisablesRebates(row: Record<string, unknown>) {
   const state = row.state && typeof row.state === "object" ? row.state as Record<string, unknown> : {};
   if (state.rebatesEnabled === false) return true;
@@ -1164,6 +1174,7 @@ function wonExportRow(option: WonOption) {
     Rebate: option.rebateTotal.toFixed(2),
     "Agency commission inc GST": option.agencyCommissionTotal.toFixed(2),
     "Salesperson commission inc GST": option.salespersonCommissionTotal.toFixed(2),
+    "Agency profit after salesperson commission inc GST": option.agencyProfitAfterSalesTotal.toFixed(2),
     "Installer profit ex GST": option.installerProfitTotal.toFixed(2),
     Rows: option.rows,
   };
@@ -1183,6 +1194,7 @@ function summarizeSalesBySalesperson(wonOptions: WonOption[]) {
         customerTotal: 0,
         agencyCommissionTotal: 0,
         salespersonCommissionTotal: 0,
+        agencyProfitAfterSalesTotal: 0,
         notPaidInCount: 0,
         paymentRequestedCount: 0,
         paidInCount: 0,
@@ -1193,6 +1205,7 @@ function summarizeSalesBySalesperson(wonOptions: WonOption[]) {
     existing.customerTotal += option.customerTotal;
     existing.agencyCommissionTotal += option.agencyCommissionTotal;
     existing.salespersonCommissionTotal += option.salespersonCommissionTotal;
+    existing.agencyProfitAfterSalesTotal += option.agencyProfitAfterSalesTotal;
     if (option.paymentRequestedAt && !option.paidInAt) existing.paymentRequestedCount += 1;
     if (option.paidInAt) existing.paidInCount += 1;
     else existing.notPaidInCount += 1;
@@ -1300,12 +1313,14 @@ function wonExportScript() {
     var totals = cards.reduce(function(total, card){
       total.sales += numberFromCard(card, "data-won-sales-total");
       total.agency += numberFromCard(card, "data-won-agency-total");
+      total.agencyProfit += numberFromCard(card, "data-won-agency-profit-total");
       total.profit += numberFromCard(card, "data-won-profit-total");
       return total;
-    }, { sales: 0, agency: 0, profit: 0 });
+    }, { sales: 0, agency: 0, agencyProfit: 0, profit: 0 });
     totalsNode.hidden = false;
     totalsNode.textContent = "Selected totals (" + cards.length + "): Sales comm " + currency(totals.sales) +
       " | Agency comm " + currency(totals.agency) +
+      " | Agency profit inc GST " + currency(totals.agencyProfit) +
       " | Installer profit " + currency(totals.profit);
   }
   function refreshBulkInputs() {
@@ -1400,16 +1415,18 @@ function wonExportScript() {
         total.customer += numberFromCard(card, "data-won-customer-total");
         total.agency += numberFromCard(card, "data-won-agency-total");
         total.salesComm += numberFromCard(card, "data-won-sales-total");
+        total.agencyProfit += numberFromCard(card, "data-won-agency-profit-total");
         if (card.getAttribute("data-payment-unpaid") === "true") total.unpaid += 1;
         if (card.getAttribute("data-payment-requested") === "true") total.requested += 1;
         if (card.getAttribute("data-payment-paid-in") === "true") total.paidIn += 1;
         if (card.getAttribute("data-payment-paid-out") === "true") total.paidOut += 1;
         return total;
-      }, { sales: 0, customer: 0, agency: 0, salesComm: 0, unpaid: 0, requested: 0, paidIn: 0, paidOut: 0 });
+      }, { sales: 0, customer: 0, agency: 0, salesComm: 0, agencyProfit: 0, unpaid: 0, requested: 0, paidIn: 0, paidOut: 0 });
       var salesEl = summaryCard.querySelector("[data-summary-sales]");
       var customerEl = summaryCard.querySelector("[data-summary-customer]");
       var agencyEl = summaryCard.querySelector("[data-summary-agency]");
       var salesCommEl = summaryCard.querySelector("[data-summary-sales-comm]");
+      var agencyProfitEl = summaryCard.querySelector("[data-summary-agency-profit]");
       var unpaidEl = summaryCard.querySelector("[data-summary-unpaid]");
       var requestedEl = summaryCard.querySelector("[data-summary-payment-requested]");
       var paidInEl = summaryCard.querySelector("[data-summary-paid-in]");
@@ -1418,6 +1435,7 @@ function wonExportScript() {
       if (customerEl) customerEl.textContent = currency(totals.customer);
       if (agencyEl) agencyEl.textContent = currency(totals.agency);
       if (salesCommEl) salesCommEl.textContent = currency(totals.salesComm);
+      if (agencyProfitEl) agencyProfitEl.textContent = currency(totals.agencyProfit);
       if (unpaidEl) unpaidEl.textContent = String(totals.unpaid);
       if (requestedEl) requestedEl.textContent = String(totals.requested);
       if (paidInEl) paidInEl.textContent = String(totals.paidIn);
@@ -1521,6 +1539,7 @@ function wonExportScript() {
       "Rebate",
       "Agency commission inc GST",
       "Salesperson commission inc GST",
+      "Agency profit after salesperson commission inc GST",
       "Installer profit ex GST"
     ]];
     var totals = {
@@ -1529,6 +1548,7 @@ function wonExportScript() {
       rebate: 0,
       agency: 0,
       salesperson: 0,
+      agencyProfit: 0,
       profit: 0
     };
     jobs.forEach(function(job){
@@ -1537,12 +1557,14 @@ function wonExportScript() {
       var rebate = Number(job.Rebate || 0);
       var agency = Number(job["Agency commission inc GST"] || 0);
       var salesperson = Number(job["Salesperson commission inc GST"] || 0);
+      var agencyProfit = Number(job["Agency profit after salesperson commission inc GST"] || 0);
       var profit = Number(job["Installer profit ex GST"] || 0);
       totals.systems += systems;
       totals.customer += customer;
       totals.rebate += rebate;
       totals.agency += agency;
       totals.salesperson += salesperson;
+      totals.agencyProfit += agencyProfit;
       totals.profit += profit;
       output.push([
         job.Salesperson || "",
@@ -1560,6 +1582,7 @@ function wonExportScript() {
         rebate,
         agency,
         salesperson,
+        agencyProfit,
         profit
       ]);
     });
@@ -1579,6 +1602,7 @@ function wonExportScript() {
       totals.rebate,
       totals.agency,
       totals.salesperson,
+      totals.agencyProfit,
       totals.profit
     ]);
     return output;
@@ -1601,6 +1625,8 @@ function wonExportScript() {
       ["Customer total inc GST", Number(job["Customer total inc GST"] || 0)],
       ["Rebate", Number(job.Rebate || 0)],
       ["Agency commission inc GST", Number(job["Agency commission inc GST"] || 0)],
+      ["Salesperson commission inc GST", Number(job["Salesperson commission inc GST"] || 0)],
+      ["Agency profit after salesperson commission inc GST", Number(job["Agency profit after salesperson commission inc GST"] || 0)],
       ["Installer profit ex GST", Number(job["Installer profit ex GST"] || 0)],
       [],
       [
@@ -1626,6 +1652,8 @@ function wonExportScript() {
         "Agency commission ex GST",
         "Agency commission GST",
         "Agency commission inc GST",
+        "Salesperson commission inc GST",
+        "Agency profit after salesperson commission inc GST",
         "Installer profit ex GST",
         "Margin %",
         "Net margin %"
@@ -1655,6 +1683,8 @@ function wonExportScript() {
         Number(row.agencyCommissionEx || 0),
         Number(row.agencyCommissionGst || 0),
         Number(row.agencyCommissionInc || 0),
+        Number(row.salespersonCommissionInc || 0),
+        Number(row.agencyProfitAfterSalesInc || 0),
         Number(row.netProfit || 0),
         Number(row.margin || 0) * 100,
         Number(row.netMargin || 0) * 100
@@ -2228,6 +2258,8 @@ function addWonOptionsFromSnapshot({
         agencyCommissionInc: moneyValue(quote.agencyCommissionInc ?? quote.commissionInc),
         agencyCommissionEx: moneyValue(quote.agencyCommission ?? quote.commission),
         agencyCommissionGst: moneyValue(quote.agencyCommissionGst ?? quote.commissionGst),
+        salespersonCommissionInc: moneyValue(quote.salespersonCommissionInc),
+        agencyProfitAfterSalesInc: quoteAgencyProfitAfterSalesInc(quote),
         netProfit: moneyValue(quote.netProfit),
         margin: moneyValue(quote.margin),
         netMargin: moneyValue(quote.netMargin),
@@ -2270,6 +2302,10 @@ function addWonOptionsFromSnapshot({
         ),
         salespersonCommissionTotal: rows.reduce(
           (sum, quote) => sum + moneyValue(quote.salespersonCommissionInc),
+          0,
+        ),
+        agencyProfitAfterSalesTotal: rows.reduce(
+          (sum, quote) => sum + quoteAgencyProfitAfterSalesInc(quote),
           0,
         ),
         installerProfitTotal: rows.reduce((sum, quote) => sum + moneyValue(quote.netProfit), 0),
@@ -2321,6 +2357,7 @@ function wonOptionRowsFingerprint(option: WonOption) {
       row.finalInc.toFixed(2),
       row.rebate.toFixed(2),
       row.agencyCommissionInc.toFixed(2),
+      row.salespersonCommissionInc.toFixed(2),
       row.netProfit.toFixed(2),
     ].join("~"))
     .sort();
@@ -4048,6 +4085,7 @@ export default async function AdminUsersPage({
                     <div><span>Customer</span><strong data-summary-customer="true">{formatMoney(summary.customerTotal)}</strong></div>
                     <div><span>Agency comm</span><strong data-summary-agency="true">{formatMoney(summary.agencyCommissionTotal)}</strong></div>
                     <div><span>Sales comm</span><strong data-summary-sales-comm="true">{formatMoney(summary.salespersonCommissionTotal)}</strong></div>
+                    <div className="agency-profit-metric"><span>Agency profit inc GST</span><strong data-summary-agency-profit="true">{formatMoney(summary.agencyProfitAfterSalesTotal)}</strong></div>
                   </div>
                   <div className="sales-status-strip">
                     <button
@@ -4120,6 +4158,7 @@ export default async function AdminUsersPage({
                 data-payment-paid-in={option.paidInAt ? "true" : "false"}
                 data-payment-paid-out={option.paidOutAt ? "true" : "false"}
                 data-won-agency-total={option.agencyCommissionTotal}
+                data-won-agency-profit-total={option.agencyProfitAfterSalesTotal}
                 data-won-customer-total={option.customerTotal}
                 data-won-profit-total={option.installerProfitTotal}
                 data-won-sales-total={option.salespersonCommissionTotal}
@@ -4164,6 +4203,10 @@ export default async function AdminUsersPage({
                     <span className="won-row-metric">
                       <span>Sales comm</span>
                       <strong>{formatMoney(option.salespersonCommissionTotal)}</strong>
+                    </span>
+                    <span className="won-row-metric agency-profit-metric">
+                      <span>Agency profit inc GST</span>
+                      <strong>{formatMoney(option.agencyProfitAfterSalesTotal)}</strong>
                     </span>
                     <span className="won-row-metric">
                       <span>Installer profit</span>
@@ -4297,6 +4340,7 @@ export default async function AdminUsersPage({
                   <div><span>Rebate</span><strong>{formatMoney(option.rebateTotal)}</strong></div>
                   <div><span>Agency comm</span><strong>{formatMoney(option.agencyCommissionTotal)}</strong></div>
                   <div><span>Sales comm</span><strong>{formatMoney(option.salespersonCommissionTotal)}</strong></div>
+                  <div className="agency-profit-metric"><span>Agency profit after salesperson commission inc GST</span><strong>{formatMoney(option.agencyProfitAfterSalesTotal)}</strong></div>
                   <div><span>Installer profit</span><strong>{formatMoney(option.installerProfitTotal)}</strong></div>
                   <div><span>Payment requested</span><strong>{option.paymentRequestedAt ? formatShortDate(option.paymentRequestedAt) : "Not yet"}</strong></div>
                   <div><span>Paid in</span><strong>{option.paidInAt ? formatShortDate(option.paidInAt) : "Not yet"}</strong></div>

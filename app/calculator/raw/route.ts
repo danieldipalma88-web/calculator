@@ -1,7 +1,13 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { NextResponse } from "next/server";
-import { canManageUsers, canSeeCommissionDetails, canSeeProfitDetails, isOwnerEmail } from "../../../lib/admin";
+import {
+  canManageUsers,
+  canSeeAgencyProfit,
+  canSeeCommissionDetails,
+  canSeeProfitDetails,
+  isOwnerEmail,
+} from "../../../lib/admin";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
 
 function safeScriptJson(value: unknown) {
@@ -28,6 +34,7 @@ type CalculatorUserContext = {
   canSeeProfitDetails: boolean;
   canSeeOwnerDetails: boolean;
   canSeeSalespersonCommission: boolean;
+  canSeeAgencyProfit: boolean;
   isPreviewMode: boolean;
 };
 
@@ -600,6 +607,10 @@ function injectCloudStorageSync(
     if (el) el.style.display = '';
   }
   function hideProfitAndCommissionUi(){
+    if (!calculatorUser || !calculatorUser.canSeeAgencyProfit) {
+      hideElement('agencyProfitAfterSalesRow');
+      hideElement('multiAgencyProfitAfterSalesRow');
+    }
     if (calculatorUser && calculatorUser.canSeeCommissionDetails && calculatorUser.canSeeProfitDetails) return;
     hideElement('commissionRatePanel');
     hideElement('commissionRow');
@@ -929,7 +940,11 @@ export async function GET(request: Request) {
         ...stripAccountManagedRebateOverrides(savedData),
         ...trustedBusinessManagedPriceData(savedDataResult.businessData),
       };
-  const useAdminVisibility = currentUserIsOwner && !previewAsViewedUser;
+  const useAdminVisibility = (currentUserIsOwner || approved.role === "admin") && !previewAsViewedUser;
+  const currentUserCanSeeAgencyProfit = currentUserIsOwner || approved.role === "admin";
+  const agencyProfitVisible = previewAsViewedUser
+    ? canSeeAgencyProfit(contextRole)
+    : currentUserCanSeeAgencyProfit || canSeeAgencyProfit(contextRole);
   const effectiveCanManageUsers = previewAsViewedUser
     ? canManageUsers(viewingEmail, contextRole)
     : canManage;
@@ -958,6 +973,7 @@ export async function GET(request: Request) {
       canSeeProfitDetails: useAdminVisibility || canSeeProfitDetails(contextRole),
       canSeeOwnerDetails: useAdminVisibility,
       canSeeSalespersonCommission: true,
+      canSeeAgencyProfit: agencyProfitVisible,
       isPreviewMode: previewAsViewedUser,
     },
   );
