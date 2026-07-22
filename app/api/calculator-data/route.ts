@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { canManageUsers, isOwnerEmail } from "../../../lib/admin";
 import { mergeCalculatorData } from "../../../lib/quote-sync";
+import {
+  validateNewWonJobTransitions,
+  wonJobValidationMessage,
+} from "../../../lib/won-job-validation";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
 
 const MANAGED_PRICE_STORAGE_KEYS = [
@@ -311,10 +315,20 @@ async function saveMergedUserData(
         };
       }
 
+      const mergedData = mergeCalculatorData({}, incomingData);
+      const wonValidation = validateNewWonJobTransitions({}, mergedData);
+      if (!wonValidation.valid) {
+        return {
+          error: wonJobValidationMessage(wonValidation),
+          code: "WON_JOB_DETAILS_REQUIRED",
+          status: 422,
+        };
+      }
+
       const inserted = await supabase.from("user_calculator_data").upsert({
         user_id: authenticatedUserId,
         email: targetEmail,
-        data: incomingData,
+        data: mergedData,
         updated_at: new Date().toISOString(),
       });
       if (!inserted.error) return { ok: true };
@@ -325,12 +339,22 @@ async function saveMergedUserData(
       return { ok: true, skipped: "empty_snapshot_ignored" };
     }
 
+    const mergedData = mergeCalculatorData(existing.data, incomingData);
+    const wonValidation = validateNewWonJobTransitions(existing.data, mergedData);
+    if (!wonValidation.valid) {
+      return {
+        error: wonJobValidationMessage(wonValidation),
+        code: "WON_JOB_DETAILS_REQUIRED",
+        status: 422,
+      };
+    }
+
     const nextUpdatedAt = new Date().toISOString();
     let update = supabase
       .from("user_calculator_data")
       .update({
         email: targetEmail,
-        data: mergeCalculatorData(existing.data, incomingData),
+        data: mergedData,
         updated_at: nextUpdatedAt,
       })
       .eq("user_id", existing.user_id);
@@ -477,7 +501,10 @@ async function saveCalculatorData(request: Request) {
     viewingEmail !== currentEmail,
   );
   if ("error" in userSave) {
-    return NextResponse.json({ error: userSave.error }, { status: userSave.status });
+    return NextResponse.json(
+      { error: userSave.error, code: "code" in userSave ? userSave.code : undefined },
+      { status: userSave.status },
+    );
   }
   return NextResponse.json(userSave);
 }
