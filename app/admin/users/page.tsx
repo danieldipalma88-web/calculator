@@ -1,7 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import Script from "next/script";
-import { canManageUsers } from "../../../lib/admin";
+import { canManageUsers, isOwnerEmail } from "../../../lib/admin";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
 import PageLoadingOverlay from "../../page-loading-overlay";
 
@@ -37,6 +37,7 @@ type Business = {
 type ApprovedUser = {
   email: string;
   display_name: string;
+  is_locked: boolean;
   role: UserRole;
   business_id: string | null;
   business_name: string | null;
@@ -500,6 +501,7 @@ function normalizeApprovedUser(
   return {
     email: String(row.email || ""),
     display_name: String(row.display_name || ""),
+    is_locked: Boolean(row.is_locked),
     role,
     business_id: businessId,
     business_name: String(row.business_name || business?.name || ""),
@@ -660,11 +662,24 @@ async function applyPlatformCertificateValuesToBusinesses(
 }
 
 async function listApprovedUsers(supabase: SupabaseServer, businesses: Business[]) {
+  const lockResult = await supabase
+    .from("approved_users")
+    .select("email, is_locked");
+  const lockByEmail = new Map(
+    lockResult.error
+      ? []
+      : ((lockResult.data || []) as { email?: string | null; is_locked?: boolean | null }[])
+          .map((row) => [String(row.email || "").toLowerCase(), Boolean(row.is_locked)]),
+  );
+  const withLockState = (row: Record<string, unknown>) => ({
+    ...row,
+    is_locked: lockByEmail.get(String(row.email || "").toLowerCase()) || false,
+  });
   const rpcResult = await supabase.rpc("admin_list_approved_users");
   if (!rpcResult.error) {
     return {
       data: ((rpcResult.data || []) as Record<string, unknown>[]).map((row) =>
-        normalizeApprovedUser(row, businesses),
+        normalizeApprovedUser(withLockState(row), businesses),
       ),
       errorMessage: "",
     };
@@ -684,7 +699,7 @@ async function listApprovedUsers(supabase: SupabaseServer, businesses: Business[
   if (!directResult.error) {
     return {
       data: ((directResult.data || []) as Record<string, unknown>[]).map((row) =>
-        normalizeApprovedUser(row, businesses),
+        normalizeApprovedUser(withLockState(row), businesses),
       ),
       errorMessage: "",
     };
@@ -700,7 +715,7 @@ async function listApprovedUsers(supabase: SupabaseServer, businesses: Business[
   if (!preNameResult.error) {
     return {
       data: ((preNameResult.data || []) as Record<string, unknown>[]).map((row) =>
-        normalizeApprovedUser(row, businesses),
+        normalizeApprovedUser(withLockState(row), businesses),
       ),
       errorMessage: schemaSetupMessage(directResult.error),
     };
@@ -720,7 +735,7 @@ async function listApprovedUsers(supabase: SupabaseServer, businesses: Business[
 
   return {
     data: ((legacyResult.data || []) as Record<string, unknown>[]).map((row) =>
-      normalizeApprovedUser(row, businesses),
+      normalizeApprovedUser(withLockState(row), businesses),
     ),
     errorMessage: schemaSetupMessage(directResult.error),
   };
@@ -898,6 +913,22 @@ async function deleteApprovedUser(supabase: SupabaseServer, email: string) {
   if (!isSchemaCacheFunctionError(rpcResult.error)) return dbMessage(rpcResult.error);
 
   const directResult = await supabase.from("approved_users").delete().eq("email", email);
+  return directResult.error ? schemaSetupMessage(directResult.error) : "";
+}
+
+async function saveApprovedUserLock(supabase: SupabaseServer, email: string, locked: boolean) {
+  const rpcResult = await supabase.rpc("admin_set_approved_user_lock", {
+    target_email: email,
+    target_locked: locked,
+  });
+
+  if (!rpcResult.error) return "";
+  if (!isSchemaCacheFunctionError(rpcResult.error)) return dbMessage(rpcResult.error);
+
+  const directResult = await supabase
+    .from("approved_users")
+    .update({ is_locked: locked })
+    .eq("email", email);
   return directResult.error ? schemaSetupMessage(directResult.error) : "";
 }
 
@@ -1199,7 +1230,7 @@ function wonExportScript() {
       .map(function(card){ return card.querySelector(".won-sale-select"); })
       .filter(Boolean);
     var hasVisibleUnchecked = visibleBoxes.some(function(box){ return !box.checked; });
-    selectAll.textContent = visibleBoxes.length && !hasVisibleUnchecked ? "Clear visible" : "Select visible";
+    selectAll.textContent = visibleBoxes.length && !hasVisibleUnchecked ? "Clear All" : "Select All";
   }
   function syncWonSelectionControl(box) {
     if (!box || !box.closest) return;
@@ -1291,17 +1322,17 @@ function wonExportScript() {
     var paymentText = activePayments.length ? " with " + activePayments.map(paymentFilterLabel).join(", ") : "";
     if (!activeEmails.length) {
       if (paymentText) {
-        status.textContent = "Showing " + visibleCount + paymentText + " won options.";
+        status.textContent = "Showing " + visibleCount + paymentText + " wire quotes.";
         return;
       }
-      status.textContent = "Showing all " + visibleCount + " won options.";
+      status.textContent = "Showing all " + visibleCount + " wire quotes.";
       return;
     }
     var names = activeEmails.map(function(email){
       var card = salespersonCardForEmail(email);
       return card ? String(card.getAttribute("data-salesperson-name") || email) : email;
     });
-    status.textContent = "Showing " + visibleCount + paymentText + " won options for " + names.join(", ") + ".";
+    status.textContent = "Showing " + visibleCount + paymentText + " wire quotes for " + names.join(", ") + ".";
   }
   function activeSalespersonEmails() {
     return Array.prototype.slice.call(document.querySelectorAll(".sales-summary-card.is-active"))
@@ -1315,11 +1346,15 @@ function wonExportScript() {
     return values.filter(function(value, index){ return values.indexOf(value) === index; });
   }
   function updateSalespersonSummaryTotals(activePayments) {
+    var selectedEmails = activeSalespersonEmails();
+    var hasSelectedSalespeople = selectedEmails.length > 0;
     Array.prototype.slice.call(document.querySelectorAll("[data-salesperson-filter]")).forEach(function(summaryCard){
       var email = String(summaryCard.getAttribute("data-salesperson-filter") || "").toLowerCase();
+      var appliesToSummary = !hasSelectedSalespeople || selectedEmails.indexOf(email) >= 0;
+      var summaryPayments = appliesToSummary ? activePayments : [];
       var cards = Array.prototype.slice.call(document.querySelectorAll(".won-card")).filter(function(card){
         return String(card.getAttribute("data-won-user-email") || "").toLowerCase() === email &&
-          cardMatchesPaymentFilters(card, activePayments);
+          cardMatchesPaymentFilters(card, summaryPayments);
       });
       var totals = cards.reduce(function(total, card){
         total.sales += 1;
@@ -1351,8 +1386,15 @@ function wonExportScript() {
     });
   }
   function updatePaymentFilterButtons(activePayments) {
+    var selectedEmails = activeSalespersonEmails();
+    var hasSelectedSalespeople = selectedEmails.length > 0;
     Array.prototype.slice.call(document.querySelectorAll("[data-payment-filter]")).forEach(function(button){
-      var isActive = activePayments.indexOf(String(button.getAttribute("data-payment-filter") || "")) >= 0;
+      var summaryCard = button.closest ? button.closest("[data-salesperson-filter]") : null;
+      var summaryEmail = summaryCard
+        ? String(summaryCard.getAttribute("data-salesperson-filter") || "").toLowerCase()
+        : "";
+      var appliesToSummary = !hasSelectedSalespeople || selectedEmails.indexOf(summaryEmail) >= 0;
+      var isActive = appliesToSummary && activePayments.indexOf(String(button.getAttribute("data-payment-filter") || "")) >= 0;
       button.classList.toggle("is-active", isActive);
       button.setAttribute("aria-pressed", isActive ? "true" : "false");
     });
@@ -1389,6 +1431,7 @@ function wonExportScript() {
     syncWonSelectionControls();
     updateSelectAllLabel();
     refreshBulkInputs();
+    updatePaymentFilterButtons(activePayments);
     updateSalespersonSummaryTotals(activePayments);
     updateWonFilterStatus(activeEmails, activePayments);
     updateRequestedOutstanding();
@@ -1756,8 +1799,8 @@ function wonExportScript() {
     var cards = selectedWonCards();
     var jobs = cards.map(parseCard).filter(Boolean);
     if (!jobs.length) {
-      setExportStatus("Select at least one won option first.", "error");
-      window.alert("Select at least one won option first.");
+      setExportStatus("Select at least one wire quote first.", "error");
+      window.alert("Select at least one wire quote first.");
       return;
     }
     setExportStatus("Preparing XLSX export...", "loading");
@@ -1810,7 +1853,7 @@ function wonExportScript() {
       syncWonSelectionControls();
       updateSelectAllLabel();
       refreshBulkInputs();
-      setExportStatus(shouldCheck ? "Selected " + boxes.length + " visible won option" + (boxes.length === 1 ? "." : "s.") : "Cleared visible selections.", "success");
+      setExportStatus(shouldCheck ? "Selected all " + boxes.length + " wire quote" + (boxes.length === 1 ? "." : "s.") : "Cleared all selections.", "success");
       return;
     }
 
@@ -1827,8 +1870,14 @@ function wonExportScript() {
       event.stopPropagation();
       var payment = String(paymentTarget.getAttribute("data-payment-filter") || "");
       if (!payment) return;
+      var selectedSalespeople = activeSalespersonEmails();
+      var paymentSummary = paymentTarget.closest ? paymentTarget.closest("[data-salesperson-filter]") : null;
+      var paymentSummaryEmail = paymentSummary
+        ? String(paymentSummary.getAttribute("data-salesperson-filter") || "").toLowerCase()
+        : "";
+      if (selectedSalespeople.length && selectedSalespeople.indexOf(paymentSummaryEmail) < 0) return;
       var activePayments = activePaymentFilters();
-      var isActive = activePayments.indexOf(payment) >= 0;
+      var isActive = paymentTarget.classList.contains("is-active");
       updatePaymentFilterButtons(isActive ? activePayments.filter(function(value){ return value !== payment; }) : activePayments.concat(payment));
       applyWonSalespersonFilter();
       return;
@@ -1866,7 +1915,7 @@ function wonExportScript() {
       refreshBulkInputs();
       if (!selectedWonSelections().length) {
         event.preventDefault();
-        window.alert("Select at least one won option first.");
+        window.alert("Select at least one wire quote first.");
         return;
       }
     }
@@ -2774,13 +2823,17 @@ async function requireAdmin() {
   }
 
   const email = user.email.toLowerCase();
-  const { data: approvedUser } = await supabase
+  const upgradedApproval = await supabase
     .from("approved_users")
-    .select("role")
+    .select("role, is_locked")
     .eq("email", email)
     .maybeSingle();
+  const legacyApproval = upgradedApproval.error
+    ? await supabase.from("approved_users").select("role").eq("email", email).maybeSingle()
+    : null;
+  const approvedUser = upgradedApproval.error ? legacyApproval?.data : upgradedApproval.data;
 
-  if (!canManageUsers(email, String(approvedUser?.role || ""))) {
+  if (Boolean((approvedUser as { is_locked?: boolean } | null)?.is_locked) || !canManageUsers(email, String(approvedUser?.role || ""))) {
     redirect("/calculator");
   }
 
@@ -2976,6 +3029,30 @@ async function removeApprovedUser(formData: FormData) {
 
   revalidatePath("/admin/users");
   redirect(`/admin/users?message=${encodeURIComponent(`${email} was removed.`)}`);
+}
+
+async function setApprovedUserLock(formData: FormData) {
+  "use server";
+
+  const { supabase, email: currentEmail } = await requireAdmin();
+  const email = normalizeEmail(formData.get("email"));
+  const locked = formData.get("locked") === "1";
+
+  if (!email) {
+    redirect("/admin/users?error=Could not identify the user account.");
+  }
+
+  if (email === currentEmail || isOwnerEmail(email)) {
+    redirect("/admin/users?error=You cannot lock this platform admin account.");
+  }
+
+  const errorMessage = await saveApprovedUserLock(supabase, email, locked);
+  if (errorMessage) {
+    redirect(`/admin/users?error=${encodeURIComponent(errorMessage)}`);
+  }
+
+  revalidatePath("/admin/users");
+  redirect(`/admin/users?message=${encodeURIComponent(`${email} was ${locked ? "locked" : "unlocked"}.`)}`);
 }
 
 async function unlockWonOption(formData: FormData) {
@@ -3204,7 +3281,6 @@ export default async function AdminUsersPage({
   const wonResult = await listWonOptions(supabase, users, includeBackupWonOptions);
   const wonOptions = wonResult.data;
   const salespersonSales = summarizeSalesBySalesperson(wonOptions);
-  const firstBusinessId = businesses[0]?.id || "";
   const certificateValues = certificateResult.data;
   const businessCertificateValues = certificateResult.businessValuesById;
 
@@ -3238,7 +3314,7 @@ export default async function AdminUsersPage({
           <div className="notice">Supabase membership setup: {membershipsResult.errorMessage}</div>
         ) : null}
         {wonResult.errorMessage ? (
-          <div className="notice">Won options setup: {wonResult.errorMessage}</div>
+          <div className="notice">Wire Quotes setup: {wonResult.errorMessage}</div>
         ) : null}
         {certificateResult.errorMessage ? (
           <div className="notice">Certificate values setup: {certificateResult.errorMessage}</div>
@@ -3538,7 +3614,7 @@ export default async function AdminUsersPage({
             </div>
             <div>
               <label>Businesses</label>
-              <BusinessMultiSelect businesses={businesses} selectedIds={firstBusinessId ? [firstBusinessId] : []} />
+              <BusinessMultiSelect businesses={businesses} selectedIds={[]} />
             </div>
             <div>
               <label htmlFor="commissionType">Commission override</label>
@@ -3568,17 +3644,121 @@ export default async function AdminUsersPage({
               const isSelf = approvedUser.email.toLowerCase() === currentEmail;
               const commissionOverride = approvedUser.commission_type_override || "business_default";
               return (
-                <article className="user-card" key={approvedUser.email}>
-                  <div className="user-card-head">
-                    <div>
-                      <strong>{displayNameFor(approvedUser)}</strong>
-                      {isSelf ? <span className="self-pill">You</span> : null}
-                      <span className="muted-line">{approvedUser.email}</span>
+                <details className={`user-card user-card-collapsible${approvedUser.is_locked ? " user-card-locked" : ""}`} key={approvedUser.email}>
+                  <summary className="user-card-summary">
+                    <div className="user-summary-identity">
+                      <div>
+                        <strong>{displayNameFor(approvedUser)}</strong>
+                        {isSelf ? <span className="self-pill">You</span> : null}
+                        <span className={`user-access-pill ${approvedUser.is_locked ? "is-locked" : "is-active"}`}>
+                          {approvedUser.is_locked ? "Locked" : "Active"}
+                        </span>
+                      </div>
+                      <span>{approvedUser.email}</span>
                     </div>
-                    <div className="action-stack">
+                    <div className="user-summary-meta">
+                      <span>
+                        <small>Role</small>
+                        <strong>{roleOptions.find((option) => option.value === approvedUser.role)?.label || approvedUser.role}</strong>
+                      </span>
+                      <span>
+                        <small>Businesses</small>
+                        <strong>{approvedUser.business_names.join(", ") || approvedUser.business_name || "No business"}</strong>
+                      </span>
+                    </div>
+                    <span className="user-expand-label" aria-hidden="true">
+                      <span className="collapsed-label">Expand</span>
+                      <span className="expanded-label">Collapse</span>
+                    </span>
+                  </summary>
+
+                  <div className="user-card-body">
+                    <div className="user-facts">
+                      <div><span>Businesses</span><strong>{approvedUser.business_names.join(", ") || approvedUser.business_name || "No business"}</strong></div>
+                      <div><span>Role</span><strong>{roleOptions.find((option) => option.value === approvedUser.role)?.label || approvedUser.role}</strong></div>
+                      <div><span>Commission</span><strong>{commissionLabel(approvedUser.effective_commission_type)}</strong></div>
+                      <div><span>Rates</span><strong>{formatRate(approvedUser.effective_agency_commission_rate)}% / {formatRate(approvedUser.effective_salesperson_commission_rate)}%</strong></div>
+                    </div>
+
+                    <form action={updateApprovedUser} className="user-edit-grid" data-loading-label="Saving approved user...">
+                      <input type="hidden" name="email" value={approvedUser.email} />
+                      {isSelf ? <input type="hidden" name="role" value={approvedUser.role} /> : null}
+                      <div>
+                        <label>Name</label>
+                        <input name="displayName" defaultValue={approvedUser.display_name} placeholder="Name" />
+                      </div>
+                      <div>
+                        <label>Role</label>
+                        <select name="role" defaultValue={approvedUser.role} disabled={isSelf}>
+                          {roleOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label>Businesses</label>
+                        <BusinessMultiSelect businesses={businesses} selectedIds={approvedUser.business_ids} />
+                      </div>
+                      <div>
+                        <label>Override</label>
+                        <select name="commissionType" defaultValue={commissionOverride}>
+                          {commissionOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label>Primary %</label>
+                        <input
+                          name="agencyCommissionRate"
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.1"
+                          placeholder="Default"
+                          defaultValue={
+                            approvedUser.agency_commission_rate_override === null
+                              ? ""
+                              : formatRate(approvedUser.agency_commission_rate_override)
+                          }
+                        />
+                      </div>
+                      <div>
+                        <label>Salesperson %</label>
+                        <input
+                          name="salespersonCommissionRate"
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.1"
+                          placeholder="Default"
+                          defaultValue={
+                            approvedUser.salesperson_commission_rate_override === null
+                              ? ""
+                              : formatRate(approvedUser.salesperson_commission_rate_override)
+                          }
+                        />
+                      </div>
+                      <button className="secondary" type="submit" disabled={isSelf}>
+                        Save user
+                      </button>
+                    </form>
+
+                    <div className="user-card-actions">
                       <a className="button secondary" href={`/calculator?as=${encodeURIComponent(approvedUser.email)}`} data-loading-label="Opening user calculator...">
-                        Open
+                        Open calculator
                       </a>
+                      <form action={setApprovedUserLock} data-loading-label={`${approvedUser.is_locked ? "Unlocking" : "Locking"} user access...`}>
+                        <input type="hidden" name="email" value={approvedUser.email} />
+                        <input type="hidden" name="locked" value={approvedUser.is_locked ? "0" : "1"} />
+                        <button className="secondary" type="submit" disabled={isSelf}>
+                          {approvedUser.is_locked ? "Unlock access" : "Lock access"}
+                        </button>
+                      </form>
                       <form action={removeApprovedUser} data-loading-label="Removing approved user...">
                         <input type="hidden" name="email" value={approvedUser.email} />
                         <button className="danger" type="submit" disabled={isSelf}>
@@ -3587,82 +3767,7 @@ export default async function AdminUsersPage({
                       </form>
                     </div>
                   </div>
-
-                  <div className="user-facts">
-                    <div><span>Businesses</span><strong>{approvedUser.business_names.join(", ") || approvedUser.business_name || "No business"}</strong></div>
-                    <div><span>Role</span><strong>{roleOptions.find((option) => option.value === approvedUser.role)?.label || approvedUser.role}</strong></div>
-                    <div><span>Commission</span><strong>{commissionLabel(approvedUser.effective_commission_type)}</strong></div>
-                    <div><span>Rates</span><strong>{formatRate(approvedUser.effective_agency_commission_rate)}% / {formatRate(approvedUser.effective_salesperson_commission_rate)}%</strong></div>
-                  </div>
-
-                  <form action={updateApprovedUser} className="user-edit-grid" data-loading-label="Saving approved user...">
-                    <input type="hidden" name="email" value={approvedUser.email} />
-                    {isSelf ? <input type="hidden" name="role" value={approvedUser.role} /> : null}
-                    <div>
-                      <label>Name</label>
-                      <input name="displayName" defaultValue={approvedUser.display_name} placeholder="Name" />
-                    </div>
-                    <div>
-                      <label>Role</label>
-                      <select name="role" defaultValue={approvedUser.role} disabled={isSelf}>
-                        {roleOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label>Businesses</label>
-                      <BusinessMultiSelect businesses={businesses} selectedIds={approvedUser.business_ids} />
-                    </div>
-                    <div>
-                      <label>Override</label>
-                      <select name="commissionType" defaultValue={commissionOverride}>
-                        {commissionOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label>Primary %</label>
-                      <input
-                        name="agencyCommissionRate"
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.1"
-                        placeholder="Default"
-                        defaultValue={
-                          approvedUser.agency_commission_rate_override === null
-                            ? ""
-                            : formatRate(approvedUser.agency_commission_rate_override)
-                        }
-                      />
-                    </div>
-                    <div>
-                      <label>Salesperson %</label>
-                      <input
-                        name="salespersonCommissionRate"
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.1"
-                        placeholder="Default"
-                        defaultValue={
-                          approvedUser.salesperson_commission_rate_override === null
-                            ? ""
-                            : formatRate(approvedUser.salesperson_commission_rate_override)
-                        }
-                      />
-                    </div>
-                    <button className="secondary" type="submit" disabled={isSelf}>
-                      Save user
-                    </button>
-                  </form>
-                </article>
+                </details>
               );
             })}
             {!users.length ? <div className="empty-card">No approved users found.</div> : null}
@@ -3793,8 +3898,8 @@ export default async function AdminUsersPage({
         <details className="admin-section won-options-section" id="won-options">
           <summary className="section-heading admin-section-summary">
             <div>
-              <h2>Won options</h2>
-              <p>Options marked as won in each calculator, including Daniel's full commission view.</p>
+              <h2>Wire Quotes</h2>
+              <p>Quotes marked as won in each calculator, including Daniel's full commission view.</p>
             </div>
             <span className="section-count">{wonOptions.length} total</span>
             <span className="section-chevron" aria-hidden="true" />
@@ -3811,7 +3916,7 @@ export default async function AdminUsersPage({
             <div className="won-backup-note">
               <div>
                 <strong>
-                  {includeBackupWonOptions ? "Recovered backup options included" : "Current won options only"}
+                  {includeBackupWonOptions ? "Recovered wire quotes included" : "Current wire quotes only"}
                 </strong>
                 <span>
                   {includeBackupWonOptions
@@ -3827,50 +3932,50 @@ export default async function AdminUsersPage({
               </a>
             </div>
             <div className="won-toolbar">
-              <div className="won-toolbar-primary">
+              <div className="won-toolbar-controls">
                 <button className="secondary" type="button" data-select-all-won>
-                  Select visible
+                  Select All
                 </button>
                 <button className="orange" type="button" data-export-won-selected>
                   Export selected Excel
                 </button>
-                <span className="won-export-status" data-won-export-status role="status" aria-live="polite" />
-              </div>
-              <form action={bulkUpdateWonOptions} className="won-bulk-actions" data-bulk-won-form>
-                <input type="hidden" name="selectedWonOptions" data-selected-won-input />
-                <button className="secondary" type="submit" name="bulkMode" value="payment_requested">
-                  Mark payment requested
-                </button>
-                <button className="secondary" type="submit" name="bulkMode" value="paid_in">
-                  Mark paid in
-                </button>
-                <button className="secondary" type="submit" name="bulkMode" value="paid_out">
-                  Mark paid out
-                </button>
-                <button className="secondary" type="submit" name="bulkMode" value="reset_payment">
-                  Reset payment
-                </button>
-                <button className="secondary" type="submit" name="bulkMode" value="unlock">
-                  Unlock
-                </button>
-              </form>
-              <details className="delete-confirm bulk-delete-confirm">
-                <summary>Delete selected</summary>
-                <form
-                  action={bulkUpdateWonOptions}
-                  data-bulk-won-form
-                  data-confirm-message="This permanently deletes the selected won opportunities from current and recovered backup data. This cannot be undone."
-                >
+                <form action={bulkUpdateWonOptions} className="won-bulk-actions" data-bulk-won-form>
                   <input type="hidden" name="selectedWonOptions" data-selected-won-input />
-                  <input type="hidden" name="bulkMode" value="delete" />
-                  <p className="delete-warning">
-                    This permanently deletes the selected won opportunities from current and recovered backup data. This cannot be undone.
-                  </p>
-                  <button className="danger" type="submit">
-                    Permanently delete
+                  <button className="secondary" type="submit" name="bulkMode" value="payment_requested">
+                    Mark payment requested
+                  </button>
+                  <button className="secondary" type="submit" name="bulkMode" value="paid_in">
+                    Mark paid in
+                  </button>
+                  <button className="secondary" type="submit" name="bulkMode" value="paid_out">
+                    Mark paid out
+                  </button>
+                  <button className="secondary" type="submit" name="bulkMode" value="reset_payment">
+                    Reset payment
+                  </button>
+                  <button className="secondary" type="submit" name="bulkMode" value="unlock">
+                    Unlock
                   </button>
                 </form>
-              </details>
+                <details className="delete-confirm bulk-delete-confirm">
+                  <summary>Delete selected</summary>
+                  <form
+                    action={bulkUpdateWonOptions}
+                    data-bulk-won-form
+                    data-confirm-message="This permanently deletes the selected wire quotes from current and recovered backup data. This cannot be undone."
+                  >
+                    <input type="hidden" name="selectedWonOptions" data-selected-won-input />
+                    <input type="hidden" name="bulkMode" value="delete" />
+                    <p className="delete-warning">
+                      This permanently deletes the selected wire quotes from current and recovered backup data. This cannot be undone.
+                    </p>
+                    <button className="danger" type="submit">
+                      Permanently delete
+                    </button>
+                  </form>
+                </details>
+              </div>
+              <span className="won-export-status" data-won-export-status role="status" aria-live="polite" />
             </div>
 
           {salespersonSales.length ? (
@@ -3939,7 +4044,7 @@ export default async function AdminUsersPage({
           ) : null}
 
           <div className="won-filter-status" data-won-filter-status>
-            Showing all {wonOptions.length} won options.
+            Showing all {wonOptions.length} wire quotes.
           </div>
           <div className="won-requested-outstanding" data-won-requested-outstanding aria-live="polite">
             No requested payments are currently awaiting payment.
@@ -4171,7 +4276,7 @@ export default async function AdminUsersPage({
                 </div>
               </details>
             ))}
-            {!wonOptions.length ? <div className="empty-card">No won options yet.</div> : null}
+          {!wonOptions.length ? <div className="empty-card">No wire quotes yet.</div> : null}
             </div>
           </div>
         </details>

@@ -50,5 +50,23 @@ export async function GET(request: NextRequest) {
     return redirectWithoutOAuthState(loginUrl);
   }
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const email = String(user?.email || "").trim().toLowerCase();
+  if (email) {
+    const approval = await supabase
+      .from("approved_users")
+      .select("is_locked")
+      .eq("email", email)
+      .maybeSingle();
+    if (!approval.error && approval.data?.is_locked) {
+      await supabase.auth.signOut();
+      const loginUrl = new URL("/", baseUrl);
+      loginUrl.searchParams.set("error", "This account has been locked. Contact your administrator.");
+      return redirectWithoutOAuthState(loginUrl);
+    }
+  }
+
   return redirectWithoutOAuthState(new URL(next, baseUrl));
 }

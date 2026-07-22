@@ -36,6 +36,7 @@ type ApprovedUser = {
   display_name?: string | null;
   role: string;
   business_id?: string | null;
+  is_locked?: boolean;
   commission_type_override?: string | null;
   agency_commission_rate_override?: number | null;
   salesperson_commission_rate_override?: number | null;
@@ -738,7 +739,7 @@ async function getApprovedUser(
   const upgraded = await supabase
     .from("approved_users")
     .select(
-      "email, display_name, role, business_id, commission_type_override, agency_commission_rate_override, salesperson_commission_rate_override",
+      "email, display_name, role, business_id, is_locked, commission_type_override, agency_commission_rate_override, salesperson_commission_rate_override",
     )
     .eq("email", email)
     .maybeSingle();
@@ -883,6 +884,9 @@ export async function GET(request: Request) {
   }
 
   const approved = approvedUser as ApprovedUser;
+  if (approved.is_locked) {
+    return new NextResponse("Account locked", { status: 403 });
+  }
   const canManage = canManageUsers(currentEmail, approved.role);
   const viewingEmail = canManage && requestedEmail ? requestedEmail : currentEmail;
   const previewAsViewedUser = canManage && requestedPreview && viewingEmail !== currentEmail;

@@ -10,6 +10,7 @@ type ApprovedUser = {
   display_name?: string | null;
   role: string;
   business_id?: string | null;
+  is_locked?: boolean;
 };
 
 type Business = {
@@ -26,7 +27,7 @@ function businessOptionLabel(business: Business) {
 async function getApprovedUser(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>, email: string) {
   const upgraded = await supabase
     .from("approved_users")
-    .select("email, display_name, role, business_id")
+    .select("email, display_name, role, business_id, is_locked")
     .eq("email", email)
     .maybeSingle();
 
@@ -40,7 +41,7 @@ async function listApprovedUsers(
 ) {
   const upgraded = await supabase
     .from("approved_users")
-    .select("email, display_name, role, business_id")
+    .select("email, display_name, role, business_id, is_locked")
     .order("display_name", { ascending: true });
 
   if (!upgraded.error) return (upgraded.data || []) as ApprovedUser[];
@@ -163,6 +164,23 @@ export default async function CalculatorPage({
   }
 
   const approved = approvedUser as ApprovedUser;
+  if (approved.is_locked) {
+    return (
+      <main className="auth-shell">
+        <PageLoadingOverlay />
+        <section className="auth-panel">
+          <p className="kicker">Access locked</p>
+          <h1>This calculator account is locked</h1>
+          <p>Contact your platform administrator to restore access.</p>
+          <form action="/auth/signout" method="post" className="button-row" data-loading-label="Signing out...">
+            <button className="secondary" type="submit">
+              Sign out
+            </button>
+          </form>
+        </section>
+      </main>
+    );
+  }
   const canManage = canManageUsers(user.email, approved.role);
   const requestedEmail = String(params?.as || "").trim().toLowerCase();
   const requestedBusinessId = String(params?.businessId || "").trim();

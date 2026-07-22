@@ -34,12 +34,20 @@ async function currentApprovedUser(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   email: string,
 ) {
+  const upgraded = await supabase
+    .from("approved_users")
+    .select("role, business_id, is_locked")
+    .eq("email", email)
+    .maybeSingle();
+  if (!upgraded.error) {
+    return upgraded.data as { role?: string; business_id?: string | null; is_locked?: boolean } | null;
+  }
   const { data } = await supabase
     .from("approved_users")
     .select("role, business_id")
     .eq("email", email)
     .maybeSingle();
-  return data as { role?: string; business_id?: string | null } | null;
+  return data as { role?: string; business_id?: string | null; is_locked?: boolean } | null;
 }
 
 function targetEmailFromRequest(request: Request, currentEmail: string, canManage: boolean) {
@@ -353,6 +361,9 @@ export async function GET(request: Request) {
 
   const currentEmail = String(user.email || "").toLowerCase();
   const approvedUser = await currentApprovedUser(supabase, currentEmail);
+  if (approvedUser?.is_locked) {
+    return NextResponse.json({ error: "Account locked" }, { status: 403 });
+  }
   const canManage = canManageUsers(currentEmail, approvedUser?.role);
   const viewingEmail = targetEmailFromRequest(
     request,
@@ -416,6 +427,9 @@ async function saveCalculatorData(request: Request) {
   const rawCalculatorData = body && typeof body.data === "object" ? body.data : {};
   const currentEmail = String(user.email || "").toLowerCase();
   const approvedUser = await currentApprovedUser(supabase, currentEmail);
+  if (approvedUser?.is_locked) {
+    return NextResponse.json({ error: "Account locked" }, { status: 403 });
+  }
   const canManage = canManageUsers(currentEmail, approvedUser?.role);
   const viewingEmail = targetEmailFromRequest(
     request,

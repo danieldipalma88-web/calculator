@@ -48,12 +48,18 @@ async function approvedEmail() {
   const email = String(user?.email || "").trim().toLowerCase();
   if (!email) return { status: 401 as const, email: "" };
 
-  const approval = await supabase
+  const upgradedApproval = await supabase
     .from("approved_users")
-    .select("email")
+    .select("email, is_locked")
     .eq("email", email)
     .maybeSingle();
+  const approval = upgradedApproval.error
+    ? await supabase.from("approved_users").select("email").eq("email", email).maybeSingle()
+    : upgradedApproval;
   if (approval.error) return { status: 503 as const, email: "" };
+  if (Boolean((approval.data as { is_locked?: boolean } | null)?.is_locked)) {
+    return { status: 403 as const, email: "" };
+  }
   if (!approval.data && !isOwnerEmail(email)) return { status: 403 as const, email: "" };
   return { status: 200 as const, email };
 }

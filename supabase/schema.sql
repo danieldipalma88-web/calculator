@@ -2,8 +2,12 @@ create table if not exists public.approved_users (
   id uuid primary key default gen_random_uuid(),
   email text not null unique,
   role text not null default 'user' check (role in ('admin', 'user')),
+  is_locked boolean not null default false,
   created_at timestamptz not null default now()
 );
+
+alter table public.approved_users
+  add column if not exists is_locked boolean not null default false;
 
 alter table public.approved_users enable row level security;
 
@@ -27,6 +31,7 @@ as $$
     from public.approved_users
     where lower(email) = lower(coalesce(auth.jwt() ->> 'email', ''))
       and role = 'admin'
+      and not coalesce(is_locked, false)
   );
 $$;
 
@@ -96,6 +101,44 @@ $$;
 
 revoke all on function public.admin_delete_approved_user(text) from public;
 grant execute on function public.admin_delete_approved_user(text) to authenticated;
+
+create or replace function public.admin_set_approved_user_lock(
+  target_email text,
+  target_locked boolean default true
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  normalized_email text := lower(trim(coalesce(target_email, '')));
+  current_email text := lower(coalesce(auth.jwt() ->> 'email', ''));
+begin
+  if not public.is_approved_admin() then
+    raise exception 'Not authorized';
+  end if;
+
+  if normalized_email = '' then
+    raise exception 'Email is required';
+  end if;
+
+  if normalized_email = current_email or normalized_email = 'danieldipalma88@gmail.com' then
+    raise exception 'You cannot lock this platform admin account';
+  end if;
+
+  update public.approved_users
+  set is_locked = coalesce(target_locked, true)
+  where lower(email) = normalized_email;
+
+  if not found then
+    raise exception 'Approved user not found';
+  end if;
+end;
+$$;
+
+revoke all on function public.admin_set_approved_user_lock(text, boolean) from public;
+grant execute on function public.admin_set_approved_user_lock(text, boolean) to authenticated;
 
 drop function if exists public.admin_list_approved_users();
 create or replace function public.admin_list_approved_users()
@@ -248,7 +291,8 @@ alter table public.approved_users
   add column if not exists display_name text,
   add column if not exists commission_type_override text,
   add column if not exists agency_commission_rate_override numeric,
-  add column if not exists salesperson_commission_rate_override numeric;
+  add column if not exists salesperson_commission_rate_override numeric,
+  add column if not exists is_locked boolean not null default false;
 
 alter table public.approved_users drop constraint if exists approved_users_commission_type_override_check;
 alter table public.approved_users
@@ -301,6 +345,7 @@ as $$
     from public.approved_users
     where lower(email) = lower(coalesce(auth.jwt() ->> 'email', ''))
       and role = 'admin'
+      and not coalesce(is_locked, false)
   );
 $$;
 

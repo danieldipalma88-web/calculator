@@ -9,6 +9,7 @@
     "verify:quote-search": "node scripts/verify-quote-search.mjs",
     "verify:loading": "node scripts/verify-loading-states.mjs && node scripts/verify-cloud-save-status.mjs",
     "verify:user-view": "node scripts/verify-user-view-default.mjs",
+    "verify:admin": "node scripts/verify-admin-workflows.mjs",
     "verify:price-updates": "node scripts/verify-business-price-update-tool.mjs",
     "build": "next build",
     "start": "next start"
