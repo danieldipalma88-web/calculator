@@ -6546,7 +6546,7 @@ function addLegacyToQuote(){
     type:systemType==='split'?'Split':'Ducted',brand:x.p.brand,series:x.p.series||'',size:x.p.capacity||x.p.size+'kW',model:x.p.model,
     install:installType==='new'?'New':'Replacement',unitInc:x.unitInc,rebate:x.rebate,labour:x.labour,labourTreatment:x.labourTreatment,installerRetainsLabour: x.labourTreatment==='Retained',
     installAddons:installAddonDisplayLabels(x.installAddons), addonLabour:x.installAddons.labour, addonMaterialsInc:x.installAddons.materialsInc,
-    materialsInc:x.materialsInc,matsEx:x.matsEx,miscInc:num('misc'),powerCost:systemType==='split'?x.service:null,otherEx:x.miscEx+x.service+x.addons,trueCost:x.trueCost,finalInc:x.finalInc,
+    materialsInc:x.materialsInc,matsEx:x.matsEx,miscInc:num('misc'),powerCost:x.service,otherEx:x.miscEx+x.service+x.addons,trueCost:x.trueCost,finalInc:x.finalInc,
     cashProfit:x.cashProfit,commissionType:x.commissionType,commissionRate:x.commissionRate,agencyCommissionRate:x.agencyCommissionRate,agencyCommission:x.agencyCommission,agencyCommissionGst:x.agencyCommissionGst,agencyCommissionInc:x.agencyCommissionInc,salespersonCommissionRate:x.salespersonCommissionRate,salespersonCommission:x.salespersonCommission,salespersonCommissionGst:x.salespersonCommissionGst,salespersonCommissionInc:x.salespersonCommissionInc,commission:x.commission,commissionGst:x.commissionGst,commissionInc:x.commissionInc,
     netProfit:x.netProfit,margin:x.margin,netMargin:x.netMargin
   });
@@ -6565,6 +6565,23 @@ function finiteMoneyNumber(value){
   if(value===undefined || value===null || value==='') return null;
   const n=Number(value);
   return Number.isFinite(n)?n:null;
+}
+function savedPowerOrElectricianEx(r){
+  if(!r || typeof r!=='object') return 0;
+  const direct=[r.powerCost,r.powerEx,r.electrician].map(finiteMoneyNumber).find(value=>value!==null);
+  if(direct!==undefined) return direct;
+  const state=r.state&&typeof r.state==='object'?r.state:{};
+  if(isMultiHeadQuoteType(r.type)){
+    const multi=[state.multiPower,state.powerCircuit].map(finiteMoneyNumber).find(value=>value!==null);
+    return multi===undefined?0:multi;
+  }
+  if(r.type==='Split'){
+    if(String(state.powerMode||'').toLowerCase()==='off') return 0;
+    const split=finiteMoneyNumber(state.powerCircuit);
+    return split===null?0:split;
+  }
+  const ducted=finiteMoneyNumber(state.electrician);
+  return ducted===null?0:ducted;
 }
 function quoteStateDisablesRebates(r){
   const s=(r && r.state && typeof r.state==='object')?r.state:{};
@@ -6628,9 +6645,7 @@ function recomputeSavedQuote(r){
   const miscInc=savedMiscInc(r);
   const miscEx=miscInc/1.1;
   const isSplit=quoteUsesPowerCost(r);
-  let service=0;
-  if(isSplit){ service=Number(r.powerCost)||0; }
-  else if(r.state && r.state.electrician!==undefined){ service=Number(r.state.electrician)||0; }
+  const service=savedPowerOrElectricianEx(r);
   let addons=0;
   if(!isSplit && r.state && r.state.airtouch==='yes'){
     addons=1100+(Number(r.state.sensors)||0)*82+(Number(r.state.zones)||0)*65;
@@ -6693,7 +6708,7 @@ function recomputeSavedQuote(r){
   return r;
 }
 function quoteTotalsSnapshot(){
-  const powerRows=quotes.filter(quoteUsesPowerCost);
+  const powerRows=quotes;
   return {
     count:quotes.length,
     splitCount:powerRows.length,
@@ -6701,7 +6716,7 @@ function quoteTotalsSnapshot(){
     labour:quotes.reduce((a,r)=>a+(Number(r.labour)||0),0),
     materials:quotes.reduce((a,r)=>a+savedMaterialsInc(r),0),
     misc:quotes.reduce((a,r)=>a+savedMiscInc(r),0),
-    power:quotes.filter(quoteUsesPowerCost).reduce((a,r)=>a+(Number(r.powerCost)||0),0)
+    power:quotes.reduce((a,r)=>a+savedPowerOrElectricianEx(r),0)
   };
 }
 function fillCurrentQuoteTotals(){
@@ -6721,7 +6736,7 @@ function applyEvenDistribution(){
     return;
   }
   const count=quotes.length;
-  const powerRows=quotes.filter(quoteUsesPowerCost);
+  const powerRows=quotes;
   const applyIfEntered=(id)=>{ const el=$(id); return el && String(el.value).trim()!==''; };
   const customerEntered=applyIfEntered('distCustomerTotal');
   const labourEntered=applyIfEntered('distLabourTotal');
@@ -6739,7 +6754,17 @@ function applyEvenDistribution(){
     if(labourEach!==null){ r.labour=labourEach; if(r.state) r.state.labour=String(labourEach.toFixed(2)); }
     if(materialsEach!==null){ r.materialsInc=materialsEach; r.matsEx=materialsEach/1.1; if(r.state) r.state.materials=String(materialsEach.toFixed(2)); }
     if(miscEach!==null){ r.miscInc=miscEach; if(r.state) r.state.misc=String(miscEach.toFixed(2)); }
-    if(quoteUsesPowerCost(r) && powerEach!==null){ r.powerCost=powerEach; if(r.state){ r.state.powerCircuit=String(powerEach.toFixed(2)); r.state.powerMode='on'; if(r.state.systemType==='multi_split') r.state.multiPower=String(powerEach.toFixed(2)); } }
+    if(powerEach!==null){
+      r.powerCost=powerEach;
+      if(r.state){
+        if(r.type==='Ducted') r.state.electrician=String(powerEach.toFixed(2));
+        else {
+          r.state.powerCircuit=String(powerEach.toFixed(2));
+          r.state.powerMode='on';
+          if(r.state.systemType==='multi_split') r.state.multiPower=String(powerEach.toFixed(2));
+        }
+      }
+    }
     recomputeSavedQuote(r);
     touchQuoteRow(r,syncUpdatedAt);
   });
@@ -6750,7 +6775,7 @@ function applyEvenDistribution(){
   if(labourEntered) details.push(`labour ${money(labourEach)} each`);
   if(materialsEntered) details.push(`materials ${money(materialsEach)} inc GST each`);
   if(miscEntered) details.push(`misc ${money(miscEach)} inc GST each`);
-  if(powerEntered) details.push(powerRows.length?`power ${money(powerEach)} ex GST across split/multi-head rows`:'power skipped because there are no split or multi-head rows');
+  if(powerEntered) details.push(powerRows.length?`power / electrician ${money(powerEach)} ex GST across all systems`:'power / electrician skipped because there are no systems');
   if($('distHint')) $('distHint').textContent='Applied: '+(details.join(', ')||'no totals entered')+'.';
 }
 function renderQuotes(){
@@ -6762,12 +6787,12 @@ function renderQuotes(){
   if(!quotes.length){$('quoteRows').innerHTML='<tr><td colspan="16">No quotes added yet.</td></tr>'; $('quoteTotals').innerHTML=''; return}
   $('quoteRows').innerHTML=quotes.map((r,i)=>{
     const materialsInc=savedMaterialsInc(r);
-    const power=quoteUsesPowerCost(r)?money(r.powerCost!==undefined?r.powerCost:0):'N/A';
+    const power=money(savedPowerOrElectricianEx(r));
     return `<tr><td>${r.type}</td><td>${r.brand}</td><td>${r.size}</td><td>${r.model}</td><td>${r.install}</td><td class="money">${money(r.finalInc)}</td><td class="money">${money(r.rebate)}</td><td class="money">${money(r.unitInc)}</td><td class="money">${money(r.labour)}</td><td>${quoteLabourTreatment(r)}</td><td class="money">${money(materialsInc)}</td><td class="money">${power}</td><td class="money">${money(r.commissionInc)}</td><td class="money">${money(r.salespersonCommissionInc)}</td><td class="money">${money(r.netProfit)}</td><td><button class="load" onclick="loadQuote(${i})">Load</button> <button class="danger" onclick="removeQuote(${i})">Remove</button></td></tr>`;
   }).join('');
   const sum=k=>quotes.reduce((a,r)=>a+(Number(r[k])||0),0);
   const sumMaterials=quotes.reduce((a,r)=>a+savedMaterialsInc(r),0);
-  const sumPower=quotes.reduce((a,r)=>a+(quoteUsesPowerCost(r)?(Number(r.powerCost)||0):0),0);
+  const sumPower=quotes.reduce((a,r)=>a+savedPowerOrElectricianEx(r),0);
   $('quoteTotals').innerHTML=`<tr><th colspan="5">Totals</th><th class="money">${money(sum('finalInc'))}</th><th class="money">${money(sum('rebate'))}</th><th class="money">${money(sum('unitInc'))}</th><th class="money">${money(sum('labour'))}</th><th></th><th class="money">${money(sumMaterials)}</th><th class="money">${money(sumPower)}</th><th class="money">${money(sum('commissionInc'))}</th><th class="money">${money(sum('salespersonCommissionInc'))}</th><th class="money">${money(sum('netProfit'))}</th><th></th></tr>`;
 }
 function removeQuote(i){quotes.splice(i,1); persistQuotes(); renderQuotes();}
@@ -7124,7 +7149,7 @@ function downloadCsv(){
   const heads=['Quote Name','Type','Brand','Series','Size','Model','Install','Customer inc','Rebate','Unit inc','Labour ex','Installer Labour','Materials inc','Power','Agency Comm inc','Salesperson Comm inc','Installer Profit ex'];
   const rows=quotes.map(r=>{
     const materialsInc=savedMaterialsInc(r);
-    const power=quoteUsesPowerCost(r)?(r.powerCost!==undefined?Number(r.powerCost):0):'N/A';
+    const power=savedPowerOrElectricianEx(r);
     return [quoteName,r.type,r.brand,r.series||'',r.size,r.model,r.install,r.finalInc,r.rebate,r.unitInc,r.labour,quoteLabourTreatment(r),materialsInc,power,r.commissionInc,r.salespersonCommissionInc,r.netProfit];
   });
   const csv=[heads,...rows].map(row=>row.map(v=>'"'+String(v).replaceAll('"','""')+'"').join(',')).join('\n');
@@ -7852,7 +7877,7 @@ function optionGroups(){
 }
 function groupTotals(rows){
   const sum=(fn)=>rows.reduce((a,r)=>a+(Number(fn(r))||0),0);
-  return {customer:sum(r=>r.finalInc), rebate:sum(r=>r.rebate), unit:sum(r=>r.unitInc), labour:sum(r=>r.labour), materials:sum(r=>savedMaterialsInc(r)), misc:sum(r=>savedMiscInc(r)), power:sum(r=>quoteUsesPowerCost(r)?(Number(r.powerCost)||0):0), commission:sum(r=>r.commissionInc), salespersonCommission:sum(r=>r.salespersonCommissionInc), agencyProfitAfterSales:sum(r=>agencyProfitAfterSalesInc(r.agencyCommissionInc??r.commissionInc,r.salespersonCommissionInc,r.commissionType)), profit:sum(r=>r.netProfit)};
+  return {customer:sum(r=>r.finalInc), rebate:sum(r=>r.rebate), unit:sum(r=>r.unitInc), labour:sum(r=>r.labour), materials:sum(r=>savedMaterialsInc(r)), misc:sum(r=>savedMiscInc(r)), power:sum(r=>savedPowerOrElectricianEx(r)), commission:sum(r=>r.commissionInc), salespersonCommission:sum(r=>r.salespersonCommissionInc), agencyProfitAfterSales:sum(r=>agencyProfitAfterSalesInc(r.agencyCommissionInc??r.commissionInc,r.salespersonCommissionInc,r.commissionType)), profit:sum(r=>r.netProfit)};
 }
 function jsArg(value){return encodeURIComponent(String(value||''));}
 function formatWonDate(value){
@@ -8155,7 +8180,7 @@ function renderCurrentOptionPanel(){
   const privateHeads=showPrivate?`<th>Agency comm inc</th><th>Salesperson comm inc</th>${showAgencyProfit?'<th>Agency profit inc</th>':''}<th>Installer profit ex</th>`:(showLimitedSales?'<th>Salesperson commission</th><th>Installer profit ex</th>':'');
   const rowsHtml=rows.map(r=>{
     const materialsInc=savedMaterialsInc(r);
-    const power=quoteUsesPowerCost(r)?money(r.powerCost!==undefined?r.powerCost:0):'N/A';
+    const power=money(savedPowerOrElectricianEx(r));
     const privateCells=showPrivate?`<td class="money">${money(r.commissionInc)}</td><td class="money">${money(r.salespersonCommissionInc)}</td>${showAgencyProfit?`<td class="money">${money(agencyProfitAfterSalesInc(r.agencyCommissionInc??r.commissionInc,r.salespersonCommissionInc,r.commissionType))}</td>`:''}<td class="money">${money(r.netProfit)}</td>`:(showLimitedSales?`<td class="money">${money(r.salespersonCommissionInc)}</td><td class="money">${money(r.netProfit)}</td>`:'');
     const actionCell=isWon?`<button class="load" onclick="loadQuote(${r._index})">Load</button> <button class="secondary smallBtn" disabled>Locked</button>`:`<button class="load" onclick="loadQuote(${r._index})">Load</button> <button class="danger" onclick="removeQuote(${r._index})">Remove</button>`;
     return `<tr><td>${htmlEscape(r.type)}</td><td>${htmlEscape(r.brand)}</td><td>${htmlEscape(r.size)}</td><td>${htmlEscape(r.model)}</td><td>${htmlEscape(r.install)}</td><td class="money">${money(r.finalInc)}</td>${rebateCellHtml(r.rebate,r)}<td class="money">${money(r.labour)}</td><td class="money">${money(materialsInc)}</td><td class="money">${power}</td>${privateCells}<td>${actionCell}</td></tr>`;
@@ -8164,7 +8189,7 @@ function renderCurrentOptionPanel(){
   const mobileRowsHtml=rows.map(r=>{
     const materialsInc=savedMaterialsInc(r);
     const miscInc=savedMiscInc(r);
-    const power=quoteUsesPowerCost(r)?money(r.powerCost!==undefined?r.powerCost:0):'N/A';
+    const power=money(savedPowerOrElectricianEx(r));
     const rebateVisible=rowShowsRebate(r);
     const meta=[r.type,r.install].map(value=>`<span>${htmlEscape(value)}</span>`).concat(rebateVisible?[`<span>Rebate ${money(r.rebate)}</span>`]:[]).join('');
     const rebateDetail=rebateVisible?mobileDetail('Rebate',money(r.rebate)):'';
@@ -8409,7 +8434,7 @@ function addStandardSystemToQuoteNow(){
     type:systemType==='split'?'Split':'Ducted',brand:x.p.brand,series:x.p.series||'',size:x.p.capacity||x.p.size+'kW',model:x.p.model,
     install:installType==='new'?'New':'Replacement',unitInc:x.unitInc,rebate:x.rebate,labour:x.labour,labourTreatment:x.labourTreatment,installerRetainsLabour: x.labourTreatment==='Retained',
     installAddons:installAddonDisplayLabels(x.installAddons), addonLabour:x.installAddons.labour, addonMaterialsInc:x.installAddons.materialsInc,
-    materialsInc:x.materialsInc,matsEx:x.matsEx,miscInc:num('misc'),powerCost:systemType==='split'?x.service:null,otherEx:x.miscEx+x.service+x.addons,trueCost:x.trueCost,finalInc:x.finalInc,
+    materialsInc:x.materialsInc,matsEx:x.matsEx,miscInc:num('misc'),powerCost:x.service,otherEx:x.miscEx+x.service+x.addons,trueCost:x.trueCost,finalInc:x.finalInc,
     cashProfit:x.cashProfit,commissionType:x.commissionType,commissionRate:x.commissionRate,agencyCommissionRate:x.agencyCommissionRate,agencyCommission:x.agencyCommission,agencyCommissionGst:x.agencyCommissionGst,agencyCommissionInc:x.agencyCommissionInc,salespersonCommissionRate:x.salespersonCommissionRate,salespersonCommission:x.salespersonCommission,salespersonCommissionGst:x.salespersonCommissionGst,salespersonCommissionInc:x.salespersonCommissionInc,commission:x.commission,commissionGst:x.commissionGst,commissionInc:x.commissionInc,
     netProfit:x.netProfit,margin:x.margin,netMargin:x.netMargin
   });
@@ -8440,7 +8465,7 @@ function renderQuotes(){
         const emptyColspan=(showPrivate?16:(showLimitedSales?15:13))-(showGroupRebates?0:1)+(showGroupAgencyProfit?1:0);
         const bodyRows=g.rows.length?g.rows.map(r=>{
           const materialsInc=savedMaterialsInc(r);
-          const power=quoteUsesPowerCost(r)?money(r.powerCost!==undefined?r.powerCost:0):'N/A';
+          const power=money(savedPowerOrElectricianEx(r));
           const privateCells=showPrivate?`<td class="money">${money(r.commissionInc)}</td><td class="money">${money(r.salespersonCommissionInc)}</td>${showGroupAgencyProfit?`<td class="money">${money(agencyProfitAfterSalesInc(r.agencyCommissionInc??r.commissionInc,r.salespersonCommissionInc,r.commissionType))}</td>`:''}<td class="money">${money(r.netProfit)}</td>`:(showLimitedSales?`<td class="money">${money(r.salespersonCommissionInc)}</td><td class="money">${money(r.netProfit)}</td>`:'');
           const actionCell=isWon?`<button class="load" onclick="loadQuote(${r._index})">Load</button> <button class="secondary smallBtn" disabled>Locked</button>`:`<button class="load" onclick="loadQuote(${r._index})">Load</button> <button class="danger" onclick="removeQuote(${r._index})">Remove</button>`;
           return `<tr><td>${htmlEscape(r.type)}</td><td>${htmlEscape(r.brand)}</td><td>${htmlEscape(r.size)}</td><td>${htmlEscape(r.model)}</td><td>${htmlEscape(r.install)}</td><td class="money">${money(r.finalInc)}</td>${rebateCellHtml(r.rebate,r)}<td class="money">${money(r.unitInc)}</td><td class="money">${money(r.labour)}</td><td>${htmlEscape(quoteLabourTreatment(r))}</td><td class="money">${money(materialsInc)}</td><td class="money">${power}</td>${privateCells}<td>${actionCell}</td></tr>`;
@@ -8505,7 +8530,7 @@ function downloadCsv(){
   const heads=['Quote Name','Quote','Type','Brand','Series','Size','Model','Install','Customer inc'].concat(showExportRebates?['Rebate']:[],['Unit inc','Labour ex','Installer Labour','Materials inc','Power']).concat(showPrivate?['Agency Comm inc','Salesperson Comm inc'].concat(showAgencyProfitExport?['Agency Profit After Salesperson Commission inc GST']:[],['Installer Profit ex']):(showLimitedSales?['Salesperson commission','Installer Profit ex']:[]));
   const rows=[];
   optionGroups().forEach(g=>g.rows.forEach(r=>{
-    const materialsInc=savedMaterialsInc(r); const power=quoteUsesPowerCost(r)?(r.powerCost!==undefined?Number(r.powerCost):0):'N/A';
+    const materialsInc=savedMaterialsInc(r); const power=savedPowerOrElectricianEx(r);
     rows.push([quoteName,g.def.name,r.type,r.brand,r.series||'',r.size,r.model,r.install,r.finalInc].concat(showExportRebates?[r.rebate]:[],[r.unitInc,r.labour,quoteLabourTreatment(r),materialsInc,power]).concat(showPrivate?[r.commissionInc,r.salespersonCommissionInc].concat(showAgencyProfitExport?[agencyProfitAfterSalesInc(r.agencyCommissionInc??r.commissionInc,r.salespersonCommissionInc,r.commissionType)]:[],[r.netProfit]):(showLimitedSales?[r.salespersonCommissionInc,r.netProfit]:[])));
   }));
   const csv=[heads,...rows].map(row=>row.map(v=>'"'+String(v).replaceAll('"','""')+'"').join(',')).join('\n');
@@ -8693,7 +8718,7 @@ function currentProposalRow(){
     materialsInc:x.materialsInc,
     matsEx:x.matsEx,
     miscInc:num('misc'),
-    powerCost:systemType==='split'?x.service:null,
+    powerCost:x.service,
     finalInc:x.finalInc,
     commissionInc:x.commissionInc,
     salespersonCommissionInc:x.salespersonCommissionInc,

@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "verify:rebates": "node scripts/verify-rebate-guards.mjs && node scripts/verify-nsw-hvac-rebate-rules.mjs && node scripts/verify-certificate-pricing-model.mjs && node scripts/verify-multi-split-capacity-rules.mjs && node scripts/verify-multi-split-ux.mjs",
-    "verify:quote-sync": "node scripts/verify-quote-sync-safety.mjs && node scripts/verify-won-job-server-validation.mjs",
+    "verify:quote-sync": "node scripts/verify-quote-sync-safety.mjs && node scripts/verify-won-job-server-validation.mjs && node scripts/verify-power-electrician-display.mjs",
     "verify:quote-search": "node scripts/verify-quote-search.mjs",
     "verify:loading": "node scripts/verify-loading-states.mjs && node scripts/verify-cloud-save-status.mjs",
     "verify:user-view": "node scripts/verify-user-view-default.mjs",

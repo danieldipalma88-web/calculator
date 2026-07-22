@@ -998,6 +998,25 @@ function moneyValue(value: unknown) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function optionalMoneyValue(value: unknown) {
+  if (value === undefined || value === null || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function quotePowerOrElectricianEx(row: Record<string, unknown>) {
+  const direct = [row.powerCost, row.powerEx, row.electrician]
+    .map(optionalMoneyValue)
+    .find((value) => value !== null);
+  if (direct !== undefined) return direct;
+  const state = row.state && typeof row.state === "object"
+    ? row.state as Record<string, unknown>
+    : {};
+  if (String(row.type || "") === "Ducted") return optionalMoneyValue(state.electrician) ?? 0;
+  if (String(state.powerMode || "").toLowerCase() === "off") return 0;
+  return optionalMoneyValue(state.multiPower) ?? optionalMoneyValue(state.powerCircuit) ?? 0;
+}
+
 function quoteAgencyProfitAfterSalesInc(row: Record<string, unknown>) {
   const agencyCommission = moneyValue(row.agencyCommissionInc ?? row.commissionInc);
   const salespersonCommission = moneyValue(row.salespersonCommissionInc);
@@ -2252,7 +2271,7 @@ function addWonOptionsFromSnapshot({
         materialsEx: moneyValue(quote.matsEx ?? quoteMaterialsInc(quote) / 1.1),
         miscInc: moneyValue(quote.miscInc ?? quote.misc),
         miscEx: moneyValue(quote.miscEx ?? moneyValue(quote.miscInc ?? quote.misc) / 1.1),
-        powerEx: moneyValue(quote.powerCost ?? quote.powerEx),
+        powerEx: quotePowerOrElectricianEx(quote),
         trueCostEx: moneyValue(quote.trueCost),
         cashProfitEx: moneyValue(quote.cashProfit),
         agencyCommissionInc: moneyValue(quote.agencyCommissionInc ?? quote.commissionInc),
