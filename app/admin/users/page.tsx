@@ -1359,34 +1359,65 @@ function wonExportScript() {
     var section = document.querySelector(".won-options-section");
     if (!section) return;
     section.classList.toggle("is-loading", !!active);
+    if (active) section.setAttribute("aria-busy", "true");
+    else section.removeAttribute("aria-busy");
     var label = section.querySelector("[data-won-loading-label]");
     if (label && labelText) label.textContent = labelText;
   }
+  var wonActionUrlTimer = 0;
+  var wonActionTimeout = 0;
+  var wonActionObserver = null;
+  function stopWonActionCompletionWatch() {
+    if (wonActionUrlTimer) window.clearInterval(wonActionUrlTimer);
+    if (wonActionTimeout) window.clearTimeout(wonActionTimeout);
+    if (wonActionObserver) wonActionObserver.disconnect();
+    wonActionUrlTimer = 0;
+    wonActionTimeout = 0;
+    wonActionObserver = null;
+  }
+  function clearWonActionLoading() {
+    stopWonActionCompletionWatch();
+    setWonSectionLoading(false, "Updating...");
+  }
+  function watchWonActionCompletion(section) {
+    stopWonActionCompletionWatch();
+    var startingUrl = window.location.href;
+    var results = section ? section.querySelector(".won-grid") : null;
+
+    wonActionUrlTimer = window.setInterval(function(){
+      if (window.location.href !== startingUrl) clearWonActionLoading();
+    }, 150);
+
+    window.requestAnimationFrame(function(){
+      if (!section || !section.classList.contains("is-loading") || !results) return;
+      wonActionObserver = new MutationObserver(function(){
+        clearWonActionLoading();
+      });
+      wonActionObserver.observe(results, {
+        attributes: true,
+        attributeFilter: [
+          "class",
+          "data-payment-unpaid",
+          "data-payment-requested",
+          "data-payment-paid-in",
+          "data-payment-paid-out"
+        ],
+        characterData: true,
+        childList: true,
+        subtree: true
+      });
+    });
+
+    wonActionTimeout = window.setTimeout(function(){
+      clearWonActionLoading();
+      setExportStatus("The update took longer than expected. Refresh if the latest status is not visible.", "error");
+    }, 30000);
+  }
   function setWonActionLoading(form, submitter) {
     var section = form && form.closest ? form.closest(".won-options-section") : document.querySelector(".won-options-section");
-    if (section) section.classList.add("is-loading");
-    var overlay = section ? section.querySelector("[data-won-loading-overlay]") : null;
     var actionText = submitter ? String(submitter.textContent || "").trim() : "Updating";
-    if (overlay) {
-      var label = overlay.querySelector("[data-won-loading-label]");
-      if (label) label.textContent = actionText ? actionText + "..." : "Updating...";
-    }
-    Array.prototype.slice.call(document.querySelectorAll(".won-options-section button, .won-options-section summary, .won-options-section a")).forEach(function(control){
-      if (control.tagName === "A") {
-        control.setAttribute("aria-disabled", "true");
-        control.addEventListener("click", function(event){ event.preventDefault(); }, { once: true });
-        return;
-      }
-      if (control.tagName === "SUMMARY") {
-        control.style.pointerEvents = "none";
-        return;
-      }
-      control.setAttribute("aria-disabled", "true");
-      control.style.pointerEvents = "none";
-    });
-    if (submitter) {
-      submitter.textContent = actionText ? actionText + "..." : "Updating...";
-    }
+    setWonSectionLoading(true, actionText ? actionText + "..." : "Updating...");
+    if (section) watchWonActionCompletion(section);
   }
   function updateWonFilterStatus(activeEmails, activePayments) {
     var status = document.querySelector("[data-won-filter-status]");
@@ -2021,6 +2052,7 @@ function wonExportScript() {
     change: handleWonChange,
     submit: handleWonSubmit,
     refresh: function(){
+      clearWonActionLoading();
       applyWonSalespersonFilter();
       refreshBulkInputs();
     }
