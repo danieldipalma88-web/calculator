@@ -1736,8 +1736,13 @@ select {
 
 .won-mobile-salesperson-field,
 .won-mobile-payment-filters,
+.won-mobile-filter-summary,
 .won-mobile-selection-dock {
   display: none;
+}
+
+.won-options-section [data-won-clear-selection][hidden] {
+  display: none !important;
 }
 
 .bulk-delete-confirm {
@@ -1966,6 +1971,8 @@ select {
   display: inline-grid;
   width: 18px;
   height: 18px;
+  min-width: 18px;
+  min-height: 18px;
   box-sizing: border-box;
   place-items: center;
   justify-self: start;
@@ -2413,8 +2420,6 @@ select {
   .won-grid,
   .won-metrics,
   .won-card-head,
-  .won-card-summary,
-  .won-row-metrics,
   .won-line {
     grid-template-columns: 1fr;
   }
@@ -2453,12 +2458,32 @@ select {
   }
 
   .won-card-summary {
-    gap: 10px;
+    grid-template-columns: minmax(0, 1fr) 22px;
+    align-items: start;
+    gap: 10px 12px;
     min-height: 0;
-    padding: 14px 14px 14px 18px;
+    padding: 14px 14px 12px 18px;
+  }
+
+  .won-card-summary .won-select-checkbox {
+    grid-column: 2;
+    grid-row: 1;
+    width: 22px;
+    height: 22px;
+    min-width: 22px;
+    min-height: 22px;
+    justify-self: end;
+  }
+
+  .won-card-summary .won-row-main {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: center;
   }
 
   .won-row-metrics {
+    grid-column: 1 / -1;
+    grid-row: 2;
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -2468,6 +2493,8 @@ select {
   }
 
   .won-expand-label {
+    grid-column: 1 / -1;
+    grid-row: 3;
     width: 100%;
   }
 
@@ -2504,6 +2531,8 @@ select {
   }
 
   .won-search-field,
+  .won-mobile-salesperson-field,
+  .won-sort-field,
   .won-mobile-payment-filters,
   .won-clear-filters {
     grid-column: 1 / -1;
@@ -2514,17 +2543,176 @@ select {
     display: grid;
   }
 
+  .won-mobile-salesperson-picker {
+    width: 100%;
+  }
+
+  .won-mobile-salesperson-picker > summary {
+    display: flex;
+    min-height: 44px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background: #fff;
+    color: var(--ink);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 800;
+    list-style: none;
+  }
+
+  .won-mobile-salesperson-picker > summary::after {
+    content: "+";
+    color: #64748b;
+    font-size: 17px;
+    line-height: 1;
+  }
+
+  .won-mobile-salesperson-picker[open] > summary::after {
+    content: "-";
+  }
+
+  .won-mobile-salesperson-picker > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .won-mobile-salesperson-options {
+    display: grid;
+    gap: 4px;
+    margin-top: 6px;
+    padding: 6px;
+    border: 1px solid rgba(203, 213, 225, 0.9);
+    border-radius: 8px;
+    background: #fff;
+  }
+
+  .won-mobile-salesperson-options label {
+    display: grid;
+    grid-template-columns: 22px minmax(0, 1fr);
+    min-height: 42px;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+    padding: 0 8px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  .won-mobile-salesperson-options label:has(input:checked) {
+    background: #eff6ff;
+    color: #1d4ed8;
+  }
+
+  .won-mobile-salesperson-options input {
+    width: 20px;
+    height: 20px;
+    min-height: 20px;
+    margin: 0;
+  }
+
+  .won-mobile-salesperson-options span {
+    overflow: hidden;
+    font-size: 13px;
+    font-weight: 800;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .won-mobile-payment-filters {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
   }
 
   .won-mobile-payment-filters .status-chip {
-    min-height: 38px;
+    min-height: 48px;
     padding: 7px 8px;
     border-radius: 8px;
-    font-size: 12px;
+  }
+
+  .won-mobile-payment-filters .status-chip strong {
+    font-size: 15px;
+  }
+
+  .won-mobile-filter-summary {
+    display: grid;
+    gap: 10px;
+    margin: 12px 0;
+    padding: 12px;
+    border: 1px solid rgba(203, 213, 225, 0.9);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.9);
+  }
+
+  .won-mobile-filter-summary-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .won-mobile-filter-summary-head > div {
+    display: grid;
+    min-width: 0;
+    gap: 3px;
+  }
+
+  .won-mobile-filter-summary-head span {
+    color: #64748b;
+    font-size: 10px;
     font-weight: 900;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .won-mobile-filter-summary-head > span {
+    flex: 0 0 auto;
+    padding-top: 2px;
+    color: #334155;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  .won-mobile-filter-summary-head strong {
+    color: var(--ink);
+    font-size: 14px;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+  }
+
+  .won-mobile-filter-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .won-mobile-filter-summary-grid > div {
+    display: grid;
+    min-width: 0;
+    gap: 5px;
+    padding: 9px;
+    border: 1px solid rgba(226, 232, 240, 0.95);
+    border-radius: 7px;
+    background: #fff;
+  }
+
+  .won-mobile-filter-summary-grid span {
+    color: #64748b;
+    font-size: 9px;
+    font-weight: 900;
+    line-height: 1.15;
+    text-transform: uppercase;
+  }
+
+  .won-mobile-filter-summary-grid strong {
+    min-width: 0;
+    color: var(--ink);
+    font-size: 13px;
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .won-filter-status,
@@ -2537,17 +2725,17 @@ select {
   }
 
   .won-options-section.has-mobile-selection-dock .won-grid {
-    padding-bottom: 180px;
+    padding-bottom: 110px;
   }
 
   .won-mobile-selection-dock:not([hidden]) {
     position: fixed;
-    right: 12px;
+    right: max(8px, env(safe-area-inset-right, 0px));
     bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
-    left: 12px;
+    left: max(8px, env(safe-area-inset-left, 0px));
     z-index: 90;
     display: grid;
-    gap: 8px;
+    box-sizing: border-box;
     padding: 10px;
     border: 1px solid rgba(148, 163, 184, 0.62);
     border-radius: 8px;
@@ -2585,7 +2773,7 @@ select {
   }
 
   .won-mobile-selection-main button,
-  .won-mobile-selection-actions summary {
+  .won-mobile-actions > summary {
     min-height: 38px;
     padding: 0 10px;
     border-radius: 8px;
@@ -2593,19 +2781,11 @@ select {
     white-space: nowrap;
   }
 
-  .won-mobile-selection-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-  }
-
-  .won-mobile-actions,
-  .won-mobile-selection-summary {
+  .won-mobile-actions {
     position: static;
   }
 
-  .won-mobile-actions > summary,
-  .won-mobile-selection-summary > summary {
+  .won-mobile-actions > summary {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -2621,18 +2801,19 @@ select {
     list-style: none;
   }
 
-  .won-mobile-actions > summary::-webkit-details-marker,
-  .won-mobile-selection-summary > summary::-webkit-details-marker {
+  .won-mobile-actions > summary::-webkit-details-marker {
     display: none;
   }
 
-  .won-mobile-actions-panel,
-  .won-mobile-selection-summary[open] .won-selected-totals {
+  .won-mobile-actions-panel {
     position: absolute;
+    left: 0;
     right: 0;
     bottom: calc(100% + 8px);
     z-index: 2;
-    width: min(360px, calc(100vw - 24px));
+    width: auto;
+    max-width: none;
+    box-sizing: border-box;
     max-height: min(62vh, 460px);
     overflow: auto;
     padding: 12px;
@@ -2651,7 +2832,15 @@ select {
     gap: 8px;
   }
 
+  .won-mobile-action-totals {
+    display: block;
+    margin: 0;
+    border-radius: 8px;
+    font-size: 12px;
+  }
+
   .won-mobile-actions-panel > .orange,
+  .won-mobile-actions-panel > .secondary,
   .won-mobile-actions-panel .won-bulk-actions,
   .won-mobile-actions-panel .won-mobile-delete-confirm,
   .won-mobile-actions-panel .won-mobile-delete-confirm form {
@@ -2679,16 +2868,6 @@ select {
     display: grid;
   }
 
-  .won-mobile-selection-summary[open] .won-selected-totals {
-    display: block;
-    margin: 0;
-    border-radius: 8px;
-  }
-
-  .won-mobile-selection-summary:not([open]) .won-selected-totals {
-    display: none !important;
-  }
-
   .won-row-metric-systems,
   .won-row-metric-agency,
   .won-row-metric-sales {
@@ -2696,7 +2875,7 @@ select {
   }
 
   .won-row-metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(58px, 0.75fr) minmax(0, 1.15fr) minmax(0, 1.1fr);
   }
 
   .won-row-metric-agency-profit,

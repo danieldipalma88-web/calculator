@@ -1309,11 +1309,12 @@ function wonExportScript() {
       .map(function(card){ return card.querySelector(".won-sale-select"); })
       .filter(Boolean);
     var hasVisibleUnchecked = visibleBoxes.some(function(box){ return !box.checked; });
-    var label = visibleBoxes.length && !hasVisibleUnchecked
-      ? "Clear all"
-      : "Select all " + visibleBoxes.length + (hasActiveWonFilter() ? " filtered" : " quotes");
     Array.prototype.slice.call(document.querySelectorAll("[data-select-all-won]")).forEach(function(control){
-      control.textContent = label;
+      var isMobile = Boolean(control.closest && control.closest("[data-won-mobile-selection-dock]"));
+      control.textContent = visibleBoxes.length && !hasVisibleUnchecked
+        ? (isMobile ? "All selected" : "All " + visibleBoxes.length + " selected")
+        : (isMobile ? "Select all" : "Select all " + visibleBoxes.length + " visible");
+      control.disabled = !visibleBoxes.length || !hasVisibleUnchecked;
     });
   }
   function syncWonSelectionControl(box) {
@@ -1475,8 +1476,23 @@ function wonExportScript() {
       card.classList.toggle("is-active", active);
       card.setAttribute("aria-pressed", active ? "true" : "false");
     });
-    var mobileSelect = document.querySelector("[data-won-salesperson-select]");
-    if (mobileSelect) mobileSelect.value = normalized.length === 1 ? normalized[0] : "";
+    Array.prototype.slice.call(document.querySelectorAll("[data-won-salesperson-option]")).forEach(function(control){
+      control.checked = normalized.indexOf(String(control.value || "").toLowerCase()) >= 0;
+    });
+    var allControl = document.querySelector("[data-won-salesperson-all]");
+    if (allControl) allControl.checked = !normalized.length;
+    var pickerLabel = document.querySelector("[data-won-salesperson-summary]");
+    if (pickerLabel) {
+      var names = normalized.map(function(email){
+        var card = salespersonCardForEmail(email);
+        return card ? String(card.getAttribute("data-salesperson-name") || email) : email;
+      });
+      pickerLabel.textContent = names.length === 0
+        ? "All salespeople"
+        : names.length === 1
+          ? names[0]
+          : names.length + " salespeople";
+    }
   }
   function setActivePaymentFilters(payments) {
     var normalized = payments.filter(Boolean);
@@ -1537,6 +1553,57 @@ function wonExportScript() {
       if (paidOutEl) paidOutEl.textContent = String(totals.paidOut);
     });
   }
+  function updateMobileFilterSummary(activeEmails, activePayments, search) {
+    var allCards = Array.prototype.slice.call(document.querySelectorAll(".won-card"));
+    var hasPeopleFilter = activeEmails.length > 0;
+    var baseCards = allCards.filter(function(card){
+      var email = String(card.getAttribute("data-won-user-email") || "").toLowerCase();
+      return (!hasPeopleFilter || activeEmails.indexOf(email) >= 0) && matchesWonSearch(card, search);
+    });
+    var visibleCards = baseCards.filter(function(card){
+      return cardMatchesPaymentFilters(card, activePayments);
+    });
+    var totals = visibleCards.reduce(function(total, card){
+      total.quotes += 1;
+      total.agency += numberFromCard(card, "data-won-agency-total");
+      total.sales += numberFromCard(card, "data-won-sales-total");
+      total.agencyProfit += numberFromCard(card, "data-won-agency-profit-total");
+      total.installer += numberFromCard(card, "data-won-profit-total");
+      return total;
+    }, { quotes: 0, agency: 0, sales: 0, agencyProfit: 0, installer: 0 });
+    var statusCounts = baseCards.reduce(function(total, card){
+      if (card.getAttribute("data-payment-unpaid") === "true") total.unpaid += 1;
+      if (card.getAttribute("data-payment-requested") === "true") total.requested += 1;
+      if (card.getAttribute("data-payment-paid-in") === "true") total.paidIn += 1;
+      if (card.getAttribute("data-payment-paid-out") === "true") total.paidOut += 1;
+      return total;
+    }, { unpaid: 0, requested: 0, paidIn: 0, paidOut: 0 });
+    var context = document.querySelector("[data-mobile-summary-context]");
+    var quoteCount = document.querySelector("[data-mobile-summary-quotes]");
+    var agency = document.querySelector("[data-mobile-summary-agency]");
+    var sales = document.querySelector("[data-mobile-summary-sales]");
+    var agencyProfit = document.querySelector("[data-mobile-summary-agency-profit]");
+    var installer = document.querySelector("[data-mobile-summary-installer]");
+    if (context) {
+      var names = activeEmails.map(function(email){
+        var card = salespersonCardForEmail(email);
+        return card ? String(card.getAttribute("data-salesperson-name") || email) : email;
+      });
+      context.textContent = names.length ? names.join(", ") : "All salespeople";
+    }
+    if (quoteCount) quoteCount.textContent = String(totals.quotes);
+    if (agency) agency.textContent = currency(totals.agency);
+    if (sales) sales.textContent = currency(totals.sales);
+    if (agencyProfit) agencyProfit.textContent = currency(totals.agencyProfit);
+    if (installer) installer.textContent = currency(totals.installer);
+    Array.prototype.slice.call(document.querySelectorAll("[data-mobile-payment-count]")).forEach(function(node){
+      var payment = String(node.getAttribute("data-mobile-payment-count") || "");
+      if (payment === "unpaid") node.textContent = String(statusCounts.unpaid);
+      if (payment === "requested") node.textContent = String(statusCounts.requested);
+      if (payment === "paid-in") node.textContent = String(statusCounts.paidIn);
+      if (payment === "paid-out") node.textContent = String(statusCounts.paidOut);
+    });
+  }
   function updatePaymentFilterButtons(activePayments) {
     setActivePaymentFilters(activePayments);
   }
@@ -1581,9 +1648,9 @@ function wonExportScript() {
     if (!dock || !section) return;
     var selected = selectedWonCards();
     var visibleCount = visibleWonCards().length;
-    var hasContext = selected.length > 0 || hasActiveWonFilter();
-    dock.hidden = !hasContext;
-    section.classList.toggle("has-mobile-selection-dock", hasContext);
+    var hasSelection = selected.length > 0;
+    dock.hidden = !hasSelection;
+    section.classList.toggle("has-mobile-selection-dock", hasSelection);
     Array.prototype.slice.call(document.querySelectorAll("[data-won-selection-count]")).forEach(function(node){
       node.textContent = selected.length + " selected";
     });
@@ -1594,10 +1661,6 @@ function wonExportScript() {
       control.hidden = !selected.length;
     });
     Array.prototype.slice.call(document.querySelectorAll("[data-won-mobile-actions]")).forEach(function(control){
-      control.hidden = !selected.length;
-      if (!selected.length) control.open = false;
-    });
-    Array.prototype.slice.call(document.querySelectorAll("[data-won-selection-summary]")).forEach(function(control){
       control.hidden = !selected.length;
       if (!selected.length) control.open = false;
     });
@@ -1672,6 +1735,7 @@ function wonExportScript() {
     refreshBulkInputs();
     updatePaymentFilterButtons(activePayments);
     updateSalespersonSummaryTotals(activePayments);
+    updateMobileFilterSummary(activeEmails, activePayments, search);
     updateWonFilterStatus(activeEmails, activePayments);
     updateRequestedOutstanding();
     sortWonCards();
@@ -2104,12 +2168,11 @@ function wonExportScript() {
       var boxes = visibleWonCards()
         .map(function(card){ return card.querySelector(".won-sale-select"); })
         .filter(Boolean);
-      var shouldCheck = boxes.some(function(box){ return !box.checked; });
-      boxes.forEach(function(box){ box.checked = shouldCheck; });
+      boxes.forEach(function(box){ box.checked = true; });
       syncWonSelectionControls();
       updateSelectAllLabel();
       refreshBulkInputs();
-      setExportStatus(shouldCheck ? "Selected all " + boxes.length + (hasActiveWonFilter() ? " filtered" : "") + " won quote" + (boxes.length === 1 ? "." : "s.") : "Cleared all selections.", "success");
+      setExportStatus("Selected all " + boxes.length + (hasActiveWonFilter() ? " filtered" : "") + " won quote" + (boxes.length === 1 ? "." : "s."), "success");
       rememberWonUiState(false);
       return;
     }
@@ -2159,7 +2222,7 @@ function wonExportScript() {
       var paymentSummaryEmail = paymentSummary
         ? String(paymentSummary.getAttribute("data-salesperson-filter") || "").toLowerCase()
         : "";
-      if (selectedSalespeople.length && selectedSalespeople.indexOf(paymentSummaryEmail) < 0) return;
+      if (paymentSummary && selectedSalespeople.length && selectedSalespeople.indexOf(paymentSummaryEmail) < 0) return;
       var activePayments = activePaymentFilters();
       var isActive = paymentTarget.classList.contains("is-active");
       updatePaymentFilterButtons(isActive ? activePayments.filter(function(value){ return value !== payment; }) : activePayments.concat(payment));
@@ -2194,9 +2257,19 @@ function wonExportScript() {
       rememberWonUiState(false);
       return;
     }
-    if (event.target && event.target.matches && event.target.matches("[data-won-salesperson-select]")) {
-      var value = String(event.target.value || "").toLowerCase();
-      setActiveSalespersonEmails(value ? [value] : []);
+    if (event.target && event.target.matches && event.target.matches("[data-won-salesperson-option]")) {
+      var optionValue = String(event.target.value || "").toLowerCase();
+      var selectedEmails = activeSalespersonEmails();
+      var nextEmails = event.target.checked
+        ? selectedEmails.concat(optionValue).filter(function(value, index, values){ return value && values.indexOf(value) === index; })
+        : selectedEmails.filter(function(value){ return value !== optionValue; });
+      setActiveSalespersonEmails(nextEmails);
+      applyWonSalespersonFilter();
+      rememberWonUiState(false);
+      return;
+    }
+    if (event.target && event.target.matches && event.target.matches("[data-won-salesperson-all]")) {
+      setActiveSalespersonEmails([]);
       applyWonSalespersonFilter();
       rememberWonUiState(false);
       return;
@@ -2214,17 +2287,6 @@ function wonExportScript() {
   function handleWonToggle(event) {
     if (!event.target || !event.target.matches) return;
     if (event.target.matches("[data-won-mobile-actions]")) {
-      if (event.target.open) {
-        var totals = document.querySelector("[data-won-selection-summary]");
-        if (totals) totals.open = false;
-      }
-      return;
-    }
-    if (event.target.matches("[data-won-selection-summary]")) {
-      if (event.target.open) {
-        var actions = document.querySelector("[data-won-mobile-actions]");
-        if (actions) actions.open = false;
-      }
       return;
     }
     if (event.target.matches(".won-card")) rememberWonUiState(false);
@@ -4332,6 +4394,9 @@ export default async function AdminUsersPage({
                 <button className="secondary" type="button" data-select-all-won>
                   Select All
                 </button>
+                <button className="secondary" data-won-clear-selection hidden type="button">
+                  Clear selection
+                </button>
                 <button className="orange" type="button" data-export-won-selected>
                   Export selected Excel
                 </button>
@@ -4350,17 +4415,28 @@ export default async function AdminUsersPage({
                   type="search"
                 />
               </label>
-              <label className="won-filter-field won-mobile-salesperson-field">
+              <div className="won-filter-field won-mobile-salesperson-field">
                 <span>Salesperson</span>
-                <select data-won-salesperson-select defaultValue="">
-                  <option value="">All salespeople</option>
-                  {salespersonSales.map((summary) => (
-                    <option key={summary.userEmail} value={summary.userEmail.toLowerCase()}>
-                      {summary.userName}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                <details className="won-mobile-salesperson-picker">
+                  <summary data-won-salesperson-summary>All salespeople</summary>
+                  <div className="won-mobile-salesperson-options">
+                    <label>
+                      <input data-won-salesperson-all defaultChecked type="checkbox" />
+                      <span>All salespeople</span>
+                    </label>
+                    {salespersonSales.map((summary) => (
+                      <label key={summary.userEmail}>
+                        <input
+                          data-won-salesperson-option
+                          type="checkbox"
+                          value={summary.userEmail.toLowerCase()}
+                        />
+                        <span>{summary.userName}</span>
+                      </label>
+                    ))}
+                  </div>
+                </details>
+              </div>
               <label className="won-filter-field won-sort-field">
                 <span>Sort</span>
                 <select data-won-sort defaultValue="recent">
@@ -4371,15 +4447,39 @@ export default async function AdminUsersPage({
                 </select>
               </label>
               <div className="won-mobile-payment-filters" aria-label="Payment filters">
-                <button aria-pressed="false" className="status-chip status-chip-red" data-mobile-payment-filter="unpaid" type="button">Unpaid</button>
-                <button aria-pressed="false" className="status-chip status-chip-blue" data-mobile-payment-filter="requested" type="button">Requested</button>
-                <button aria-pressed="false" className="status-chip status-chip-amber" data-mobile-payment-filter="paid-in" type="button">Paid in</button>
-                <button aria-pressed="false" className="status-chip status-chip-green" data-mobile-payment-filter="paid-out" type="button">Paid out</button>
+                <button aria-pressed="false" className="status-chip status-chip-red" data-mobile-payment-filter="unpaid" type="button">
+                  <strong data-mobile-payment-count="unpaid">0</strong><span>Unpaid</span>
+                </button>
+                <button aria-pressed="false" className="status-chip status-chip-blue" data-mobile-payment-filter="requested" type="button">
+                  <strong data-mobile-payment-count="requested">0</strong><span>Requested</span>
+                </button>
+                <button aria-pressed="false" className="status-chip status-chip-amber" data-mobile-payment-filter="paid-in" type="button">
+                  <strong data-mobile-payment-count="paid-in">0</strong><span>Paid in</span>
+                </button>
+                <button aria-pressed="false" className="status-chip status-chip-green" data-mobile-payment-filter="paid-out" type="button">
+                  <strong data-mobile-payment-count="paid-out">0</strong><span>Paid out</span>
+                </button>
               </div>
               <button className="secondary won-clear-filters" data-clear-won-filters type="button">
                 Clear filters
               </button>
             </div>
+
+          <section className="won-mobile-filter-summary" data-won-mobile-summary aria-live="polite">
+            <div className="won-mobile-filter-summary-head">
+              <div>
+                <span>Filtered summary</span>
+                <strong data-mobile-summary-context>All salespeople</strong>
+              </div>
+              <span><strong data-mobile-summary-quotes>{wonOptions.length}</strong> quotes</span>
+            </div>
+            <div className="won-mobile-filter-summary-grid">
+              <div><span>Agency comm</span><strong data-mobile-summary-agency>{formatMoney(0)}</strong></div>
+              <div><span>Sales comm</span><strong data-mobile-summary-sales>{formatMoney(0)}</strong></div>
+              <div className="agency-profit-metric"><span>Agency profit inc GST</span><strong data-mobile-summary-agency-profit>{formatMoney(0)}</strong></div>
+              <div><span>Installer profit</span><strong data-mobile-summary-installer>{formatMoney(0)}</strong></div>
+            </div>
+          </section>
 
           {salespersonSales.length ? (
             <div className="sales-summary-grid">
@@ -4699,26 +4799,21 @@ export default async function AdminUsersPage({
                   <span data-won-selection-scope>0 quotes visible</span>
                 </div>
                 <button className="secondary" data-select-all-won type="button">
-                  Select all quotes
+                  Select all
                 </button>
-                <button className="secondary" data-won-clear-selection hidden type="button">
-                  Clear
-                </button>
-              </div>
-              <div className="won-mobile-selection-actions">
                 <details className="won-mobile-actions" data-won-mobile-actions hidden>
                   <summary>Actions</summary>
                   <div className="won-mobile-actions-panel">
+                    <div className="won-mobile-action-totals won-selected-totals" data-won-selected-totals hidden aria-live="polite" />
+                    <button className="secondary" data-won-clear-selection type="button">
+                      Clear selection
+                    </button>
                     <button className="orange" data-export-won-selected type="button">
                       Export selected Excel
                     </button>
                     <WonBulkActionControls mobile />
                     <span className="won-export-status" data-won-export-status role="status" aria-live="polite" />
                   </div>
-                </details>
-                <details className="won-mobile-selection-summary" data-won-selection-summary hidden>
-                  <summary>Selected totals</summary>
-                  <div className="won-selected-totals" data-won-selected-totals hidden aria-live="polite" />
                 </details>
               </div>
             </aside>
