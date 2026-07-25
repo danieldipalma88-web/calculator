@@ -2601,7 +2601,7 @@ select {
 
   .won-mobile-actions,
   .won-mobile-selection-summary {
-    position: relative;
+    position: static;
   }
 
   .won-mobile-actions > summary,
