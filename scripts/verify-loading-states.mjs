@@ -33,4 +33,9 @@ if (missing.length) {
   process.exit(1);
 }
 
+if (files.admin.includes("window.alert")) {
+  console.error("Platform Admin actions must not use blocking browser alerts.");
+  process.exit(1);
+}
+
 console.log("loading state checks passed");

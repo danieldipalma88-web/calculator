@@ -1919,7 +1919,6 @@ function wonExportScript() {
     var jobs = cards.map(parseCard).filter(Boolean);
     if (!jobs.length) {
       setExportStatus("Select at least one won quote first.", "error");
-      window.alert("Select at least one won quote first.");
       return;
     }
     setExportStatus("Preparing XLSX export...", "loading");
@@ -1941,7 +1940,6 @@ function wonExportScript() {
         setExportStatus("XLSX export started for " + jobs.length + " selected job" + (jobs.length === 1 ? "." : "s."), "success");
       } catch (error) {
         setExportStatus("Excel export failed. Please try again.", "error");
-        window.alert("Excel export failed. Please try again.");
       } finally {
         setWonSectionLoading(false, "Updating...");
       }
@@ -2034,7 +2032,7 @@ function wonExportScript() {
       refreshBulkInputs();
       if (!selectedWonSelections().length) {
         event.preventDefault();
-        window.alert("Select at least one won quote first.");
+        setExportStatus("Select at least one won quote first.", "error");
         return;
       }
     }
