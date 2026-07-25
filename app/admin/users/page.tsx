@@ -1288,20 +1288,33 @@ function wonExportScript() {
       return card.getAttribute("data-payment-" + payment) === "true";
     });
   }
-  var selectAll = document.querySelector("[data-select-all-won]");
   function visibleWonCards() {
     return Array.prototype.slice.call(document.querySelectorAll(".won-options-section .won-card")).filter(function(card){
       return !card.hidden;
     });
   }
+  function activeWonSearch() {
+    var search = document.querySelector("[data-won-search]");
+    return String(search && search.value || "").trim().toLowerCase();
+  }
+  function matchesWonSearch(card, search) {
+    if (!search) return true;
+    return String(card.getAttribute("data-won-search") || "").toLowerCase().indexOf(search) >= 0;
+  }
+  function hasActiveWonFilter() {
+    return activeSalespersonEmails().length > 0 || activePaymentFilters().length > 0 || Boolean(activeWonSearch());
+  }
   function updateSelectAllLabel() {
-    selectAll = document.querySelector("[data-select-all-won]");
-    if (!selectAll) return;
     var visibleBoxes = visibleWonCards()
       .map(function(card){ return card.querySelector(".won-sale-select"); })
       .filter(Boolean);
     var hasVisibleUnchecked = visibleBoxes.some(function(box){ return !box.checked; });
-    selectAll.textContent = visibleBoxes.length && !hasVisibleUnchecked ? "Clear All" : "Select All";
+    var label = visibleBoxes.length && !hasVisibleUnchecked
+      ? "Clear all"
+      : "Select all " + visibleBoxes.length + (hasActiveWonFilter() ? " filtered" : " quotes");
+    Array.prototype.slice.call(document.querySelectorAll("[data-select-all-won]")).forEach(function(control){
+      control.textContent = label;
+    });
   }
   function syncWonSelectionControl(box) {
     if (!box || !box.closest) return;
@@ -1321,12 +1334,14 @@ function wonExportScript() {
     return selectedWonCards().map(parseSelectionCard).filter(Boolean);
   }
   function updateSelectedTotals() {
-    var totalsNode = document.querySelector("[data-won-selected-totals]");
-    if (!totalsNode) return;
+    var totalsNodes = Array.prototype.slice.call(document.querySelectorAll("[data-won-selected-totals]"));
+    if (!totalsNodes.length) return;
     var cards = selectedWonCards();
     if (!cards.length) {
-      totalsNode.hidden = true;
-      totalsNode.textContent = "";
+      totalsNodes.forEach(function(node){
+        node.hidden = true;
+        node.textContent = "";
+      });
       return;
     }
     var totals = cards.reduce(function(total, card){
@@ -1336,11 +1351,14 @@ function wonExportScript() {
       total.profit += numberFromCard(card, "data-won-profit-total");
       return total;
     }, { sales: 0, agency: 0, agencyProfit: 0, profit: 0 });
-    totalsNode.hidden = false;
-    totalsNode.textContent = "Selected totals (" + cards.length + "): Sales comm " + currency(totals.sales) +
+    var text = "Selected totals (" + cards.length + "): Sales comm " + currency(totals.sales) +
       " | Agency comm " + currency(totals.agency) +
       " | Agency profit inc GST " + currency(totals.agencyProfit) +
       " | Installer profit " + currency(totals.profit);
+    totalsNodes.forEach(function(node){
+      node.hidden = false;
+      node.textContent = text;
+    });
   }
   function refreshBulkInputs() {
     var value = JSON.stringify(selectedWonSelections());
@@ -1348,12 +1366,13 @@ function wonExportScript() {
       input.value = value;
     });
     updateSelectedTotals();
+    updateWonSelectionDock();
   }
   function setExportStatus(message, tone) {
-    var status = document.querySelector("[data-won-export-status]");
-    if (!status) return;
-    status.textContent = message || "";
-    status.setAttribute("data-tone", tone || "");
+    Array.prototype.slice.call(document.querySelectorAll("[data-won-export-status]")).forEach(function(status){
+      status.textContent = message || "";
+      status.setAttribute("data-tone", tone || "");
+    });
   }
   function setWonSectionLoading(active, labelText) {
     var section = document.querySelector(".won-options-section");
@@ -1444,10 +1463,36 @@ function wonExportScript() {
       .filter(Boolean);
   }
   function activePaymentFilters() {
-    var values = Array.prototype.slice.call(document.querySelectorAll("[data-payment-filter].is-active"))
-      .map(function(button){ return String(button.getAttribute("data-payment-filter") || ""); })
+    var values = Array.prototype.slice.call(document.querySelectorAll("[data-payment-filter].is-active, [data-mobile-payment-filter].is-active"))
+      .map(function(button){ return String(button.getAttribute("data-payment-filter") || button.getAttribute("data-mobile-payment-filter") || ""); })
       .filter(Boolean);
     return values.filter(function(value, index){ return values.indexOf(value) === index; });
+  }
+  function setActiveSalespersonEmails(emails) {
+    var normalized = emails.map(function(email){ return String(email || "").toLowerCase(); }).filter(Boolean);
+    Array.prototype.slice.call(document.querySelectorAll("[data-salesperson-filter]")).forEach(function(card){
+      var active = normalized.indexOf(String(card.getAttribute("data-salesperson-filter") || "").toLowerCase()) >= 0;
+      card.classList.toggle("is-active", active);
+      card.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+    var mobileSelect = document.querySelector("[data-won-salesperson-select]");
+    if (mobileSelect) mobileSelect.value = normalized.length === 1 ? normalized[0] : "";
+  }
+  function setActivePaymentFilters(payments) {
+    var normalized = payments.filter(Boolean);
+    var selectedEmails = activeSalespersonEmails();
+    var hasSelectedSalespeople = selectedEmails.length > 0;
+    Array.prototype.slice.call(document.querySelectorAll("[data-payment-filter], [data-mobile-payment-filter]")).forEach(function(button){
+      var payment = String(button.getAttribute("data-payment-filter") || button.getAttribute("data-mobile-payment-filter") || "");
+      var summaryCard = button.closest ? button.closest("[data-salesperson-filter]") : null;
+      var summaryEmail = summaryCard
+        ? String(summaryCard.getAttribute("data-salesperson-filter") || "").toLowerCase()
+        : "";
+      var appliesToSummary = !summaryCard || !hasSelectedSalespeople || selectedEmails.indexOf(summaryEmail) >= 0;
+      var isActive = appliesToSummary && normalized.indexOf(payment) >= 0;
+      button.classList.toggle("is-active", isActive);
+      button.setAttribute("aria-pressed", isActive ? "true" : "false");
+    });
   }
   function updateSalespersonSummaryTotals(activePayments) {
     var selectedEmails = activeSalespersonEmails();
@@ -1493,18 +1538,7 @@ function wonExportScript() {
     });
   }
   function updatePaymentFilterButtons(activePayments) {
-    var selectedEmails = activeSalespersonEmails();
-    var hasSelectedSalespeople = selectedEmails.length > 0;
-    Array.prototype.slice.call(document.querySelectorAll("[data-payment-filter]")).forEach(function(button){
-      var summaryCard = button.closest ? button.closest("[data-salesperson-filter]") : null;
-      var summaryEmail = summaryCard
-        ? String(summaryCard.getAttribute("data-salesperson-filter") || "").toLowerCase()
-        : "";
-      var appliesToSummary = !hasSelectedSalespeople || selectedEmails.indexOf(summaryEmail) >= 0;
-      var isActive = appliesToSummary && activePayments.indexOf(String(button.getAttribute("data-payment-filter") || "")) >= 0;
-      button.classList.toggle("is-active", isActive);
-      button.setAttribute("aria-pressed", isActive ? "true" : "false");
-    });
+    setActivePaymentFilters(activePayments);
   }
   function updateRequestedOutstanding() {
     var node = document.querySelector("[data-won-requested-outstanding]");
@@ -1522,13 +1556,111 @@ function wonExportScript() {
     node.textContent = "Payment requested, awaiting payment: " + cards.length + " job" +
       (cards.length === 1 ? "" : "s") + " | Outstanding agency commission: " + currency(total);
   }
+  function currentWonSort() {
+    var sort = document.querySelector("[data-won-sort]");
+    return String(sort && sort.value || "recent");
+  }
+  function sortWonCards() {
+    var grid = document.querySelector(".won-grid");
+    if (!grid) return;
+    var mode = currentWonSort();
+    var cards = Array.prototype.slice.call(grid.querySelectorAll(":scope > .won-card"));
+    cards.sort(function(a, b){
+      var aWon = Number(a.getAttribute("data-won-time") || "0");
+      var bWon = Number(b.getAttribute("data-won-time") || "0");
+      if (mode === "oldest") return aWon - bWon;
+      if (mode === "agency-profit") return numberFromCard(b, "data-won-agency-profit-total") - numberFromCard(a, "data-won-agency-profit-total");
+      if (mode === "outstanding") return Number(b.getAttribute("data-won-outstanding") || "0") - Number(a.getAttribute("data-won-outstanding") || "0");
+      return bWon - aWon;
+    });
+    cards.forEach(function(card){ grid.appendChild(card); });
+  }
+  function updateWonSelectionDock() {
+    var dock = document.querySelector("[data-won-mobile-selection-dock]");
+    var section = document.querySelector(".won-options-section");
+    if (!dock || !section) return;
+    var selected = selectedWonCards();
+    var visibleCount = visibleWonCards().length;
+    var hasContext = selected.length > 0 || hasActiveWonFilter();
+    dock.hidden = !hasContext;
+    section.classList.toggle("has-mobile-selection-dock", hasContext);
+    Array.prototype.slice.call(document.querySelectorAll("[data-won-selection-count]")).forEach(function(node){
+      node.textContent = selected.length + " selected";
+    });
+    Array.prototype.slice.call(document.querySelectorAll("[data-won-selection-scope]")).forEach(function(node){
+      node.textContent = visibleCount + (hasActiveWonFilter() ? " filtered quote" : " quote") + (visibleCount === 1 ? "" : "s") + " visible";
+    });
+    Array.prototype.slice.call(document.querySelectorAll("[data-won-clear-selection]")).forEach(function(control){
+      control.hidden = !selected.length;
+    });
+    Array.prototype.slice.call(document.querySelectorAll("[data-won-mobile-actions]")).forEach(function(control){
+      control.hidden = !selected.length;
+      if (!selected.length) control.open = false;
+    });
+    Array.prototype.slice.call(document.querySelectorAll("[data-won-selection-summary]")).forEach(function(control){
+      control.hidden = !selected.length;
+      if (!selected.length) control.open = false;
+    });
+  }
+  var WON_UI_STORAGE_KEY = "calculator-won-quotes-ui-v1";
+  function readWonUiState() {
+    try {
+      var value = window.sessionStorage.getItem(WON_UI_STORAGE_KEY);
+      return value ? JSON.parse(value) : null;
+    } catch (error) {
+      return null;
+    }
+  }
+  function writeWonUiState(state) {
+    try { window.sessionStorage.setItem(WON_UI_STORAGE_KEY, JSON.stringify(state)); }
+    catch (error) {}
+  }
+  function rememberWonUiState(returning) {
+    var previous = readWonUiState() || {};
+    var section = document.querySelector(".won-options-section");
+    var search = document.querySelector("[data-won-search]");
+    var state = {
+      salespeople: activeSalespersonEmails(),
+      payments: activePaymentFilters(),
+      search: String(search && search.value || ""),
+      sort: currentWonSort(),
+      expanded: Array.prototype.slice.call(document.querySelectorAll(".won-card[open]")).map(function(card){ return String(card.getAttribute("data-won-card-key") || ""); }).filter(Boolean),
+      scrollY: window.scrollY || 0,
+      returning: returning === undefined ? Boolean(previous.returning) : Boolean(returning),
+      sectionOpen: Boolean(section && section.open)
+    };
+    writeWonUiState(state);
+  }
+  function restoreWonUiState() {
+    var state = readWonUiState();
+    if (!state) return;
+    var section = document.querySelector(".won-options-section");
+    var search = document.querySelector("[data-won-search]");
+    var sort = document.querySelector("[data-won-sort]");
+    if (search) search.value = String(state.search || "");
+    if (sort) sort.value = String(state.sort || "recent");
+    setActiveSalespersonEmails(Array.isArray(state.salespeople) ? state.salespeople : []);
+    setActivePaymentFilters(Array.isArray(state.payments) ? state.payments : []);
+    applyWonSalespersonFilter();
+    (Array.isArray(state.expanded) ? state.expanded : []).forEach(function(key){
+      var card = document.querySelector('.won-card[data-won-card-key="' + CSS.escape(String(key)) + '"]');
+      if (card) card.open = true;
+    });
+    if (state.returning && section) {
+      section.open = true;
+      window.requestAnimationFrame(function(){ window.scrollTo({ top: Number(state.scrollY || 0), behavior: "auto" }); });
+      state.returning = false;
+      writeWonUiState(state);
+    }
+  }
   function applyWonSalespersonFilter() {
     var activeEmails = activeSalespersonEmails();
     var activePayments = activePaymentFilters();
+    var search = activeWonSearch();
     var hasFilter = activeEmails.length > 0;
     Array.prototype.slice.call(document.querySelectorAll(".won-card")).forEach(function(card){
       var email = String(card.getAttribute("data-won-user-email") || "").toLowerCase();
-      var show = (!hasFilter || activeEmails.indexOf(email) >= 0) && cardMatchesPaymentFilters(card, activePayments);
+      var show = (!hasFilter || activeEmails.indexOf(email) >= 0) && cardMatchesPaymentFilters(card, activePayments) && matchesWonSearch(card, search);
       card.hidden = !show;
       if (!show) {
         var box = card.querySelector(".won-sale-select");
@@ -1542,12 +1674,19 @@ function wonExportScript() {
     updateSalespersonSummaryTotals(activePayments);
     updateWonFilterStatus(activeEmails, activePayments);
     updateRequestedOutstanding();
+    sortWonCards();
+    updateWonSelectionDock();
   }
   function toggleSalespersonCard(card) {
     if (!card) return;
-    card.classList.toggle("is-active");
-    card.setAttribute("aria-pressed", card.classList.contains("is-active") ? "true" : "false");
+    var emails = activeSalespersonEmails();
+    var email = String(card.getAttribute("data-salesperson-filter") || "").toLowerCase();
+    var next = card.classList.contains("is-active")
+      ? emails.filter(function(value){ return value !== email; })
+      : emails.concat(email);
+    setActiveSalespersonEmails(next);
     applyWonSalespersonFilter();
+    rememberWonUiState(false);
   }
   Array.prototype.slice.call(document.querySelectorAll("[data-salesperson-filter]")).forEach(function(card){
     card.setAttribute("aria-pressed", card.classList.contains("is-active") ? "true" : "false");
@@ -1970,7 +2109,35 @@ function wonExportScript() {
       syncWonSelectionControls();
       updateSelectAllLabel();
       refreshBulkInputs();
-      setExportStatus(shouldCheck ? "Selected all " + boxes.length + " won quote" + (boxes.length === 1 ? "." : "s.") : "Cleared all selections.", "success");
+      setExportStatus(shouldCheck ? "Selected all " + boxes.length + (hasActiveWonFilter() ? " filtered" : "") + " won quote" + (boxes.length === 1 ? "." : "s.") : "Cleared all selections.", "success");
+      rememberWonUiState(false);
+      return;
+    }
+
+    var clearSelectionTarget = event.target && event.target.closest ? event.target.closest("[data-won-clear-selection]") : null;
+    if (clearSelectionTarget) {
+      event.preventDefault();
+      Array.prototype.slice.call(document.querySelectorAll(".won-sale-select:checked")).forEach(function(box){ box.checked = false; });
+      syncWonSelectionControls();
+      updateSelectAllLabel();
+      refreshBulkInputs();
+      setExportStatus("Cleared all selections.", "success");
+      rememberWonUiState(false);
+      return;
+    }
+
+    var clearFiltersTarget = event.target && event.target.closest ? event.target.closest("[data-clear-won-filters]") : null;
+    if (clearFiltersTarget) {
+      event.preventDefault();
+      var search = document.querySelector("[data-won-search]");
+      var sort = document.querySelector("[data-won-sort]");
+      if (search) search.value = "";
+      if (sort) sort.value = "recent";
+      setActiveSalespersonEmails([]);
+      setActivePaymentFilters([]);
+      applyWonSalespersonFilter();
+      setExportStatus("Cleared Won Quotes filters.", "success");
+      rememberWonUiState(false);
       return;
     }
 
@@ -1981,11 +2148,11 @@ function wonExportScript() {
       return;
     }
 
-    var paymentTarget = event.target && event.target.closest ? event.target.closest("[data-payment-filter]") : null;
+    var paymentTarget = event.target && event.target.closest ? event.target.closest("[data-payment-filter], [data-mobile-payment-filter]") : null;
     if (paymentTarget) {
       event.preventDefault();
       event.stopPropagation();
-      var payment = String(paymentTarget.getAttribute("data-payment-filter") || "");
+      var payment = String(paymentTarget.getAttribute("data-payment-filter") || paymentTarget.getAttribute("data-mobile-payment-filter") || "");
       if (!payment) return;
       var selectedSalespeople = activeSalespersonEmails();
       var paymentSummary = paymentTarget.closest ? paymentTarget.closest("[data-salesperson-filter]") : null;
@@ -1997,6 +2164,7 @@ function wonExportScript() {
       var isActive = paymentTarget.classList.contains("is-active");
       updatePaymentFilterButtons(isActive ? activePayments.filter(function(value){ return value !== payment; }) : activePayments.concat(payment));
       applyWonSalespersonFilter();
+      rememberWonUiState(false);
       return;
     }
     var target = event.target && event.target.closest ? event.target.closest("[data-salesperson-filter]") : null;
@@ -2023,7 +2191,43 @@ function wonExportScript() {
       updateSelectAllLabel();
       refreshBulkInputs();
       setExportStatus("", "");
+      rememberWonUiState(false);
+      return;
     }
+    if (event.target && event.target.matches && event.target.matches("[data-won-salesperson-select]")) {
+      var value = String(event.target.value || "").toLowerCase();
+      setActiveSalespersonEmails(value ? [value] : []);
+      applyWonSalespersonFilter();
+      rememberWonUiState(false);
+      return;
+    }
+    if (event.target && event.target.matches && event.target.matches("[data-won-sort]")) {
+      sortWonCards();
+      rememberWonUiState(false);
+    }
+  }
+  function handleWonInput(event) {
+    if (!event.target || !event.target.matches || !event.target.matches("[data-won-search]")) return;
+    applyWonSalespersonFilter();
+    rememberWonUiState(false);
+  }
+  function handleWonToggle(event) {
+    if (!event.target || !event.target.matches) return;
+    if (event.target.matches("[data-won-mobile-actions]")) {
+      if (event.target.open) {
+        var totals = document.querySelector("[data-won-selection-summary]");
+        if (totals) totals.open = false;
+      }
+      return;
+    }
+    if (event.target.matches("[data-won-selection-summary]")) {
+      if (event.target.open) {
+        var actions = document.querySelector("[data-won-mobile-actions]");
+        if (actions) actions.open = false;
+      }
+      return;
+    }
+    if (event.target.matches(".won-card")) rememberWonUiState(false);
   }
   function handleWonSubmit(event) {
     var form = event.target;
@@ -2041,6 +2245,7 @@ function wonExportScript() {
       event.preventDefault();
       return;
     }
+    rememberWonUiState(true);
     setWonActionLoading(form, event.submitter);
   }
   window.__adminWonOptionsRuntime = {
@@ -2048,9 +2253,12 @@ function wonExportScript() {
     click: handleWonClick,
     keydown: handleWonKeydown,
     change: handleWonChange,
+    input: handleWonInput,
+    toggle: handleWonToggle,
     submit: handleWonSubmit,
     refresh: function(){
       clearWonActionLoading();
+      restoreWonUiState();
       applyWonSalespersonFilter();
       refreshBulkInputs();
     }
@@ -2069,6 +2277,12 @@ function wonExportScript() {
     document.addEventListener("change", function(event){
       if (window.__adminWonOptionsRuntime) window.__adminWonOptionsRuntime.change(event);
     });
+    document.addEventListener("input", function(event){
+      if (window.__adminWonOptionsRuntime) window.__adminWonOptionsRuntime.input(event);
+    });
+    document.addEventListener("toggle", function(event){
+      if (window.__adminWonOptionsRuntime) window.__adminWonOptionsRuntime.toggle(event);
+    }, true);
     document.addEventListener("submit", function(event){
       if (window.__adminWonOptionsRuntime) window.__adminWonOptionsRuntime.submit(event);
     });
@@ -3388,6 +3602,53 @@ async function bulkUpdateWonOptions(formData: FormData) {
   redirect(`/admin/users?message=${encodeURIComponent(`${updatedCount} won option${updatedCount === 1 ? "" : "s"} ${actionLabel}.`)}`);
 }
 
+function WonBulkActionControls({ mobile = false }: { mobile?: boolean }) {
+  const className = mobile ? "won-bulk-actions won-mobile-bulk-actions" : "won-bulk-actions";
+  const deleteClassName = mobile
+    ? "delete-confirm bulk-delete-confirm won-mobile-delete-confirm"
+    : "delete-confirm bulk-delete-confirm";
+
+  return (
+    <>
+      <form action={bulkUpdateWonOptions} className={className} data-bulk-won-form>
+        <input type="hidden" name="selectedWonOptions" data-selected-won-input />
+        <button className="secondary" type="submit" name="bulkMode" value="payment_requested">
+          Mark payment requested
+        </button>
+        <button className="secondary" type="submit" name="bulkMode" value="paid_in">
+          Mark paid in
+        </button>
+        <button className="secondary" type="submit" name="bulkMode" value="paid_out">
+          Mark paid out
+        </button>
+        <button className="secondary" type="submit" name="bulkMode" value="reset_payment">
+          Reset payment
+        </button>
+        <button className="secondary" type="submit" name="bulkMode" value="unlock">
+          Unlock
+        </button>
+      </form>
+      <details className={deleteClassName}>
+        <summary>Delete selected</summary>
+        <form
+          action={bulkUpdateWonOptions}
+          data-bulk-won-form
+          data-confirm-message="This permanently deletes the selected won quotes from current and recovered backup data. This cannot be undone."
+        >
+          <input type="hidden" name="selectedWonOptions" data-selected-won-input />
+          <input type="hidden" name="bulkMode" value="delete" />
+          <p className="delete-warning">
+            This permanently deletes the selected won quotes from current and recovered backup data. This cannot be undone.
+          </p>
+          <button className="danger" type="submit">
+            Permanently delete
+          </button>
+        </form>
+      </details>
+    </>
+  );
+}
+
 export default async function AdminUsersPage({
   searchParams,
 }: {
@@ -4066,7 +4327,7 @@ export default async function AdminUsersPage({
                 {includeBackupWonOptions ? "Hide backups" : "Check recovered backups"}
               </a>
             </div>
-            <div className="won-toolbar">
+            <div className="won-toolbar won-desktop-toolbar">
               <div className="won-toolbar-controls">
                 <button className="secondary" type="button" data-select-all-won>
                   Select All
@@ -4074,43 +4335,50 @@ export default async function AdminUsersPage({
                 <button className="orange" type="button" data-export-won-selected>
                   Export selected Excel
                 </button>
-                <form action={bulkUpdateWonOptions} className="won-bulk-actions" data-bulk-won-form>
-                  <input type="hidden" name="selectedWonOptions" data-selected-won-input />
-                  <button className="secondary" type="submit" name="bulkMode" value="payment_requested">
-                    Mark payment requested
-                  </button>
-                  <button className="secondary" type="submit" name="bulkMode" value="paid_in">
-                    Mark paid in
-                  </button>
-                  <button className="secondary" type="submit" name="bulkMode" value="paid_out">
-                    Mark paid out
-                  </button>
-                  <button className="secondary" type="submit" name="bulkMode" value="reset_payment">
-                    Reset payment
-                  </button>
-                  <button className="secondary" type="submit" name="bulkMode" value="unlock">
-                    Unlock
-                  </button>
-                </form>
-                <details className="delete-confirm bulk-delete-confirm">
-                  <summary>Delete selected</summary>
-                  <form
-                    action={bulkUpdateWonOptions}
-                    data-bulk-won-form
-                    data-confirm-message="This permanently deletes the selected won quotes from current and recovered backup data. This cannot be undone."
-                  >
-                    <input type="hidden" name="selectedWonOptions" data-selected-won-input />
-                    <input type="hidden" name="bulkMode" value="delete" />
-                    <p className="delete-warning">
-                      This permanently deletes the selected won quotes from current and recovered backup data. This cannot be undone.
-                    </p>
-                    <button className="danger" type="submit">
-                      Permanently delete
-                    </button>
-                  </form>
-                </details>
+                <WonBulkActionControls />
               </div>
               <span className="won-export-status" data-won-export-status role="status" aria-live="polite" />
+            </div>
+
+            <div className="won-filter-controls">
+              <label className="won-filter-field won-search-field">
+                <span>Search Won Quotes</span>
+                <input
+                  autoComplete="off"
+                  data-won-search
+                  placeholder="Customer, salesperson or business"
+                  type="search"
+                />
+              </label>
+              <label className="won-filter-field won-mobile-salesperson-field">
+                <span>Salesperson</span>
+                <select data-won-salesperson-select defaultValue="">
+                  <option value="">All salespeople</option>
+                  {salespersonSales.map((summary) => (
+                    <option key={summary.userEmail} value={summary.userEmail.toLowerCase()}>
+                      {summary.userName}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="won-filter-field won-sort-field">
+                <span>Sort</span>
+                <select data-won-sort defaultValue="recent">
+                  <option value="recent">Most recent</option>
+                  <option value="oldest">Oldest first</option>
+                  <option value="agency-profit">Highest agency profit</option>
+                  <option value="outstanding">Highest payment outstanding</option>
+                </select>
+              </label>
+              <div className="won-mobile-payment-filters" aria-label="Payment filters">
+                <button aria-pressed="false" className="status-chip status-chip-red" data-mobile-payment-filter="unpaid" type="button">Unpaid</button>
+                <button aria-pressed="false" className="status-chip status-chip-blue" data-mobile-payment-filter="requested" type="button">Requested</button>
+                <button aria-pressed="false" className="status-chip status-chip-amber" data-mobile-payment-filter="paid-in" type="button">Paid in</button>
+                <button aria-pressed="false" className="status-chip status-chip-green" data-mobile-payment-filter="paid-out" type="button">Paid out</button>
+              </div>
+              <button className="secondary won-clear-filters" data-clear-won-filters type="button">
+                Clear filters
+              </button>
             </div>
 
           {salespersonSales.length ? (
@@ -4185,7 +4453,7 @@ export default async function AdminUsersPage({
           <div className="won-requested-outstanding" data-won-requested-outstanding aria-live="polite">
             No requested payments are currently awaiting payment.
           </div>
-          <div className="won-selected-totals" data-won-selected-totals hidden aria-live="polite" />
+          <div className="won-selected-totals won-selected-totals-inline" data-won-selected-totals hidden aria-live="polite" />
 
           <div className="won-grid">
             {wonOptions.map((option) => (
@@ -4201,6 +4469,10 @@ export default async function AdminUsersPage({
                   wonAt: option.wonAt,
                 })}
                 data-won-user-email={option.userEmail.toLowerCase()}
+                data-won-card-key={wonOptionDomKey(option)}
+                data-won-search={[option.optionName, option.userName, option.businessName, option.userEmail].join(" ").toLowerCase()}
+                data-won-time={Number.isFinite(new Date(option.wonAt).getTime()) ? new Date(option.wonAt).getTime() : 0}
+                data-won-outstanding={option.paymentRequestedAt && !option.paidInAt ? option.agencyCommissionTotal : 0}
                 data-payment-unpaid={option.paidInAt ? "false" : "true"}
                 data-payment-requested={option.paymentRequestedAt && !option.paidInAt ? "true" : "false"}
                 data-payment-requested-outstanding={option.paymentRequestedAt && !option.paidInAt ? "true" : "false"}
@@ -4237,27 +4509,27 @@ export default async function AdminUsersPage({
                     <span className={`payment-pill payment-pill-${option.paymentStatus}`}>
                       {option.paymentStatusLabel}
                     </span>
-                    <span className="won-row-metric">
+                    <span className="won-row-metric won-row-metric-won">
                       <span>Won</span>
                       <strong>{option.wonAt ? formatShortDate(option.wonAt) : "Won"}</strong>
                     </span>
-                    <span className="won-row-metric">
+                    <span className="won-row-metric won-row-metric-systems">
                       <span>Systems</span>
                       <strong>{option.systemCount}</strong>
                     </span>
-                    <span className="won-row-metric">
+                    <span className="won-row-metric won-row-metric-agency">
                       <span>Agency comm</span>
                       <strong>{formatMoney(option.agencyCommissionTotal)}</strong>
                     </span>
-                    <span className="won-row-metric">
+                    <span className="won-row-metric won-row-metric-sales">
                       <span>Sales comm</span>
                       <strong>{formatMoney(option.salespersonCommissionTotal)}</strong>
                     </span>
-                    <span className="won-row-metric agency-profit-metric">
+                    <span className="won-row-metric won-row-metric-agency-profit agency-profit-metric">
                       <span>Agency profit inc GST</span>
                       <strong>{formatMoney(option.agencyProfitAfterSalesTotal)}</strong>
                     </span>
-                    <span className="won-row-metric">
+                    <span className="won-row-metric won-row-metric-installer">
                       <span>Installer profit</span>
                       <strong>{formatMoney(option.installerProfitTotal)}</strong>
                     </span>
@@ -4420,6 +4692,36 @@ export default async function AdminUsersPage({
             ))}
           {!wonOptions.length ? <div className="empty-card">No won quotes yet.</div> : null}
             </div>
+            <aside className="won-mobile-selection-dock" data-won-mobile-selection-dock hidden aria-label="Won Quote selection actions">
+              <div className="won-mobile-selection-main">
+                <div>
+                  <strong data-won-selection-count>0 selected</strong>
+                  <span data-won-selection-scope>0 quotes visible</span>
+                </div>
+                <button className="secondary" data-select-all-won type="button">
+                  Select all quotes
+                </button>
+                <button className="secondary" data-won-clear-selection hidden type="button">
+                  Clear
+                </button>
+              </div>
+              <div className="won-mobile-selection-actions">
+                <details className="won-mobile-actions" data-won-mobile-actions hidden>
+                  <summary>Actions</summary>
+                  <div className="won-mobile-actions-panel">
+                    <button className="orange" data-export-won-selected type="button">
+                      Export selected Excel
+                    </button>
+                    <WonBulkActionControls mobile />
+                    <span className="won-export-status" data-won-export-status role="status" aria-live="polite" />
+                  </div>
+                </details>
+                <details className="won-mobile-selection-summary" data-won-selection-summary hidden>
+                  <summary>Selected totals</summary>
+                  <div className="won-selected-totals" data-won-selected-totals hidden aria-live="polite" />
+                </details>
+              </div>
+            </aside>
           </div>
         </details>
       </section>

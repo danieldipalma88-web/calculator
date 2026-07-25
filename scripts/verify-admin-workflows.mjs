@@ -16,7 +16,13 @@ const [adminPage, calculatorPage, rawRoute, dataRoute, addressRoute, authCallbac
 
 const checks = [
   [adminPage.includes("<h2>Won Quotes</h2>"), "Won Quotes heading"],
-  [adminPage.includes('"Clear All" : "Select All"'), "Select All label behavior"],
+  [adminPage.includes('"Select all " + visibleBoxes.length'), "filtered Select All label behavior"],
+  [adminPage.includes('data-won-mobile-selection-dock'), "contextual mobile selection dock"],
+  [adminPage.includes('data-won-search'), "Won Quotes search"],
+  [adminPage.includes('data-won-sort'), "Won Quotes sort control"],
+  [adminPage.includes('data-won-salesperson-select'), "mobile salesperson filter"],
+  [adminPage.includes('data-mobile-payment-filter'), "mobile payment filters"],
+  [adminPage.includes('rememberWonUiState(true)'), "Won Quotes update state persistence"],
   [!adminPage.includes("Select visible"), "old Select visible label removed"],
   [adminPage.includes("var selectedEmails = activeSalespersonEmails();"), "salesperson-scoped payment filters"],
   [adminPage.includes("var summaryPayments = appliesToSummary ? activePayments : [];"), "unselected salesperson totals preserved"],
@@ -26,6 +32,8 @@ const checks = [
   [adminPage.includes("admin_list_approved_user_activity"), "approved-user activity lookup"],
   [adminPage.includes("formatLastActive(approvedUser.last_active_at)"), "last-active user detail"],
   [styles.includes(".won-toolbar-controls"), "compact Won Quotes toolbar"],
+  [styles.includes(".won-filter-controls"), "Won Quotes filter controls"],
+  [styles.includes(".won-mobile-selection-dock"), "sticky Won Quotes mobile dock"],
   [styles.includes(".user-card-summary"), "compact approved-user summaries"],
   [calculatorPage.includes("if (approved.is_locked)"), "calculator page lock enforcement"],
   [rawRoute.includes("if (approved.is_locked)"), "raw calculator lock enforcement"],
