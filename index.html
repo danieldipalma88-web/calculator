@@ -4429,6 +4429,38 @@ function normalizeCertValues(saved){
     updatedAt:String(saved.updatedAt||'')
   };
 }
+function certValuesSignature(values){
+  const normalized=normalizeCertValues(values);
+  return JSON.stringify({
+    escSpotPrice:Number(normalized.escSpotPrice).toFixed(2),
+    prcSpotPrice:Number(normalized.prcSpotPrice).toFixed(2),
+    escAgreementDeduction:Number(normalized.escAgreementDeduction).toFixed(2),
+    prcAgreementDeduction:Number(normalized.prcAgreementDeduction).toFixed(2),
+    source:normalized.source,
+    locked:normalized.locked,
+    updatedAt:normalized.updatedAt
+  });
+}
+window.applyAuthoritativeCertificateValues=function(raw){
+  try{
+    const parsed=typeof raw==='string'?JSON.parse(raw):raw;
+    const next=normalizeCertValues(parsed);
+    if(certValuesSignature(next)===certValuesSignature(certValues)) return false;
+    certValues=next;
+    persistCertValues();
+    applyLockedCertValuesToMain();
+    if(activeCalculatorView==='multiSplit'){
+      resetMultiSplitRebateMetrics('Certificate spot prices updated. Recalculating the rebate...');
+      if(multiSplitHasCalculated) calculateMultiSplitTrialRebate();
+    }else{
+      refreshLiveRebateForCurrentProduct();
+      refreshBestValueIndicator();
+    }
+    return true;
+  }catch(e){
+    return false;
+  }
+};
 function applyLockedCertValuesToMain(){
   if($('essEscRate')) $('essEscRate').value=(Number(certValues.escRate)||0).toFixed(2);
   if($('essPrcRate')) $('essPrcRate').value=(Number(certValues.prcRate)||0).toFixed(2);

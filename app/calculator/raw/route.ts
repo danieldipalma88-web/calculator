@@ -8,6 +8,13 @@ import {
   canSeeProfitDetails,
   isOwnerEmail,
 } from "../../../lib/admin";
+import {
+  CERTIFICATE_VALUES_STORAGE_KEYS,
+  PLATFORM_CERTIFICATE_VALUES_ID,
+  overlayPlatformCertificateValues,
+  platformCertificateValuesFromRow,
+  type PlatformCertificateValuesRow,
+} from "../../../lib/certificate-values";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
 
 function safeScriptJson(value: unknown) {
@@ -101,12 +108,6 @@ const MANAGED_PRICE_STORAGE_KEYS = [
   "installerManagedPricesV1",
   "greenEnergyManagedPricesV1",
   "ManagedPricesV1",
-];
-
-const CERTIFICATE_VALUE_STORAGE_KEYS = [
-  "installerCertificateValuesV1",
-  "greenEnergyCertificateValuesV1",
-  "CertificateValuesV1",
 ];
 
 const WON_OPTION_ADMIN_STATE_STORAGE_KEYS = [
@@ -223,7 +224,7 @@ function sharedBusinessDataFromUserData(data: Record<string, unknown>) {
 
 function stripCertificateValueKeys(data: Record<string, unknown>) {
   const output = { ...data };
-  [...CERTIFICATE_VALUE_STORAGE_KEYS, ...WON_OPTION_ADMIN_STATE_STORAGE_KEYS].forEach((key) => {
+  [...CERTIFICATE_VALUES_STORAGE_KEYS, ...WON_OPTION_ADMIN_STATE_STORAGE_KEYS].forEach((key) => {
     delete output[key];
   });
   return output;
@@ -403,6 +404,9 @@ function injectCloudStorageSync(
   var syncRetryTimer = null;
   var cloudSaveHideTimer = null;
   var saveRequestTimeoutMs = 12000;
+  var certificateRefreshInFlight = false;
+  var certificateRefreshIntervalMs = 60000;
+  var certificateValueKeys = ['installerCertificateValuesV1', 'greenEnergyCertificateValuesV1', 'CertificateValuesV1'];
   window.CALCULATOR_USER = calculatorUser;
   window.__calculatorTrustedManagedPriceKeys = trustedManagedPriceKeys;
   function ensureCloudSaveStatus(){
@@ -471,7 +475,37 @@ function injectCloudStorageSync(
     if (!isAppStorageKey(key) || typeof value !== 'string') return;
     var localValue = localStorage.getItem(key);
     if (!storedValueHasData(value) && storedValueHasData(localValue)) return;
+    if (localValue === value) return;
     localStorage.setItem(key, value);
+    if (certificateValueKeys.indexOf(key) >= 0 && typeof window.applyAuthoritativeCertificateValues === 'function') {
+      window.applyAuthoritativeCertificateValues(value);
+    }
+  }
+  function authoritativeCertificateValue(data){
+    if (!data || typeof data !== 'object') return null;
+    for (var i = 0; i < certificateValueKeys.length; i++) {
+      var key = certificateValueKeys[i];
+      if (typeof data[key] === 'string' && data[key]) return {key:key,value:data[key]};
+    }
+    return null;
+  }
+  function refreshAuthoritativeCertificateValues(){
+    if (certificateRefreshInFlight) return;
+    certificateRefreshInFlight = true;
+    fetch(calculatorSyncUrl, {
+      method: 'GET',
+      headers: {'Accept': 'application/json'},
+      cache: 'no-store'
+    }).then(function(response){
+      if (!response.ok) throw new Error('Certificate value refresh failed');
+      return response.json();
+    }).then(function(result){
+      var certificateValue = authoritativeCertificateValue(result && result.data);
+      if (certificateValue) setCloudValue(certificateValue.key, certificateValue.value);
+    }).catch(function(){
+    }).finally(function(){
+      certificateRefreshInFlight = false;
+    });
   }
   function stripCertificateRatesFromStoredEssValue(value){
     if (typeof value !== 'string' || value.trim() === '') return value;
@@ -724,6 +758,12 @@ function injectCloudStorageSync(
     document.addEventListener('input', function(){ scheduleSync(); }, true);
     document.addEventListener('change', function(){ scheduleSync(); }, true);
     setInterval(function(){ writeSnapshot(false); }, 5000);
+    setInterval(refreshAuthoritativeCertificateValues, certificateRefreshIntervalMs);
+    setTimeout(refreshAuthoritativeCertificateValues, 2000);
+    window.addEventListener('focus', refreshAuthoritativeCertificateValues);
+    document.addEventListener('visibilitychange', function(){
+      if (document.visibilityState === 'visible') refreshAuthoritativeCertificateValues();
+    });
     window.addEventListener('beforeunload', function(){
       try {
         navigator.sendBeacon(calculatorSyncUrl, new Blob([JSON.stringify({data: snapshot()})], {type: 'application/json'}));
@@ -866,6 +906,18 @@ async function getSavedCalculatorData(
       businessData = (businessResult.data?.data || {}) as Record<string, unknown>;
     }
   }
+
+  const platformResult = await supabase
+    .from("platform_certificate_values")
+    .select("id, esc_spot_price, prc_spot_price, source, locked, updated_at")
+    .eq("id", PLATFORM_CERTIFICATE_VALUES_ID)
+    .maybeSingle();
+  const platformValues = platformResult.error
+    ? null
+    : platformCertificateValuesFromRow(
+        platformResult.data as PlatformCertificateValuesRow | null,
+      );
+  businessData = overlayPlatformCertificateValues(businessData, platformValues);
 
   const unlockedUserData = applyWonAdminUnlocks(userData);
   const cleanedUserData = stripCertificateValueKeys(unlockedUserData);

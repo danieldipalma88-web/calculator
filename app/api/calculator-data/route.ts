@@ -1,5 +1,12 @@
 import { NextResponse } from "next/server";
 import { canManageUsers, isOwnerEmail } from "../../../lib/admin";
+import {
+  CERTIFICATE_VALUES_STORAGE_KEYS,
+  PLATFORM_CERTIFICATE_VALUES_ID,
+  overlayPlatformCertificateValues,
+  platformCertificateValuesFromRow,
+  type PlatformCertificateValuesRow,
+} from "../../../lib/certificate-values";
 import { mergeCalculatorData } from "../../../lib/quote-sync";
 import {
   validateNewWonJobTransitions,
@@ -11,12 +18,6 @@ const MANAGED_PRICE_STORAGE_KEYS = [
   "installerManagedPricesV1",
   "greenEnergyManagedPricesV1",
   "ManagedPricesV1",
-];
-
-const CERTIFICATE_VALUE_STORAGE_KEYS = [
-  "installerCertificateValuesV1",
-  "greenEnergyCertificateValuesV1",
-  "CertificateValuesV1",
 ];
 
 const WON_OPTION_ADMIN_STATE_STORAGE_KEYS = [
@@ -93,7 +94,7 @@ function splitCalculatorDataByScope(data: Record<string, unknown>) {
 
 function stripCertificateValueKeys(data: Record<string, unknown>) {
   const output = { ...data };
-  [...CERTIFICATE_VALUE_STORAGE_KEYS, ...WON_OPTION_ADMIN_STATE_STORAGE_KEYS].forEach((key) => {
+  [...CERTIFICATE_VALUES_STORAGE_KEYS, ...WON_OPTION_ADMIN_STATE_STORAGE_KEYS].forEach((key) => {
     delete output[key];
   });
   return output;
@@ -435,7 +436,34 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json({ data: { ...stripCertificateValueKeys(userData), ...businessData } });
+  const platformResult = await supabase
+    .from("platform_certificate_values")
+    .select("id, esc_spot_price, prc_spot_price, source, locked, updated_at")
+    .eq("id", PLATFORM_CERTIFICATE_VALUES_ID)
+    .maybeSingle();
+  const platformValues = platformResult.error
+    ? null
+    : platformCertificateValuesFromRow(
+        platformResult.data as PlatformCertificateValuesRow | null,
+      );
+  const authoritativeBusinessData = overlayPlatformCertificateValues(
+    businessData,
+    platformValues,
+  );
+
+  return NextResponse.json(
+    {
+      data: {
+        ...stripCertificateValueKeys(userData),
+        ...authoritativeBusinessData,
+      },
+    },
+    {
+      headers: {
+        "Cache-Control": "no-store, max-age=0",
+      },
+    },
+  );
 }
 
 async function saveCalculatorData(request: Request) {

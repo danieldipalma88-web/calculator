@@ -2,6 +2,19 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import Script from "next/script";
 import { canManageUsers, isOwnerEmail } from "../../../lib/admin";
+import {
+  DEFAULT_CERTIFICATE_VALUES,
+  PLATFORM_CERTIFICATE_VALUES_ID,
+  certificatePlatformFieldsMatch,
+  certificateValuesForBusiness,
+  certificateValuesFromStoredData,
+  dataWithCertificateValues,
+  normalizeCertificateValues,
+  platformCertificateValuesFromRow,
+  platformCertificateValuesPayload,
+  type CertificateValues,
+  type PlatformCertificateValuesRow,
+} from "../../../lib/certificate-values";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
 import PageLoadingOverlay from "../../page-loading-overlay";
 
@@ -11,18 +24,6 @@ type CommissionOverride = CommissionType | "business_default";
 type OperatingState = "NSW" | "VIC" | "QLD" | "SA" | "WA" | "TAS" | "ACT" | "NT";
 type WonPaymentStatus = "payment_open" | "payment_requested" | "payment_partial" | "payment_complete";
 type WonOptionUpdateMode = "unlock" | "delete" | "payment_requested" | "paid_in" | "paid_out" | "reset_payment";
-
-type CertificateValues = {
-  escRate: number;
-  prcRate: number;
-  escSpotPrice: number;
-  prcSpotPrice: number;
-  escAgreementDeduction: number;
-  prcAgreementDeduction: number;
-  source: string;
-  locked: boolean;
-  updatedAt: string;
-};
 
 type Business = {
   id: string;
@@ -230,24 +231,6 @@ const WON_PAYMENT_KEYS = [
   "paidOutByEmail",
 ];
 
-const CERTIFICATE_VALUES_STORAGE_KEY = "installerCertificateValuesV1";
-const CERTIFICATE_VALUES_STORAGE_KEYS = [
-  CERTIFICATE_VALUES_STORAGE_KEY,
-  "greenEnergyCertificateValuesV1",
-  "CertificateValuesV1",
-];
-const DEFAULT_CERTIFICATE_VALUES: CertificateValues = {
-  escRate: 24,
-  prcRate: 2.7,
-  escSpotPrice: 29,
-  prcSpotPrice: 3,
-  escAgreementDeduction: 5,
-  prcAgreementDeduction: 0.3,
-  source: "Electric Future",
-  locked: true,
-  updatedAt: "",
-};
-
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
@@ -392,92 +375,6 @@ function certificateMoneyValue(value: unknown, fallback: number, allowZero = fal
   return Number.isFinite(parsed) && (allowZero ? parsed >= 0 : parsed > 0) ? parsed : fallback;
 }
 
-function roundCertificateMoney(value: number) {
-  return Number(value.toFixed(2));
-}
-
-function certificatePayoutRate(spotPrice: number, agreementDeduction: number) {
-  return roundCertificateMoney(Math.max(spotPrice - agreementDeduction, 0));
-}
-
-function normalizeCertificateValues(value: unknown): CertificateValues {
-  const saved = value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
-  const escSpotPrice = certificateMoneyValue(
-    saved.escSpotPrice ?? saved.escSpot ?? saved.escMarketPrice,
-    DEFAULT_CERTIFICATE_VALUES.escSpotPrice,
-  );
-  const prcSpotPrice = certificateMoneyValue(
-    saved.prcSpotPrice ?? saved.percSpotPrice ?? saved.prcSpot ?? saved.percSpot,
-    DEFAULT_CERTIFICATE_VALUES.prcSpotPrice,
-  );
-  const escAgreementDeduction = certificateMoneyValue(
-    saved.escAgreementDeduction ?? saved.escAgreement ?? saved.escPriceAgreement,
-    DEFAULT_CERTIFICATE_VALUES.escAgreementDeduction,
-    true,
-  );
-  const prcAgreementDeduction = certificateMoneyValue(
-    saved.prcAgreementDeduction ?? saved.percAgreementDeduction ?? saved.prcAgreement ?? saved.percAgreement,
-    DEFAULT_CERTIFICATE_VALUES.prcAgreementDeduction,
-    true,
-  );
-
-  return {
-    escRate: certificatePayoutRate(escSpotPrice, escAgreementDeduction),
-    prcRate: certificatePayoutRate(prcSpotPrice, prcAgreementDeduction),
-    escSpotPrice,
-    prcSpotPrice,
-    escAgreementDeduction,
-    prcAgreementDeduction,
-    source: String(saved.source || DEFAULT_CERTIFICATE_VALUES.source).trim() || DEFAULT_CERTIFICATE_VALUES.source,
-    locked: saved.locked === undefined ? DEFAULT_CERTIFICATE_VALUES.locked : Boolean(saved.locked),
-    updatedAt: String(saved.updatedAt || ""),
-  };
-}
-
-function certificateValuesFromStoredData(data: Record<string, unknown> | null | undefined) {
-  if (!data) return null;
-
-  for (const key of CERTIFICATE_VALUES_STORAGE_KEYS) {
-    const raw = data[key];
-    if (raw === undefined || raw === null) continue;
-    if (typeof raw === "string") {
-      try {
-        return normalizeCertificateValues(JSON.parse(raw));
-      } catch {
-        continue;
-      }
-    }
-    return normalizeCertificateValues(raw);
-  }
-
-  return null;
-}
-
-function serializeCertificateValues(values: CertificateValues) {
-  return JSON.stringify({
-    escRate: roundCertificateMoney(values.escRate),
-    prcRate: roundCertificateMoney(values.prcRate),
-    escSpotPrice: roundCertificateMoney(values.escSpotPrice),
-    prcSpotPrice: roundCertificateMoney(values.prcSpotPrice),
-    escAgreementDeduction: roundCertificateMoney(values.escAgreementDeduction),
-    prcAgreementDeduction: roundCertificateMoney(values.prcAgreementDeduction),
-    source: values.source,
-    locked: values.locked,
-    updatedAt: values.updatedAt,
-  });
-}
-
-function dataWithCertificateValues(data: Record<string, unknown>, values: CertificateValues) {
-  const next = { ...data };
-  CERTIFICATE_VALUES_STORAGE_KEYS.forEach((key) => {
-    delete next[key];
-  });
-  next[CERTIFICATE_VALUES_STORAGE_KEY] = serializeCertificateValues(values);
-  return next;
-}
-
 function normalizeBusiness(row: Record<string, unknown>): Business {
   return {
     id: String(row.id || ""),
@@ -571,57 +468,114 @@ async function listBusinesses(supabase: SupabaseServer) {
 }
 
 async function getPlatformCertificateValues(supabase: SupabaseServer, businesses: Business[]) {
-  const result = await supabase
-    .from("business_calculator_data")
-    .select("business_id, data, updated_at")
-    .order("updated_at", { ascending: false });
+  const [platformResult, businessResult] = await Promise.all([
+    supabase
+      .from("platform_certificate_values")
+      .select("id, esc_spot_price, prc_spot_price, source, locked, updated_at, updated_by_email")
+      .eq("id", PLATFORM_CERTIFICATE_VALUES_ID)
+      .maybeSingle(),
+    supabase
+      .from("business_calculator_data")
+      .select("business_id, data, updated_at")
+      .order("updated_at", { ascending: false }),
+  ]);
 
-  if (result.error) {
+  if (businessResult.error) {
     return {
       data: { ...DEFAULT_CERTIFICATE_VALUES },
       businessValuesById: {} as Record<string, CertificateValues>,
       appliedBusinessCount: 0,
       totalBusinessCount: businesses.length,
-      errorMessage: schemaSetupMessage(result.error),
+      authoritativeVerified: false,
+      updatedByEmail: "",
+      errorMessage: schemaSetupMessage(businessResult.error),
     };
   }
 
-  const rows = (result.data || []) as { business_id?: string | null; data?: Record<string, unknown> | null }[];
+  const rows = (businessResult.data || []) as {
+    business_id?: string | null;
+    data?: Record<string, unknown> | null;
+  }[];
   const businessIds = new Set(businesses.map((business) => business.id));
   const matchingRows = rows.filter((row) => row.business_id && businessIds.has(row.business_id));
-  const appliedBusinessCount = matchingRows.filter((row) => certificateValuesFromStoredData(row.data)).length;
+  const fallbackValues = matchingRows
+    .map((row) => certificateValuesFromStoredData(row.data))
+    .find(Boolean);
+  const platformRow = platformResult.data as PlatformCertificateValuesRow | null;
+  const authoritativeValues = platformCertificateValuesFromRow(platformRow);
+  const platformValues = authoritativeValues || fallbackValues || { ...DEFAULT_CERTIFICATE_VALUES };
   const businessValuesById = Object.fromEntries(
     businesses.map((business) => {
       const row = matchingRows.find((item) => item.business_id === business.id);
-      return [business.id, certificateValuesFromStoredData(row?.data) || { ...DEFAULT_CERTIFICATE_VALUES }];
+      const agreement = certificateValuesFromStoredData(row?.data) || DEFAULT_CERTIFICATE_VALUES;
+      return [business.id, certificateValuesForBusiness(platformValues, agreement)];
     }),
   ) as Record<string, CertificateValues>;
-  const existingValues = matchingRows
-    .map((row) => certificateValuesFromStoredData(row.data))
-    .find(Boolean);
+  const appliedBusinessCount = authoritativeValues
+    ? matchingRows.filter((row) => (
+        certificatePlatformFieldsMatch(certificateValuesFromStoredData(row.data), authoritativeValues)
+      )).length
+    : 0;
 
   return {
-    data: existingValues || { ...DEFAULT_CERTIFICATE_VALUES },
+    data: platformValues,
     businessValuesById,
     appliedBusinessCount,
     totalBusinessCount: businesses.length,
-    errorMessage: "",
+    authoritativeVerified: Boolean(authoritativeValues),
+    updatedByEmail: String(platformRow?.updated_by_email || ""),
+    errorMessage: platformResult.error
+      ? `The authoritative certificate value record could not be read. ${dbMessage(platformResult.error)}`
+      : authoritativeValues
+        ? ""
+        : "The authoritative certificate value record is missing. Apply the latest Supabase certificate values migration.",
   };
 }
 
-function certificateValuesForBusiness(
-  platformValues: CertificateValues,
-  agreementSource: Partial<CertificateValues> | null | undefined,
+async function saveAuthoritativePlatformCertificateValues(
+  supabase: SupabaseServer,
+  values: CertificateValues,
+  updatedByEmail: string,
 ) {
-  return normalizeCertificateValues({
-    escSpotPrice: platformValues.escSpotPrice,
-    prcSpotPrice: platformValues.prcSpotPrice,
-    escAgreementDeduction: agreementSource?.escAgreementDeduction ?? DEFAULT_CERTIFICATE_VALUES.escAgreementDeduction,
-    prcAgreementDeduction: agreementSource?.prcAgreementDeduction ?? DEFAULT_CERTIFICATE_VALUES.prcAgreementDeduction,
-    source: platformValues.source,
-    locked: platformValues.locked,
-    updatedAt: platformValues.updatedAt,
-  });
+  const writeResult = await supabase
+    .from("platform_certificate_values")
+    .upsert(platformCertificateValuesPayload(values, updatedByEmail), {
+      onConflict: "id",
+    });
+
+  if (writeResult.error) return dbMessage(writeResult.error);
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const verifyResult = await supabase
+      .from("platform_certificate_values")
+      .select("id, esc_spot_price, prc_spot_price, source, locked, updated_at, updated_by_email")
+      .eq("id", PLATFORM_CERTIFICATE_VALUES_ID)
+      .maybeSingle();
+    const verifiedValues = platformCertificateValuesFromRow(
+      verifyResult.data as PlatformCertificateValuesRow | null,
+    );
+
+    if (!verifyResult.error && certificatePlatformFieldsMatch(verifiedValues, values)) {
+      return "";
+    }
+
+    if (attempt < 2) {
+      await new Promise((resolve) => setTimeout(resolve, 150 * (attempt + 1)));
+    }
+  }
+
+  return "The spot price write could not be verified. No success message was issued; please retry.";
+}
+
+function businessCertificateValuesMatch(
+  actual: CertificateValues | null | undefined,
+  expected: CertificateValues,
+) {
+  return Boolean(
+    certificatePlatformFieldsMatch(actual, expected)
+      && Number(actual?.escAgreementDeduction.toFixed(2)) === Number(expected.escAgreementDeduction.toFixed(2))
+      && Number(actual?.prcAgreementDeduction.toFixed(2)) === Number(expected.prcAgreementDeduction.toFixed(2)),
+  );
 }
 
 async function applyPlatformCertificateValuesToBusinesses(
@@ -664,7 +618,38 @@ async function applyPlatformCertificateValuesToBusinesses(
   }));
 
   const saveResult = await supabase.from("business_calculator_data").upsert(payload);
-  return saveResult.error ? dbMessage(saveResult.error) : "";
+  if (saveResult.error) return dbMessage(saveResult.error);
+
+  const verifyResult = await supabase
+    .from("business_calculator_data")
+    .select("business_id, data")
+    .in("business_id", businesses.map((business) => business.id));
+  if (verifyResult.error) return dbMessage(verifyResult.error);
+
+  const expectedByBusiness = new Map(
+    payload.map((row) => [
+      row.business_id,
+      certificateValuesFromStoredData(row.data),
+    ]),
+  );
+  const verifiedBusinessIds = new Set(
+    ((verifyResult.data || []) as {
+      business_id?: string | null;
+      data?: Record<string, unknown> | null;
+    }[])
+      .filter((row) => {
+        const expected = expectedByBusiness.get(String(row.business_id || ""));
+        return expected && businessCertificateValuesMatch(
+          certificateValuesFromStoredData(row.data),
+          expected,
+        );
+      })
+      .map((row) => String(row.business_id || "")),
+  );
+  const missing = businesses.filter((business) => !verifiedBusinessIds.has(business.id));
+  return missing.length
+    ? `Certificate values could not be verified for: ${missing.map((business) => business.name).join(", ")}.`
+    : "";
 }
 
 async function listApprovedUsers(supabase: SupabaseServer, businesses: Business[]) {
@@ -3294,7 +3279,7 @@ async function upsertBusiness(formData: FormData) {
 async function savePlatformCertificateValues(formData: FormData) {
   "use server";
 
-  const { supabase } = await requireAdmin();
+  const { supabase, email } = await requireAdmin();
   const businessesResult = await listBusinesses(supabase);
   const values = normalizeCertificateValues({
     escSpotPrice: formData.get("escSpotPrice"),
@@ -3304,6 +3289,15 @@ async function savePlatformCertificateValues(formData: FormData) {
     updatedAt: new Date().toISOString(),
   });
 
+  const authoritativeError = await saveAuthoritativePlatformCertificateValues(
+    supabase,
+    values,
+    email,
+  );
+  if (authoritativeError) {
+    redirect(`/admin/users?error=${encodeURIComponent(authoritativeError)}`);
+  }
+
   const errorMessage = await applyPlatformCertificateValuesToBusinesses(
     supabase,
     businessesResult.data,
@@ -3311,22 +3305,30 @@ async function savePlatformCertificateValues(formData: FormData) {
   );
 
   if (businessesResult.errorMessage || errorMessage) {
-    redirect(`/admin/users?error=${encodeURIComponent(businessesResult.errorMessage || errorMessage)}`);
+    redirect(`/admin/users?error=${encodeURIComponent(`The authoritative spot price was saved and verified, but compatibility copies need attention. ${businessesResult.errorMessage || errorMessage}`)}`);
   }
 
   revalidatePath("/admin/users");
-  redirect(`/admin/users?message=${encodeURIComponent(`Certificate spot prices were ${values.locked ? "locked" : "saved"} and applied across all businesses.`)}`);
+  redirect(`/admin/users?message=${encodeURIComponent(`Certificate spot prices were saved to the authoritative record, read back successfully, and verified across all businesses.`)}`);
 }
 
 async function resetPlatformCertificateValues() {
   "use server";
 
-  const { supabase } = await requireAdmin();
+  const { supabase, email } = await requireAdmin();
   const businessesResult = await listBusinesses(supabase);
   const values = {
     ...DEFAULT_CERTIFICATE_VALUES,
     updatedAt: new Date().toISOString(),
   };
+  const authoritativeError = await saveAuthoritativePlatformCertificateValues(
+    supabase,
+    values,
+    email,
+  );
+  if (authoritativeError) {
+    redirect(`/admin/users?error=${encodeURIComponent(authoritativeError)}`);
+  }
   const errorMessage = await applyPlatformCertificateValuesToBusinesses(
     supabase,
     businessesResult.data,
@@ -3335,11 +3337,11 @@ async function resetPlatformCertificateValues() {
   );
 
   if (businessesResult.errorMessage || errorMessage) {
-    redirect(`/admin/users?error=${encodeURIComponent(businessesResult.errorMessage || errorMessage)}`);
+    redirect(`/admin/users?error=${encodeURIComponent(`The authoritative defaults were saved and verified, but compatibility copies need attention. ${businessesResult.errorMessage || errorMessage}`)}`);
   }
 
   revalidatePath("/admin/users");
-  redirect(`/admin/users?message=${encodeURIComponent("Certificate spot prices and pricing agreements were reset to the default locked values across all businesses.")}`);
+  redirect(`/admin/users?message=${encodeURIComponent("Certificate spot prices and pricing agreements were reset, read back, and verified across all businesses.")}`);
 }
 
 async function addApprovedUser(formData: FormData) {
@@ -3784,7 +3786,7 @@ export default async function AdminUsersPage({
               <p>Spot prices are shared across NSW businesses. Each business agreement below is deducted from these prices.</p>
             </div>
             <span className="section-count">
-              {certificateResult.appliedBusinessCount}/{certificateResult.totalBusinessCount} businesses
+              {certificateResult.appliedBusinessCount}/{certificateResult.totalBusinessCount} verified
             </span>
             <span className="section-chevron" aria-hidden="true" />
           </summary>
@@ -3841,6 +3843,14 @@ export default async function AdminUsersPage({
 
               <div className="certificate-admin-status">
                 <div>
+                  <span>Source of truth</span>
+                  <strong>
+                    {certificateResult.authoritativeVerified
+                      ? "Database record verified"
+                      : "Verification required"}
+                  </strong>
+                </div>
+                <div>
                   <span>Current spot</span>
                   <strong>{`ESC ${formatMoneyNumber(certificateValues.escSpotPrice)} / PERC ${formatMoneyNumber(certificateValues.prcSpotPrice)}`}</strong>
                 </div>
@@ -3856,6 +3866,12 @@ export default async function AdminUsersPage({
                       : "Not saved yet"}
                   </strong>
                 </div>
+                {certificateResult.updatedByEmail ? (
+                  <div>
+                    <span>Updated by</span>
+                    <strong>{certificateResult.updatedByEmail}</strong>
+                  </div>
+                ) : null}
                 <form action={resetPlatformCertificateValues} data-loading-label="Resetting certificate values...">
                   <button className="secondary" type="submit">
                     Reset defaults
