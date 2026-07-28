@@ -9206,6 +9206,22 @@ if(multiFinalInput){
 });
 setupMobileMoneySteppers();
 setupMobileHorizontalDragLock();
+function announceCalculatorReady(){
+  window.__calculatorReady=true;
+  if(window.parent!==window){
+    window.parent.postMessage({type:'calculator-ready'},window.location.origin);
+  }
+}
+window.addEventListener('message',event=>{
+  if(
+    event.origin===window.location.origin &&
+    event.data &&
+    event.data.type==='calculator-ready-request' &&
+    window.__calculatorReady
+  ){
+    announceCalculatorReady();
+  }
+});
 loadCommissionSettings();
 loadOptionDefs();
 loadRecentQuotes();
@@ -9260,5 +9276,6 @@ if(priceRowsEl){
 populateBrands();
 renderQuotes();
 scheduleSecondaryStartup();
+announceCalculatorReady();
 </script>
 </body></html>

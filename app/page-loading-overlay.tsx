@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type LoadingState = {
   label: string;
@@ -94,10 +94,34 @@ export default function PageLoadingOverlay({
 
 export function CalculatorFrame({ src }: { src: string }) {
   const { loading, setLoading } = useNavigationLoading(true, "Loading calculator...", true);
+  const frameRef = useRef<HTMLIFrameElement>(null);
+
+  useEffect(() => {
+    const frame = frameRef.current;
+
+    function handleCalculatorReady(event: MessageEvent) {
+      if (
+        event.origin !== window.location.origin ||
+        event.source !== frame?.contentWindow ||
+        event.data?.type !== "calculator-ready"
+      ) {
+        return;
+      }
+      setLoading((current) => ({ ...current, visible: false }));
+    }
+
+    window.addEventListener("message", handleCalculatorReady);
+    frame?.contentWindow?.postMessage(
+      { type: "calculator-ready-request" },
+      window.location.origin,
+    );
+    return () => window.removeEventListener("message", handleCalculatorReady);
+  }, [setLoading]);
 
   return (
     <>
       <iframe
+        ref={frameRef}
         className="calculator-frame"
         src={src}
         title="Quote calculator"

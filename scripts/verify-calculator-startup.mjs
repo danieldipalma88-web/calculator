@@ -9,6 +9,10 @@ const rawRoute = await readFile(
   new URL("../app/calculator/raw/route.ts", import.meta.url),
   "utf8",
 );
+const loadingUi = await readFile(
+  new URL("../app/page-loading-overlay.tsx", import.meta.url),
+  "utf8",
+);
 const calculatorUi = await readFile(
   new URL("../index.html", import.meta.url),
   "utf8",
@@ -81,6 +85,31 @@ assert.match(
   calculatorUi,
   /window\.addEventListener\('load',run,\{once:true\}\)/,
   "Secondary tools should wait until the primary calculator has loaded.",
+);
+assert.match(
+  calculatorUi,
+  /window\.parent\.postMessage\(\{type:'calculator-ready'\},window\.location\.origin\)/,
+  "The initialized calculator must announce when its critical UI is usable.",
+);
+assert.match(
+  loadingUi,
+  /event\.origin !== window\.location\.origin/,
+  "The outer loader must only accept same-origin readiness messages.",
+);
+assert.match(
+  loadingUi,
+  /event\.source !== frame\?\.contentWindow/,
+  "The outer loader must only accept readiness from its calculator iframe.",
+);
+assert.match(
+  loadingUi,
+  /event\.data\?\.type !== "calculator-ready"/,
+  "The outer loader must validate the readiness message type.",
+);
+assert.match(
+  loadingUi,
+  /onLoad=\{\(\) => setLoading/,
+  "The iframe load event must remain as a readiness fallback.",
 );
 assert.match(
   calculatorUi,
