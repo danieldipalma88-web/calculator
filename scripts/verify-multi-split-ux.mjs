@@ -35,6 +35,31 @@ assert.match(html, /The rebate calculation will use the connected indoor capacit
 assert.doesNotMatch(html, /daikin-cooling-only|CTKM\d+RVMA|[345]MKM\d+R[2Z]VMA/, "Daikin cooling-only products must not appear in the live catalogue.");
 assert.match(html, /multiOutdoor\('Daikin','Reverse Cycle Lite'/, "Daikin reverse-cycle outdoor products must remain available.");
 assert.match(html, /multiIndoor\('Daikin','Reverse Cycle Cora'/, "Daikin reverse-cycle indoor products must remain available.");
+const expectedDaikinPrices = new Map([
+  ["2MXF70T2VMA", 1380],
+  ["3MXM52R2VMA", 1750],
+  ["4MXM68R2VMA", 2165],
+  ["4MXM80R2VMA", 2500],
+  ["5MXM100R2VMA", 3180],
+  ["CTXF20TVMA", 230],
+  ["CTXF25TVMA", 240],
+  ["CTXF35TVMA", 270],
+  ["CTXF50TVMA", 350],
+  ["CTXM20RVMA", 250],
+  ["CTXM25RVMA", 265],
+  ["CTXM35RVMA", 300],
+  ["CTXM46RVMA", 315],
+  ["CTXM50RVMA", 340],
+  ["CTXM60RVMA", 390],
+  ["CTXM71RVMA", 400],
+]);
+for (const [model, price] of expectedDaikinPrices) {
+  assert.match(
+    html,
+    new RegExp(`'${model}',${price},`),
+    `${model} must retain the approved GST-inclusive price of $${price}.`,
+  );
+}
 
 assert.match(html, /<details class="multiSplitFinancialDetails">/, "Detailed financials must use progressive disclosure.");
 assert.match(html, /<details class="multiSplitTools">/, "Secondary tools must be grouped away from the primary quote action.");
