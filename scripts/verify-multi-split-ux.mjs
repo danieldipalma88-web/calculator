@@ -60,6 +60,30 @@ for (const [model, price] of expectedDaikinPrices) {
     `${model} must retain the approved GST-inclusive price of $${price}.`,
   );
 }
+const expectedRinnaiPrices = new Map([
+  ["MON2H05B1LA", 1183.52],
+  ["MON3H07B1LA", 1419.33],
+  ["MON4H09B1LA", 1901.79],
+  ["MON5H11B1LA", 2462.79],
+  ["MON5H14B1LA", 2709.63],
+  ["MON6H19B1TA", 3240.34],
+  ["HINRPX20M", 155.39],
+  ["HINRPX25M", 159.82],
+  ["HINRPX35M", 193.85],
+  ["HINRPX50M", 258.24],
+  ["HINRPX60M", 281.14],
+  ["HINRPX70M", 323.55],
+  ["HINRPX80M", 350.48],
+]);
+for (const [model, price] of expectedRinnaiPrices) {
+  assert.match(
+    html,
+    new RegExp(`'${model}',${String(price).replace(".", "\\.")},`),
+    `${model} must retain the GST-inclusive price of $${price.toFixed(2)}.`,
+  );
+}
+assert.match(html, /HINRPX25M:\[2\.6,3\.25\]/, "Rinnai PX rebate capacity must use manufacturer-rated cooling and heating values.");
+assert.match(html, /MON6H19B1TA',3240\.34,6/, "The 19kW Rinnai outdoor must support six indoor heads.");
 
 assert.match(html, /<details class="multiSplitFinancialDetails">/, "Detailed financials must use progressive disclosure.");
 assert.match(html, /<details class="multiSplitTools">/, "Secondary tools must be grouped away from the primary quote action.");
