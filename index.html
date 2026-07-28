@@ -763,6 +763,72 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
 }
 .toggleRow input:checked + .toggleTrack{background:var(--navy)}
 .toggleRow input:checked + .toggleTrack:before{transform:translateX(20px)}
+.powerCircuitRule{
+  min-height:44px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:8px 10px 8px 12px;
+  border:1px solid var(--line-strong);
+  border-radius:12px;
+  background:#f8fbff;
+}
+.powerCircuitCopy{
+  min-width:0;
+  display:grid;
+  gap:2px;
+}
+.powerCircuitCopy strong{
+  color:#172033;
+  font-size:13px;
+  line-height:1.2;
+}
+.powerCircuitStatus{
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.25;
+}
+.powerCircuitActions{
+  flex:0 0 auto;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.powerCircuitSwitch{
+  position:relative;
+  display:block;
+  flex:0 0 46px;
+  width:46px;
+  height:26px;
+  cursor:pointer;
+}
+.powerCircuitSwitch input{
+  position:absolute;
+  opacity:0;
+  width:1px;
+  height:1px;
+  margin:0;
+  padding:0;
+}
+.powerCircuitSwitch input:checked + .toggleTrack{background:var(--navy)}
+.powerCircuitSwitch input:checked + .toggleTrack:before{transform:translateX(20px)}
+.powerCircuitSwitch input:focus-visible + .toggleTrack{
+  outline:2px solid #0f172a;
+  outline-offset:2px;
+}
+.powerCircuitAutoBtn{
+  padding:6px 8px;
+  border-radius:8px;
+  background:#e7eef5;
+  color:#243247;
+  font-size:11px;
+  white-space:nowrap;
+}
+.powerCircuitAutoBtn:hover{
+  background:#dbe6ef;
+  box-shadow:none;
+}
 .commissionRatePanel{
   display:grid;
   grid-template-columns:1fr auto;
@@ -2520,7 +2586,7 @@ tbody tr:hover td{background:#f0f7ff}
         <div class="finalPriceStrip"><div><div class="fieldLabelRow"><label for="finalInc">Final customer price inc GST</label><span class="fieldPill confirmed">Customer pays</span></div><div class="fieldHint">Main quoted price shown to the customer.</div></div><input id="finalInc" type="number" step="0.01"></div>
         <div class="row3"><div><label>Unit price inc GST</label><input id="unitPriceInc" type="number" step="0.01"></div><div><label>Labour ex GST</label><input id="labour" type="number" step="0.01"></div><div id="rebateCostField"><label>Rebate</label><input id="rebate" type="number" step="0.01"></div></div>
         <div class="row2" style="margin-top:14px"><div><label>Materials inc GST</label><input id="materials" type="number" step="0.01"></div><div><label>Misc cost inc GST</label><input id="misc" type="number" step="0.01" value="0"></div></div>
-        <div id="splitOnly" style="margin-top:14px"><div class="row2"><div><label>Power circuit ex GST</label><input id="powerCircuit" type="number" step="0.01" value="500"></div><div><label>Power circuit rule</label><select id="powerMode"><option value="auto">Auto above 3.5kW</option><option value="on">Force on</option><option value="off">Force off</option></select></div></div><div class="checkbox" style="margin-top:12px"><input id="installerRetainsLabour" type="checkbox" checked><label for="installerRetainsLabour" style="margin:0;text-transform:none;letter-spacing:0;font-size:13px;color:#0f172a">Installer retains labour profit</label></div><div class="tiny">When turned on, split-system labour is treated as owner-retained value. When turned off, split-system labour is treated as a paid expense.</div></div>
+        <div id="splitOnly" style="margin-top:14px"><div class="row2"><div><label>Power circuit ex GST</label><input id="powerCircuit" type="number" step="0.01" value="500"></div><div><label>Power circuit</label><select id="powerMode" class="hidden" aria-hidden="true" tabindex="-1"><option value="auto">Auto above 3.5kW</option><option value="on">Force on</option><option value="off">Force off</option></select><div class="powerCircuitRule"><div class="powerCircuitCopy"><strong>Include power circuit</strong><span id="powerCircuitStatus" class="powerCircuitStatus">Automatic rule</span></div><div class="powerCircuitActions"><button id="powerCircuitReset" class="powerCircuitAutoBtn hidden" type="button" onclick="resetPowerCircuitToAuto()">Use automatic rule</button><label class="powerCircuitSwitch" for="powerCircuitToggle"><input id="powerCircuitToggle" type="checkbox" aria-label="Include power circuit" aria-describedby="powerCircuitStatus"><span class="toggleTrack" aria-hidden="true"></span></label></div></div></div></div><div class="checkbox" style="margin-top:12px"><input id="installerRetainsLabour" type="checkbox" checked><label for="installerRetainsLabour" style="margin:0;text-transform:none;letter-spacing:0;font-size:13px;color:#0f172a">Installer retains labour profit</label></div><div class="tiny">When turned on, split-system labour is treated as owner-retained value. When turned off, split-system labour is treated as a paid expense.</div></div>
         <div id="ductedOnly" class="hidden" style="margin-top:14px"><div class="row3"><div><label>Electrician ex GST</label><input id="electrician" type="number" step="0.01" value="500"></div><div><label>Airtouch</label><select id="airtouch"><option value="no">No</option><option value="yes">Yes</option></select></div><div><label>Zones</label><input id="zones" type="number" value="0"></div></div><div class="row2" style="margin-top:14px"><div><label>Sensors</label><input id="sensors" type="number" value="0"></div><div><label>Airtouch cost rule</label><input readonly value="$1,100 + $82/sensor + $65/zone"></div></div><div class="checkbox" style="margin-top:12px"><input id="ductedInstallerRetainsLabour" type="checkbox"><label for="ductedInstallerRetainsLabour" style="margin:0;text-transform:none;letter-spacing:0;font-size:13px;color:#0f172a">Installer retains labour profit</label></div><div class="tiny">When turned on, ducted labour is treated as owner-retained value. When turned off, ducted labour is treated as a paid expense.</div></div>
         <div class="priceResetRow"><button class="secondary" type="button" onclick="resetSuggestedPrice()">Reset suggested price</button></div>
         <div class="addonPanel">
@@ -5105,6 +5171,41 @@ function applyDefaults(){
   if(!finalPriceLocked) autoFinal();
   render();
 }
+function powerCircuitEnabled(c){
+  const mode=$('powerMode')?$('powerMode').value:'auto';
+  if(mode==='on') return true;
+  if(mode==='off') return false;
+  return c>3.5;
+}
+function syncPowerCircuitControl(){
+  const mode=$('powerMode');
+  const toggle=$('powerCircuitToggle');
+  if(!mode||!toggle) return;
+  const enabled=powerCircuitEnabled(cap(product()));
+  toggle.checked=enabled;
+  const status=$('powerCircuitStatus');
+  if(status){
+    if(mode.value==='auto') status.textContent=enabled?'Automatic: included above 3.5kW':'Automatic: off at 3.5kW or below';
+    else status.textContent=enabled?'Included for this quote':'Not included for this quote';
+  }
+  const reset=$('powerCircuitReset');
+  if(reset) reset.classList.toggle('hidden',mode.value==='auto');
+}
+function setPowerCircuitFromToggle(){
+  const mode=$('powerMode');
+  const toggle=$('powerCircuitToggle');
+  if(!mode||!toggle) return;
+  mode.value=toggle.checked?'on':'off';
+  if(!finalPriceLocked) autoFinal();
+  render();
+}
+function resetPowerCircuitToAuto(){
+  const mode=$('powerMode');
+  if(!mode) return;
+  mode.value='auto';
+  if(!finalPriceLocked) autoFinal();
+  render();
+}
 function powerCost(c){if(systemType!=='split') return 0; const m=$('powerMode').value; if(m==='on') return num('powerCircuit'); if(m==='off') return 0; return c>3.5?num('powerCircuit'):0;}
 function installAddonQuantity(addon){
   if(!addon) return 0;
@@ -6131,6 +6232,7 @@ function initMultiSplitTrial(){
   });
 }
 function render(){
+  syncPowerCircuitControl();
   const x=calculate();
   applyOwnerVisibility();
   applyMultiSplitTrialVisibility();
@@ -9167,6 +9269,8 @@ function setupMobileHorizontalDragLock(){
     }
   },{passive:false});
 }
+const powerCircuitToggle=$('powerCircuitToggle');
+if(powerCircuitToggle) powerCircuitToggle.addEventListener('change',setPowerCircuitFromToggle);
 ['unitPriceInc','labour','rebate','materials','misc','powerCircuit','powerMode','installerRetainsLabour','ductedInstallerRetainsLabour','electrician','airtouch','zones','sensors','commissionModelOn'].forEach(id=>{const el=$(id); if(el){ el.addEventListener('input',()=>{ if(!finalPriceLocked) autoFinal(); render(); }); el.addEventListener('change',()=>{ if(!finalPriceLocked) autoFinal(); render(); }); }});
 INSTALL_ADDONS.map(a=>a.type==='quantity'?a.qtyId:a.id).forEach(id=>{const el=$(id); if(el){ el.addEventListener('input',()=>{ render(); }); el.addEventListener('change',()=>{ if(el.type==='number') el.value=String(Math.max(0,Math.floor(Number(el.value)||0))); render(); }); }});
 const finalInput=$('finalInc');

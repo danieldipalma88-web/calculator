@@ -8,6 +8,7 @@
     "verify:quote-sync": "node scripts/verify-quote-sync-safety.mjs && node scripts/verify-won-job-server-validation.mjs && node scripts/verify-power-electrician-display.mjs",
     "verify:quote-search": "node scripts/verify-quote-search.mjs",
     "verify:loading": "node scripts/verify-loading-states.mjs && node scripts/verify-cloud-save-status.mjs && node scripts/verify-calculator-startup.mjs",
+    "verify:power-circuit": "node scripts/verify-power-circuit-toggle.mjs && node scripts/verify-power-electrician-display.mjs",
     "verify:user-view": "node scripts/verify-user-view-default.mjs",
     "verify:admin": "node scripts/verify-admin-workflows.mjs && node scripts/verify-agency-profit-visibility.mjs",
     "verify:auth": "node scripts/verify-email-code-login.mjs",
