@@ -408,6 +408,7 @@ function injectCloudStorageSync(
   var inFlightSnapshotJson = '';
   var syncRetryTimer = null;
   var cloudSaveHideTimer = null;
+  var cloudSaveWaiters = [];
   var saveRequestTimeoutMs = 12000;
   var certificateRefreshInFlight = false;
   var certificateRefreshIntervalMs = 60000;
@@ -558,6 +559,34 @@ function injectCloudStorageSync(
       } catch(e) {}
     });
   }
+  function settleCloudSaveWaiters(snapshotJson, error){
+    var remaining = [];
+    cloudSaveWaiters.forEach(function(waiter){
+      if (waiter.json !== snapshotJson) {
+        remaining.push(waiter);
+        return;
+      }
+      clearTimeout(waiter.timeout);
+      if (error) waiter.reject(error);
+      else waiter.resolve({ok:true});
+    });
+    cloudSaveWaiters = remaining;
+  }
+  function waitForCloudSave(snapshotJson, timeoutMs){
+    return new Promise(function(resolve, reject){
+      var waiter = {
+        json: snapshotJson,
+        resolve: resolve,
+        reject: reject,
+        timeout: null
+      };
+      waiter.timeout = setTimeout(function(){
+        cloudSaveWaiters = cloudSaveWaiters.filter(function(candidate){ return candidate !== waiter; });
+        reject(new Error('The won quote could not be confirmed as saved. Check your connection and try again.'));
+      }, Math.max(Number(timeoutMs) || 20000, saveRequestTimeoutMs + 1000));
+      cloudSaveWaiters.push(waiter);
+    });
+  }
   function sendPendingSnapshot(){
     if (syncRequestInFlight || !pendingSnapshot) return;
     clearTimeout(syncRetryTimer);
@@ -576,15 +605,28 @@ function injectCloudStorageSync(
     };
     if (controller) fetchOptions.signal = controller.signal;
     fetch(calculatorSyncUrl, fetchOptions).then(function(response){
-      if (!response.ok) throw new Error('Calculator sync failed');
+      return response.json().catch(function(){ return {}; }).then(function(result){
+        if (response.ok) return result;
+        var error = new Error(result && result.error ? result.error : 'Calculator sync failed');
+        error.status = response.status;
+        error.permanent = response.status >= 400 && response.status < 500 && response.status !== 409 && response.status !== 429;
+        throw error;
+      });
+    }).then(function(){
       lastSnapshotJson = request.json;
       if (pendingSnapshot && pendingSnapshot.json === lastSnapshotJson) pendingSnapshot = null;
+      settleCloudSaveWaiters(request.json, null);
       setCloudSaveStatus(pendingSnapshot ? 'Saving...' : 'Saved', pendingSnapshot ? 'saving' : 'saved');
-    }).catch(function(){
-      if (!pendingSnapshot) pendingSnapshot = request;
-      setCloudSaveStatus('Retrying...', 'retrying');
-      clearTimeout(syncRetryTimer);
-      syncRetryTimer = setTimeout(sendPendingSnapshot, 1800);
+    }).catch(function(error){
+      if (error && error.permanent) {
+        settleCloudSaveWaiters(request.json, error);
+        setCloudSaveStatus(pendingSnapshot ? 'Saving...' : 'Save failed', pendingSnapshot ? 'saving' : 'error');
+      } else {
+        if (!pendingSnapshot) pendingSnapshot = request;
+        setCloudSaveStatus('Retrying...', 'retrying');
+        clearTimeout(syncRetryTimer);
+        syncRetryTimer = setTimeout(sendPendingSnapshot, 1800);
+      }
     }).finally(function(){
       if (requestTimeout) clearTimeout(requestTimeout);
       syncRequestInFlight = false;
@@ -605,6 +647,19 @@ function injectCloudStorageSync(
     syncRetryTimer = null;
     sendPendingSnapshot();
   }
+  window.__calculatorFlushCloudSave = function(timeoutMs){
+    var data = snapshot();
+    var nextJson = JSON.stringify(data);
+    if (!syncRequestInFlight && !pendingSnapshot && nextJson === lastSnapshotJson) {
+      return Promise.resolve({ok:true});
+    }
+    var confirmation = waitForCloudSave(nextJson, timeoutMs);
+    pendingSnapshot = {data:data, json:nextJson};
+    clearTimeout(syncRetryTimer);
+    syncRetryTimer = null;
+    sendPendingSnapshot();
+    return confirmation;
+  };
   function scheduleSync(force){
     if (syncing) return;
     clearTimeout(timer);

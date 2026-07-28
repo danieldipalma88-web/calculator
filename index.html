@@ -94,6 +94,8 @@ body.drawerOpen{overflow:hidden}
 }
 .cloudSaveStatus[data-tone="retrying"]{color:#9a3412;border-color:#fed7aa;background:#fff7ed}
 .cloudSaveStatus[data-tone="retrying"]:before{background:#f97316}
+.cloudSaveStatus[data-tone="error"]{color:#991b1b;border-color:#fecaca;background:#fef2f2}
+.cloudSaveStatus[data-tone="error"]:before{background:#dc2626}
 
 h1,h2,h3{
   font-family:'Space Grotesk','Manrope','Segoe UI',sans-serif;
@@ -2826,7 +2828,7 @@ tbody tr:hover td{background:#f0f7ff}
 <div id="wonDetailsModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="wonDetailsModalTitle" aria-describedby="wonDetailsModalDescription" onclick="if(event.target===this)closeWonDetailsModal()"><div class="quoteNameModalCard wonDetailsModalCard"><div class="kicker">Won job details</div><h2 id="wonDetailsModalTitle">Complete won job</h2><p id="wonDetailsModalDescription">Confirm the installation location and proposed date before locking this quote.</p><div class="wonDetailsFields"><div class="wonDetailsField"><label id="wonAddressLabel">Installation address <span class="wonRequired">Required</span></label><div id="wonAddressLookup" class="wonAddressLookup" aria-labelledby="wonAddressLabel"><div class="wonAddressLoading">Loading Google address search...</div></div><div id="wonAddressStatus" class="wonAddressStatus" role="status" aria-live="polite">A Google address selection is required.</div></div><div class="wonDetailsField"><label for="wonInstallDate">Proposed installation date <span class="wonRequired">Required</span></label><div class="wonDateControl"><input id="wonInstallDate" type="date" required onchange="updateWonDetailsSubmitState()" oninput="updateWonDetailsSubmitState()"></div></div></div><div id="wonDetailsHint" class="hint" role="status" aria-live="polite" style="display:none"></div><div class="quoteNameModalActions"><button class="secondary" type="button" onclick="closeWonDetailsModal()">Cancel</button><button id="wonDetailsSubmit" class="green" type="button" onclick="confirmWonDetails()" disabled>Mark as won</button></div></div></div>
 <div class="portraitOnlyNotice" aria-live="polite"><div><strong>Use portrait view</strong><span>Rotate your phone upright to continue quoting.</span></div></div>
 <div id="overlay" class="drawerOverlay" onclick="closeAllDrawers()"></div>
-<div id="drawer" class="quoteDrawer quoteBuilderDrawer"><div class="drawerHead"><div><div class="kicker">Quote builder</div><h2 style="margin:4px 0">View quotes</h2><div class="sub drawerIntro">Compare split and ducted quotes. Working quotes are stored for 7 days. Use Save Quote to store permanent snapshots in this browser.</div><div class="quoteExportField" style="margin-top:14px;max-width:420px"><label>Quote / customer export name</label><input id="quoteExportName" placeholder="Example: Ash Macquarie Links" oninput="saveQuoteExportName()"></div></div><div class="actions"><button class="orange" onclick="saveCurrentQuoteSet()">Save Quote</button><button class="secondary" onclick="downloadCsv()">Download CSV</button><button class="danger" onclick="clearQuotes()">Clear</button><button class="secondary" onclick="closeDrawer()">Close</button></div></div>
+<div id="drawer" class="quoteDrawer quoteBuilderDrawer"><div class="drawerHead"><div><div class="kicker">Quote builder</div><h2 style="margin:4px 0">View quotes</h2><div class="sub drawerIntro">Compare split, ducted and multi-head quotes. Quotes save automatically to your calculator profile. Use Save Quote to keep a named snapshot.</div><div class="quoteExportField" style="margin-top:14px;max-width:420px"><label>Quote / customer export name</label><input id="quoteExportName" placeholder="Example: Ash Macquarie Links" oninput="saveQuoteExportName()"></div></div><div class="actions"><button class="orange" onclick="saveCurrentQuoteSet()">Save Quote</button><button class="secondary" onclick="downloadCsv()">Download CSV</button><button class="danger" onclick="clearQuotes()">Clear</button><button class="secondary" onclick="closeDrawer()">Close</button></div></div>
   <div class="drawerFloatingActions"><button class="orange" onclick="saveCurrentQuoteSet()">Save Quote</button><button class="secondary" onclick="closeDrawer()">Close</button></div>
   <div class="totalsManager" style="margin-top:14px">
     <div class="drawerHead" style="margin-bottom:10px;align-items:flex-end">
@@ -3565,7 +3567,6 @@ const GEMS_AIRCON_RESOURCE_IDS=[
   'd4e17a35-9002-4a0c-ac1c-003ece0de135'
 ];
 const ESS_CALC_DATE='2021-01-01';
-const SEVEN_DAYS_MS=7*24*60*60*1000;
 const DEFAULT_ESC_SPOT_PRICE=29.00;
 const DEFAULT_PRC_SPOT_PRICE=3.00;
 const DEFAULT_ESC_AGREEMENT_DEDUCTION=5.00;
@@ -3628,11 +3629,7 @@ function recordQuoteSyncDeletions(rows,options){
 function touchQuoteRow(row,updatedAt){if(row) row.syncUpdatedAt=updatedAt||Date.now();return row;}
 function touchOptionDef(def,updatedAt){if(def) def.syncUpdatedAt=updatedAt||Date.now();return def;}
 function removeExpiredQuoteRows(rows){
-  const allRows=Array.isArray(rows)?rows:[];
-  const cutoff=Date.now()-SEVEN_DAYS_MS;
-  const expired=allRows.filter(q=>!quoteRowIsWon(q)&&(q.timestamp||0)<cutoff);
-  recordQuoteSyncDeletions(expired,[]);
-  return allRows.filter(q=>quoteRowIsWon(q)||(q.timestamp||0)>=cutoff);
+  return Array.isArray(rows)?rows:[];
 }
 function legacyLabourRetainKey(){return 'green'+'EnergyKeepsLabour';}
 let essCache={brands:null,modelsByBrand:{},metadata:{},gemsByLookup:{},zoneByPostcode:{},requestSeq:0};
@@ -7438,6 +7435,7 @@ function assertOptionEditable(id){
 }
 let pendingWonOptionId='';
 let selectedWonGooglePlace=null;
+let wonSaveInProgress=false;
 let wonAddressAutocomplete=null;
 let wonAddressSearchTimer=null;
 let wonAddressSearchController=null;
@@ -7467,7 +7465,7 @@ function setWonAddressBusy(busy){
 function updateWonDetailsSubmitState(){
   const date=String(($('wonInstallDate')&&$('wonInstallDate').value)||'').trim();
   const submit=$('wonDetailsSubmit');
-  if(submit) submit.disabled=!!wonAddressBusy||!(pendingWonOptionId&&selectedWonGooglePlace&&selectedWonGooglePlace.placeId&&date);
+  if(submit) submit.disabled=wonSaveInProgress||!!wonAddressBusy||!(pendingWonOptionId&&selectedWonGooglePlace&&selectedWonGooglePlace.placeId&&date);
 }
 function clearWonAddressSuggestions(){
   const list=$('wonAddressSuggestions');
@@ -7628,7 +7626,8 @@ function openWonDetailsModal(id){
   updateWonDetailsSubmitState();
   mountWonAddressAutocomplete();
 }
-function closeWonDetailsModal(){
+function closeWonDetailsModal(force){
+  if(wonSaveInProgress&&!force) return;
   const modal=$('wonDetailsModal');
   if(modal) modal.classList.remove('open');
   if(wonAddressSearchTimer) clearTimeout(wonAddressSearchTimer);
@@ -7642,9 +7641,26 @@ function closeWonDetailsModal(){
   wonAddressAutocomplete=null;
   setWonAddressBusy(false);
 }
-function completeOptionWon(id,details){
+function restoreWonSaveSnapshot(target,snapshot,syncUpdatedAt){
+  Object.keys(target).forEach(key=>delete target[key]);
+  Object.assign(target,snapshot,{syncUpdatedAt});
+}
+function setWonSaveInProgress(busy){
+  wonSaveInProgress=!!busy;
+  const submit=$('wonDetailsSubmit');
+  if(submit){
+    submit.textContent=wonSaveInProgress?'Saving won job...':'Mark as won';
+    submit.setAttribute('aria-busy',wonSaveInProgress?'true':'false');
+  }
+  updateWonDetailsSubmitState();
+}
+async function completeOptionWon(id,details){
   const def=optionDefById(id);
-  if(!def||def.wonAt) return;
+  if(!def||def.wonAt||wonSaveInProgress) return false;
+  const targetRows=quotes.filter(q=>q.optionId===id);
+  if(!targetRows.length) return false;
+  const previousDef=JSON.parse(JSON.stringify(def));
+  const previousRows=new Map(targetRows.map(row=>[row.id,JSON.parse(JSON.stringify(row))]));
   const now=new Date().toISOString();
   const u=calculatorUserContext();
   const wonDetails={
@@ -7659,13 +7675,40 @@ function completeOptionWon(id,details){
   };
   const syncUpdatedAt=Date.now();
   Object.assign(def,wonDetails,{syncUpdatedAt});
-  quotes.forEach(q=>{if(q.optionId===id) Object.assign(q,wonDetails,{syncUpdatedAt});});
+  targetRows.forEach(q=>Object.assign(q,wonDetails,{syncUpdatedAt}));
+  setWonSaveInProgress(true);
   persistOptionDefs();
   persistQuotes();
   renderQuotes();
-  showQuoteActionNotice(`${def.name} marked as won.`);
+  try{
+    if(typeof window.__calculatorFlushCloudSave!=='function') throw new Error('Cloud save confirmation is unavailable. Refresh the calculator and try again.');
+    await window.__calculatorFlushCloudSave(20000);
+    const wonName=def.name;
+    setWonSaveInProgress(false);
+    closeWonDetailsModal(true);
+    showQuoteActionNotice(`${wonName} marked as won and saved.`);
+    return true;
+  }catch(error){
+    const rollbackUpdatedAt=Date.now();
+    restoreWonSaveSnapshot(def,previousDef,rollbackUpdatedAt);
+    targetRows.forEach(row=>{
+      const previous=previousRows.get(row.id);
+      if(previous) restoreWonSaveSnapshot(row,previous,rollbackUpdatedAt);
+    });
+    persistOptionDefs();
+    persistQuotes();
+    renderQuotes();
+    setWonSaveInProgress(false);
+    const hint=$('wonDetailsHint');
+    if(hint){
+      hint.textContent=(error&&error.message?error.message:'The won quote was not saved.')+' Nothing was marked as won. Please try again.';
+      hint.style.display='block';
+    }
+    return false;
+  }
 }
-function confirmWonDetails(){
+async function confirmWonDetails(){
+  if(wonSaveInProgress) return;
   const hint=$('wonDetailsHint');
   const proposedInstallationDate=String(($('wonInstallDate')&&$('wonInstallDate').value)||'').trim();
   if(!selectedWonGooglePlace||!selectedWonGooglePlace.placeId){
@@ -7679,8 +7722,7 @@ function confirmWonDetails(){
   }
   const id=pendingWonOptionId;
   const details={...selectedWonGooglePlace,proposedInstallationDate};
-  closeWonDetailsModal();
-  completeOptionWon(id,details);
+  await completeOptionWon(id,details);
 }
 function markOptionWon(id){
   ensureOptionDefs();
