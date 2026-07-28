@@ -17,6 +17,11 @@ import {
 } from "../../../lib/certificate-values";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
 
+const calculatorHtmlPromise = readFile(
+  path.join(process.cwd(), "index.html"),
+  "utf8",
+);
+
 function safeScriptJson(value: unknown) {
   return JSON.stringify(value).replace(/</g, "\\u003c");
 }
@@ -861,15 +866,27 @@ async function resolveActiveBusiness(
     return getBusiness(supabase, requestedBusinessId);
   }
 
-  const businessIds = await businessIdsForEmail(
+  const businessIdsPromise = businessIdsForEmail(
     supabase,
     String(viewedUser.email || "").toLowerCase(),
     viewedUser.business_id,
   );
+  const requestedBusinessPromise = requestedBusinessId
+    ? getBusiness(supabase, requestedBusinessId)
+    : Promise.resolve(null);
+  const [businessIds, requestedBusiness] = await Promise.all([
+    businessIdsPromise,
+    requestedBusinessPromise,
+  ]);
+  if (
+    requestedBusinessId &&
+    businessIds.includes(requestedBusinessId) &&
+    requestedBusiness
+  ) {
+    return requestedBusiness;
+  }
   const selectedBusinessId =
-    requestedBusinessId && businessIds.includes(requestedBusinessId)
-      ? requestedBusinessId
-      : businessIds[0] || viewedUser.business_id || null;
+    businessIds[0] || viewedUser.business_id || null;
 
   return getBusiness(supabase, selectedBusinessId);
 }
@@ -881,41 +898,48 @@ async function getSavedCalculatorData(
   viewingEmail: string,
   businessId?: string | null,
 ) {
-  const byEmail = await supabase
+  const byEmailPromise = supabase
     .from("user_calculator_data")
     .select("data")
     .eq("email", viewingEmail)
     .maybeSingle();
-
-  let userData: Record<string, unknown> = (byEmail.data?.data || {}) as Record<string, unknown>;
-
-  if (viewingEmail === currentEmail) {
-    const { data } = await supabase
+  const byUserPromise =
+    viewingEmail === currentEmail
+      ? supabase
       .from("user_calculator_data")
       .select("data")
       .eq("user_id", currentUserId)
-      .maybeSingle();
-    if (!byEmail.data?.data) userData = (data?.data || {}) as Record<string, unknown>;
-  }
-
-  let businessData: Record<string, unknown> = {};
-  if (businessId) {
-    const businessResult = await supabase
-      .from("business_calculator_data")
-      .select("data")
-      .eq("business_id", businessId)
-      .maybeSingle();
-
-    if (!businessResult.error) {
-      businessData = (businessResult.data?.data || {}) as Record<string, unknown>;
-    }
-  }
-
-  const platformResult = await supabase
+      .maybeSingle()
+      : Promise.resolve({ data: null, error: null });
+  const businessPromise = businessId
+    ? supabase
+        .from("business_calculator_data")
+        .select("data")
+        .eq("business_id", businessId)
+        .maybeSingle()
+    : Promise.resolve({ data: null, error: null });
+  const platformPromise = supabase
     .from("platform_certificate_values")
     .select("id, esc_spot_price, prc_spot_price, source, locked, updated_at")
     .eq("id", PLATFORM_CERTIFICATE_VALUES_ID)
     .maybeSingle();
+  const [byEmail, byUser, businessResult, platformResult] = await Promise.all([
+    byEmailPromise,
+    byUserPromise,
+    businessPromise,
+    platformPromise,
+  ]);
+
+  let userData: Record<string, unknown> = (byEmail.data?.data || {}) as Record<string, unknown>;
+  if (!byEmail.data?.data && byUser.data?.data) {
+    userData = byUser.data.data as Record<string, unknown>;
+  }
+
+  let businessData: Record<string, unknown> = {};
+  if (!businessResult.error) {
+    businessData = (businessResult.data?.data || {}) as Record<string, unknown>;
+  }
+
   const platformValues = platformResult.error
     ? null
     : platformCertificateValuesFromRow(
@@ -1005,9 +1029,8 @@ export async function GET(request: Request) {
     ? canManageUsers(viewingEmail, contextRole)
     : canManage;
 
-  const calculatorPath = path.join(process.cwd(), "index.html");
   const html = injectCloudStorageSync(
-    await readFile(calculatorPath, "utf8"),
+    await calculatorHtmlPromise,
     effectiveSavedData,
     {
       email: currentEmail,

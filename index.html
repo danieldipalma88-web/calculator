@@ -4,9 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Installer Master Quote Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap">
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap');
-
 :root{
   --primary:#0f766e;
   --primary-strong:#0a5f59;
@@ -3567,6 +3568,7 @@ const DEFAULT_COST_RULES=[
 ];
 let defaultCostRules=[];
 let savedQuoteSets=[];
+let secondaryStartupInitialised=false;
 $('date').value=new Date().toISOString().slice(0,10);
 function activeProducts(list){return list.filter(p=>!p.deprecated);}
 function businessCatalogSlug(name){return String(name||'').toLowerCase().replace(/[^a-z0-9]/g,'');}
@@ -5431,6 +5433,7 @@ function updateEnergySavingsToggle(){
   if(label) label.textContent=open?'Hide':'Show';
 }
 function toggleEnergySavingsPanel(forceOpen){
+  ensureSecondaryStartup();
   const card=$('energySavingsCard');
   if(!card) return;
   const next=forceOpen===undefined?!card.classList.contains('open'):!!forceOpen;
@@ -6829,7 +6832,7 @@ function renderQuotes(){
 }
 function removeQuote(i){quotes.splice(i,1); persistQuotes(); renderQuotes();}
 function clearQuotes(){quotes=[]; persistQuotes(); renderQuotes();}
-function openDrawer(){$('drawer').classList.add('open'); $('overlay').classList.add('open'); syncOverlayState();}
+function openDrawer(){ensureSecondaryStartup(); $('drawer').classList.add('open'); $('overlay').classList.add('open'); syncOverlayState();}
 function closeDrawer(){$('drawer').classList.remove('open'); if(!$('priceDrawer').classList.contains('open') && !$('certDrawer').classList.contains('open')) $('overlay').classList.remove('open')}
 function parseManagedIndexFromKey(key,expectedType){
   const parts=String(key||'').split('|');
@@ -7066,6 +7069,25 @@ function loadSavedQuoteSets(){
     savedQuoteSets=Array.isArray(parsed)?parsed:[];
   }catch(e){savedQuoteSets=[];}
 }
+function ensureSecondaryStartup(){
+  if(secondaryStartupInitialised) return;
+  secondaryStartupInitialised=true;
+  loadSavedQuoteSets();
+  loadQuoteExportName();
+  initEnergySavingsControls();
+  renderSavedQuoteSets();
+}
+function scheduleSecondaryStartup(){
+  const run=()=>{
+    if(typeof window.requestIdleCallback==='function'){
+      window.requestIdleCallback(()=>ensureSecondaryStartup(),{timeout:1000});
+    }else{
+      setTimeout(()=>ensureSecondaryStartup(),0);
+    }
+  };
+  if(document.readyState==='complete') run();
+  else window.addEventListener('load',run,{once:true});
+}
 function persistSavedQuoteSets(){
   try{localStorage.setItem(SAVED_QUOTES_STORAGE_KEY, JSON.stringify(savedQuoteSets));}catch(e){}
 }
@@ -7103,6 +7125,7 @@ function defaultSavedQuoteName(){
   return `Saved Quote ${new Date().toLocaleString('en-AU')}`;
 }
 function saveCurrentQuoteSet(){
+  ensureSecondaryStartup();
   if(!quotes.length){setSavedQuoteStatus('Add at least one quote row before saving a quote set.',true); return;}
   const name=defaultSavedQuoteName();
   const snapshot={
@@ -8099,7 +8122,7 @@ function renderWonJobs(){
     </article>`;
   }).join('');
 }
-function openWonJobsDrawer(){renderWonJobs(); const el=$('wonJobsDrawer'); if(el) el.classList.add('open'); syncOverlayState();}
+function openWonJobsDrawer(){ensureSecondaryStartup(); renderWonJobs(); const el=$('wonJobsDrawer'); if(el) el.classList.add('open'); syncOverlayState();}
 function closeWonJobsDrawer(){const el=$('wonJobsDrawer'); if(el) el.classList.remove('open'); syncOverlayState();}
 function rowShowsRebate(row){return !quoteStateDisablesRebates(row);}
 function rowsShowRebates(rows){
@@ -8707,6 +8730,7 @@ function proposalDetails(){
   };
 }
 function openProposalDrawer(source){
+  ensureSecondaryStartup();
   const saved=loadProposalDetails();
   if($('proposalSource')) $('proposalSource').value=source || saved.source || (quotes.length?'quote':'current');
   if($('proposalCustomerName') && !$('proposalCustomerName').value) $('proposalCustomerName').value=saved.customerName || (($('quoteExportName')&&$('quoteExportName').value.trim())||'');
@@ -9185,13 +9209,10 @@ setupMobileHorizontalDragLock();
 loadCommissionSettings();
 loadOptionDefs();
 loadRecentQuotes();
-loadSavedQuoteSets();
-loadQuoteExportName();
 loadDefaultCostRules();
 stripManagedRebateOverridesFromStorage();
 loadManagedPrices();
 initEssControls();
-initEnergySavingsControls();
 initMultiSplitTrial();
 const defaultCostRowsEl=$('defaultCostRows');
 if(defaultCostRowsEl){
@@ -9238,6 +9259,6 @@ if(priceRowsEl){
 });
 populateBrands();
 renderQuotes();
-renderSavedQuoteSets();
+scheduleSecondaryStartup();
 </script>
 </body></html>

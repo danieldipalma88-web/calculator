@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
+import { after } from "next/server";
 import { canManageUsers } from "../../lib/admin";
 import { createSupabaseServerClient } from "../../lib/supabase/server";
 import PageLoadingOverlay, { CalculatorFrame } from "../page-loading-overlay";
@@ -181,7 +182,9 @@ export default async function CalculatorPage({
       </main>
     );
   }
-  await supabase.rpc("record_current_user_activity");
+  after(async () => {
+    await supabase.rpc("record_current_user_activity");
+  });
   const canManage = canManageUsers(user.email, approved.role);
   const requestedEmail = String(params?.as || "").trim().toLowerCase();
   const requestedBusinessId = String(params?.businessId || "").trim();
@@ -189,7 +192,12 @@ export default async function CalculatorPage({
   const isViewingAnotherUser = viewingEmail !== user.email.toLowerCase();
   const isPreviewingAsAdmin = isViewingAnotherUser && params?.admin === "1";
   const isPreviewingAsUser = isViewingAnotherUser && !isPreviewingAsAdmin;
-  const approvedUsers = canManage ? await listApprovedUsers(supabase) : [];
+  const approvedUsersPromise = canManage
+    ? listApprovedUsers(supabase)
+    : Promise.resolve([] as ApprovedUser[]);
+  const allBusinessesPromise =
+    canManage && !isViewingAnotherUser ? listAllBusinesses(supabase) : null;
+  const approvedUsers = await approvedUsersPromise;
   const viewedApprovedUser =
     approvedUsers.find((item) => item.email.toLowerCase() === viewingEmail) || {
       email: viewingEmail,
@@ -198,8 +206,8 @@ export default async function CalculatorPage({
       business_id: null,
     };
   const businessOptions =
-    canManage && !isViewingAnotherUser
-      ? await listAllBusinesses(supabase)
+    allBusinessesPromise
+      ? await allBusinessesPromise
       : await listBusinessesForEmail(
           supabase,
           viewingEmail,
