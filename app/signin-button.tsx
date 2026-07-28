@@ -4,6 +4,8 @@ import { type FormEvent, useEffect, useState } from "react";
 import { createSupabaseBrowserClient } from "../lib/supabase/client";
 import { AuthenticationLoadingOverlay } from "./page-loading-overlay";
 
+const EMAIL_OTP_LENGTH = 8;
+
 function safeNextPath(value?: string) {
   return value?.startsWith("/") && !value.startsWith("//") ? value : "/calculator";
 }
@@ -70,7 +72,7 @@ export default function LoginButton({ next }: { next?: string }) {
     setSubmittedEmail(trimmedEmail);
     setCode("");
     setRetryAfterSeconds(60);
-    setMessage(`We sent a 6-digit login code to ${trimmedEmail}.`);
+    setMessage(`We sent a login code to ${trimmedEmail}.`);
   }
 
   async function sendLoginCode(event: FormEvent<HTMLFormElement>) {
@@ -85,8 +87,8 @@ export default function LoginButton({ next }: { next?: string }) {
   async function verifyLoginCode(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const token = code.replace(/\D/g, "");
-    if (token.length !== 6) {
-      setError("Enter the 6-digit code from your email.");
+    if (token.length !== EMAIL_OTP_LENGTH) {
+      setError(`Enter the ${EMAIL_OTP_LENGTH}-digit code from your email.`);
       setMessage("");
       return;
     }
@@ -162,14 +164,14 @@ export default function LoginButton({ next }: { next?: string }) {
             type="text"
             value={code}
             onChange={(event) => {
-              setCode(event.target.value.replace(/\D/g, "").slice(0, 6));
+              setCode(event.target.value.replace(/\D/g, "").slice(0, EMAIL_OTP_LENGTH));
               setError("");
             }}
-            placeholder="000000"
+            placeholder="00000000"
             inputMode="numeric"
             autoComplete="one-time-code"
-            maxLength={6}
-            pattern="[0-9]{6}"
+            maxLength={EMAIL_OTP_LENGTH}
+            pattern="[0-9]{8}"
             autoFocus
             required
           />
