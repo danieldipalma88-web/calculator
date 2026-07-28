@@ -675,6 +675,7 @@ function injectCloudStorageSync(
       document.body.classList.toggle('restrictedOwnerDetails', !(calculatorUser && calculatorUser.canSeeOwnerDetails));
     }
     var certValuesButton = document.getElementById('certValuesActionBtn');
+    var multiCertValuesButton = document.getElementById('multiCertValuesActionBtn');
     if (certValuesButton) {
       if (calculatorUser && calculatorUser.canManageUsers) {
         certValuesButton.textContent = 'Certificate Values';
@@ -685,6 +686,9 @@ function injectCloudStorageSync(
       } else {
         certValuesButton.style.display = 'none';
       }
+    }
+    if (multiCertValuesButton && !(calculatorUser && calculatorUser.canManageUsers)) {
+      multiCertValuesButton.style.display = 'none';
     }
     if (calculatorUser && calculatorUser.canManageUsers) {
       var certButtonForAdmin = document.getElementById('certValuesActionBtn');

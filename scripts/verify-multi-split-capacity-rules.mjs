@@ -95,7 +95,7 @@ const indoors = vm.runInNewContext(`(${indoorArraySource})`, {
     return Object.assign({ brand, series, capacityNum, model, unitPriceInc, pipe, dimensions }, extra || {});
   },
 });
-for (const indoor of indoors.filter((row) => row.family !== "daikin-cooling-only")) {
+for (const indoor of indoors) {
   const rated = capacityMap[indoor.model];
   assert.ok(rated, `${indoor.model} must have manufacturer-rated cooling and heating capacities.`);
   assert.ok(Number(rated[0]) > 0 && Number(rated[1]) > 0, `${indoor.model} capacities must both be positive.`);

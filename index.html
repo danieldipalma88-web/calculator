@@ -2468,7 +2468,7 @@ tbody tr:hover td{background:#f0f7ff}
 <body>
 <div class="wrap">
   <div class="header">
-    <div class="brand"><div class="kicker">Installer quote tool</div><h1>Master Quote Calculator</h1><div class="sub">Split system and ducted internal quoting calculator with commission, GST and quote comparison.</div><div class="systemTabs"><button id="splitTab" class="active" onclick="setSystem('split')">Split System</button><button id="ductedTab" onclick="setSystem('ducted')">Ducted System</button><button id="multiSplitTab" class="hidden" onclick="setMultiSplitSection()">Multi-head Split System</button></div></div>
+  <div class="brand"><div class="kicker">Installer quote tool</div><h1>Master Quote Calculator</h1><div class="sub">Split system, ducted and multi-head internal quoting calculator with commission, GST and quote comparison.</div><div class="systemTabs"><button id="splitTab" class="active" onclick="setSystem('split')">Split System</button><button id="ductedTab" onclick="setSystem('ducted')">Ducted System</button><button id="multiSplitTab" onclick="setMultiSplitSection()">Multi-head Split System</button></div></div>
     <div style="display:none"><input id="customer" type="hidden"><input id="date" type="hidden"><input id="address" type="hidden"></div>
   </div>
   <div class="grid" id="standardCalculatorSection">
@@ -2576,11 +2576,10 @@ tbody tr:hover td{background:#f0f7ff}
     <div class="card">
       <div class="multiSplitTrialIntro">
         <div>
-          <div class="kicker">Admin trial</div>
+          <div class="kicker">Quote calculator</div>
           <h2 class="sectionTitle">Multi-head split system calculator</h2>
-          <div class="sub">Hidden admin-only trial mode for multi-head pricing, NSW ESS/PDRS rebate testing, and quote builder checks.</div>
+          <div class="sub">Build multi-head systems, calculate eligible NSW rebates, and add the complete system to a customer quote.</div>
         </div>
-        <span class="trialBadge">Not live</span>
       </div>
     </div>
     <div class="multiSplitPageGrid">
@@ -2705,7 +2704,7 @@ tbody tr:hover td{background:#f0f7ff}
         <div id="multiSplitHeadsList" class="multiSplitHeadsList"></div>
         <div class="quoteTargetControl"><label for="multiAddOptionSelectSearchInput">Add current unit to quote</label><div class="row2"><select id="multiAddOptionSelect" onchange="onOptionSelectionChange(this.value)"></select><button class="secondary" type="button" onclick="createNewOption(true)">+ New Quote</button></div><div class="selectedQuoteNameBar"><div class="selectedQuoteNameCopy"><span>Selected quote</span><strong id="multiMainOptionName">Quote 1</strong></div><button id="multiMainOptionRenameButton" class="secondary smallBtn" type="button" onclick="openRenameQuoteModal()">Rename</button></div></div>
         <div class="multiSplitPrimaryActions"><button id="multiSplitAddToQuoteBtn" class="orange" onclick="addToQuote()">Add to Quote</button><button class="secondary" onclick="openDrawer()">View Quotes (<span id="multiQuoteCount">0</span>)</button></div>
-        <details class="multiSplitTools"><summary>Tools</summary><div class="actions"><button class="green" onclick="openWonJobsDrawer()">Won Jobs (<span data-won-jobs-count>0</span>)</button><button class="secondary" onclick="openPriceDrawer()">Price Manager</button><button class="secondary" onclick="openCertDrawer()">Certificate Values</button></div></details>
+        <details class="multiSplitTools"><summary>Tools</summary><div class="actions"><button class="green" onclick="openWonJobsDrawer()">Won Jobs (<span data-won-jobs-count>0</span>)</button><button class="secondary" onclick="openPriceDrawer()">Price Manager</button><button id="multiCertValuesActionBtn" class="secondary" onclick="openCertDrawer()">Certificate Values</button></div></details>
       </aside>
     </div>
   </div>
@@ -3693,10 +3692,6 @@ function multiIndoor(brand,series,capacityNum,model,unitPriceInc,pipe,dimensions
   return Object.assign({brand,series,capacity:`${capacityNum.toFixed(1)}kW`,capacityNum,model,unitPriceInc,priceIncGst:unitPriceInc,pipe:pipe||'',dimensions:dimensions||''},extra||{});
 }
 const MULTI_SPLIT_OUTDOORS=[
-  multiOutdoor('Daikin','Cooling Only North Qld & Darwin Only',5.0,'3MKM52RZVMA',1630,3,{family:'daikin-cooling-only'}),
-  multiOutdoor('Daikin','Cooling Only North Qld & Darwin Only',6.0,'4MKM68R2VMA',2020,4,{family:'daikin-cooling-only'}),
-  multiOutdoor('Daikin','Cooling Only North Qld & Darwin Only',8.0,'4MKM80RZVMA',2305,4,{family:'daikin-cooling-only'}),
-  multiOutdoor('Daikin','Cooling Only North Qld & Darwin Only',10.0,'5MKM100R2VMA',2965,5,{family:'daikin-cooling-only'}),
   multiOutdoor('Daikin','Reverse Cycle Lite',7.1,'2MXF70T2VMA',1520,2,{family:'daikin-lite',rebateModel:'2MXF70TVMA'}),
   multiOutdoor('Daikin','Reverse Cycle Cora',5.0,'3MXM52R2VMA',1980,3,{family:'daikin-cora'}),
   multiOutdoor('Daikin','Reverse Cycle Cora',6.0,'4MXM68R2VMA',2375,4,{family:'daikin-cora'}),
@@ -3730,12 +3725,6 @@ const MULTI_SPLIT_OUTDOORS=[
   multiOutdoor('Samsung','Multi Splits Outdoor',12.0,'AJ125TXJ5KH/EA',2010,5,{family:'samsung-multi'})
 ];
 const MULTI_SPLIT_INDOORS=[
-  multiIndoor('Daikin','Cooling Only North Qld & Darwin Only',2.0,'CTKM20RVMA',230,'1/4 & 3/8','285 x 770 x 223',{family:'daikin-cooling-only'}),
-  multiIndoor('Daikin','Cooling Only North Qld & Darwin Only',2.5,'CTKM25RVMA',240,'1/4 & 3/8','285 x 770 x 223',{family:'daikin-cooling-only'}),
-  multiIndoor('Daikin','Cooling Only North Qld & Darwin Only',3.5,'CTKM35RVMA',280,'1/4 & 3/8','285 x 770 x 223',{family:'daikin-cooling-only'}),
-  multiIndoor('Daikin','Cooling Only North Qld & Darwin Only',4.0,'CTKM46RVMA',290,'1/4 & 1/2','285 x 770 x 223',{family:'daikin-cooling-only'}),
-  multiIndoor('Daikin','Cooling Only North Qld & Darwin Only',5.0,'CTKM50RVMA',310,'1/4 & 1/2','295 x 990 x 263',{family:'daikin-cooling-only'}),
-  multiIndoor('Daikin','Cooling Only North Qld & Darwin Only',6.0,'CTKM60RVMA',360,'1/4 & 1/2','295 x 990 x 263',{family:'daikin-cooling-only'}),
   multiIndoor('Daikin','Reverse Cycle Lite',2.0,'CTXF20TVMA',240,'1/4 & 3/8','285 x 770 x 223',{family:'daikin-lite'}),
   multiIndoor('Daikin','Reverse Cycle Lite',2.5,'CTXF25TVMA',252,'1/4 & 3/8','285 x 770 x 223',{family:'daikin-lite'}),
   multiIndoor('Daikin','Reverse Cycle Lite',3.5,'CTXF35TVMA',285,'1/4 & 3/8','285 x 770 x 223',{family:'daikin-lite'}),
@@ -5618,10 +5607,7 @@ function initEnergySavingsControls(){
   }
 }
 function multiSplitTrialEnabled(){
-  const u=calculatorUserContext();
-  const signedInEmail=String(u.email||'').trim().toLowerCase();
-  const viewedEmail=String(u.viewingEmail||u.email||'').trim().toLowerCase();
-  return !!u.canManageUsers && !!signedInEmail && signedInEmail===viewedEmail && !u.isPreviewMode;
+  return true;
 }
 function multiSplitViewActive(){return multiSplitTrialEnabled()&&activeCalculatorView==='multiSplit';}
 function updateCalculatorSectionVisibility(){
@@ -5973,7 +5959,7 @@ function renderMultiSplitTrial(){
     }).join('');
   }
   if(headCount>maxHeads && maxHeads){
-    setMultiSplitStatus(`This trial combination has ${headCount} heads, above the selected outdoor unit limit of ${maxHeads}. Remove heads or select a larger outdoor unit before using the rebate result.`,'error');
+    setMultiSplitStatus(`This combination has ${headCount} heads, above the selected outdoor unit limit of ${maxHeads}. Remove heads or select a larger outdoor unit before using the rebate result.`,'error');
     multiSplitRebateFresh=false;
     updateMultiSplitRebateFreshness('error');
     renderMultiSplitFinancials();
@@ -6063,7 +6049,7 @@ async function calculateMultiSplitTrialRebate(){
   }
   const postcode=String(($('multiSplitPostcode')&&$('multiSplitPostcode').value)||'').trim();
   const install=String(($('multiSplitInstallType')&&$('multiSplitInstallType').value)||'replacement');
-  if(!/^\d{4}$/.test(postcode)){setMultiSplitStatus('Enter a valid 4-digit postcode for the trial rebate calculation.','error'); return;}
+  if(!/^\d{4}$/.test(postcode)){setMultiSplitStatus('Enter a valid 4-digit postcode for the rebate calculation.','error'); return;}
   setMultiSplitStatus('Checking GEMS data and NSW multi-split certificate calculation...','loading');
   setSectionLoading('multiSplitRebatePanel',true,'Calculating multi-head rebate...');
   updateMultiSplitRebateFreshness('loading');
@@ -6922,7 +6908,7 @@ function normaliseMultiSplitIndoorSelections(s,outdoor){
 }
 function loadMultiSplitQuote(q,s){
   if(!multiSplitTrialEnabled()){
-    setRebateCalcMeta('Multi-head split quotes are currently only available in admin trial mode.',true);
+    setRebateCalcMeta('Multi-head split quotes are not available in this calculator.',true);
     return;
   }
   setMultiSplitSection();
@@ -6931,7 +6917,7 @@ function loadMultiSplitQuote(q,s){
   if(s.date!==undefined && $('date')) $('date').value=s.date;
   const outdoorIdx=findMultiSplitOutdoorFromState(s);
   if(outdoorIdx<0){
-    setMultiSplitStatus('Could not find the saved multi-head outdoor unit in the trial price list.','error');
+    setMultiSplitStatus('Could not find the saved multi-head outdoor unit in the current price list.','error');
     return;
   }
   const outdoor=MULTI_SPLIT_OUTDOORS[outdoorIdx];

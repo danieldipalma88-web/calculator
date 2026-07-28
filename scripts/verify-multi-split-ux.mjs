@@ -18,6 +18,9 @@ assert.ok(summaryPosition > costsPosition, "The sticky financial summary must fo
 
 assert.match(html, /id="multiSplitCheckRebateBtn"[^>]*>Calculate rebate<\/button>/, "The prominent action must use the Calculate rebate label.");
 assert.doesNotMatch(html, />Check rebate<\/button>/, "The old Check rebate action label must not return.");
+assert.match(html, /id="multiSplitTab" onclick="setMultiSplitSection\(\)"/, "The multi-head tab must be visible by default.");
+assert.match(html, /function multiSplitTrialEnabled\(\)\{\s*return true;\s*\}/, "Multi-head access must be enabled for every approved calculator user.");
+assert.doesNotMatch(html, /Admin trial|admin-only trial mode|Not live/, "The live calculator must not show trial-only messaging.");
 assert.match(html, /id="multiSplitRebateFreshness"/, "The page must show whether the rebate is current.");
 assert.match(html, /multiSplitRebateFresh=false;/, "Equipment changes must invalidate the previous rebate.");
 assert.match(html, /multiSplitRebateFresh=true;/, "A completed or intentional manual rebate must become current.");
@@ -29,6 +32,9 @@ assert.match(html, /id="multiSplitHeadProgress"/, "Head-count progress must be v
 assert.match(html, /id="multiSplitCapacityProgress"/, "Capacity progress must be visible.");
 assert.match(html, /The rebate calculation will cap cooling capacity at the outdoor rating/, "Over-connected capacity feedback must explain the rebate cap.");
 assert.match(html, /The rebate calculation will use the connected indoor capacity/, "Under-connected capacity feedback must explain the lesser-of rule.");
+assert.doesNotMatch(html, /daikin-cooling-only|CTKM\d+RVMA|[345]MKM\d+R[2Z]VMA/, "Daikin cooling-only products must not appear in the live catalogue.");
+assert.match(html, /multiOutdoor\('Daikin','Reverse Cycle Lite'/, "Daikin reverse-cycle outdoor products must remain available.");
+assert.match(html, /multiIndoor\('Daikin','Reverse Cycle Cora'/, "Daikin reverse-cycle indoor products must remain available.");
 
 assert.match(html, /<details class="multiSplitFinancialDetails">/, "Detailed financials must use progressive disclosure.");
 assert.match(html, /<details class="multiSplitTools">/, "Secondary tools must be grouped away from the primary quote action.");
