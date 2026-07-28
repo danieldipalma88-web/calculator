@@ -772,7 +772,17 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
   padding:8px 10px 8px 12px;
   border:1px solid var(--line-strong);
   border-radius:12px;
-  background:#f8fbff;
+  background:#f8fafc;
+  transition:border-color .18s ease,background-color .18s ease,box-shadow .18s ease;
+}
+.powerCircuitRule[data-enabled="true"]{
+  border-color:#86efac;
+  background:#f0fdf4;
+  box-shadow:0 0 0 1px rgba(22,163,74,.06);
+}
+.powerCircuitRule[data-enabled="false"]{
+  border-color:#cbd5e1;
+  background:#f8fafc;
 }
 .powerCircuitCopy{
   min-width:0;
@@ -780,10 +790,12 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
   gap:2px;
 }
 .powerCircuitCopy strong{
-  color:#172033;
+  color:#475569;
   font-size:13px;
   line-height:1.2;
 }
+.powerCircuitRule[data-enabled="true"] .powerCircuitCopy strong{color:#166534}
+.powerCircuitRule[data-enabled="false"] .powerCircuitCopy strong{color:#475569}
 .powerCircuitStatus{
   color:var(--muted);
   font-size:11px;
@@ -811,7 +823,7 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
   margin:0;
   padding:0;
 }
-.powerCircuitSwitch input:checked + .toggleTrack{background:var(--navy)}
+.powerCircuitSwitch input:checked + .toggleTrack{background:#16a34a}
 .powerCircuitSwitch input:checked + .toggleTrack:before{transform:translateX(20px)}
 .powerCircuitSwitch input:focus-visible + .toggleTrack{
   outline:2px solid #0f172a;
@@ -829,6 +841,28 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
   background:#dbe6ef;
   box-shadow:none;
 }
+.powerCircuitCostField input{
+  transition:border-color .18s ease,box-shadow .18s ease,background-color .18s ease,color .18s ease;
+}
+.powerCircuitCostField.active input{
+  border-color:#86efac;
+  background:#fff;
+}
+.powerCircuitCostField.inactive input{
+  border-color:#d8e0e8;
+  background:#f1f5f9;
+  color:#64748b;
+}
+.powerCircuitCostHint{
+  min-height:15px;
+  margin-top:5px;
+  color:#64748b;
+  font-size:11px;
+  font-weight:700;
+  line-height:1.25;
+}
+.powerCircuitCostField.active .powerCircuitCostHint{color:#15803d}
+.powerCircuitCostField.inactive .powerCircuitCostHint{color:#64748b}
 .commissionRatePanel{
   display:grid;
   grid-template-columns:1fr auto;
@@ -2586,7 +2620,7 @@ tbody tr:hover td{background:#f0f7ff}
         <div class="finalPriceStrip"><div><div class="fieldLabelRow"><label for="finalInc">Final customer price inc GST</label><span class="fieldPill confirmed">Customer pays</span></div><div class="fieldHint">Main quoted price shown to the customer.</div></div><input id="finalInc" type="number" step="0.01"></div>
         <div class="row3"><div><label>Unit price inc GST</label><input id="unitPriceInc" type="number" step="0.01"></div><div><label>Labour ex GST</label><input id="labour" type="number" step="0.01"></div><div id="rebateCostField"><label>Rebate</label><input id="rebate" type="number" step="0.01"></div></div>
         <div class="row2" style="margin-top:14px"><div><label>Materials inc GST</label><input id="materials" type="number" step="0.01"></div><div><label>Misc cost inc GST</label><input id="misc" type="number" step="0.01" value="0"></div></div>
-        <div id="splitOnly" style="margin-top:14px"><div class="row2"><div><label>Power circuit ex GST</label><input id="powerCircuit" type="number" step="0.01" value="500"></div><div><label>Power circuit</label><select id="powerMode" class="hidden" aria-hidden="true" tabindex="-1"><option value="auto">Auto above 3.5kW</option><option value="on">Force on</option><option value="off">Force off</option></select><div class="powerCircuitRule"><div class="powerCircuitCopy"><strong>Include power circuit</strong><span id="powerCircuitStatus" class="powerCircuitStatus">Automatic rule</span></div><div class="powerCircuitActions"><button id="powerCircuitReset" class="powerCircuitAutoBtn hidden" type="button" onclick="resetPowerCircuitToAuto()">Use automatic rule</button><label class="powerCircuitSwitch" for="powerCircuitToggle"><input id="powerCircuitToggle" type="checkbox" aria-label="Include power circuit" aria-describedby="powerCircuitStatus"><span class="toggleTrack" aria-hidden="true"></span></label></div></div></div></div><div class="checkbox" style="margin-top:12px"><input id="installerRetainsLabour" type="checkbox" checked><label for="installerRetainsLabour" style="margin:0;text-transform:none;letter-spacing:0;font-size:13px;color:#0f172a">Installer retains labour profit</label></div><div class="tiny">When turned on, split-system labour is treated as owner-retained value. When turned off, split-system labour is treated as a paid expense.</div></div>
+        <div id="splitOnly" style="margin-top:14px"><div class="row2"><div id="powerCircuitCostField" class="powerCircuitCostField"><label>Power circuit ex GST</label><input id="powerCircuit" type="number" step="0.01" value="500"><div id="powerCircuitCostHint" class="powerCircuitCostHint">Not applied to this quote</div></div><div><label>Power circuit</label><select id="powerMode" class="hidden" aria-hidden="true" tabindex="-1"><option value="auto">Auto above 3.5kW</option><option value="on">Force on</option><option value="off">Force off</option></select><div id="powerCircuitRule" class="powerCircuitRule" data-enabled="false"><div class="powerCircuitCopy"><strong id="powerCircuitStateLabel">Not included</strong><span id="powerCircuitStatus" class="powerCircuitStatus" aria-live="polite">Automatic rule</span></div><div class="powerCircuitActions"><button id="powerCircuitReset" class="powerCircuitAutoBtn hidden" type="button" onclick="resetPowerCircuitToAuto()">Use automatic rule</button><label class="powerCircuitSwitch" for="powerCircuitToggle"><input id="powerCircuitToggle" type="checkbox" aria-label="Include power circuit" aria-describedby="powerCircuitStatus"><span class="toggleTrack" aria-hidden="true"></span></label></div></div></div></div><div class="checkbox" style="margin-top:12px"><input id="installerRetainsLabour" type="checkbox" checked><label for="installerRetainsLabour" style="margin:0;text-transform:none;letter-spacing:0;font-size:13px;color:#0f172a">Installer retains labour profit</label></div><div class="tiny">When turned on, split-system labour is treated as owner-retained value. When turned off, split-system labour is treated as a paid expense.</div></div>
         <div id="ductedOnly" class="hidden" style="margin-top:14px"><div class="row3"><div><label>Electrician ex GST</label><input id="electrician" type="number" step="0.01" value="500"></div><div><label>Airtouch</label><select id="airtouch"><option value="no">No</option><option value="yes">Yes</option></select></div><div><label>Zones</label><input id="zones" type="number" value="0"></div></div><div class="row2" style="margin-top:14px"><div><label>Sensors</label><input id="sensors" type="number" value="0"></div><div><label>Airtouch cost rule</label><input readonly value="$1,100 + $82/sensor + $65/zone"></div></div><div class="checkbox" style="margin-top:12px"><input id="ductedInstallerRetainsLabour" type="checkbox"><label for="ductedInstallerRetainsLabour" style="margin:0;text-transform:none;letter-spacing:0;font-size:13px;color:#0f172a">Installer retains labour profit</label></div><div class="tiny">When turned on, ducted labour is treated as owner-retained value. When turned off, ducted labour is treated as a paid expense.</div></div>
         <div class="priceResetRow"><button class="secondary" type="button" onclick="resetSuggestedPrice()">Reset suggested price</button></div>
         <div class="addonPanel">
@@ -5187,11 +5221,22 @@ function syncPowerCircuitControl(){
   if(!mode||!toggle) return;
   const enabled=powerCircuitEnabled(cap(product()));
   toggle.checked=enabled;
+  const rule=$('powerCircuitRule');
+  if(rule) rule.dataset.enabled=enabled?'true':'false';
+  const stateLabel=$('powerCircuitStateLabel');
+  if(stateLabel) stateLabel.textContent=enabled?'Included':'Not included';
   const status=$('powerCircuitStatus');
   if(status){
     if(mode.value==='auto') status.textContent=enabled?'Automatic: included above 3.5kW':'Automatic: off at 3.5kW or below';
     else status.textContent=enabled?'Included for this quote':'Not included for this quote';
   }
+  const costField=$('powerCircuitCostField');
+  if(costField){
+    costField.classList.toggle('active',enabled);
+    costField.classList.toggle('inactive',!enabled);
+  }
+  const costHint=$('powerCircuitCostHint');
+  if(costHint) costHint.textContent=enabled?'Applied to this quote':'Not applied to this quote';
   const reset=$('powerCircuitReset');
   if(reset) reset.classList.toggle('hidden',mode.value==='auto');
 }
