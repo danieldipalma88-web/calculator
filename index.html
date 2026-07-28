@@ -4208,7 +4208,7 @@ function setCertificateBreakdown(result,message,isError){
   if($('escCertValue')) $('escCertValue').textContent=message||'Waiting for live lookup';
   if($('prcCertCount')) $('prcCertCount').textContent='-';
   if($('prcCertValue')) $('prcCertValue').textContent=message||'Waiting for live lookup';
-  if($('certRebateValue')) $('certRebateValue').textContent='-';
+  if($('certRebateValue')) $('certRebateValue').textContent=isError?money(0):'-';
   if($('certRebateMeta')) $('certRebateMeta').textContent=message||'Waiting for live lookup';
 }
 function clearCertificateRuntime(){
@@ -5067,6 +5067,8 @@ async function refreshLiveRebateForCurrentProduct(){
   }
   const requestId=++essCache.requestSeq;
   clearCertificateRuntime();
+  if($('rebate')) $('rebate').value='0.00';
+  render();
   setCertificateBreakdown(null,'Loading live certificate counts...',false);
   setRebateCalcMeta('Loading live ESS/PERC rebate...',false);
   setLiveRebateLoading(true);
@@ -5091,8 +5093,10 @@ async function refreshLiveRebateForCurrentProduct(){
   }catch(e){
     if(requestId!==essCache.requestSeq) return;
     clearCertificateRuntime();
+    if($('rebate')) $('rebate').value='0.00';
+    render();
     setCertificateBreakdown(null,`Unable to calculate live ESC/PERC counts. ${String(e.message||'Live data unavailable')}`,true);
-    setRebateCalcMeta(`Using saved rebate. ${String(e.message||'Live data unavailable')}`,true);
+    setRebateCalcMeta(`Rebate set to $0.00. ${String(e.message||'Live data unavailable')}`,true);
   }finally{
     if(requestId===essCache.requestSeq) setLiveRebateLoading(false);
   }
@@ -6204,14 +6208,17 @@ async function calculateMultiSplitTrialRebate(){
   }catch(e){
     if(requestId!==multiSplitTrialRequestSeq) return;
     resetMultiSplitRebateMetrics();
-    multiSplitRebateFresh=false;
-    setMultiSplitStatus(`Unable to calculate this multi-head rebate yet. ${String(e.message||e||'Live data unavailable')}`,'error');
+    if($('multiSplitRebateValue')) $('multiSplitRebateValue').textContent=money(0);
+    multiSplitHasCalculated=true;
+    multiSplitRebateFresh=true;
+    renderMultiSplitFinancials();
+    setMultiSplitStatus(`Rebate set to $0.00 because the multi-head rebate could not be calculated. ${String(e.message||e||'Live data unavailable')}`,'error');
     updateMultiSplitRebateFreshness('error');
   }finally{
     if(requestId===multiSplitTrialRequestSeq){
       setSectionLoading('multiSplitRebatePanel',false);
       if($('multiSplitCheckRebateBtn')) $('multiSplitCheckRebateBtn').disabled=false;
-      updateMultiSplitRebateFreshness(multiSplitRebateFresh?'':'error');
+      if(!multiSplitRebateFresh) updateMultiSplitRebateFreshness('error');
     }
   }
 }
