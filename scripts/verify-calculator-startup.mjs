@@ -13,6 +13,10 @@ const loadingUi = await readFile(
   new URL("../app/page-loading-overlay.tsx", import.meta.url),
   "utf8",
 );
+const middleware = await readFile(
+  new URL("../middleware.ts", import.meta.url),
+  "utf8",
+);
 const calculatorUi = await readFile(
   new URL("../index.html", import.meta.url),
   "utf8",
@@ -75,6 +79,31 @@ assert.doesNotMatch(
   calculatorUi,
   /@import url\('https:\/\/fonts\.googleapis\.com/,
   "Web fonts should not be discovered through a late CSS import.",
+);
+assert.match(
+  calculatorUi,
+  /fonts\.googleapis\.com[\s\S]*?media="print" onload="this\.media='all'"/,
+  "Web fonts must load without blocking the usable calculator signal.",
+);
+assert.match(
+  calculatorUi,
+  /<noscript><link rel="stylesheet" href="https:\/\/fonts\.googleapis\.com/,
+  "Web fonts must retain a no-JavaScript fallback.",
+);
+assert.match(
+  middleware,
+  /request\.nextUrl\.pathname === "\/calculator\/raw"/,
+  "The raw calculator must avoid duplicate middleware authentication.",
+);
+assert.match(
+  middleware,
+  /request\.nextUrl\.pathname === "\/api\/calculator-data"/,
+  "The authenticated calculator data endpoint must avoid duplicate middleware authentication.",
+);
+assert.match(
+  rawRoute,
+  /const \{\s*data: \{ user \},\s*\} = await supabase\.auth\.getUser\(\);/,
+  "The raw calculator must retain its own authoritative authentication check.",
 );
 assert.match(
   calculatorUi,
