@@ -4754,8 +4754,8 @@ function fallbackEssClimateZoneFromPostcode(postcode){
 }
 function electricFutureBcaClimateZoneOverride(postcode){
   const n=Number(postcode);
-  // Electric Future and the published NSW postcode table classify 2160-2163 as BCA Zone 5.
-  if(Number.isInteger(n) && n>=2160 && n<=2163) return 5;
+  // Electric Future classifies postcode 2163 as BCA Zone 5.
+  if(Number.isInteger(n) && n===2163) return 5;
   return null;
 }
 async function resolvePostcodeZones(postcode){
