@@ -17,8 +17,23 @@ function extractConstArray(name) {
   return vm.runInNewContext(`(${indexHtml.slice(arrayStart, arrayEnd + 1)})`);
 }
 
+function extractFunction(name) {
+  const marker = `function ${name}`;
+  const start = indexHtml.indexOf(marker);
+  assert.notEqual(start, -1, `${name} must exist in index.html`);
+  const bodyStart = indexHtml.indexOf("{", start);
+  let depth = 0;
+  for (let index = bodyStart; index < indexHtml.length; index += 1) {
+    if (indexHtml[index] === "{") depth += 1;
+    if (indexHtml[index] === "}") depth -= 1;
+    if (depth === 0) return vm.runInNewContext(`(${indexHtml.slice(start, index + 1)})`);
+  }
+  assert.fail(`${name} must have a complete function body`);
+}
+
 const eligibleClasses = extractConstArray("NSW_HVAC_ELIGIBLE_PRODUCT_CLASS_NUMBERS");
 const requirements = extractConstArray("NSW_HVAC_EFFICIENCY_REQUIREMENTS");
+const bcaZoneOverride = extractFunction("electricFutureBcaClimateZoneOverride");
 
 function requirementForClass(productClass) {
   return requirements.find((req) => req.classes.includes(productClass));
@@ -81,6 +96,13 @@ const fujitsuScreenshotEsc = 8.123879 * 1 * 1.06;
 const fujitsuScreenshotPrc = 4.364051 * 1.05 * 10;
 assert.equal(Number(fujitsuScreenshotEsc.toFixed(2)), 8.61, "ESC quantity should keep decimal certificates before payout.");
 assert.equal(Number(fujitsuScreenshotPrc.toFixed(2)), 45.82, "PERC quantity should keep decimal certificates before payout.");
+
+assert.equal(bcaZoneOverride("2163"), 5, "Postcode 2163 must follow Electric Future's BCA Zone 5 classification.");
+assert.equal(bcaZoneOverride("2170"), null, "Postcode 2170 must continue using the NSW service's BCA zone.");
+const fujitsu2163Prc = 4.364051 * 1.04 * 10;
+const fujitsu2170Prc = 8.252022 * 1.05 * 10;
+assert.equal(Number(fujitsu2163Prc.toFixed(2)), 45.39, "Postcode 2163 must reproduce Electric Future's PERC quantity.");
+assert.equal(Number(fujitsu2170Prc.toFixed(2)), 86.65, "Postcode 2170 must retain the matching PERC quantity.");
 
 assert.match(indexHtml, /const escEffective=eligibility\.essEligible\?Math\.min\(escNum,caps\.esc\):0;/, "ESC value must use the official NSW result gated by eligibility and multi-split caps.");
 assert.match(indexHtml, /const prcEffective=eligibility\.prcEligible\?Math\.min\(prcNum,caps\.prc\):0;/, "PERC value must use the official NSW result gated by eligibility and multi-split caps.");

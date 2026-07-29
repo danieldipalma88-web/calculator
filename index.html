@@ -4752,6 +4752,12 @@ function fallbackEssClimateZoneFromPostcode(postcode){
   if(isEssClimateZoneFallbackPostcode(postcode)) return 'mixed';
   return '';
 }
+function electricFutureBcaClimateZoneOverride(postcode){
+  const n=Number(postcode);
+  // Electric Future and the published NSW postcode table classify 2160-2163 as BCA Zone 5.
+  if(Number.isInteger(n) && n>=2160 && n<=2163) return 5;
+  return null;
+}
 async function resolvePostcodeZones(postcode){
   if(essCache.zoneByPostcode[postcode]) return essCache.zoneByPostcode[postcode];
   const payload={
@@ -4771,7 +4777,8 @@ async function resolvePostcodeZones(postcode){
   const zone=normalizeEssClimateZone(rawZone)||fallbackEssClimateZoneFromPostcode(postcode);
   const bcaNum=((resp||{}).buildings||{}).building_1?.HVAC1_PDRSAug24_BCA_climate_zone_by_postcode?.[ESS_CALC_DATE];
   const bcaMap={1:'BCA_Climate_Zone_1',2:'BCA_Climate_Zone_2',3:'BCA_Climate_Zone_3',4:'BCA_Climate_Zone_4',5:'BCA_Climate_Zone_5',6:'BCA_Climate_Zone_6',7:'BCA_Climate_Zone_7',8:'BCA_Climate_Zone_8'};
-  const bcaZone=bcaMap[Number(bcaNum)]||'';
+  const bcaOverride=electricFutureBcaClimateZoneOverride(postcode);
+  const bcaZone=bcaMap[bcaOverride??Number(bcaNum)]||'';
   if(!zone || !bcaZone) throw new Error('Unable to resolve postcode climate zones');
   essCache.zoneByPostcode[postcode]={zone,bcaZone};
   return essCache.zoneByPostcode[postcode];
