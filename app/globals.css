@@ -1779,6 +1779,117 @@ select {
   display: none;
 }
 
+.won-install-map-panel {
+  display: grid;
+  gap: 12px;
+  margin: 14px 0;
+  padding: 12px;
+  border: 1px solid rgba(191, 219, 254, 0.95);
+  border-radius: 12px;
+  background: linear-gradient(145deg, #ffffff, #f8fbff);
+}
+
+.won-install-map-toolbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.won-install-map-date-field {
+  display: grid;
+  min-width: min(260px, 100%);
+  gap: 5px;
+  margin: 0;
+}
+
+.won-install-map-date-field span {
+  color: #475569;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.won-install-map-date-field input {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 800;
+}
+
+.won-install-map-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.won-install-map-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #e0f2fe;
+  color: #075985;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.won-install-map-status[data-tone="empty"] {
+  background: #f8fafc;
+  color: #64748b;
+}
+
+.won-install-map-status[data-tone="error"] {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.won-install-map-canvas {
+  height: 360px;
+  min-height: 280px;
+  overflow: hidden;
+  border: 1px solid rgba(191, 219, 254, 0.95);
+  border-radius: 10px;
+  background: #eef6ff;
+}
+
+.won-install-map-canvas.is-empty {
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  color: #64748b;
+  font-size: 13px;
+  text-align: center;
+}
+
+.won-install-map-info {
+  display: grid;
+  max-width: 250px;
+  gap: 4px;
+  color: #0f172a;
+  font-family: Arial, sans-serif;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.won-install-map-info strong {
+  font-size: 13px;
+}
+
+.won-install-map-info a {
+  color: #0f766e;
+  font-weight: 700;
+  text-decoration: none;
+}
+
 .won-options-section [data-won-clear-selection][hidden] {
   display: none !important;
 }
@@ -2569,6 +2680,35 @@ select {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 10px;
     padding: 12px;
+  }
+
+  .won-install-map-panel {
+    margin: 12px 0;
+    padding: 10px;
+    border-radius: 8px;
+  }
+
+  .won-install-map-toolbar,
+  .won-install-map-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .won-install-map-actions button {
+    width: 100%;
+  }
+
+  .won-install-map-status {
+    justify-content: center;
+    border-radius: 8px;
+    text-align: center;
+  }
+
+  .won-install-map-canvas {
+    height: 300px;
+    min-height: 260px;
+    border-radius: 8px;
   }
 
   .won-filter-field,

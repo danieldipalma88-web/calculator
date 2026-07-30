@@ -397,6 +397,7 @@ function injectCloudStorageSync(
   var cloudData = ${safeScriptJson(sanitizedData)};
   var calculatorUser = ${safeScriptJson(userContext)};
   var calculatorSyncUrl = ${safeScriptJson(syncUrl)};
+  var googleMapsBrowserKey = ${safeScriptJson(String(process.env.GOOGLE_MAPS_BROWSER_KEY || ""))};
   var profileStorageKey = '__calculatorProfileEmail';
   var profileEmail = ((calculatorUser && (calculatorUser.viewingEmail || calculatorUser.email)) || '') + '|' + ((calculatorUser && calculatorUser.businessId) || '');
   var trustedManagedPriceKeys = {};
@@ -414,6 +415,7 @@ function injectCloudStorageSync(
   var certificateRefreshIntervalMs = 60000;
   var certificateValueKeys = ['installerCertificateValuesV1', 'greenEnergyCertificateValuesV1', 'CertificateValuesV1'];
   window.CALCULATOR_USER = calculatorUser;
+  window.CALCULATOR_GOOGLE_MAPS_BROWSER_KEY = googleMapsBrowserKey;
   window.__calculatorTrustedManagedPriceKeys = trustedManagedPriceKeys;
   function ensureCloudSaveStatus(){
     var existing = document.getElementById('cloudSaveStatus');

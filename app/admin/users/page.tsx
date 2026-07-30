@@ -79,6 +79,8 @@ type WonOption = {
   wonAt: string;
   installationAddress: string;
   googlePlaceId: string;
+  installationLatitude: number | null;
+  installationLongitude: number | null;
   proposedInstallationDate: string;
   paymentRequestedAt: string;
   paidInAt: string;
@@ -1167,6 +1169,8 @@ function wonExportRow(option: WonOption) {
     "Won date": formatShortDate(option.wonAt),
     "Installation address": option.installationAddress,
     "Google Place ID": option.googlePlaceId,
+    "Installation latitude": option.installationLatitude ?? "",
+    "Installation longitude": option.installationLongitude ?? "",
     "Proposed installation date": formatDateOnly(option.proposedInstallationDate),
     Status: option.paymentStatusLabel,
     "Payment requested date": formatShortDate(option.paymentRequestedAt),
@@ -1276,6 +1280,176 @@ function wonExportScript() {
   function visibleWonCards() {
     return Array.prototype.slice.call(document.querySelectorAll(".won-options-section .won-card")).filter(function(card){
       return !card.hidden;
+    });
+  }
+  var wonInstallMapInstance = null;
+  var wonInstallMapInfoWindow = null;
+  var wonInstallMapMarkers = [];
+  var wonInstallMapLoaderPromise = null;
+  var wonInstallMapRenderToken = 0;
+  function localDateInputValue(date) {
+    var d = date instanceof Date ? date : new Date();
+    var year = d.getFullYear();
+    var month = String(d.getMonth() + 1).padStart(2, "0");
+    var day = String(d.getDate()).padStart(2, "0");
+    return year + "-" + month + "-" + day;
+  }
+  function installDateKey(value) {
+    var text = String(value || "").trim();
+    if (!text) return "";
+    var direct = text.match(/^(\\d{4}-\\d{2}-\\d{2})/);
+    if (direct) return direct[1];
+    var parsed = new Date(text);
+    if (Number.isNaN(parsed.getTime())) return "";
+    return localDateInputValue(parsed);
+  }
+  function defaultWonInstallMapDate(cards) {
+    var dates = (cards || [])
+      .map(function(card){ return installDateKey(card.getAttribute("data-install-date")); })
+      .filter(Boolean)
+      .sort();
+    var today = localDateInputValue(new Date());
+    if (!dates.length) return today;
+    if (dates.indexOf(today) >= 0) return today;
+    return dates.find(function(date){ return date >= today; }) || dates[dates.length - 1] || today;
+  }
+  function formattedInstallDate(date) {
+    var key = installDateKey(date);
+    if (!key) return "selected date";
+    var parts = key.split("-");
+    return parts.length === 3 ? parts[2] + "/" + parts[1] + "/" + parts[0] : key;
+  }
+  function setWonInstallMapStatus(message, tone) {
+    var status = document.querySelector("[data-won-install-map-status]");
+    if (!status) return;
+    status.textContent = message || "";
+    status.setAttribute("data-tone", tone || "");
+  }
+  function resetWonInstallMap(message, tone) {
+    wonInstallMapMarkers.forEach(function(marker){
+      try { marker.setMap(null); } catch (error) {}
+    });
+    wonInstallMapMarkers = [];
+    wonInstallMapInstance = null;
+    wonInstallMapInfoWindow = null;
+    var canvas = document.querySelector("[data-won-install-map]");
+    if (canvas) {
+      canvas.classList.add("is-empty");
+      canvas.textContent = message || "Won quotes with verified Google addresses will appear here.";
+    }
+    setWonInstallMapStatus(message || "No mapped jobs for this date.", tone || "empty");
+  }
+  function adminGoogleMapsBrowserKey() {
+    return String(window.ADMIN_GOOGLE_MAPS_BROWSER_KEY || "").trim();
+  }
+  function ensureAdminGoogleMap() {
+    if (window.google && window.google.maps) return Promise.resolve(window.google.maps);
+    if (wonInstallMapLoaderPromise) return wonInstallMapLoaderPromise;
+    var key = adminGoogleMapsBrowserKey();
+    if (!key) return Promise.reject(new Error("Google Map is not configured."));
+    wonInstallMapLoaderPromise = new Promise(function(resolve, reject){
+      var existing = document.querySelector("script[data-admin-google-maps]");
+      if (existing) {
+        existing.addEventListener("load", function(){ resolve(window.google && window.google.maps); }, { once: true });
+        existing.addEventListener("error", function(){ reject(new Error("Google Maps failed to load.")); }, { once: true });
+        return;
+      }
+      var script = document.createElement("script");
+      script.src = "https://maps.googleapis.com/maps/api/js?key=" + encodeURIComponent(key) + "&v=weekly";
+      script.async = true;
+      script.defer = true;
+      script.dataset.adminGoogleMaps = "true";
+      script.onload = function(){
+        if (window.google && window.google.maps) resolve(window.google.maps);
+        else reject(new Error("Google Maps failed to initialise."));
+      };
+      script.onerror = function(){ reject(new Error("Google Maps failed to load.")); };
+      document.head.appendChild(script);
+    });
+    return wonInstallMapLoaderPromise;
+  }
+  function mappedInstallCardsForDate(selectedDate) {
+    return visibleWonCards().filter(function(card){
+      if (selectedDate && installDateKey(card.getAttribute("data-install-date")) !== selectedDate) return false;
+      var lat = Number(card.getAttribute("data-install-lat"));
+      var lng = Number(card.getAttribute("data-install-lng"));
+      return Number.isFinite(lat) && Number.isFinite(lng);
+    });
+  }
+  function updateWonInstallMap() {
+    var canvas = document.querySelector("[data-won-install-map]");
+    if (!canvas) return;
+    var dateInput = document.querySelector("[data-won-install-map-date]");
+    if (dateInput && !dateInput.value) {
+      dateInput.value = defaultWonInstallMapDate(Array.prototype.slice.call(document.querySelectorAll(".won-card")));
+    }
+    var selectedDate = dateInput ? String(dateInput.value || "") : "";
+    var dateLabel = formattedInstallDate(selectedDate);
+    var cards = mappedInstallCardsForDate(selectedDate);
+    var renderToken = ++wonInstallMapRenderToken;
+    if (!cards.length) {
+      resetWonInstallMap("No mapped won quotes for " + dateLabel + ".", "empty");
+      return;
+    }
+    if (!adminGoogleMapsBrowserKey()) {
+      resetWonInstallMap("Google Map is not configured for this admin page.", "error");
+      return;
+    }
+    setWonInstallMapStatus("Loading " + cards.length + " install location" + (cards.length === 1 ? "" : "s") + "...", "");
+    ensureAdminGoogleMap().then(function(){
+      if (renderToken !== wonInstallMapRenderToken) return;
+      wonInstallMapMarkers.forEach(function(marker){ marker.setMap(null); });
+      wonInstallMapMarkers = [];
+      canvas.classList.remove("is-empty");
+      canvas.textContent = "";
+      var first = cards[0];
+      var center = {
+        lat: Number(first.getAttribute("data-install-lat")),
+        lng: Number(first.getAttribute("data-install-lng"))
+      };
+      wonInstallMapInstance = new google.maps.Map(canvas, {
+        center: center,
+        zoom: 12,
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: true
+      });
+      wonInstallMapInfoWindow = new google.maps.InfoWindow();
+      var bounds = new google.maps.LatLngBounds();
+      cards.forEach(function(card){
+        var position = {
+          lat: Number(card.getAttribute("data-install-lat")),
+          lng: Number(card.getAttribute("data-install-lng"))
+        };
+        var title = String(card.getAttribute("data-install-title") || "Won quote");
+        var user = String(card.getAttribute("data-install-user") || "");
+        var business = String(card.getAttribute("data-install-business") || "");
+        var address = String(card.getAttribute("data-install-address") || "");
+        var placeId = String(card.getAttribute("data-install-place-id") || "");
+        bounds.extend(position);
+        var marker = new google.maps.Marker({ map: wonInstallMapInstance, position: position, title: title });
+        marker.addListener("click", function(){
+          var query = encodeURIComponent(address || (position.lat + "," + position.lng));
+          var place = placeId ? "&query_place_id=" + encodeURIComponent(placeId) : "";
+          var url = "https://www.google.com/maps/search/?api=1&query=" + query + place;
+          wonInstallMapInfoWindow.setContent(
+            '<div class="won-install-map-info">' +
+            "<strong>" + xmlEscape(title) + "</strong>" +
+            "<span>" + xmlEscape([user, business].filter(Boolean).join(" - ")) + "</span>" +
+            "<span>" + xmlEscape(address || "Verified address") + "</span>" +
+            '<a href="' + url + '" target="_blank" rel="noopener">Open in Google Maps</a>' +
+            "</div>"
+          );
+          wonInstallMapInfoWindow.open({ map: wonInstallMapInstance, anchor: marker });
+        });
+        wonInstallMapMarkers.push(marker);
+      });
+      if (cards.length > 1) wonInstallMapInstance.fitBounds(bounds, { top: 34, right: 34, bottom: 34, left: 34 });
+      else wonInstallMapInstance.setZoom(14);
+      setWonInstallMapStatus(cards.length + " install location" + (cards.length === 1 ? "" : "s") + " on the map.", "");
+    }).catch(function(error){
+      if (renderToken !== wonInstallMapRenderToken) return;
+      resetWonInstallMap(error && error.message ? error.message : "Google Maps could not load.", "error");
     });
   }
   function activeWonSearch() {
@@ -1667,11 +1841,13 @@ function wonExportScript() {
     var previous = readWonUiState() || {};
     var section = document.querySelector(".won-options-section");
     var search = document.querySelector("[data-won-search]");
+    var installDate = document.querySelector("[data-won-install-map-date]");
     var state = {
       salespeople: activeSalespersonEmails(),
       payments: activePaymentFilters(),
       search: String(search && search.value || ""),
       sort: currentWonSort(),
+      installDate: String(installDate && installDate.value || ""),
       expanded: Array.prototype.slice.call(document.querySelectorAll(".won-card[open]")).map(function(card){ return String(card.getAttribute("data-won-card-key") || ""); }).filter(Boolean),
       scrollY: window.scrollY || 0,
       returning: returning === undefined ? Boolean(previous.returning) : Boolean(returning),
@@ -1685,8 +1861,10 @@ function wonExportScript() {
     var section = document.querySelector(".won-options-section");
     var search = document.querySelector("[data-won-search]");
     var sort = document.querySelector("[data-won-sort]");
+    var installDate = document.querySelector("[data-won-install-map-date]");
     if (search) search.value = String(state.search || "");
     if (sort) sort.value = String(state.sort || "recent");
+    if (installDate) installDate.value = String(state.installDate || "");
     setActiveSalespersonEmails(Array.isArray(state.salespeople) ? state.salespeople : []);
     setActivePaymentFilters(Array.isArray(state.payments) ? state.payments : []);
     applyWonSalespersonFilter();
@@ -1725,6 +1903,7 @@ function wonExportScript() {
     updateRequestedOutstanding();
     sortWonCards();
     updateWonSelectionDock();
+    updateWonInstallMap();
   }
   function toggleSalespersonCard(card) {
     if (!card) return;
@@ -2189,6 +2368,16 @@ function wonExportScript() {
       return;
     }
 
+    var mapTodayTarget = event.target && event.target.closest ? event.target.closest("[data-won-install-map-today]") : null;
+    if (mapTodayTarget) {
+      event.preventDefault();
+      var installDate = document.querySelector("[data-won-install-map-date]");
+      if (installDate) installDate.value = localDateInputValue(new Date());
+      updateWonInstallMap();
+      rememberWonUiState(false);
+      return;
+    }
+
     var exportTarget = event.target && event.target.closest ? event.target.closest("[data-export-won-selected]") : null;
     if (exportTarget) {
       event.preventDefault();
@@ -2259,8 +2448,14 @@ function wonExportScript() {
       rememberWonUiState(false);
       return;
     }
+    if (event.target && event.target.matches && event.target.matches("[data-won-install-map-date]")) {
+      updateWonInstallMap();
+      rememberWonUiState(false);
+      return;
+    }
     if (event.target && event.target.matches && event.target.matches("[data-won-sort]")) {
       sortWonCards();
+      updateWonInstallMap();
       rememberWonUiState(false);
     }
   }
@@ -2539,10 +2734,18 @@ function addWonOptionsFromSnapshot({
         .map((quote) => String(quote.businessName || ""))
         .find(Boolean);
       const detailRow = rows.find((quote) =>
-        quote.installationAddress || quote.googlePlaceId || quote.proposedInstallationDate
+        quote.installationAddress ||
+        quote.googlePlaceId ||
+        quote.proposedInstallationDate ||
+        quote.installationLatitude ||
+        quote.installationLongitude
       ) || {};
       const installationAddress = String(option.installationAddress || detailRow.installationAddress || "").trim();
       const googlePlaceId = String(option.googlePlaceId || detailRow.googlePlaceId || "").trim();
+      const rawInstallationLatitude = Number(option.installationLatitude ?? detailRow.installationLatitude);
+      const rawInstallationLongitude = Number(option.installationLongitude ?? detailRow.installationLongitude);
+      const installationLatitude = Number.isFinite(rawInstallationLatitude) ? rawInstallationLatitude : null;
+      const installationLongitude = Number.isFinite(rawInstallationLongitude) ? rawInstallationLongitude : null;
       const proposedInstallationDate = String(option.proposedInstallationDate || detailRow.proposedInstallationDate || "").trim();
       const wonRows = rows.map((quote) => ({
         label: optionRowLabel(quote) || String(quote.model || "System"),
@@ -2597,6 +2800,8 @@ function addWonOptionsFromSnapshot({
         wonAt,
         installationAddress,
         googlePlaceId,
+        installationLatitude,
+        installationLongitude,
         proposedInstallationDate,
         paymentRequestedAt,
         paidInAt,
@@ -3739,6 +3944,7 @@ export default async function AdminUsersPage({
   const salespersonSales = summarizeSalesBySalesperson(wonOptions);
   const certificateValues = certificateResult.data;
   const businessCertificateValues = certificateResult.businessValuesById;
+  const googleMapsBrowserKey = String(process.env.GOOGLE_MAPS_BROWSER_KEY || "");
 
   return (
     <main className="admin-shell">
@@ -4421,6 +4627,26 @@ export default async function AdminUsersPage({
               <span className="won-export-status" data-won-export-status role="status" aria-live="polite" />
             </div>
 
+            <section className="won-install-map-panel" aria-label="Won quote installation map">
+              <div className="won-install-map-toolbar">
+                <label className="won-install-map-date-field">
+                  <span>Install date map</span>
+                  <input data-won-install-map-date type="date" />
+                </label>
+                <div className="won-install-map-actions">
+                  <button className="secondary" data-won-install-map-today type="button">
+                    Today
+                  </button>
+                  <span className="won-install-map-status" data-won-install-map-status data-tone="empty">
+                    Select a date to see install locations.
+                  </span>
+                </div>
+              </div>
+              <div className="won-install-map-canvas is-empty" data-won-install-map>
+                Won quotes with verified Google addresses will appear here.
+              </div>
+            </section>
+
             <div className="won-filter-controls">
               <label className="won-filter-field won-search-field">
                 <span>Search Won Quotes</span>
@@ -4587,6 +4813,14 @@ export default async function AdminUsersPage({
                 data-won-user-email={option.userEmail.toLowerCase()}
                 data-won-card-key={wonOptionDomKey(option)}
                 data-won-search={[option.optionName, option.userName, option.businessName, option.userEmail].join(" ").toLowerCase()}
+                data-install-title={option.optionName}
+                data-install-user={option.userName}
+                data-install-business={option.businessName}
+                data-install-address={option.installationAddress}
+                data-install-date={option.proposedInstallationDate}
+                data-install-place-id={option.googlePlaceId}
+                data-install-lat={option.installationLatitude ?? ""}
+                data-install-lng={option.installationLongitude ?? ""}
                 data-won-time={Number.isFinite(new Date(option.wonAt).getTime()) ? new Date(option.wonAt).getTime() : 0}
                 data-won-outstanding={option.paymentRequestedAt && !option.paidInAt ? option.agencyCommissionTotal : 0}
                 data-payment-unpaid={option.paidInAt ? "false" : "true"}
@@ -4837,7 +5071,7 @@ export default async function AdminUsersPage({
         </details>
       </section>
       <Script id="admin-users-page-actions" strategy="afterInteractive">
-        {`${businessMultiSelectScript()}\n${wonExportScript()}`}
+        {`window.ADMIN_GOOGLE_MAPS_BROWSER_KEY=${JSON.stringify(googleMapsBrowserKey).replace(/</g, "\\u003c")};\n${businessMultiSelectScript()}\n${wonExportScript()}`}
       </Script>
     </main>
   );
