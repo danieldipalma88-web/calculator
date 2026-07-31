@@ -2007,44 +2007,17 @@ tbody tr:hover td{background:#f0f7ff}
 .wonNotice strong{font-size:13px}
 .wonNotice span{font-size:12px;color:#3f6b4b}
 .wonJobsDrawer{width:min(980px,96vw)}
-.wonJobsMapPanel{display:grid;gap:12px;margin:14px 0;padding:12px;border:1px solid #dbeafe;background:#f8fbff;border-radius:16px}
-.wonJobsMapToolbar{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;flex-wrap:wrap}
-.wonJobsMapTitle{display:grid;gap:4px;min-width:min(280px,100%)}
-.wonJobsMapTitle strong{color:#0f172a;font-size:15px}
-.wonJobsMapTitle span{color:#64748b;font-size:12px;line-height:1.35}
-.wonJobsMapActions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.wonJobsMapStatus{display:inline-flex;align-items:center;min-height:32px;padding:0 10px;border-radius:999px;background:#e0f2fe;color:#075985;font-size:12px;font-weight:800}
-.wonJobsMapStatus[data-tone="empty"]{background:#f8fafc;color:#64748b}
-.wonJobsMapStatus[data-tone="error"]{background:#fee2e2;color:#991b1b}
-.wonJobsCalendar{display:grid;gap:8px;padding:10px;border:1px solid #dbeafe;border-radius:14px;background:#fff}
-.wonJobsCalendarHead{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.wonJobsCalendarHead strong{color:#0f172a;font-size:14px}
-.wonJobsCalendarGrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;user-select:none;touch-action:none}
-.wonJobsDayName{color:#64748b;font-size:10px;font-weight:900;text-align:center;text-transform:uppercase}
-.wonJobsDateCell{display:grid;gap:2px;place-items:center;min-height:42px;padding:4px;border:1px solid #e2e8f0;border-radius:10px;background:#f8fafc;color:#94a3b8;font:inherit;font-size:12px;font-weight:900;cursor:pointer}
-.wonJobsDateCell.hasJobs{background:#fff;color:#0f172a;border-color:#bfdbfe}
-.wonJobsDateCell.isSelected{background:#0f766e;color:#fff;border-color:#0f766e;box-shadow:0 8px 18px rgba(15,118,110,.18)}
-.wonJobsDateCell small{color:inherit;font-size:9px;font-weight:900;opacity:.76}
-.wonJobsMapCanvas{height:340px;min-height:260px;border:1px solid #bfdbfe;border-radius:14px;background:#eef6ff;overflow:hidden}
-.wonJobsMapCanvas.is-empty{display:grid;place-items:center;padding:18px;color:#64748b;font-size:13px;text-align:center}
-.wonJobsMapInfo{display:grid;gap:4px;max-width:240px;color:#0f172a;font-family:Arial,sans-serif;font-size:12px;line-height:1.35}
-.wonJobsMapInfo strong{font-size:13px}
-.wonJobsMapInfo a{color:#0f766e;font-weight:700;text-decoration:none}
 .wonJobsSummary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:14px 0}
 .wonJobsSummaryCard{border:1px solid #bbf7d0;background:#f0fdf4;border-radius:14px;padding:12px}
 .wonJobsSummaryCard span{display:block;color:#3f6b4b;font-size:11px;font-weight:900;letter-spacing:.06em;text-transform:uppercase}
 .wonJobsSummaryCard strong{display:block;margin-top:4px;color:#14532d;font-size:18px}
 .wonJobsList{display:grid;gap:12px}
 .wonJobCard{border:1px solid #bbf7d0;background:#fbfffc;border-radius:18px;padding:14px;box-shadow:0 6px 18px rgba(22,101,52,.08)}
-.wonJobCard.isMapSelected{border-color:#0f766e;box-shadow:0 12px 28px rgba(15,118,110,.16)}
 .wonJobHead{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;padding-bottom:12px;border-bottom:1px solid #dcfce7}
 .wonJobTitle{min-width:0}
 .wonJobTitle strong{display:block;color:#0f172a;font-size:16px;word-break:break-word}
 .wonJobMeta{display:block;margin-top:4px;color:#64748b;font-size:12px;line-height:1.45}
 .wonJobActions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
-.wonJobMapToggle[aria-pressed="true"]{background:#0f766e;color:#fff}
-.wonJobDateEdit{display:grid;gap:4px;min-width:160px;margin:0;color:#475569;font-size:10px;font-weight:900;letter-spacing:.05em;text-transform:uppercase}
-.wonJobDateEdit input{height:34px;min-height:34px;background:#fff;font-size:13px;font-weight:800}
 .wonJobPill{display:inline-flex;align-items:center;min-height:28px;padding:0 10px;border-radius:999px;background:#dcfce7;color:#166534;font-size:12px;font-weight:900;white-space:nowrap}
 .wonJobMetrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:12px 0}
 .wonJobMetrics div{padding:10px;border:1px solid #e2e8f0;border-radius:12px;background:#fff}
@@ -2084,11 +2057,6 @@ tbody tr:hover td{background:#f0f7ff}
   .copyModelBtn{width:100%}
   .priceResetRow button{width:100%}
   .floatingActionBar{right:14px;bottom:14px}
-  .wonJobsMapToolbar{display:grid;grid-template-columns:1fr}
-  .wonJobsMapActions{align-items:stretch;display:grid;grid-template-columns:1fr}
-  .wonJobsMapActions button{width:100%}
-  .wonJobsMapStatus{justify-content:center;border-radius:12px}
-  .wonJobsMapCanvas{height:300px}
 }
 @media(max-width:640px){
   html,body{min-width:0}
@@ -2921,28 +2889,6 @@ tbody tr:hover td{background:#f0f7ff}
       <button class="secondary" onclick="closeWonJobsDrawer()">Close</button>
     </div>
   </div>
-  <section class="wonJobsMapPanel" aria-label="Won jobs install map">
-    <div class="wonJobsMapToolbar">
-      <div class="wonJobsMapTitle">
-        <strong>Install map</strong>
-        <span>All mapped installs show by default. Select dates or jobs to highlight specific installs.</span>
-      </div>
-      <div class="wonJobsMapActions">
-        <button class="secondary" type="button" onclick="shiftWonJobsCalendarMonth(-1)">Previous</button>
-        <button class="secondary" type="button" onclick="shiftWonJobsCalendarMonth(1)">Next</button>
-        <button class="secondary" type="button" onclick="clearWonJobsMapSelection()">Clear selection</button>
-        <span id="wonJobsMapStatus" class="wonJobsMapStatus" data-tone="empty">All mapped installs are shown.</span>
-      </div>
-    </div>
-    <div class="wonJobsCalendar">
-      <div class="wonJobsCalendarHead">
-        <strong id="wonJobsCalendarLabel">Install dates</strong>
-        <span class="sub" id="wonJobsSelectionLabel">No dates selected</span>
-      </div>
-      <div id="wonJobsDateGrid" class="wonJobsCalendarGrid" aria-label="Install dates"></div>
-    </div>
-    <div id="wonJobsMap" class="wonJobsMapCanvas is-empty">Won jobs with verified Google addresses will appear here.</div>
-  </section>
   <div id="wonJobsSummary" class="wonJobsSummary"></div>
   <div id="wonJobsList" class="wonJobsList"></div>
 </div>
@@ -8225,330 +8171,6 @@ function normalizeWonJobRows(rows){
     })
     .filter(row=>row && row.optionId);
 }
-let wonJobsMapInstance=null;
-let wonJobsMapInfoWindow=null;
-let wonJobsMapMarkers=[];
-let wonJobsMapLoaderPromise=null;
-let wonJobsMapRenderToken=0;
-let wonJobsSelectedDates=new Set();
-let wonJobsSelectedJobKeys=new Set();
-let wonJobsCalendarMonth='';
-let wonJobsDateDragActive=false;
-let wonJobsDateDragMode=true;
-function coordinateValue(value){
-  const parsed=Number(value);
-  return Number.isFinite(parsed)?parsed:null;
-}
-function localDateInputValue(date){
-  const d=date instanceof Date?date:new Date();
-  const y=d.getFullYear();
-  const m=String(d.getMonth()+1).padStart(2,'0');
-  const day=String(d.getDate()).padStart(2,'0');
-  return `${y}-${m}-${day}`;
-}
-function wonJobDateKey(value){
-  const text=String(value||'').trim();
-  if(!text) return '';
-  const direct=text.match(/^(\d{4}-\d{2}-\d{2})/);
-  if(direct) return direct[1];
-  const parsed=new Date(text);
-  if(Number.isNaN(parsed.getTime())) return '';
-  return localDateInputValue(parsed);
-}
-function monthKeyFromDateKey(dateKey){
-  const key=wonJobDateKey(dateKey);
-  return key?key.slice(0,7):localDateInputValue(new Date()).slice(0,7);
-}
-function shiftMonthKey(monthKey,delta){
-  const key=String(monthKey||localDateInputValue(new Date()).slice(0,7));
-  const [year,month]=key.split('-').map(Number);
-  const d=new Date(year||new Date().getFullYear(),(month||1)-1+(Number(delta)||0),1);
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-}
-function shiftWonJobsCalendarMonth(delta){
-  wonJobsCalendarMonth=shiftMonthKey(wonJobsCalendarMonth,delta);
-  renderWonJobs();
-}
-function clearWonJobsMapSelection(){
-  wonJobsSelectedDates.clear();
-  wonJobsSelectedJobKeys.clear();
-  renderWonJobs();
-}
-function wonJobsSelectionActive(){
-  return wonJobsSelectedDates.size>0 || wonJobsSelectedJobKeys.size>0;
-}
-function wonJobIsMapSelected(job){
-  return !!job && (wonJobsSelectedJobKeys.has(job.jobKey) || wonJobsSelectedDates.has(wonJobDateKey(job.date)));
-}
-function toggleWonJobsJobSelection(encodedKey){
-  const key=decodeURIComponent(encodedKey||'');
-  if(!key) return;
-  if(wonJobsSelectedJobKeys.has(key)) wonJobsSelectedJobKeys.delete(key);
-  else wonJobsSelectedJobKeys.add(key);
-  renderWonJobs();
-}
-function beginWonJobsDateDrag(event,dateKey){
-  if(event){event.preventDefault();event.stopPropagation();}
-  const key=wonJobDateKey(dateKey);
-  if(!key) return;
-  wonJobsDateDragActive=true;
-  wonJobsDateDragMode=!wonJobsSelectedDates.has(key);
-  setWonJobsDateSelected(key,wonJobsDateDragMode);
-  window.addEventListener('pointerup',endWonJobsDateDrag,{once:true});
-}
-function continueWonJobsDateDrag(event,dateKey){
-  if(!wonJobsDateDragActive) return;
-  if(event) event.preventDefault();
-  const key=wonJobDateKey(dateKey);
-  if(key) setWonJobsDateSelected(key,wonJobsDateDragMode);
-}
-function endWonJobsDateDrag(){
-  wonJobsDateDragActive=false;
-}
-function setWonJobsDateSelected(dateKey,selected){
-  if(selected) wonJobsSelectedDates.add(dateKey);
-  else wonJobsSelectedDates.delete(dateKey);
-  renderWonJobs();
-}
-function renderWonJobsDateGrid(jobs){
-  const grid=$('wonJobsDateGrid');
-  const label=$('wonJobsCalendarLabel');
-  const selection=$('wonJobsSelectionLabel');
-  if(!grid) return;
-  const counts=new Map();
-  (Array.isArray(jobs)?jobs:[]).forEach(job=>{
-    const key=wonJobDateKey(job.date);
-    if(key) counts.set(key,(counts.get(key)||0)+1);
-  });
-  const sortedDates=[...counts.keys()].sort();
-  if(!wonJobsCalendarMonth){
-    const todayMonth=localDateInputValue(new Date()).slice(0,7);
-    const currentMonthDate=sortedDates.find(date=>date.slice(0,7)===todayMonth);
-    const upcomingDate=sortedDates.find(date=>date>=localDateInputValue(new Date()));
-    wonJobsCalendarMonth=currentMonthDate
-      ? currentMonthDate.slice(0,7)
-      : upcomingDate
-        ? upcomingDate.slice(0,7)
-        : sortedDates[0]
-          ? sortedDates[0].slice(0,7)
-          : todayMonth;
-  }
-  const [year,month]=wonJobsCalendarMonth.split('-').map(Number);
-  const first=new Date(year,month-1,1);
-  const daysInMonth=new Date(year,month,0).getDate();
-  const monthName=first.toLocaleDateString('en-AU',{month:'long',year:'numeric'});
-  if(label) label.textContent=monthName;
-  if(selection){
-    const highlighted=(Array.isArray(jobs)?jobs:[]).filter(wonJobIsMapSelected).length;
-    selection.textContent=wonJobsSelectionActive()
-      ? `${wonJobsSelectedDates.size} date${wonJobsSelectedDates.size===1?'':'s'} and ${wonJobsSelectedJobKeys.size} job${wonJobsSelectedJobKeys.size===1?'':'s'} selected (${highlighted} highlighted)`
-      : 'No dates selected; all mapped installs are shown';
-  }
-  const dayNames=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(day=>`<div class="wonJobsDayName">${day}</div>`).join('');
-  const blanks=(first.getDay()+6)%7;
-  let html=dayNames+Array.from({length:blanks},()=>'<div></div>').join('');
-  for(let day=1;day<=daysInMonth;day++){
-    const key=`${wonJobsCalendarMonth}-${String(day).padStart(2,'0')}`;
-    const count=counts.get(key)||0;
-    const classes=['wonJobsDateCell'];
-    if(count) classes.push('hasJobs');
-    if(wonJobsSelectedDates.has(key)) classes.push('isSelected');
-    html+=`<button class="${classes.join(' ')}" type="button" onpointerdown="beginWonJobsDateDrag(event,'${key}')" onpointerenter="continueWonJobsDateDrag(event,'${key}')" aria-pressed="${wonJobsSelectedDates.has(key)?'true':'false'}"><span>${day}</span>${count?`<small>${count} job${count===1?'':'s'}</small>`:''}</button>`;
-  }
-  grid.innerHTML=html;
-}
-function setWonJobsMapStatus(message,tone){
-  const status=$('wonJobsMapStatus');
-  if(!status) return;
-  status.textContent=message||'';
-  status.dataset.tone=tone||'';
-}
-function resetWonJobsMap(message,tone){
-  wonJobsMapMarkers.forEach(marker=>{try{marker.setMap(null);}catch(error){}});
-  wonJobsMapMarkers=[];
-  wonJobsMapInstance=null;
-  wonJobsMapInfoWindow=null;
-  const el=$('wonJobsMap');
-  if(el){
-    el.classList.add('is-empty');
-    el.textContent=message||'Won jobs with verified Google addresses will appear here.';
-  }
-  setWonJobsMapStatus(message||'No mapped jobs for this date.',tone||'empty');
-}
-function googleMapsBrowserKey(){
-  return String(window.CALCULATOR_GOOGLE_MAPS_BROWSER_KEY||'').trim();
-}
-function wonJobsMapMarkerIcon(selected){
-  if(!(window.google&&window.google.maps)) return undefined;
-  return {
-    path:google.maps.SymbolPath.CIRCLE,
-    scale:selected?10:7,
-    fillColor:selected?'#0f766e':'#2563eb',
-    fillOpacity:selected?1:.72,
-    strokeColor:'#ffffff',
-    strokeWeight:selected?3:2
-  };
-}
-function ensureWonJobsGoogleMap(){
-  if(window.google&&window.google.maps) return Promise.resolve(window.google.maps);
-  if(wonJobsMapLoaderPromise) return wonJobsMapLoaderPromise;
-  const key=googleMapsBrowserKey();
-  if(!key) return Promise.reject(new Error('Google Maps browser key is not configured.'));
-  wonJobsMapLoaderPromise=new Promise((resolve,reject)=>{
-    const existing=document.querySelector('script[data-calculator-google-maps]');
-    if(existing){
-      existing.addEventListener('load',()=>resolve(window.google&&window.google.maps),{once:true});
-      existing.addEventListener('error',()=>reject(new Error('Google Maps failed to load.')),{once:true});
-      return;
-    }
-    const script=document.createElement('script');
-    script.src=`https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&v=weekly`;
-    script.async=true;
-    script.defer=true;
-    script.dataset.calculatorGoogleMaps='true';
-    script.onload=()=>window.google&&window.google.maps?resolve(window.google.maps):reject(new Error('Google Maps failed to initialise.'));
-    script.onerror=()=>reject(new Error('Google Maps failed to load.'));
-    document.head.appendChild(script);
-  });
-  return wonJobsMapLoaderPromise;
-}
-function renderWonJobsInstallMap(jobs){
-  const el=$('wonJobsMap');
-  if(!el) return;
-  const mappedJobs=(Array.isArray(jobs)?jobs:[]).filter(job=>Number.isFinite(Number(job.latitude))&&Number.isFinite(Number(job.longitude)));
-  const highlightedJobs=mappedJobs.filter(wonJobIsMapSelected);
-  const focusJobs=highlightedJobs.length?highlightedJobs:mappedJobs;
-  const renderToken=++wonJobsMapRenderToken;
-  if(!mappedJobs.length){
-    resetWonJobsMap('No mapped won jobs yet. Jobs need a verified Google address to appear here.','empty');
-    return;
-  }
-  if(!googleMapsBrowserKey()){
-    resetWonJobsMap('Google Map is not configured for this calculator.','error');
-    return;
-  }
-  setWonJobsMapStatus(`Loading ${mappedJobs.length} install location${mappedJobs.length===1?'':'s'}...`,'');
-  ensureWonJobsGoogleMap().then(()=>{
-    if(renderToken!==wonJobsMapRenderToken) return;
-    wonJobsMapMarkers.forEach(marker=>marker.setMap(null));
-    wonJobsMapMarkers=[];
-    el.classList.remove('is-empty');
-    el.textContent='';
-    const first=mappedJobs[0];
-    const center={lat:Number(first.latitude),lng:Number(first.longitude)};
-    wonJobsMapInstance=new google.maps.Map(el,{
-      center,
-      zoom:12,
-      mapTypeControl:false,
-      streetViewControl:false,
-      fullscreenControl:true
-    });
-    wonJobsMapInfoWindow=new google.maps.InfoWindow();
-    const bounds=new google.maps.LatLngBounds();
-    const focusBounds=new google.maps.LatLngBounds();
-    const focusKeys=new Set(focusJobs.map(job=>job.jobKey));
-    mappedJobs.forEach(job=>{
-      const position={lat:Number(job.latitude),lng:Number(job.longitude)};
-      bounds.extend(position);
-      if(focusKeys.has(job.jobKey)) focusBounds.extend(position);
-      const title=[job.customerName,job.optionName].filter(Boolean).join(' - ')||job.optionName||'Won job';
-      const selected=wonJobIsMapSelected(job);
-      const marker=new google.maps.Marker({map:wonJobsMapInstance,position,title,icon:wonJobsMapMarkerIcon(selected),zIndex:selected?2:1});
-      marker.addListener('click',()=>{
-        const query=encodeURIComponent(job.address||`${position.lat},${position.lng}`);
-        const place=job.googlePlaceId?`&query_place_id=${encodeURIComponent(job.googlePlaceId)}`:'';
-        const url=`https://www.google.com/maps/search/?api=1&query=${query}${place}`;
-        wonJobsMapInfoWindow.setContent(`<div class="wonJobsMapInfo"><strong>${htmlEscape(title)}</strong><span>${htmlEscape(job.address||'Verified address')}</span><span>${htmlEscape(formatProposedInstallationDate(job.date))}</span><a href="${url}" target="_blank" rel="noopener">Open in Google Maps</a></div>`);
-        wonJobsMapInfoWindow.open({map:wonJobsMapInstance,anchor:marker});
-      });
-      wonJobsMapMarkers.push(marker);
-    });
-    if(focusJobs.length>1) wonJobsMapInstance.fitBounds(focusBounds,{top:34,right:34,bottom:34,left:34});
-    else if(focusJobs.length===1){
-      wonJobsMapInstance.setCenter({lat:Number(focusJobs[0].latitude),lng:Number(focusJobs[0].longitude)});
-      wonJobsMapInstance.setZoom(14);
-    }
-    else if(mappedJobs.length>1) wonJobsMapInstance.fitBounds(bounds,{top:34,right:34,bottom:34,left:34});
-    else wonJobsMapInstance.setZoom(14);
-    setWonJobsMapStatus(wonJobsSelectionActive()
-      ? `${highlightedJobs.length} highlighted, ${mappedJobs.length} mapped install${mappedJobs.length===1?'':'s'} shown.`
-      : `All ${mappedJobs.length} mapped install${mappedJobs.length===1?'':'s'} shown.`,'');
-  }).catch(error=>{
-    if(renderToken!==wonJobsMapRenderToken) return;
-    resetWonJobsMap(error&&error.message?error.message:'Google Maps could not load.','error');
-  });
-}
-function setWonDateSaveStatus(message,tone){
-  setWonJobsMapStatus(message,tone||'');
-}
-function updateWonInstallDateInCollections(optionDefs,rows,optionId,wonAt,newDate,syncUpdatedAt){
-  let matchedDef=false;
-  let updated=false;
-  (Array.isArray(optionDefs)?optionDefs:[]).forEach(def=>{
-    if(String(def.id||'option_1')!==optionId) return;
-    if(String(def.wonAt||'')!==wonAt) return;
-    def.proposedInstallationDate=newDate;
-    touchOptionDef(def,syncUpdatedAt);
-    matchedDef=true;
-    updated=true;
-  });
-  (Array.isArray(rows)?rows:[]).forEach(row=>{
-    if(String(row.optionId||'option_1')!==optionId) return;
-    if(!matchedDef && String(row.wonAt||'')!==wonAt) return;
-    row.proposedInstallationDate=newDate;
-    touchQuoteRow(row,syncUpdatedAt);
-    updated=true;
-  });
-  return updated;
-}
-async function updateWonJobInstallDate(encodedJobKey,newDate){
-  const jobKey=decodeURIComponent(encodedJobKey||'');
-  const date=wonJobDateKey(newDate);
-  if(!jobKey||!date){alert('Choose a valid install date.');renderWonJobs();return;}
-  let job;
-  try{job=JSON.parse(jobKey);}catch(error){job=null;}
-  if(!job||!job.optionId||!job.wonAt){alert('Could not identify this won job. Refresh and try again.');renderWonJobs();return;}
-  const previous={quoteOptionDefs:cloneObj(quoteOptionDefs),quotes:cloneObj(quotes),savedQuoteSets:cloneObj(savedQuoteSets)};
-  const syncUpdatedAt=Date.now();
-  let updated=false;
-  if(job.sourceKind==='current'){
-    updated=updateWonInstallDateInCollections(quoteOptionDefs,quotes,String(job.optionId),String(job.wonAt),date,syncUpdatedAt);
-    if(updated){persistOptionDefs();persistQuotes();}
-  }else if(job.sourceKind==='saved'){
-    const saved=savedQuoteSets.find(set=>String(set.id||'')===String(job.sourceId||''));
-    if(saved){
-      updated=updateWonInstallDateInCollections(
-        Array.isArray(saved.optionDefs)?saved.optionDefs:[],
-        Array.isArray(saved.quotes)?saved.quotes:[],
-        String(job.optionId),
-        String(job.wonAt),
-        date,
-        syncUpdatedAt
-      );
-      if(updated) persistSavedQuoteSets();
-    }
-  }
-  if(!updated){alert('Could not find that won job to update. Refresh and try again.');renderWonJobs();return;}
-  renderWonJobs();
-  setWonDateSaveStatus('Saving install date...','');
-  try{
-    if(typeof window.__calculatorFlushCloudSave!=='function') throw new Error('Cloud save confirmation is unavailable. Refresh the calculator and try again.');
-    await window.__calculatorFlushCloudSave(20000);
-    setWonDateSaveStatus('Install date saved.','');
-    showQuoteActionNotice('Install date updated.');
-  }catch(error){
-    quoteOptionDefs=previous.quoteOptionDefs;
-    quotes=previous.quotes;
-    savedQuoteSets=previous.savedQuoteSets;
-    persistOptionDefs();
-    persistQuotes();
-    persistSavedQuoteSets();
-    renderSavedQuoteSets();
-    renderQuotes();
-    renderWonJobs();
-    alert((error&&error.message?error.message:'The install date was not saved.')+' Nothing was changed. Please try again.');
-  }
-}
 function collectWonJobsFromSnapshot(source,seen,jobs){
   const optionDefs=Array.isArray(source.optionDefs)?source.optionDefs:[];
   const rows=normalizeWonJobRows(source.quotes);
@@ -8562,12 +8184,8 @@ function collectWonJobsFromSnapshot(source,seen,jobs){
     seen.add(key);
     const totals=wonJobTotals(optionRows);
     const customerName=String(source.customer || source.quoteExportName || '').trim();
-    const detailsRow=optionRows.find(row=>row.installationAddress||row.proposedInstallationDate||row.googlePlaceId||row.installationLatitude||row.installationLongitude)||{};
-    const latitude=coordinateValue(def.installationLatitude ?? detailsRow.installationLatitude ?? source.installationLatitude ?? source.latitude);
-    const longitude=coordinateValue(def.installationLongitude ?? detailsRow.installationLongitude ?? source.installationLongitude ?? source.longitude);
-    const jobKey=JSON.stringify({sourceKind:String(source.sourceKind||''),sourceId:String(source.sourceId||''),optionId,wonAt});
+    const detailsRow=optionRows.find(row=>row.installationAddress||row.proposedInstallationDate||row.googlePlaceId)||{};
     jobs.push({
-      jobKey,
       sourceKind:source.sourceKind,
       sourceId:String(source.sourceId||''),
       sourceName:String(source.sourceName||'Current quote builder'),
@@ -8579,8 +8197,6 @@ function collectWonJobsFromSnapshot(source,seen,jobs){
       address:String(def.installationAddress || detailsRow.installationAddress || source.address || ''),
       date:String(def.proposedInstallationDate || detailsRow.proposedInstallationDate || source.date || ''),
       googlePlaceId:String(def.googlePlaceId || detailsRow.googlePlaceId || ''),
-      latitude,
-      longitude,
       savedAt:source.savedAt,
       rows:optionRows,
       totals
@@ -8660,29 +8276,23 @@ function renderWonJobs(){
   const list=$('wonJobsList');
   const summary=$('wonJobsSummary');
   if(!list || !summary) return;
-  renderWonJobsDateGrid(jobs);
   document.querySelectorAll('[data-won-jobs-count]').forEach(el=>{el.textContent=String(jobs.length);});
-  const highlightedJobs=jobs.filter(wonJobIsMapSelected);
-  const summaryJobs=wonJobsSelectionActive()?highlightedJobs:jobs;
-  const totalCustomer=summaryJobs.reduce((sum,job)=>sum+job.totals.customer,0);
-  const totalCommission=summaryJobs.reduce((sum,job)=>sum+job.totals.salespersonCommission,0);
-  const totalAgencyProfit=summaryJobs.reduce((sum,job)=>sum+job.totals.agencyProfitAfterSales,0);
-  const totalSystems=summaryJobs.reduce((sum,job)=>sum+job.rows.length,0);
+  const totalCustomer=jobs.reduce((sum,job)=>sum+job.totals.customer,0);
+  const totalCommission=jobs.reduce((sum,job)=>sum+job.totals.salespersonCommission,0);
+  const totalAgencyProfit=jobs.reduce((sum,job)=>sum+job.totals.agencyProfitAfterSales,0);
+  const totalSystems=jobs.reduce((sum,job)=>sum+job.rows.length,0);
   const thirdSummary=canSeeSalespersonCommission()
     ? `<div class="wonJobsSummaryCard"><span>Salesperson commission</span><strong>${money(totalCommission)}</strong></div>`
     : `<div class="wonJobsSummaryCard"><span>Systems won</span><strong>${totalSystems}</strong></div>`;
   const agencyProfitSummary=canSeeAgencyProfit()?`<div class="wonJobsSummaryCard agencyProfitHighlight"><span>Agency profit inc GST</span><strong>${money(totalAgencyProfit)}</strong></div>`:'';
-  const summaryLabel=wonJobsSelectionActive()?'Highlighted jobs':'Won jobs';
-  summary.innerHTML=`<div class="wonJobsSummaryCard"><span>${summaryLabel}</span><strong>${summaryJobs.length}</strong></div><div class="wonJobsSummaryCard"><span>Customer total</span><strong>${money(totalCustomer)}</strong></div>${thirdSummary}${agencyProfitSummary}`;
+  summary.innerHTML=`<div class="wonJobsSummaryCard"><span>Won jobs</span><strong>${jobs.length}</strong></div><div class="wonJobsSummaryCard"><span>Customer total</span><strong>${money(totalCustomer)}</strong></div>${thirdSummary}${agencyProfitSummary}`;
   if(!jobs.length){
     list.innerHTML='<div class="emptyWonJobs"><strong>No won jobs yet.</strong><div class="sub" style="margin-top:6px">When a quote is marked as won, it will appear here for this calculator user.</div></div>';
-    resetWonJobsMap('No won jobs yet.','empty');
     return;
   }
   const showPrivate=canSeeProfitDetails();
   const showSales=canSeeSalespersonCommission();
   list.innerHTML=jobs.map(job=>{
-    const selected=wonJobIsMapSelected(job);
     const title=[job.customerName,job.optionName].filter(Boolean).join(' - ') || job.optionName;
     const sourceMeta=job.sourceKind==='saved'
       ? `Saved quote: ${job.sourceName}${job.savedAt?' - '+formatSavedQuoteTime(job.savedAt):''}`
@@ -8694,21 +8304,18 @@ function renderWonJobs(){
     const action=job.sourceKind==='saved'
       ? `<button class="secondary" type="button" onclick="loadWonSavedQuote('${jsArg(job.sourceId)}')">Load saved quote</button>`
       : `<button class="secondary" type="button" onclick="viewWonCurrentOption('${jsArg(job.optionId)}')">View quote</button>`;
-    const dateKey=wonJobDateKey(job.date);
-    const dateEditor=`<label class="wonJobDateEdit"><span>Install date</span><input type="date" value="${htmlEscape(dateKey)}" onchange="updateWonJobInstallDate('${jsArg(job.jobKey)}',this.value)"></label>`;
-    const highlightAction=`<button class="secondary wonJobMapToggle" type="button" aria-pressed="${selected?'true':'false'}" onclick="toggleWonJobsJobSelection('${jsArg(job.jobKey)}')">${selected?'Highlighted':'Highlight'}</button>`;
     const rowHtml=job.rows.map(row=>{
       const system=[row.size,row.brand,row.type].filter(Boolean).join(' ');
       const details=[row.model,row.install].filter(Boolean).join(' - ');
       return `<div class="wonJobLine"><strong>${htmlEscape(system||'System')}</strong><span>${htmlEscape(details)}</span><span>${money(row.finalInc)}</span></div>`;
     }).join('');
-    return `<article class="wonJobCard ${selected?'isMapSelected':''}">
+    return `<article class="wonJobCard">
       <div class="wonJobHead">
         <div class="wonJobTitle">
           <strong>${htmlEscape(title)}</strong>
           <span class="wonJobMeta">${htmlEscape(sourceMeta)}${detailBits.length?'<br>'+htmlEscape(detailBits.join(' - ')):''}</span>
         </div>
-        <div class="wonJobActions">${dateEditor}<span class="wonJobPill">${htmlEscape(formatWonDate(job.wonAt))}</span>${highlightAction}${action}</div>
+        <div class="wonJobActions"><span class="wonJobPill">${htmlEscape(formatWonDate(job.wonAt))}</span>${action}</div>
       </div>
       <div class="wonJobMetrics">
         <div><span>Systems</span><strong>${job.rows.length}</strong></div>
@@ -8719,7 +8326,6 @@ function renderWonJobs(){
       <div class="wonJobLines">${rowHtml}</div>
     </article>`;
   }).join('');
-  renderWonJobsInstallMap(jobs);
 }
 function openWonJobsDrawer(){ensureSecondaryStartup(); renderWonJobs(); const el=$('wonJobsDrawer'); if(el) el.classList.add('open'); syncOverlayState();}
 function closeWonJobsDrawer(){const el=$('wonJobsDrawer'); if(el) el.classList.remove('open'); syncOverlayState();}

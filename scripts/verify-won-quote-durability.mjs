@@ -39,7 +39,7 @@ assert.match(
   "A permanent server rejection must reject the matching confirmation.",
 );
 
-const completeWon = ui.match(/async function completeOptionWon\(id,details\)\{([\s\S]*?)\n\}\nasync function confirmWonDetails/)?.[1] || "";
+const completeWon = ui.match(/async function completeOptionWon\(id,details\)\{([\s\S]*?)\r?\n\}\r?\nasync function confirmWonDetails/)?.[1] || "";
 assert.ok(completeWon, "The durable won-quote workflow must exist.");
 assert.match(
   completeWon,

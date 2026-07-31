@@ -17,7 +17,7 @@ assert.equal(canSeeAgencyProfit(undefined), false, "Missing roles must not see a
 
 const checks = [
   [rawRoute.includes("canSeeAgencyProfit: agencyProfitVisible"), "server-injected agency-profit permission"],
-  [rawRoute.includes("previewAsViewedUser\n    ? canSeeAgencyProfit(contextRole)"), "restricted salesperson preview behavior"],
+  [/previewAsViewedUser\r?\n\s+\? canSeeAgencyProfit\(contextRole\)/.test(rawRoute), "restricted salesperson preview behavior"],
   [calculator.includes("u.canSeeAgencyProfit===true"), "strict client visibility check"],
   [calculator.includes("Math.max(0,agency-salesperson)"), "GST-inclusive subtraction formula"],
   [calculator.includes("Agency profit after salesperson commission inc GST"), "calculator commission row"],
