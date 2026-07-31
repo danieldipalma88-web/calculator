@@ -19,7 +19,9 @@ assertIncludes(
 );
 
 [
-  "wonJobsInstallDate",
+  "wonJobsDateGrid",
+  "wonJobsSelectedDates",
+  "function updateWonJobInstallDate",
   "wonJobsMap",
   "function renderWonJobsInstallMap",
   "installationLatitude",
@@ -29,7 +31,9 @@ assertIncludes(
 [
   "installationLatitude: number | null",
   "installationLongitude: number | null",
-  "data-won-install-map-date",
+  "data-won-install-date-grid",
+  "wonInstallSelectedDates",
+  "handleWonPointerDown",
   "data-won-install-map",
   "data-install-lat",
   "data-install-lng",
@@ -39,8 +43,10 @@ assertIncludes(
 
 [
   ".wonJobsMapCanvas",
+  ".wonJobsCalendarGrid",
   ".won-install-map-canvas",
   ".won-install-map-panel",
+  ".won-install-map-date-grid",
 ].forEach((expected) => {
   const file = expected.startsWith(".wonJobs") ? "index.html" : "app/globals.css";
   const content = expected.startsWith(".wonJobs") ? indexHtml : globals;

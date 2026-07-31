@@ -1804,6 +1804,23 @@ select {
   margin: 0;
 }
 
+.won-install-map-title {
+  display: grid;
+  min-width: min(320px, 100%);
+  gap: 4px;
+}
+
+.won-install-map-title strong {
+  color: var(--ink);
+  font-size: 15px;
+}
+
+.won-install-map-title span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 .won-install-map-date-field span {
   color: #475569;
   font-size: 10px;
@@ -1850,6 +1867,86 @@ select {
 .won-install-map-status[data-tone="error"] {
   background: #fee2e2;
   color: #991b1b;
+}
+
+.won-install-map-calendar {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid rgba(191, 219, 254, 0.95);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.won-install-map-calendar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.won-install-map-calendar-head strong {
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.won-install-map-calendar-head span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-align: right;
+}
+
+.won-install-map-date-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+  user-select: none;
+  touch-action: none;
+}
+
+.won-install-day-name {
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 900;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.won-install-date-cell {
+  display: grid;
+  min-height: 42px;
+  place-items: center;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #94a3b8;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.won-install-date-cell.has-jobs {
+  border-color: #bfdbfe;
+  background: #fff;
+  color: var(--ink);
+}
+
+.won-install-date-cell.is-selected {
+  border-color: #0f766e;
+  background: #0f766e;
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(15, 118, 110, 0.18);
+}
+
+.won-install-date-cell small {
+  color: inherit;
+  font-size: 9px;
+  font-weight: 900;
+  opacity: 0.76;
 }
 
 .won-install-map-canvas {
@@ -1916,6 +2013,11 @@ select {
 .won-card-payment_complete {
   border-color: rgba(74, 222, 128, 0.5);
   background: linear-gradient(145deg, #fff, #f2fdf6);
+}
+
+.won-card.is-install-highlighted {
+  border-color: rgba(15, 118, 110, 0.72);
+  box-shadow: 0 18px 42px rgba(15, 118, 110, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.88);
 }
 
 .won-card[hidden] {
@@ -2693,6 +2795,19 @@ select {
     display: grid;
     grid-template-columns: 1fr;
     align-items: stretch;
+  }
+
+  .won-install-map-title {
+    min-width: 0;
+  }
+
+  .won-install-map-calendar-head {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .won-install-map-calendar-head span {
+    text-align: left;
   }
 
   .won-install-map-actions button {

@@ -1287,6 +1287,10 @@ function wonExportScript() {
   var wonInstallMapMarkers = [];
   var wonInstallMapLoaderPromise = null;
   var wonInstallMapRenderToken = 0;
+  var wonInstallSelectedDates = new Set();
+  var wonInstallDateDragActive = false;
+  var wonInstallDateDragMode = true;
+  var wonInstallCalendarMonth = "";
   function localDateInputValue(date) {
     var d = date instanceof Date ? date : new Date();
     var year = d.getFullYear();
@@ -1303,21 +1307,107 @@ function wonExportScript() {
     if (Number.isNaN(parsed.getTime())) return "";
     return localDateInputValue(parsed);
   }
-  function defaultWonInstallMapDate(cards) {
+  function shiftMonthKey(monthKey, delta) {
+    var key = String(monthKey || localDateInputValue(new Date()).slice(0, 7));
+    var parts = key.split("-");
+    var date = new Date(Number(parts[0]) || new Date().getFullYear(), (Number(parts[1]) || 1) - 1 + (Number(delta) || 0), 1);
+    return date.getFullYear() + "-" + String(date.getMonth() + 1).padStart(2, "0");
+  }
+  function shiftWonInstallCalendarMonth(delta) {
+    wonInstallCalendarMonth = shiftMonthKey(wonInstallCalendarMonth, delta);
+    updateWonInstallMap();
+    rememberWonUiState(false);
+  }
+  function clearWonInstallDateSelection() {
+    wonInstallSelectedDates.clear();
+    updateWonInstallMap();
+    rememberWonUiState(false);
+  }
+  function wonInstallSelectionActive() {
+    return wonInstallSelectedDates.size > 0 || selectedWonCards().length > 0;
+  }
+  function defaultWonInstallMapMonth(cards) {
     var dates = (cards || [])
       .map(function(card){ return installDateKey(card.getAttribute("data-install-date")); })
       .filter(Boolean)
       .sort();
-    var today = localDateInputValue(new Date());
-    if (!dates.length) return today;
-    if (dates.indexOf(today) >= 0) return today;
-    return dates.find(function(date){ return date >= today; }) || dates[dates.length - 1] || today;
+    var todayMonth = localDateInputValue(new Date()).slice(0, 7);
+    var currentMonthDate = dates.find(function(date){ return date.slice(0, 7) === todayMonth; });
+    if (currentMonthDate) return currentMonthDate.slice(0, 7);
+    var upcomingDate = dates.find(function(date){ return date >= localDateInputValue(new Date()); });
+    if (upcomingDate) return upcomingDate.slice(0, 7);
+    return dates[0] ? dates[0].slice(0, 7) : todayMonth;
   }
   function formattedInstallDate(date) {
     var key = installDateKey(date);
     if (!key) return "selected date";
     var parts = key.split("-");
     return parts.length === 3 ? parts[2] + "/" + parts[1] + "/" + parts[0] : key;
+  }
+  function setWonInstallDateSelected(dateKey, selected) {
+    var key = installDateKey(dateKey);
+    if (!key) return;
+    if (selected) wonInstallSelectedDates.add(key);
+    else wonInstallSelectedDates.delete(key);
+    updateWonInstallMap();
+    rememberWonUiState(false);
+  }
+  function beginWonInstallDateDrag(event, dateKey) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    var key = installDateKey(dateKey);
+    if (!key) return;
+    wonInstallDateDragActive = true;
+    wonInstallDateDragMode = !wonInstallSelectedDates.has(key);
+    setWonInstallDateSelected(key, wonInstallDateDragMode);
+    window.addEventListener("pointerup", function(){ wonInstallDateDragActive = false; }, { once: true });
+  }
+  function continueWonInstallDateDrag(event, dateKey) {
+    if (!wonInstallDateDragActive) return;
+    if (event) event.preventDefault();
+    setWonInstallDateSelected(dateKey, wonInstallDateDragMode);
+  }
+  function renderWonInstallDateGrid(cards) {
+    var grid = document.querySelector("[data-won-install-date-grid]");
+    if (!grid) return;
+    var label = document.querySelector("[data-won-install-calendar-label]");
+    var selection = document.querySelector("[data-won-install-map-selection]");
+    var counts = new Map();
+    (cards || []).forEach(function(card){
+      var key = installDateKey(card.getAttribute("data-install-date"));
+      if (key) counts.set(key, (counts.get(key) || 0) + 1);
+    });
+    if (!wonInstallCalendarMonth) wonInstallCalendarMonth = defaultWonInstallMapMonth(cards || []);
+    var parts = wonInstallCalendarMonth.split("-");
+    var year = Number(parts[0]) || new Date().getFullYear();
+    var month = Number(parts[1]) || (new Date().getMonth() + 1);
+    var first = new Date(year, month - 1, 1);
+    var daysInMonth = new Date(year, month, 0).getDate();
+    if (label) label.textContent = first.toLocaleDateString("en-AU", { month: "long", year: "numeric" });
+    if (selection) {
+      var highlighted = (cards || []).filter(cardIsInstallHighlighted).length;
+      selection.textContent = wonInstallSelectionActive()
+        ? wonInstallSelectedDates.size + " date" + (wonInstallSelectedDates.size === 1 ? "" : "s") + " selected (" + highlighted + " highlighted)"
+        : "No dates selected; all mapped installs are shown";
+    }
+    var dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(function(day){
+      return '<div class="won-install-day-name">' + day + "</div>";
+    }).join("");
+    var blanks = (first.getDay() + 6) % 7;
+    var html = dayNames + Array.from({ length: blanks }, function(){ return "<div></div>"; }).join("");
+    for (var day = 1; day <= daysInMonth; day += 1) {
+      var key = wonInstallCalendarMonth + "-" + String(day).padStart(2, "0");
+      var count = counts.get(key) || 0;
+      var classes = ["won-install-date-cell"];
+      if (count) classes.push("has-jobs");
+      if (wonInstallSelectedDates.has(key)) classes.push("is-selected");
+      html += '<button class="' + classes.join(" ") + '" type="button" data-won-install-date="' + key + '" aria-pressed="' + (wonInstallSelectedDates.has(key) ? "true" : "false") + '"><span>' + day + "</span>" +
+        (count ? "<small>" + count + " job" + (count === 1 ? "" : "s") + "</small>" : "") +
+        "</button>";
+    }
+    grid.innerHTML = html;
   }
   function setWonInstallMapStatus(message, tone) {
     var status = document.querySelector("[data-won-install-map-status]");
@@ -1368,27 +1458,47 @@ function wonExportScript() {
     });
     return wonInstallMapLoaderPromise;
   }
-  function mappedInstallCardsForDate(selectedDate) {
+  function wonInstallMarkerIcon(selected) {
+    if (!(window.google && window.google.maps)) return undefined;
+    return {
+      path: google.maps.SymbolPath.CIRCLE,
+      scale: selected ? 10 : 7,
+      fillColor: selected ? "#0f766e" : "#2563eb",
+      fillOpacity: selected ? 1 : 0.72,
+      strokeColor: "#ffffff",
+      strokeWeight: selected ? 3 : 2
+    };
+  }
+  function cardIsInstallHighlighted(card) {
+    if (!card) return false;
+    var key = installDateKey(card.getAttribute("data-install-date"));
+    var checked = Boolean(card.querySelector(".won-sale-select:checked"));
+    return checked || (key && wonInstallSelectedDates.has(key));
+  }
+  function mappedInstallCards() {
     return visibleWonCards().filter(function(card){
-      if (selectedDate && installDateKey(card.getAttribute("data-install-date")) !== selectedDate) return false;
       var lat = Number(card.getAttribute("data-install-lat"));
       var lng = Number(card.getAttribute("data-install-lng"));
       return Number.isFinite(lat) && Number.isFinite(lng);
     });
   }
+  function syncWonInstallHighlights() {
+    Array.prototype.slice.call(document.querySelectorAll(".won-card")).forEach(function(card){
+      card.classList.toggle("is-install-highlighted", cardIsInstallHighlighted(card));
+    });
+  }
   function updateWonInstallMap() {
     var canvas = document.querySelector("[data-won-install-map]");
     if (!canvas) return;
-    var dateInput = document.querySelector("[data-won-install-map-date]");
-    if (dateInput && !dateInput.value) {
-      dateInput.value = defaultWonInstallMapDate(Array.prototype.slice.call(document.querySelectorAll(".won-card")));
-    }
-    var selectedDate = dateInput ? String(dateInput.value || "") : "";
-    var dateLabel = formattedInstallDate(selectedDate);
-    var cards = mappedInstallCardsForDate(selectedDate);
+    var visibleCards = visibleWonCards();
+    renderWonInstallDateGrid(visibleCards);
+    syncWonInstallHighlights();
+    var cards = mappedInstallCards();
+    var highlightedCards = cards.filter(cardIsInstallHighlighted);
+    var focusCards = highlightedCards.length ? highlightedCards : cards;
     var renderToken = ++wonInstallMapRenderToken;
     if (!cards.length) {
-      resetWonInstallMap("No mapped won quotes for " + dateLabel + ".", "empty");
+      resetWonInstallMap("No mapped won quotes yet. Jobs need a verified Google address to appear here.", "empty");
       return;
     }
     if (!adminGoogleMapsBrowserKey()) {
@@ -1416,6 +1526,8 @@ function wonExportScript() {
       });
       wonInstallMapInfoWindow = new google.maps.InfoWindow();
       var bounds = new google.maps.LatLngBounds();
+      var focusBounds = new google.maps.LatLngBounds();
+      var focusKeys = new Set(focusCards.map(function(card){ return String(card.getAttribute("data-won-card-key") || ""); }));
       cards.forEach(function(card){
         var position = {
           lat: Number(card.getAttribute("data-install-lat")),
@@ -1426,8 +1538,16 @@ function wonExportScript() {
         var business = String(card.getAttribute("data-install-business") || "");
         var address = String(card.getAttribute("data-install-address") || "");
         var placeId = String(card.getAttribute("data-install-place-id") || "");
+        var highlighted = cardIsInstallHighlighted(card);
         bounds.extend(position);
-        var marker = new google.maps.Marker({ map: wonInstallMapInstance, position: position, title: title });
+        if (focusKeys.has(String(card.getAttribute("data-won-card-key") || ""))) focusBounds.extend(position);
+        var marker = new google.maps.Marker({
+          map: wonInstallMapInstance,
+          position: position,
+          title: title,
+          icon: wonInstallMarkerIcon(highlighted),
+          zIndex: highlighted ? 2 : 1
+        });
         marker.addListener("click", function(){
           var query = encodeURIComponent(address || (position.lat + "," + position.lng));
           var place = placeId ? "&query_place_id=" + encodeURIComponent(placeId) : "";
@@ -1444,9 +1564,19 @@ function wonExportScript() {
         });
         wonInstallMapMarkers.push(marker);
       });
-      if (cards.length > 1) wonInstallMapInstance.fitBounds(bounds, { top: 34, right: 34, bottom: 34, left: 34 });
+      if (focusCards.length > 1) wonInstallMapInstance.fitBounds(focusBounds, { top: 34, right: 34, bottom: 34, left: 34 });
+      else if (focusCards.length === 1) {
+        wonInstallMapInstance.setCenter({
+          lat: Number(focusCards[0].getAttribute("data-install-lat")),
+          lng: Number(focusCards[0].getAttribute("data-install-lng"))
+        });
+        wonInstallMapInstance.setZoom(14);
+      }
+      else if (cards.length > 1) wonInstallMapInstance.fitBounds(bounds, { top: 34, right: 34, bottom: 34, left: 34 });
       else wonInstallMapInstance.setZoom(14);
-      setWonInstallMapStatus(cards.length + " install location" + (cards.length === 1 ? "" : "s") + " on the map.", "");
+      setWonInstallMapStatus(wonInstallSelectionActive()
+        ? highlightedCards.length + " highlighted, " + cards.length + " mapped install" + (cards.length === 1 ? "" : "s") + " shown."
+        : "All " + cards.length + " mapped install" + (cards.length === 1 ? "" : "s") + " shown.", "");
     }).catch(function(error){
       if (renderToken !== wonInstallMapRenderToken) return;
       resetWonInstallMap(error && error.message ? error.message : "Google Maps could not load.", "error");
@@ -1527,6 +1657,7 @@ function wonExportScript() {
     });
     updateSelectedTotals();
     updateWonSelectionDock();
+    updateWonInstallMap();
   }
   function setExportStatus(message, tone) {
     Array.prototype.slice.call(document.querySelectorAll("[data-won-export-status]")).forEach(function(status){
@@ -1841,13 +1972,13 @@ function wonExportScript() {
     var previous = readWonUiState() || {};
     var section = document.querySelector(".won-options-section");
     var search = document.querySelector("[data-won-search]");
-    var installDate = document.querySelector("[data-won-install-map-date]");
     var state = {
       salespeople: activeSalespersonEmails(),
       payments: activePaymentFilters(),
       search: String(search && search.value || ""),
       sort: currentWonSort(),
-      installDate: String(installDate && installDate.value || ""),
+      installDates: Array.from(wonInstallSelectedDates),
+      installMonth: wonInstallCalendarMonth,
       expanded: Array.prototype.slice.call(document.querySelectorAll(".won-card[open]")).map(function(card){ return String(card.getAttribute("data-won-card-key") || ""); }).filter(Boolean),
       scrollY: window.scrollY || 0,
       returning: returning === undefined ? Boolean(previous.returning) : Boolean(returning),
@@ -1861,10 +1992,10 @@ function wonExportScript() {
     var section = document.querySelector(".won-options-section");
     var search = document.querySelector("[data-won-search]");
     var sort = document.querySelector("[data-won-sort]");
-    var installDate = document.querySelector("[data-won-install-map-date]");
     if (search) search.value = String(state.search || "");
     if (sort) sort.value = String(state.sort || "recent");
-    if (installDate) installDate.value = String(state.installDate || "");
+    wonInstallSelectedDates = new Set(Array.isArray(state.installDates) ? state.installDates.map(installDateKey).filter(Boolean) : []);
+    wonInstallCalendarMonth = String(state.installMonth || "");
     setActiveSalespersonEmails(Array.isArray(state.salespeople) ? state.salespeople : []);
     setActivePaymentFilters(Array.isArray(state.payments) ? state.payments : []);
     applyWonSalespersonFilter();
@@ -2368,13 +2499,24 @@ function wonExportScript() {
       return;
     }
 
-    var mapTodayTarget = event.target && event.target.closest ? event.target.closest("[data-won-install-map-today]") : null;
-    if (mapTodayTarget) {
+    var mapPreviousTarget = event.target && event.target.closest ? event.target.closest("[data-won-install-map-prev]") : null;
+    if (mapPreviousTarget) {
       event.preventDefault();
-      var installDate = document.querySelector("[data-won-install-map-date]");
-      if (installDate) installDate.value = localDateInputValue(new Date());
-      updateWonInstallMap();
-      rememberWonUiState(false);
+      shiftWonInstallCalendarMonth(-1);
+      return;
+    }
+
+    var mapNextTarget = event.target && event.target.closest ? event.target.closest("[data-won-install-map-next]") : null;
+    if (mapNextTarget) {
+      event.preventDefault();
+      shiftWonInstallCalendarMonth(1);
+      return;
+    }
+
+    var mapClearTarget = event.target && event.target.closest ? event.target.closest("[data-won-install-map-clear]") : null;
+    if (mapClearTarget) {
+      event.preventDefault();
+      clearWonInstallDateSelection();
       return;
     }
 
@@ -2448,16 +2590,21 @@ function wonExportScript() {
       rememberWonUiState(false);
       return;
     }
-    if (event.target && event.target.matches && event.target.matches("[data-won-install-map-date]")) {
-      updateWonInstallMap();
-      rememberWonUiState(false);
-      return;
-    }
     if (event.target && event.target.matches && event.target.matches("[data-won-sort]")) {
       sortWonCards();
       updateWonInstallMap();
       rememberWonUiState(false);
     }
+  }
+  function handleWonPointerDown(event) {
+    var target = event.target && event.target.closest ? event.target.closest("[data-won-install-date]") : null;
+    if (!target) return;
+    beginWonInstallDateDrag(event, target.getAttribute("data-won-install-date"));
+  }
+  function handleWonPointerOver(event) {
+    var target = event.target && event.target.closest ? event.target.closest("[data-won-install-date]") : null;
+    if (!target) return;
+    continueWonInstallDateDrag(event, target.getAttribute("data-won-install-date"));
   }
   function handleWonInput(event) {
     if (!event.target || !event.target.matches || !event.target.matches("[data-won-search]")) return;
@@ -2494,6 +2641,8 @@ function wonExportScript() {
     selectionClick: handleWonSelectionClick,
     click: handleWonClick,
     keydown: handleWonKeydown,
+    pointerdown: handleWonPointerDown,
+    pointerover: handleWonPointerOver,
     change: handleWonChange,
     input: handleWonInput,
     toggle: handleWonToggle,
@@ -2515,6 +2664,12 @@ function wonExportScript() {
     });
     document.addEventListener("keydown", function(event){
       if (window.__adminWonOptionsRuntime) window.__adminWonOptionsRuntime.keydown(event);
+    });
+    document.addEventListener("pointerdown", function(event){
+      if (window.__adminWonOptionsRuntime) window.__adminWonOptionsRuntime.pointerdown(event);
+    });
+    document.addEventListener("pointerover", function(event){
+      if (window.__adminWonOptionsRuntime) window.__adminWonOptionsRuntime.pointerover(event);
     });
     document.addEventListener("change", function(event){
       if (window.__adminWonOptionsRuntime) window.__adminWonOptionsRuntime.change(event);
@@ -4629,18 +4784,31 @@ export default async function AdminUsersPage({
 
             <section className="won-install-map-panel" aria-label="Won quote installation map">
               <div className="won-install-map-toolbar">
-                <label className="won-install-map-date-field">
-                  <span>Install date map</span>
-                  <input data-won-install-map-date type="date" />
-                </label>
+                <div className="won-install-map-title">
+                  <strong>Install map</strong>
+                  <span>All mapped installs show by default. Select dates or tick quotes to highlight specific installs.</span>
+                </div>
                 <div className="won-install-map-actions">
-                  <button className="secondary" data-won-install-map-today type="button">
-                    Today
+                  <button className="secondary" data-won-install-map-prev type="button">
+                    Previous
+                  </button>
+                  <button className="secondary" data-won-install-map-next type="button">
+                    Next
+                  </button>
+                  <button className="secondary" data-won-install-map-clear type="button">
+                    Clear map selection
                   </button>
                   <span className="won-install-map-status" data-won-install-map-status data-tone="empty">
-                    Select a date to see install locations.
+                    All mapped installs are shown.
                   </span>
                 </div>
+              </div>
+              <div className="won-install-map-calendar">
+                <div className="won-install-map-calendar-head">
+                  <strong data-won-install-calendar-label>Install dates</strong>
+                  <span data-won-install-map-selection>No dates selected</span>
+                </div>
+                <div className="won-install-map-date-grid" data-won-install-date-grid aria-label="Install dates" />
               </div>
               <div className="won-install-map-canvas is-empty" data-won-install-map>
                 Won quotes with verified Google addresses will appear here.
