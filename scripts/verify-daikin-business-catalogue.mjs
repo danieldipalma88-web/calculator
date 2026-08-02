@@ -62,5 +62,13 @@ assert.match(
 );
 assert.match(source, /loadManagedPrices\(\);\s*applyBusinessDaikinSplitPriceOverrides\(\);/);
 assert.doesNotMatch(scopedDaikinUpdateSection, /DUCTED_PRODUCTS|ANDOS_DUCTED_PRODUCTS/);
+assert.match(
+  source,
+  /\{brand:'Daikin',series:'Lite',details:\{wifiStatus:'optional',wifiLabel:'Wi-Fi optional adaptor',warrantyYears:5,warrantyLabel:'5 yrs warranty'\}\}/,
+);
+assert.match(
+  source,
+  /\{brand:'Daikin',series:'XL Cooling Only',details:\{wifiStatus:'optional',wifiLabel:'Wi-Fi optional adaptor',warrantyYears:5,warrantyLabel:'5 yrs warranty'\}\}/,
+);
 
 console.log("Daikin business catalogue checks passed.");
