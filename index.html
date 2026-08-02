@@ -3049,6 +3049,15 @@ SPLIT_PRODUCTS.push(
   {"brand":"Rinnai","capacity":"5.0kW","capacityNum":5.0,"unitPriceInc":800.00,"priceIncGst":800.00,"model":"HONRVX50/HINRVX50","rebate":0.0,"series":"VX Series"},
   {"brand":"Rinnai","capacity":"7.0kW","capacityNum":7.0,"unitPriceInc":1025.00,"priceIncGst":1025.00,"model":"HONRVX70/HINRVX70","rebate":0.0,"series":"VX Series"}
 );
+SPLIT_PRODUCTS.push(
+  {"brand":"Daikin","capacity":"2.5kW","capacityNum":2.5,"unitPriceInc":775.00,"priceIncGst":775.00,"model":"RXF25WVMA / FTXF25WVMA","rebate":0.0,"series":"Lite","nswOnly":true},
+  {"brand":"Daikin","capacity":"3.5kW","capacityNum":3.5,"unitPriceInc":940.00,"priceIncGst":940.00,"model":"RXF35WVMA / FTXF35WVMA","rebate":0.0,"series":"Lite","nswOnly":true},
+  {"brand":"Daikin","capacity":"5.0kW","capacityNum":5.0,"unitPriceInc":1286.00,"priceIncGst":1286.00,"model":"RXF50WVMA / FTXF50WVMA","rebate":0.0,"series":"Lite","nswOnly":true},
+  {"brand":"Daikin","capacity":"6.0kW","capacityNum":6.0,"unitPriceInc":1440.00,"priceIncGst":1440.00,"model":"RXF60WVMA / FTXF60WVMA","rebate":0.0,"series":"Lite","nswOnly":true},
+  {"brand":"Daikin","capacity":"7.1kW","capacityNum":7.1,"unitPriceInc":1610.00,"priceIncGst":1610.00,"model":"RXF71WVMA / FTXF71WVMA","rebate":0.0,"series":"Lite","nswOnly":true},
+  {"brand":"Daikin","capacity":"8.5kW","capacityNum":8.5,"unitPriceInc":2445.00,"priceIncGst":2445.00,"model":"RKM85WVMA / FTKM85WVMA","rebate":0.0,"series":"XL Cooling Only","nswOnly":true},
+  {"brand":"Daikin","capacity":"9.5kW","capacityNum":9.5,"unitPriceInc":2875.00,"priceIncGst":2875.00,"model":"RKM95WVMA / FTKM95WVMA","rebate":0.0,"series":"XL Cooling Only","nswOnly":true}
+);
 const DAIKIN_SPLIT_PRICE_UPDATES=[
   {series:"Alira",capacity:"2.0kW",capacityNum:2.0,model:"RXM20YVMA / FTXM20YVMA",unitPriceInc:830.00},
   {series:"Alira",capacity:"2.5kW",capacityNum:2.5,model:"RXM25YVMA / FTXM25YVMA",unitPriceInc:880.00},
@@ -3081,6 +3090,37 @@ function applyDaikinSplitPriceUpdates(){
   });
 }
 applyDaikinSplitPriceUpdates();
+const DAIKIN_S_AND_H_SPLIT_PRICE_OVERRIDES=[
+  {model:"RXV25WVMA / FTXV25WVMA",unitPriceInc:845.00},
+  {model:"RXV35WVMA / FTXV35WVMA",unitPriceInc:1020.00},
+  {model:"RXV50WVMA / FTXV50WVMA",unitPriceInc:1400.00},
+  {model:"RXV60WVMA / FTXV60WVMA",unitPriceInc:1565.00},
+  {model:"RXV71WVMA / FTXV71WVMA",unitPriceInc:1745.00},
+  {model:"RXV80WVMA / FTXV80WVMA",unitPriceInc:2146.00},
+  {model:"RXV90WVMA / FTXV90WVMA",unitPriceInc:2522.00},
+  {model:"RXM25YVMA / FTXM25YVMA",unitPriceInc:900.00},
+  {model:"RXM35YVMA / FTXM35YVMA",unitPriceInc:1120.00},
+  {model:"RXM46WVMA / FTXM46WVMA",unitPriceInc:1380.00},
+  {model:"RXM50WVMA / FTXM50WVMA",unitPriceInc:1530.00},
+  {model:"RXM60WVMA / FTXM60WVMA",unitPriceInc:1680.00},
+  {model:"RXM71WVMA / FTXM71WVMA",unitPriceInc:1910.00}
+];
+function applyBusinessDaikinSplitPriceOverrides(){
+  const businessName=activeBusinessName().trim().toLowerCase().replace(/\s+/g,' ');
+  if(businessName!=='s&h air con' && businessName!=='s&h air conditioning') return;
+  const modelKey=model=>String(model||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  const items=allManagedProducts().filter(item=>item.type==='split');
+  DAIKIN_S_AND_H_SPLIT_PRICE_OVERRIDES.forEach(update=>{
+    const item=items.find(candidate=>candidate.p.brand==='Daikin' && modelKey(candidate.p.model)===modelKey(update.model));
+    if(!item) return;
+    const entry=ensureManagedEntry(item.key,item,true);
+    entry.unitPriceInc=update.unitPriceInc;
+    entry.locked=true;
+    item.p.unitPriceInc=update.unitPriceInc;
+    item.p.priceIncGst=update.unitPriceInc;
+  });
+  persistManagedPrices();
+}
 const HITACHI_AIRHOME_400_SPLIT_UPDATES=[
   {capacity:"2.5kW",capacityNum:2.5,model:"RAC-DJ25PHAT/RAK-DJ25PHAT",unitPriceInc:744.70},
   {capacity:"3.5kW",capacityNum:3.5,model:"RAC-DJ35PHAT/RAK-DJ35PHAT",unitPriceInc:902.00},
@@ -3675,7 +3715,8 @@ function activeBusinessName(){return String(calculatorUserContext().businessName
 function activeCatalogKey(){return businessCatalogSlug(activeBusinessName()).includes('andosair')?'andos':'default';}
 function productListFor(type){
   if(activeCatalogKey()==='andos') return type==='ducted'?ANDOS_DUCTED_PRODUCTS:ANDOS_SPLIT_PRODUCTS;
-  return type==='ducted'?DUCTED_PRODUCTS:SPLIT_PRODUCTS;
+  const list=type==='ducted'?DUCTED_PRODUCTS:SPLIT_PRODUCTS;
+  return activeBusinessState()==='NSW'?list:list.filter(product=>product.nswOnly!==true);
 }
 function data(){return activeProducts(productListFor(systemType))};
 const BRAND_ALIASES={"Fujitsu":"Fujitsu General","Fujitsu Lifestyle":"Fujitsu General","Hisense x3 series":"Hisense","Hisense G series":"Hisense","Hitachi AirHome 600":"Hitachi","TCL BreezeIN 2.0":"TCL","Daikin Alira":"Daikin","Daikin Cora":"Daikin","Mitsubishi Heavy Industries Avanti Plus":"Mitsubishi Heavy Industries","Mitsubishi Heavy Industries Bronte":"Mitsubishi Heavy Industries","Rinnai PB Series":"Rinnai","Rinnai PX Series":"Rinnai","Actron":"Actron Air"};
@@ -9435,6 +9476,7 @@ loadRecentQuotes();
 loadDefaultCostRules();
 stripManagedRebateOverridesFromStorage();
 loadManagedPrices();
+applyBusinessDaikinSplitPriceOverrides();
 initEssControls();
 initMultiSplitTrial();
 const defaultCostRowsEl=$('defaultCostRows');
