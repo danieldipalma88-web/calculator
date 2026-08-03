@@ -8393,7 +8393,7 @@ function currentOptionSelection(){
 function setCurrentOptionEditHint(message){
   currentOptionEditMessage=message||'';
   const hint=$('currentOptionEditHint');
-  if(hint) hint.textContent=currentOptionEditMessage||'Adjust customer, labour, materials or misc, then apply them evenly across only the systems in this quote.';
+  if(hint) hint.textContent=currentOptionEditMessage||'Adjust customer, labour, materials, miscellaneous or power, then apply them evenly across only the systems in this quote.';
 }
 function fillCurrentOptionTotals(){
   const {rows}=currentOptionSelection();
@@ -8403,6 +8403,7 @@ function fillCurrentOptionTotals(){
   if($('currentOptionLabourTotal')) $('currentOptionLabourTotal').value=t.labour.toFixed(2);
   if($('currentOptionMaterialsTotal')) $('currentOptionMaterialsTotal').value=t.materials.toFixed(2);
   if($('currentOptionMiscTotal')) $('currentOptionMiscTotal').value=t.misc.toFixed(2);
+  if($('currentOptionPowerTotal')) $('currentOptionPowerTotal').value=t.power.toFixed(2);
   setCurrentOptionEditHint(`Loaded current totals from ${rows.length} system${rows.length===1?'':'s'} in this quote.`);
 }
 function applyCurrentOptionDistribution(beforeRender){
@@ -8414,7 +8415,8 @@ function applyCurrentOptionDistribution(beforeRender){
   const labourEntered=entered('currentOptionLabourTotal');
   const materialsEntered=entered('currentOptionMaterialsTotal');
   const miscEntered=entered('currentOptionMiscTotal');
-  if(!customerEntered&&!labourEntered&&!materialsEntered&&!miscEntered){
+  const powerEntered=entered('currentOptionPowerTotal');
+  if(!customerEntered&&!labourEntered&&!materialsEntered&&!miscEntered&&!powerEntered){
     setCurrentOptionEditHint('Enter at least one total to apply.');
     return;
   }
@@ -8423,6 +8425,7 @@ function applyCurrentOptionDistribution(beforeRender){
   const labourEach=labourEntered?(Number($('currentOptionLabourTotal').value)||0)/count:null;
   const materialsEach=materialsEntered?(Number($('currentOptionMaterialsTotal').value)||0)/count:null;
   const miscEach=miscEntered?(Number($('currentOptionMiscTotal').value)||0)/count:null;
+  const powerEach=powerEntered?(Number($('currentOptionPowerTotal').value)||0)/count:null;
   const syncUpdatedAt=Date.now();
   rows.forEach(row=>{
     const r=quotes[row._index];
@@ -8431,6 +8434,17 @@ function applyCurrentOptionDistribution(beforeRender){
     if(labourEach!==null){r.labour=labourEach;if(r.state) r.state.labour=String(labourEach.toFixed(2));}
     if(materialsEach!==null){r.materialsInc=materialsEach;r.matsEx=materialsEach/1.1;if(r.state) r.state.materials=String(materialsEach.toFixed(2));}
     if(miscEach!==null){r.miscInc=miscEach;if(r.state) r.state.misc=String(miscEach.toFixed(2));}
+    if(powerEach!==null){
+      r.powerCost=powerEach;
+      if(r.state){
+        if(r.type==='Ducted') r.state.electrician=String(powerEach.toFixed(2));
+        else {
+          r.state.powerCircuit=String(powerEach.toFixed(2));
+          r.state.powerMode='on';
+          if(r.state.systemType==='multi_split') r.state.multiPower=String(powerEach.toFixed(2));
+        }
+      }
+    }
     recomputeSavedQuote(r);
     touchQuoteRow(r,syncUpdatedAt);
   });
@@ -8439,6 +8453,7 @@ function applyCurrentOptionDistribution(beforeRender){
   if(labourEntered) details.push(`labour ${money(labourEach)} ex GST each`);
   if(materialsEntered) details.push(`materials ${money(materialsEach)} inc GST each`);
   if(miscEntered) details.push(`misc ${money(miscEach)} inc GST each`);
+  if(powerEntered) details.push(`power / electrical ${money(powerEach)} ex GST each`);
   currentOptionEditMessage='Applied to this quote: '+details.join(', ')+'.';
   if(typeof beforeRender==='function') beforeRender();
   persistQuotes();
@@ -8512,8 +8527,8 @@ function renderCurrentOptionPanel(){
   const adjustAction=!isWon&&!isEditing?'<button class="secondary currentQuoteAdjustBtn" type="button" onclick="beginCurrentQuoteTotalsEdit()">Adjust totals</button>':'';
   const totalsIntro=`<div class="currentQuoteTotalsIntro"><div><div class="kicker">Quote totals</div><h3>Combined totals for every system in this quote</h3><div class="sub">${isEditing?'Update the adjustable values below, then save your changes.':'Review the complete quote totals below.'}</div></div>${adjustAction}</div>`;
   const editActions=isEditing?'<div class="currentOptionEditActions"><button class="secondary" type="button" onclick="cancelCurrentQuoteTotalsEdit()">Cancel</button><button class="orange" type="button" onclick="saveCurrentQuoteTotals()">Save changes</button></div>':'';
-  const editStatus=currentOptionEditMessage?`<div class="currentOptionEditHint" id="currentOptionEditHint">${htmlEscape(currentOptionEditMessage)}</div>`:(isEditing?'<div class="currentOptionEditHint" id="currentOptionEditHint">Customer total, labour, materials and miscellaneous costs can be adjusted. Rebate, commissions and profit remain calculated automatically.</div>':'');
-  body.innerHTML=`${lockNotice}${systemsTable}${totalsIntro}<div class="currentOptionSummaryGrid">${quoteMetric('Customer total inc GST','currentOptionCustomerTotal',t.customer)}${rebateMetricHtml(t.rebate,rows)}${quoteMetric('Labour ex GST','currentOptionLabourTotal',t.labour)}${quoteMetric('Materials inc GST','currentOptionMaterialsTotal',t.materials)}${quoteMetric('Misc inc GST','currentOptionMiscTotal',t.misc)}${commissionMetrics}</div>${editActions}${editStatus}`;
+  const editStatus=currentOptionEditMessage?`<div class="currentOptionEditHint" id="currentOptionEditHint">${htmlEscape(currentOptionEditMessage)}</div>`:(isEditing?'<div class="currentOptionEditHint" id="currentOptionEditHint">Customer total, labour, materials, miscellaneous and power costs can be adjusted. Rebate, commissions and profit remain calculated automatically.</div>':'');
+  body.innerHTML=`${lockNotice}${systemsTable}${totalsIntro}<div class="currentOptionSummaryGrid">${quoteMetric('Customer total inc GST','currentOptionCustomerTotal',t.customer)}${rebateMetricHtml(t.rebate,rows)}${quoteMetric('Labour ex GST','currentOptionLabourTotal',t.labour)}${quoteMetric('Materials inc GST','currentOptionMaterialsTotal',t.materials)}${quoteMetric('Misc inc GST','currentOptionMiscTotal',t.misc)}${quoteMetric('Power / electrical ex GST','currentOptionPowerTotal',t.power)}${commissionMetrics}</div>${editActions}${editStatus}`;
 }
 function currentMultiSplitState(x){
   const outdoor=x&&x.outdoor?x.outdoor:selectedMultiSplitOutdoor();

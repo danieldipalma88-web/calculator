@@ -44,6 +44,14 @@ const checks = [
   [!calculator.match(/const power=quoteUsesPowerCost\(r\)[^\n]+['\"]N\/A['\"]/), "quote tables no longer use N/A"],
   [calculator.includes("const service=savedPowerOrElectricianEx(r);"), "saved quote recomputation uses recovered amount"],
   [adminPage.includes("powerEx: quotePowerOrElectricianEx(quote)"), "admin exports recover electrician amount"],
+  [calculator.includes("quoteMetric('Power / electrical ex GST','currentOptionPowerTotal',t.power)"), "current quote shows an editable power total"],
+  [calculator.includes("$('currentOptionPowerTotal').value=t.power.toFixed(2)"), "current quote loads the saved power total"],
+  [calculator.includes("const powerEntered=entered('currentOptionPowerTotal');"), "current quote detects a power adjustment"],
+  [calculator.includes("const powerEach=powerEntered?(Number($('currentOptionPowerTotal').value)||0)/count:null;"), "current quote distributes the entered power total"],
+  [calculator.includes("r.powerCost=powerEach;"), "current quote saves the distributed power amount"],
+  [calculator.includes("if(r.type==='Ducted') r.state.electrician=String(powerEach.toFixed(2));"), "ducted power adjustment updates electrician state"],
+  [calculator.includes("r.state.powerCircuit=String(powerEach.toFixed(2));"), "split power adjustment updates power circuit state"],
+  [calculator.includes("if(r.state.systemType==='multi_split') r.state.multiPower=String(powerEach.toFixed(2));"), "multi-head power adjustment updates multi-head state"],
 ];
 
 const failed = checks.filter(([passed]) => !passed);
