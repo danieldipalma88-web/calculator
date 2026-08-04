@@ -518,6 +518,25 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
 .dcceewEligible .certificateMetric,
 .dcceewEligible .recommendationCard:not(.net){border-color:#e8c76a}
 .dcceewEligible .recommendationValue{color:#92400e}
+.dcceewEligible #rebateCostField{
+  padding:9px;
+  border:1px solid #e8c76a;
+  border-radius:10px;
+  background:#fffbeb;
+}
+.dcceewEligible #rebateCostField input{
+  border-color:#d9a62e;
+  background:#fffdf3;
+}
+.rebateCostHint{
+  display:none;
+  margin-top:5px;
+  color:#92400e;
+  font-size:10px;
+  font-weight:750;
+  line-height:1.3;
+}
+.dcceewEligible .rebateCostHint{display:block}
 .dcceewContractPanel{
   display:none;
   margin-top:12px;
@@ -2778,7 +2797,7 @@ tbody tr:hover td{background:#f0f7ff}
           <div class="mobileHideRebateConfig"><label>PERC (PRC) $ per cert</label><input id="essPrcRate" type="number" step="0.01" value="2.85"></div>
           <div class="mobileHideRebateConfig"><label>Live calc source</label><input readonly value="NSW ESS/PDRS API"></div>
         </div>
-        <div class="selected" id="liveRebatePanel"><div class="selectedText"><div class="selectedHeader"><strong id="selectedModel"></strong><button type="button" class="copyModelBtn" onclick="copyCurrentModel()">Copy model</button></div><div class="tiny" id="modelMeta"></div><div class="tiny rebateSchemeUi" id="rebateCalcMeta">Live ESS/PERC rebate status will appear here.</div><div class="dcceewContractPanel rebateSchemeUi" id="dcceewContractPanel" aria-hidden="true"><div class="dcceewContractHead"><div class="dcceewContractCopy"><span class="dcceewContractBadge">DCCEEW contract match</span><strong>Potentially eligible for the fixed $30 per ESC rate</strong><p>The selected postcode and product are on the approved contract lists. Required compliance steps must still be completed.</p></div><div class="dcceewInfoPrompt"><span>Action required</span><button id="dcceewInfoButton" class="dcceewInfoButton" type="button" onclick="openDcceewInfoModal()"><span class="dcceewInfoIcon" aria-hidden="true">i</span>Important information</button></div></div><div class="dcceewComparison"><div class="dcceewComparisonCard"><span>Standard rebate</span><strong id="dcceewStandardTotal">Calculating...</strong><small id="dcceewStandardMeta">Using the normal business ESC rate</small></div><div class="dcceewComparisonCard contract"><span>Potential contract rebate</span><strong id="dcceewContractTotal">Calculating...</strong><small id="dcceewContractMeta">ESCs at $30.00 plus unchanged PERC</small></div><div class="dcceewComparisonCard uplift"><span>Additional contract value</span><strong id="dcceewContractUplift">Calculating...</strong><small id="dcceewUpliftMeta">Difference from the standard payout</small></div></div><div class="dcceewComparisonNote" id="dcceewComparisonNote">Potential contract value only. Missing a required compliance step means the standard market rate applies.</div></div><div class="certificateBreakdown rebateSchemeUi" id="certificateBreakdown"><div class="certificateMetric"><span>ESC generated</span><strong id="escCertCount">-</strong><small id="escCertValue">Waiting for live lookup</small></div><div class="certificateMetric"><span>PERC generated</span><strong id="prcCertCount">-</strong><small id="prcCertValue">Waiting for live lookup</small></div><div class="certificateMetric"><span>Rebate calculation</span><strong id="certRebateValue">-</strong><small id="certRebateMeta">Waiting for live lookup</small></div></div><div class="recommendationCards rebateSchemeUi" id="bestValueComparison"><div class="recommendationCard" id="bestValueMeta"><div class="recommendationEyebrow">Best rebate</div><div class="recommendationStatus">Best rebate indicator will appear here.</div></div><div class="recommendationCard net" id="bestNetCostMeta"><div class="recommendationEyebrow">Best net unit cost</div><div class="recommendationStatus">Best net unit cost indicator will appear here.</div></div></div></div></div>
+        <div class="selected" id="liveRebatePanel"><div class="selectedText"><div class="selectedHeader"><strong id="selectedModel"></strong><button type="button" class="copyModelBtn" onclick="copyCurrentModel()">Copy model</button></div><div class="tiny" id="modelMeta"></div><div class="tiny rebateSchemeUi" id="rebateCalcMeta">Live ESS/PERC rebate status will appear here.</div><div class="dcceewContractPanel rebateSchemeUi" id="dcceewContractPanel" aria-hidden="true"><div class="dcceewContractHead"><div class="dcceewContractCopy"><span class="dcceewContractBadge">DCCEEW contract match</span><strong>Potentially eligible for the fixed $30 per ESC rate</strong><p>The selected postcode and product are on the approved contract lists. Required compliance steps must still be completed.</p></div><div class="dcceewInfoPrompt"><span>Action required</span><button id="dcceewInfoButton" class="dcceewInfoButton" type="button" onclick="openDcceewInfoModal()"><span class="dcceewInfoIcon" aria-hidden="true">i</span>Important information</button></div></div><div class="dcceewComparison"><div class="dcceewComparisonCard"><span>Standard rebate</span><strong id="dcceewStandardTotal">Calculating...</strong><small id="dcceewStandardMeta">Using the normal business ESC rate</small></div><div class="dcceewComparisonCard contract"><span>DCCEEW contract rebate</span><strong id="dcceewContractTotal">Calculating...</strong><small id="dcceewContractMeta">ESCs at $30.00 plus unchanged PERC</small></div><div class="dcceewComparisonCard uplift"><span>Additional contract value</span><strong id="dcceewContractUplift">Calculating...</strong><small id="dcceewUpliftMeta">Difference from the standard payout</small></div></div><div class="dcceewComparisonNote" id="dcceewComparisonNote">The contract-rate rebate is included in Costs for this match. Missing a required compliance step means the standard market rate applies.</div></div><div class="certificateBreakdown rebateSchemeUi" id="certificateBreakdown"><div class="certificateMetric"><span>ESC generated</span><strong id="escCertCount">-</strong><small id="escCertValue">Waiting for live lookup</small></div><div class="certificateMetric"><span>PERC generated</span><strong id="prcCertCount">-</strong><small id="prcCertValue">Waiting for live lookup</small></div><div class="certificateMetric"><span>Rebate calculation</span><strong id="certRebateValue">-</strong><small id="certRebateMeta">Waiting for live lookup</small></div></div><div class="recommendationCards rebateSchemeUi" id="bestValueComparison"><div class="recommendationCard" id="bestValueMeta"><div class="recommendationEyebrow">Best rebate</div><div class="recommendationStatus">Best rebate indicator will appear here.</div></div><div class="recommendationCard net" id="bestNetCostMeta"><div class="recommendationEyebrow">Best net unit cost</div><div class="recommendationStatus">Best net unit cost indicator will appear here.</div></div></div></div></div>
       </div>
       <div class="card energySavingsCard" id="energySavingsCard">
         <button type="button" class="energySavingsToggle" id="energySavingsToggle" onclick="toggleEnergySavingsPanel()" aria-expanded="false">
@@ -2803,7 +2822,7 @@ tbody tr:hover td{background:#f0f7ff}
       <div class="card">
         <h2 class="sectionTitle">Costs</h2>
         <div class="finalPriceStrip"><div><div class="fieldLabelRow"><label for="finalInc">Final customer price inc GST</label><span class="fieldPill confirmed">Customer pays</span></div><div class="fieldHint">Main quoted price shown to the customer.</div></div><input id="finalInc" type="number" step="0.01"></div>
-        <div class="row3"><div><label>Unit price inc GST</label><input id="unitPriceInc" type="number" step="0.01"></div><div><label>Labour ex GST</label><input id="labour" type="number" step="0.01"></div><div id="rebateCostField"><label>Rebate</label><input id="rebate" type="number" step="0.01"></div></div>
+        <div class="row3"><div><label>Unit price inc GST</label><input id="unitPriceInc" type="number" step="0.01"></div><div><label>Labour ex GST</label><input id="labour" type="number" step="0.01"></div><div id="rebateCostField"><label id="rebateCostLabel">Rebate</label><input id="rebate" type="number" step="0.01"><div id="rebateCostHint" class="rebateCostHint" aria-live="polite"></div></div></div>
         <div class="row2" style="margin-top:14px"><div><label>Materials inc GST</label><input id="materials" type="number" step="0.01"></div><div><label>Misc cost inc GST</label><input id="misc" type="number" step="0.01" value="0"></div></div>
         <div id="splitOnly" style="margin-top:14px"><div class="row2"><div id="powerCircuitCostField" class="powerCircuitCostField"><label>Power circuit ex GST</label><input id="powerCircuit" type="number" step="0.01" value="500"><div id="powerCircuitCostHint" class="powerCircuitCostHint">Not applied to this quote</div></div><div><label>Power circuit</label><select id="powerMode" class="hidden" aria-hidden="true" tabindex="-1"><option value="auto">Auto above 3.5kW</option><option value="on">Force on</option><option value="off">Force off</option></select><div id="powerCircuitRule" class="powerCircuitRule" data-enabled="false"><div class="powerCircuitCopy"><strong id="powerCircuitStateLabel">Not included</strong><span id="powerCircuitStatus" class="powerCircuitStatus" aria-live="polite">Automatic rule</span></div><div class="powerCircuitActions"><button id="powerCircuitReset" class="powerCircuitAutoBtn hidden" type="button" onclick="resetPowerCircuitToAuto()">Use automatic rule</button><label class="powerCircuitSwitch" for="powerCircuitToggle"><input id="powerCircuitToggle" type="checkbox" aria-label="Include power circuit" aria-describedby="powerCircuitStatus"><span class="toggleTrack" aria-hidden="true"></span></label></div></div></div></div><div class="checkbox" style="margin-top:12px"><input id="installerRetainsLabour" type="checkbox" checked><label for="installerRetainsLabour" style="margin:0;text-transform:none;letter-spacing:0;font-size:13px;color:#0f172a">Installer retains labour profit</label></div><div class="tiny">When turned on, split-system labour is treated as owner-retained value. When turned off, split-system labour is treated as a paid expense.</div></div>
         <div id="ductedOnly" class="hidden" style="margin-top:14px"><div class="row3"><div><label>Electrician ex GST</label><input id="electrician" type="number" step="0.01" value="500"></div><div><label>Airtouch</label><select id="airtouch"><option value="no">No</option><option value="yes">Yes</option></select></div><div><label>Zones</label><input id="zones" type="number" value="0"></div></div><div class="row2" style="margin-top:14px"><div><label>Sensors</label><input id="sensors" type="number" value="0"></div><div><label>Airtouch cost rule</label><input readonly value="$1,100 + $82/sensor + $65/zone"></div></div><div class="checkbox" style="margin-top:12px"><input id="ductedInstallerRetainsLabour" type="checkbox"><label for="ductedInstallerRetainsLabour" style="margin:0;text-transform:none;letter-spacing:0;font-size:13px;color:#0f172a">Installer retains labour profit</label></div><div class="tiny">When turned on, ducted labour is treated as owner-retained value. When turned off, ducted labour is treated as a paid expense.</div></div>
@@ -4469,11 +4488,29 @@ function dcceewSignedMoney(value){
   if(amount<0) return `-${money(Math.abs(amount))}`;
   return money(0);
 }
+function setDcceewCostDisplay(match,result){
+  const label=$('rebateCostLabel');
+  const hint=$('rebateCostHint');
+  if(!label || !hint) return;
+  if(!match){
+    label.textContent='Rebate';
+    hint.textContent='';
+    return;
+  }
+  label.textContent='Rebate (DCCEEW contract)';
+  if(!result){
+    hint.textContent='Approved postcode and model match. Waiting for live certificate values.';
+    return;
+  }
+  const effective=applyDcceewContractRebate(match,result);
+  hint.textContent=`Includes ${money(effective.contractUplift)} additional contract value at ${money(match.rate)} per ESC.`;
+}
 function setDcceewContractDisplay(match,result,errorMessage){
   const livePanel=$('liveRebatePanel');
   const panel=$('dcceewContractPanel');
   if(!livePanel || !panel) return;
   const matched=!!match;
+  setDcceewCostDisplay(match,result);
   livePanel.classList.toggle('dcceewEligible',matched);
   panel.setAttribute('aria-hidden',matched?'false':'true');
   if(!matched){
@@ -4504,7 +4541,7 @@ function setDcceewContractDisplay(match,result,errorMessage){
     if(standardMetaEl) standardMetaEl.textContent=errorMessage||'Using the normal business ESC rate';
     if(contractMetaEl) contractMetaEl.textContent=errorMessage||`ESCs at ${money(match.rate)} plus unchanged PERC`;
     if(upliftMetaEl) upliftMetaEl.textContent=errorMessage?'Live certificate counts are required':'Difference from the standard payout';
-    if(noteEl) noteEl.textContent='Potential contract value only. Missing a required compliance step means the standard market rate applies.';
+    if(noteEl) noteEl.textContent='The contract-rate rebate will be included in Costs when live certificate values are available. Missing a required compliance step means the standard market rate applies.';
     return;
   }
   const esc=Number(result.esc)||0;
@@ -4523,7 +4560,7 @@ function setDcceewContractDisplay(match,result,errorMessage){
   if(standardMetaEl) standardMetaEl.textContent=`${certCountText(esc)} ESC x ${money(standardEscRate)} + ${money(prcValue)} PERC`;
   if(contractMetaEl) contractMetaEl.textContent=`${certCountText(esc)} ESC x ${money(match.rate)} + ${money(prcValue)} PERC`;
   if(upliftMetaEl) upliftMetaEl.textContent=`ESC uplift of ${money(match.rate-standardEscRate)} per certificate`;
-  if(noteEl) noteEl.textContent='The quote remains based on the standard rebate. The contract total applies only when every DCCEEW requirement is completed.';
+  if(noteEl) noteEl.textContent='The DCCEEW contract rebate is included in Costs for this match. Confirm every required compliance step because missing information means the standard market rate applies.';
 }
 function openDcceewInfoModal(){
   const modal=$('dcceewInfoModal');
@@ -4544,6 +4581,16 @@ function certCountText(value,digits){
   const places=digits===0?0:3;
   return n.toLocaleString('en-AU',{minimumFractionDigits:places,maximumFractionDigits:places});
 }
+function applyDcceewContractRebate(match,result){
+  if(!result) return result;
+  const standardEscValue=Number(result.escValue ?? ((Number(result.esc)||0)*(Number(result.escRate)||0)))||0;
+  const prcValue=Number(result.prcValue ?? ((Number(result.prc)||0)*(Number(result.prcRate)||0)))||0;
+  const standardRebate=standardEscValue+prcValue;
+  if(!match) return {...result,rebate:standardRebate,contractApplied:false,contractUplift:0};
+  const contractEscValue=(Number(result.esc)||0)*(Number(match.rate)||30);
+  const contractRebate=contractEscValue+prcValue;
+  return {...result,rebate:contractRebate,contractApplied:true,contractEscValue,contractUplift:contractRebate-standardRebate};
+}
 function setCertificateBreakdown(result,message,isError){
   const box=$('certificateBreakdown');
   if(!box) return;
@@ -4561,7 +4608,9 @@ function setCertificateBreakdown(result,message,isError){
     if($('prcCertCount')) $('prcCertCount').textContent=certCountText(prc);
     if($('prcCertValue')) $('prcCertValue').textContent=`${certCountText(prc)} x ${money(prcRate)} = ${money(prcValue)}`;
     if($('certRebateValue')) $('certRebateValue').textContent=money(rebate);
-    if($('certRebateMeta')) $('certRebateMeta').textContent=`${certValues.source}, ${result.zone||'zone pending'}, ${result.bcaZone||'BCA pending'}, ${installType}`;
+    if($('certRebateMeta')) $('certRebateMeta').textContent=result.contractApplied
+      ? `DCCEEW contract rate applied: standard rebate ${money(rebate-result.contractUplift)} + ${dcceewSignedMoney(result.contractUplift)} uplift`
+      : `${certValues.source}, ${result.zone||'zone pending'}, ${result.bcaZone||'BCA pending'}, ${installType}`;
     return;
   }
   if($('escCertCount')) $('escCertCount').textContent='-';
@@ -4596,9 +4645,11 @@ function updateCertificateBreakdownFromRuntime(){
   const escValue=essRuntime.lastEsc*escRate;
   const prcValue=essRuntime.lastPrc*prcRate;
   const result={esc:essRuntime.lastEsc,prc:essRuntime.lastPrc,officialEsc:essRuntime.lastOfficialEsc,officialPrc:essRuntime.lastOfficialPrc,zone:essRuntime.lastZone,bcaZone:essRuntime.lastBcaZone,escRate,prcRate,escValue,prcValue,rebate:escValue+prcValue};
-  setCertificateBreakdown(result,'',false);
-  setDcceewContractDisplay(getDcceewContractMatch(product()),result);
-  return result.rebate;
+  const match=getDcceewContractMatch(product());
+  const effective=applyDcceewContractRebate(match,result);
+  setCertificateBreakdown(effective,'',false);
+  setDcceewContractDisplay(match,result);
+  return effective.rebate;
 }
 function setRecommendationStatus(id,title,msg,isError,typeClass){
   const el=$(id);
@@ -5458,12 +5509,14 @@ async function refreshLiveRebateForCurrentProduct(){
     essRuntime.lastBcaZone=result.bcaZone;
     essRuntime.lastBrand=result.apiBrand;
     essRuntime.lastModel=result.apiModel;
-    $('rebate').value=(Math.round(result.rebate*100)/100).toFixed(2);
+    const effective=applyDcceewContractRebate(dcceewMatch,result);
+    $('rebate').value=(Math.round(effective.rebate*100)/100).toFixed(2);
     render();
-    setCertificateBreakdown(result,'',false);
+    setCertificateBreakdown(effective,'',false);
     setDcceewContractDisplay(dcceewMatch,result);
     const eligibilityNote=result.eligibility&&result.eligibility.message?`NSW HVAC eligibility: ${result.eligibility.message}. `:'';
-    setRebateCalcMeta(`${eligibilityNote}${result.lookupSource}: ESC ${certCountText(result.esc)} x ${money(result.escRate)} = ${money(result.escValue)} | PERC ${certCountText(result.prc)} x ${money(result.prcRate)} = ${money(result.prcValue)} | Total ${money(result.rebate)} (${certValues.source}, ${result.zone}, ${result.bcaZone}, ${installType})`,false);
+    const contractNote=effective.contractApplied?` DCCEEW $30 contract rate applied; uplift ${money(effective.contractUplift)}.`:'';
+    setRebateCalcMeta(`${eligibilityNote}${result.lookupSource}: ESC ${certCountText(result.esc)} x ${money(result.escRate)} = ${money(result.escValue)} | PERC ${certCountText(result.prc)} x ${money(result.prcRate)} = ${money(result.prcValue)} | Total ${money(effective.rebate)}${contractNote} (${certValues.source}, ${result.zone}, ${result.bcaZone}, ${installType})`,false);
   }catch(e){
     if(requestId!==essCache.requestSeq) return;
     clearCertificateRuntime();
