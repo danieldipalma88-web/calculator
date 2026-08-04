@@ -15,6 +15,11 @@ import {
   platformCertificateValuesFromRow,
   type PlatformCertificateValuesRow,
 } from "../../../lib/certificate-values";
+import {
+  DCCEEW_CONTRACT_RATE,
+  DCCEEW_ELIGIBLE_POSTCODES,
+  DCCEEW_ELIGIBLE_PRODUCT_KEYS,
+} from "../../../lib/dcceew-contract-data";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
 
 const calculatorHtmlPromise = readFile(
@@ -413,6 +418,11 @@ function injectCloudStorageSync(
   var certificateRefreshInFlight = false;
   var certificateRefreshIntervalMs = 60000;
   var certificateValueKeys = ['installerCertificateValuesV1', 'greenEnergyCertificateValuesV1', 'CertificateValuesV1'];
+  window.DCCEEW_CONTRACT_DATA = ${safeScriptJson({
+    rate: DCCEEW_CONTRACT_RATE,
+    postcodes: DCCEEW_ELIGIBLE_POSTCODES,
+    productKeys: DCCEEW_ELIGIBLE_PRODUCT_KEYS,
+  })};
   window.CALCULATOR_USER = calculatorUser;
   window.__calculatorTrustedManagedPriceKeys = trustedManagedPriceKeys;
   function ensureCloudSaveStatus(){

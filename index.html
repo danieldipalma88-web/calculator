@@ -509,6 +509,177 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
   background:#fff7f7;
 }
 .certificateBreakdown.error .certificateMetric small{color:#b91c1c}
+#liveRebatePanel.dcceewEligible{
+  border-color:#e8b84a;
+  background:linear-gradient(160deg,#fff7d6 0%,#fffbeb 58%,#fff8dc 100%);
+  box-shadow:0 12px 28px rgba(146,64,14,.12);
+}
+.dcceewEligible .copyModelBtn,
+.dcceewEligible .certificateMetric,
+.dcceewEligible .recommendationCard:not(.net){border-color:#e8c76a}
+.dcceewEligible .recommendationValue{color:#92400e}
+.dcceewContractPanel{
+  display:none;
+  margin-top:12px;
+  padding:14px;
+  border:1px solid #d9a62e;
+  border-radius:14px;
+  background:rgba(255,255,255,.72);
+  box-shadow:0 8px 18px rgba(146,64,14,.08);
+}
+.dcceewEligible .dcceewContractPanel{display:block}
+.dcceewContractHead{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:16px;
+}
+.dcceewContractCopy{min-width:0}
+.dcceewContractBadge{
+  display:inline-flex;
+  align-items:center;
+  min-height:25px;
+  padding:4px 9px;
+  border:1px solid #e8b84a;
+  border-radius:999px;
+  background:#fef3c7;
+  color:#78350f;
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:.07em;
+  text-transform:uppercase;
+}
+.dcceewContractCopy strong{
+  margin:7px 0 3px;
+  color:#78350f;
+  font-size:18px;
+}
+.dcceewContractCopy p{
+  margin:0;
+  color:#78572a;
+  font-size:12px;
+  line-height:1.45;
+}
+.dcceewInfoPrompt{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:5px;
+  flex:0 0 auto;
+}
+.dcceewInfoPrompt>span{
+  color:#9a3412;
+  font-size:9px;
+  font-weight:900;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.dcceewInfoPrompt>span:after{content:"  >"}
+.dcceewInfoButton{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  border:1px solid #d6a122;
+  background:#8a4b08;
+  color:#fff;
+  white-space:nowrap;
+  box-shadow:0 8px 16px rgba(120,53,15,.18);
+}
+.dcceewInfoButton:hover{background:#713b07}
+.dcceewInfoButton.attention{animation:dcceewAttention 1.15s ease-in-out 3}
+.dcceewInfoIcon{
+  display:inline-grid;
+  place-items:center;
+  width:19px;
+  height:19px;
+  border:1px solid rgba(255,255,255,.72);
+  border-radius:50%;
+  font-size:12px;
+  font-weight:900;
+  line-height:1;
+}
+@keyframes dcceewAttention{
+  0%,100%{transform:translateX(0);box-shadow:0 8px 16px rgba(120,53,15,.18)}
+  50%{transform:translateX(-4px);box-shadow:0 0 0 5px rgba(245,158,11,.2),0 10px 20px rgba(120,53,15,.2)}
+}
+.dcceewComparison{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:8px;
+  margin-top:12px;
+}
+.dcceewComparisonCard{
+  min-width:0;
+  padding:10px;
+  border:1px solid #ead392;
+  border-radius:10px;
+  background:#fffdf7;
+}
+.dcceewComparisonCard.contract{
+  border-color:#d9a62e;
+  background:#fff4c2;
+}
+.dcceewComparisonCard.uplift{
+  border-color:#e8b84a;
+  background:#fff8dc;
+}
+.dcceewComparisonCard span{
+  display:block;
+  color:#78572a;
+  font-size:9.5px;
+  font-weight:900;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+.dcceewComparisonCard strong{
+  margin:4px 0 2px;
+  color:#422006;
+  font-size:20px;
+  font-variant-numeric:tabular-nums;
+}
+.dcceewComparisonCard small{
+  display:block;
+  color:#78572a;
+  font-size:10.5px;
+  line-height:1.35;
+}
+.dcceewComparisonNote{
+  margin-top:9px;
+  color:#78572a;
+  font-size:10.5px;
+  line-height:1.4;
+}
+.dcceewInfoModalCard{width:min(600px,100%);border-color:#e8b84a}
+.dcceewInfoModalCard .kicker{color:#92400e}
+.dcceewInfoModalIntro{
+  margin-top:14px;
+  padding:11px 12px;
+  border:1px solid #e8c76a;
+  border-radius:10px;
+  background:#fffbeb;
+  color:#78350f;
+  font-size:12.5px;
+  font-weight:800;
+  line-height:1.45;
+}
+.dcceewCriteria{
+  margin:14px 0 0;
+  padding-left:22px;
+  color:#334155;
+  font-size:13px;
+  line-height:1.45;
+}
+.dcceewCriteria li{padding:0 0 9px 4px}
+.dcceewFallbackNotice{
+  margin-top:5px;
+  padding:10px 12px;
+  border-left:4px solid #d97706;
+  background:#fff7ed;
+  color:#7c2d12;
+  font-size:12px;
+  font-weight:800;
+  line-height:1.45;
+}
 .restrictedOwnerDetails .ownerOnlyRebateConfig,
 .restrictedOwnerDetails #modelMeta,
 .restrictedOwnerDetails #rebateCalcMeta{display:none!important}
@@ -2520,6 +2691,18 @@ tbody tr:hover td{background:#f0f7ff}
   }
   .optionTools button{width:100%}
   .quoteActionNotice{bottom:76px;font-size:12px}
+  .dcceewContractHead{display:grid;grid-template-columns:1fr;gap:12px}
+  .dcceewInfoPrompt{align-items:stretch}
+  .dcceewInfoPrompt>span{text-align:left}
+  .dcceewInfoPrompt>span:after{content:""}
+  .dcceewInfoButton{justify-content:center;width:100%}
+  .dcceewComparison{grid-template-columns:1fr}
+  .dcceewInfoModalCard{
+    width:100%;
+    max-width:100%;
+    max-height:calc(100dvh - 24px);
+    overflow-y:auto;
+  }
   .quoteNameModal{align-items:flex-end;padding:12px}
   .quoteNameModalCard{padding:18px;border-radius:14px}
   .wonDetailsModalCard{
@@ -2595,7 +2778,7 @@ tbody tr:hover td{background:#f0f7ff}
           <div class="mobileHideRebateConfig"><label>PERC (PRC) $ per cert</label><input id="essPrcRate" type="number" step="0.01" value="2.85"></div>
           <div class="mobileHideRebateConfig"><label>Live calc source</label><input readonly value="NSW ESS/PDRS API"></div>
         </div>
-        <div class="selected" id="liveRebatePanel"><div class="selectedText"><div class="selectedHeader"><strong id="selectedModel"></strong><button type="button" class="copyModelBtn" onclick="copyCurrentModel()">Copy model</button></div><div class="tiny" id="modelMeta"></div><div class="tiny rebateSchemeUi" id="rebateCalcMeta">Live ESS/PERC rebate status will appear here.</div><div class="certificateBreakdown rebateSchemeUi" id="certificateBreakdown"><div class="certificateMetric"><span>ESC generated</span><strong id="escCertCount">-</strong><small id="escCertValue">Waiting for live lookup</small></div><div class="certificateMetric"><span>PERC generated</span><strong id="prcCertCount">-</strong><small id="prcCertValue">Waiting for live lookup</small></div><div class="certificateMetric"><span>Rebate calculation</span><strong id="certRebateValue">-</strong><small id="certRebateMeta">Waiting for live lookup</small></div></div><div class="recommendationCards rebateSchemeUi" id="bestValueComparison"><div class="recommendationCard" id="bestValueMeta"><div class="recommendationEyebrow">Best rebate</div><div class="recommendationStatus">Best rebate indicator will appear here.</div></div><div class="recommendationCard net" id="bestNetCostMeta"><div class="recommendationEyebrow">Best net unit cost</div><div class="recommendationStatus">Best net unit cost indicator will appear here.</div></div></div></div></div>
+        <div class="selected" id="liveRebatePanel"><div class="selectedText"><div class="selectedHeader"><strong id="selectedModel"></strong><button type="button" class="copyModelBtn" onclick="copyCurrentModel()">Copy model</button></div><div class="tiny" id="modelMeta"></div><div class="tiny rebateSchemeUi" id="rebateCalcMeta">Live ESS/PERC rebate status will appear here.</div><div class="dcceewContractPanel rebateSchemeUi" id="dcceewContractPanel" aria-hidden="true"><div class="dcceewContractHead"><div class="dcceewContractCopy"><span class="dcceewContractBadge">DCCEEW contract match</span><strong>Potentially eligible for the fixed $30 per ESC rate</strong><p>The selected postcode and product are on the approved contract lists. Required compliance steps must still be completed.</p></div><div class="dcceewInfoPrompt"><span>Action required</span><button id="dcceewInfoButton" class="dcceewInfoButton" type="button" onclick="openDcceewInfoModal()"><span class="dcceewInfoIcon" aria-hidden="true">i</span>Important information</button></div></div><div class="dcceewComparison"><div class="dcceewComparisonCard"><span>Standard rebate</span><strong id="dcceewStandardTotal">Calculating...</strong><small id="dcceewStandardMeta">Using the normal business ESC rate</small></div><div class="dcceewComparisonCard contract"><span>Potential contract rebate</span><strong id="dcceewContractTotal">Calculating...</strong><small id="dcceewContractMeta">ESCs at $30.00 plus unchanged PERC</small></div><div class="dcceewComparisonCard uplift"><span>Additional contract value</span><strong id="dcceewContractUplift">Calculating...</strong><small id="dcceewUpliftMeta">Difference from the standard payout</small></div></div><div class="dcceewComparisonNote" id="dcceewComparisonNote">Potential contract value only. Missing a required compliance step means the standard market rate applies.</div></div><div class="certificateBreakdown rebateSchemeUi" id="certificateBreakdown"><div class="certificateMetric"><span>ESC generated</span><strong id="escCertCount">-</strong><small id="escCertValue">Waiting for live lookup</small></div><div class="certificateMetric"><span>PERC generated</span><strong id="prcCertCount">-</strong><small id="prcCertValue">Waiting for live lookup</small></div><div class="certificateMetric"><span>Rebate calculation</span><strong id="certRebateValue">-</strong><small id="certRebateMeta">Waiting for live lookup</small></div></div><div class="recommendationCards rebateSchemeUi" id="bestValueComparison"><div class="recommendationCard" id="bestValueMeta"><div class="recommendationEyebrow">Best rebate</div><div class="recommendationStatus">Best rebate indicator will appear here.</div></div><div class="recommendationCard net" id="bestNetCostMeta"><div class="recommendationEyebrow">Best net unit cost</div><div class="recommendationStatus">Best net unit cost indicator will appear here.</div></div></div></div></div>
       </div>
       <div class="card energySavingsCard" id="energySavingsCard">
         <button type="button" class="energySavingsToggle" id="energySavingsToggle" onclick="toggleEnergySavingsPanel()" aria-expanded="false">
@@ -2826,6 +3009,7 @@ tbody tr:hover td{background:#f0f7ff}
 <div id="quoteNameModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="quoteNameModalTitle" aria-describedby="quoteNameModalDescription" onclick="if(event.target===this)closeQuoteNameModal()"><div class="quoteNameModalCard"><div id="quoteNameModalKicker" class="kicker">Name this quote</div><h2 id="quoteNameModalTitle">Who is this quote for?</h2><p id="quoteNameModalDescription">Enter the customer name before adding the first system.</p><label for="quoteNameModalInput">Customer name</label><input id="quoteNameModalInput" type="text" autocomplete="name" placeholder="Example: Ash Macquarie Links" oninput="updateQuoteNameModalSubmitState()" onkeydown="if(event.key==='Enter')confirmQuoteNameModal()"><div id="quoteNameModalHint" class="hint" role="status" aria-live="polite" style="display:none"></div><div class="quoteNameModalActions"><button class="secondary" type="button" onclick="closeQuoteNameModal()">Cancel</button><button id="quoteNameModalSubmit" class="orange" type="button" onclick="confirmQuoteNameModal()" disabled>Add to Quote</button></div></div></div>
 <div id="removeSystemModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="removeSystemModalTitle" onclick="if(event.target===this)closeRemoveSystemModal()"><div class="quoteNameModalCard"><div class="kicker">Current quote</div><h2 id="removeSystemModalTitle">Remove this system?</h2><p id="removeSystemModalMessage">This system will no longer be included in the quote totals.</p><div class="quoteNameModalActions"><button class="secondary" type="button" onclick="closeRemoveSystemModal()">Cancel</button><button class="danger" type="button" onclick="confirmRemoveCurrentQuoteSystem()">Remove system</button></div></div></div>
 <div id="wonDetailsModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="wonDetailsModalTitle" aria-describedby="wonDetailsModalDescription" onclick="if(event.target===this)closeWonDetailsModal()"><div class="quoteNameModalCard wonDetailsModalCard"><div class="kicker">Won job details</div><h2 id="wonDetailsModalTitle">Complete won job</h2><p id="wonDetailsModalDescription">Confirm the installation location and proposed date before locking this quote.</p><div class="wonDetailsFields"><div class="wonDetailsField"><label id="wonAddressLabel">Installation address <span class="wonRequired">Required</span></label><div id="wonAddressLookup" class="wonAddressLookup" aria-labelledby="wonAddressLabel"><div class="wonAddressLoading">Loading Google address search...</div></div><div id="wonAddressStatus" class="wonAddressStatus" role="status" aria-live="polite">A Google address selection is required.</div></div><div class="wonDetailsField"><label for="wonInstallDate">Proposed installation date <span class="wonRequired">Required</span></label><div class="wonDateControl"><input id="wonInstallDate" type="date" required onchange="updateWonDetailsSubmitState()" oninput="updateWonDetailsSubmitState()"></div></div></div><div id="wonDetailsHint" class="hint" role="status" aria-live="polite" style="display:none"></div><div class="quoteNameModalActions"><button class="secondary" type="button" onclick="closeWonDetailsModal()">Cancel</button><button id="wonDetailsSubmit" class="green" type="button" onclick="confirmWonDetails()" disabled>Mark as won</button></div></div></div>
+<div id="dcceewInfoModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="dcceewInfoModalTitle" aria-describedby="dcceewInfoModalDescription" onclick="if(event.target===this)closeDcceewInfoModal()"><div class="quoteNameModalCard dcceewInfoModalCard"><div class="kicker">DCCEEW $30 ESC contract rate</div><h2 id="dcceewInfoModalTitle">Complete every required step</h2><p id="dcceewInfoModalDescription">This job is potentially eligible because the selected postcode and product are on the approved lists.</p><div class="dcceewInfoModalIntro">The fixed $30 rate is not automatic. Complete all applicable requirements to receive it.</div><ol class="dcceewCriteria"><li>Select <strong>Yes</strong> for DCCEEW consent in Alitsy when setting up the job. This cannot be corrected after payment processing begins.</li><li>For replacement jobs, enter the existing unit's <strong>year of manufacture</strong> in the Compliance tab.</li><li>For replacement jobs, attach a clear photo of the existing indoor or outdoor unit's <strong>compliance plate</strong>.</li><li>Ensure the customer invoice clearly itemises the <strong>incentive or discount passed through to the customer</strong>.</li></ol><div class="dcceewFallbackNotice">If any required information is missing, the job will be paid at the standard market rate instead of the fixed $30 ESC rate.</div><div class="quoteNameModalActions"><button type="button" onclick="closeDcceewInfoModal()">Understood</button></div></div></div>
 <div class="portraitOnlyNotice" aria-live="polite"><div><strong>Use portrait view</strong><span>Rotate your phone upright to continue quoting.</span></div></div>
 <div id="overlay" class="drawerOverlay" onclick="closeAllDrawers()"></div>
 <div id="drawer" class="quoteDrawer quoteBuilderDrawer"><div class="drawerHead"><div><div class="kicker">Quote builder</div><h2 style="margin:4px 0">View quotes</h2><div class="sub drawerIntro">Compare split, ducted and multi-head quotes. Quotes save automatically to your calculator profile. Use Save Quote to keep a named snapshot.</div><div class="quoteExportField" style="margin-top:14px;max-width:420px"><label>Quote / customer export name</label><input id="quoteExportName" placeholder="Example: Ash Macquarie Links" oninput="saveQuoteExportName()"></div></div><div class="actions"><button class="orange" onclick="saveCurrentQuoteSet()">Save Quote</button><button class="secondary" onclick="downloadCsv()">Download CSV</button><button class="danger" onclick="clearQuotes()">Clear</button><button class="secondary" onclick="closeDrawer()">Close</button></div></div>
@@ -4253,6 +4437,107 @@ async function resolveModelMetadataForRebate(localBrand,localModel){
 }
 function toNumber(v){const n=Number(v); return Number.isFinite(n)?n:NaN;}
 function setRebateCalcMeta(msg,isError){const el=$('rebateCalcMeta'); if(!el) return; el.textContent=msg; el.style.color=isError?'#b91c1c':'#64748b';}
+let dcceewPostcodeSet=null;
+let dcceewProductSet=null;
+function dcceewContractData(){return window.DCCEEW_CONTRACT_DATA||{};}
+function normalizeDcceewBrand(value){
+  const compact=String(value||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(compact==='ACTRON' || compact==='ACTRONAIR') return 'ACTRONAIR';
+  if(compact==='FUJITSU' || compact==='FUJITSUGENERAL') return 'FUJITSU';
+  return compact;
+}
+function dcceewProductKey(brand,model){
+  return `${normalizeDcceewBrand(brand)}|${String(model||'').toUpperCase().replace(/[^A-Z0-9]/g,'')}`;
+}
+function getDcceewContractMatch(candidate,postcodeValue){
+  if(!rebatesEnabled() || activeBusinessState()!=='NSW') return null;
+  const data=dcceewContractData();
+  if(!Array.isArray(data.postcodes) || !Array.isArray(data.productKeys)) return null;
+  if(!dcceewPostcodeSet) dcceewPostcodeSet=new Set(data.postcodes.map(Number));
+  if(!dcceewProductSet) dcceewProductSet=new Set(data.productKeys.map(String));
+  const selected=candidate||product();
+  const postcode=Number(String(postcodeValue===undefined?getEssPostcode():postcodeValue).trim());
+  if(!selected || !Number.isInteger(postcode) || !dcceewPostcodeSet.has(postcode)) return null;
+  const productKey=dcceewProductKey(selected.brand,selected.model);
+  if(!dcceewProductSet.has(productKey)) return null;
+  const rate=Number(data.rate);
+  return {postcode,productKey,rate:Number.isFinite(rate)&&rate>0?rate:30,matchKey:`${postcode}|${productKey}`};
+}
+function dcceewSignedMoney(value){
+  const amount=Number(value)||0;
+  if(amount>0) return `+${money(amount)}`;
+  if(amount<0) return `-${money(Math.abs(amount))}`;
+  return money(0);
+}
+function setDcceewContractDisplay(match,result,errorMessage){
+  const livePanel=$('liveRebatePanel');
+  const panel=$('dcceewContractPanel');
+  if(!livePanel || !panel) return;
+  const matched=!!match;
+  livePanel.classList.toggle('dcceewEligible',matched);
+  panel.setAttribute('aria-hidden',matched?'false':'true');
+  if(!matched){
+    panel.dataset.matchKey='';
+    return;
+  }
+  const infoButton=$('dcceewInfoButton');
+  if(panel.dataset.matchKey!==match.matchKey){
+    panel.dataset.matchKey=match.matchKey;
+    if(infoButton){
+      infoButton.classList.remove('attention');
+      void infoButton.offsetWidth;
+      infoButton.classList.add('attention');
+    }
+  }
+  const standardTotalEl=$('dcceewStandardTotal');
+  const contractTotalEl=$('dcceewContractTotal');
+  const upliftEl=$('dcceewContractUplift');
+  const standardMetaEl=$('dcceewStandardMeta');
+  const contractMetaEl=$('dcceewContractMeta');
+  const upliftMetaEl=$('dcceewUpliftMeta');
+  const noteEl=$('dcceewComparisonNote');
+  if(!result){
+    const pending=errorMessage?'Unavailable':'Calculating...';
+    if(standardTotalEl) standardTotalEl.textContent=pending;
+    if(contractTotalEl) contractTotalEl.textContent=pending;
+    if(upliftEl) upliftEl.textContent=pending;
+    if(standardMetaEl) standardMetaEl.textContent=errorMessage||'Using the normal business ESC rate';
+    if(contractMetaEl) contractMetaEl.textContent=errorMessage||`ESCs at ${money(match.rate)} plus unchanged PERC`;
+    if(upliftMetaEl) upliftMetaEl.textContent=errorMessage?'Live certificate counts are required':'Difference from the standard payout';
+    if(noteEl) noteEl.textContent='Potential contract value only. Missing a required compliance step means the standard market rate applies.';
+    return;
+  }
+  const esc=Number(result.esc)||0;
+  const prc=Number(result.prc)||0;
+  const standardEscRate=Number(result.escRate)||0;
+  const prcRate=Number(result.prcRate)||0;
+  const standardEscValue=esc*standardEscRate;
+  const prcValue=prc*prcRate;
+  const standardTotal=standardEscValue+prcValue;
+  const contractEscValue=esc*match.rate;
+  const contractTotal=contractEscValue+prcValue;
+  const uplift=contractTotal-standardTotal;
+  if(standardTotalEl) standardTotalEl.textContent=money(standardTotal);
+  if(contractTotalEl) contractTotalEl.textContent=money(contractTotal);
+  if(upliftEl) upliftEl.textContent=dcceewSignedMoney(uplift);
+  if(standardMetaEl) standardMetaEl.textContent=`${certCountText(esc)} ESC x ${money(standardEscRate)} + ${money(prcValue)} PERC`;
+  if(contractMetaEl) contractMetaEl.textContent=`${certCountText(esc)} ESC x ${money(match.rate)} + ${money(prcValue)} PERC`;
+  if(upliftMetaEl) upliftMetaEl.textContent=`ESC uplift of ${money(match.rate-standardEscRate)} per certificate`;
+  if(noteEl) noteEl.textContent='The quote remains based on the standard rebate. The contract total applies only when every DCCEEW requirement is completed.';
+}
+function openDcceewInfoModal(){
+  const modal=$('dcceewInfoModal');
+  if(!modal) return;
+  modal.classList.add('open');
+  const closeButton=modal.querySelector('.quoteNameModalActions button');
+  if(closeButton) closeButton.focus();
+}
+function closeDcceewInfoModal(){
+  const modal=$('dcceewInfoModal');
+  if(modal) modal.classList.remove('open');
+  const infoButton=$('dcceewInfoButton');
+  if(infoButton) infoButton.focus();
+}
 function certCountText(value,digits){
   const n=Number(value);
   if(!Number.isFinite(n)) return '-';
@@ -4305,12 +4590,14 @@ function updateCertificateBreakdownFromRuntime(){
   const prcRate=getEssPrcRate();
   if(!((essRuntime.lastEsc>0 || essRuntime.lastPrc>0) && escRate>0 && prcRate>0)){
     setCertificateBreakdown(null,'Waiting for live lookup',false);
+    setDcceewContractDisplay(getDcceewContractMatch(product()),null);
     return 0;
   }
   const escValue=essRuntime.lastEsc*escRate;
   const prcValue=essRuntime.lastPrc*prcRate;
   const result={esc:essRuntime.lastEsc,prc:essRuntime.lastPrc,officialEsc:essRuntime.lastOfficialEsc,officialPrc:essRuntime.lastOfficialPrc,zone:essRuntime.lastZone,bcaZone:essRuntime.lastBcaZone,escRate,prcRate,escValue,prcValue,rebate:escValue+prcValue};
   setCertificateBreakdown(result,'',false);
+  setDcceewContractDisplay(getDcceewContractMatch(product()),result);
   return result.rebate;
 }
 function setRecommendationStatus(id,title,msg,isError,typeClass){
@@ -5132,19 +5419,23 @@ async function loadLiveCertificatePriceIfNeeded(){
 async function refreshLiveRebateForCurrentProduct(){
   const p=product();
   setLiveRebateLoading(false);
-  if(!p) return;
+  if(!p){setDcceewContractDisplay(null,null); return;}
   if(!rebatesEnabled()){
     essCache.requestSeq++;
     clearCertificateRuntime();
+    setDcceewContractDisplay(null,null);
     if($('rebate')) $('rebate').value='0.00';
     applyRebateSchemeUi();
     render();
     return;
   }
+  const dcceewMatch=getDcceewContractMatch(p);
+  setDcceewContractDisplay(dcceewMatch,null);
   if(hasManualRebateOverride(systemType,p)){
     clearCertificateRuntime();
     setCertificateBreakdown(null,'Manual rebate override active. Live ESC/PERC counts are not recalculated.',false);
     setRebateCalcMeta('Manual rebate override is active for this model.',false);
+    setDcceewContractDisplay(dcceewMatch,null,'Manual rebate override prevents a live contract comparison.');
     return;
   }
   const requestId=++essCache.requestSeq;
@@ -5170,6 +5461,7 @@ async function refreshLiveRebateForCurrentProduct(){
     $('rebate').value=(Math.round(result.rebate*100)/100).toFixed(2);
     render();
     setCertificateBreakdown(result,'',false);
+    setDcceewContractDisplay(dcceewMatch,result);
     const eligibilityNote=result.eligibility&&result.eligibility.message?`NSW HVAC eligibility: ${result.eligibility.message}. `:'';
     setRebateCalcMeta(`${eligibilityNote}${result.lookupSource}: ESC ${certCountText(result.esc)} x ${money(result.escRate)} = ${money(result.escValue)} | PERC ${certCountText(result.prc)} x ${money(result.prcRate)} = ${money(result.prcValue)} | Total ${money(result.rebate)} (${certValues.source}, ${result.zone}, ${result.bcaZone}, ${installType})`,false);
   }catch(e){
@@ -5179,6 +5471,7 @@ async function refreshLiveRebateForCurrentProduct(){
     render();
     setCertificateBreakdown(null,`Unable to calculate live ESC/PERC counts. ${String(e.message||'Live data unavailable')}`,true);
     setRebateCalcMeta(`Rebate set to $0.00. ${String(e.message||'Live data unavailable')}`,true);
+    setDcceewContractDisplay(dcceewMatch,null,`Unable to calculate certificates: ${String(e.message||'Live data unavailable')}`);
   }finally{
     if(requestId===essCache.requestSeq) setLiveRebateLoading(false);
   }
@@ -5444,6 +5737,7 @@ function applyRebateSchemeUi(){
   }
   if(!enabled){
     clearCertificateRuntime();
+    setDcceewContractDisplay(null,null);
     setCertificateBreakdown(null,rebateSchemeStatusText(),false);
     setRebateCalcMeta(rebateSchemeStatusText(),false);
   }
@@ -9468,6 +9762,9 @@ if(multiFinalInput){
   if(!input) return;
   input.addEventListener('input',()=>saveCommissionRateFromInput(type));
   input.addEventListener('change',()=>saveCommissionRateFromInput(type));
+});
+document.addEventListener('keydown',event=>{
+  if(event.key==='Escape' && $('dcceewInfoModal')?.classList.contains('open')) closeDcceewInfoModal();
 });
 setupMobileMoneySteppers();
 setupMobileHorizontalDragLock();
