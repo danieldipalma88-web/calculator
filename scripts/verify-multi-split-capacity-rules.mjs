@@ -89,12 +89,33 @@ assert.throws(
 
 const capacityMapSource = extractAssignedLiteral(indexHtml, "const MULTI_SPLIT_INDOOR_RATED_CAPACITIES=", "{", "}");
 const capacityMap = vm.runInNewContext(`(${capacityMapSource})`);
+const outdoorArraySource = extractAssignedLiteral(indexHtml, "const MULTI_SPLIT_OUTDOORS=", "[", "]");
+const outdoors = vm.runInNewContext(`(${outdoorArraySource})`, {
+  multiOutdoor(brand, series, capacityNum, model, unitPriceInc, maxHeads, extra) {
+    return Object.assign({ brand, series, capacityNum, model, unitPriceInc, maxHeads }, extra || {});
+  },
+});
+const bulkheadOutdoors = ["RXYMQ3A2V4A", "RXYMQ4A2V4A", "RXYMQ5B2VM", "RXYMQ6B2VM", "RXYMQ8AY1", "RXYMQ9AY1"];
+for (const model of bulkheadOutdoors) {
+  const outdoor = outdoors.find((row) => row.model === model);
+  assert.ok(outdoor, `${model} must be present in the multi-split outdoor catalogue.`);
+  assert.equal(outdoor.family, "daikin-vrv-bulkhead", `${model} must use the bulkhead family.`);
+  assert.equal(outdoor.unitPriceInc, null, `${model} must not have a price until one is supplied.`);
+  assert.ok(Number(outdoor.maxHeads) > 0, `${model} must have a supported indoor-head limit.`);
+}
 const indoorArraySource = extractAssignedLiteral(indexHtml, "const MULTI_SPLIT_INDOORS=", "[", "]");
 const indoors = vm.runInNewContext(`(${indoorArraySource})`, {
   multiIndoor(brand, series, capacityNum, model, unitPriceInc, pipe, dimensions, extra) {
     return Object.assign({ brand, series, capacityNum, model, unitPriceInc, pipe, dimensions }, extra || {});
   },
 });
+const bulkheadIndoors = ["FXDQ20TV1C", "FXDQ25TV1C", "FXDQ32TV1C", "FXDQ40TV1C", "FXDQ50TV1C", "FXDQ63TV1C"];
+for (const model of bulkheadIndoors) {
+  const indoor = indoors.find((row) => row.model === model);
+  assert.ok(indoor, `${model} must be present in the multi-split indoor catalogue.`);
+  assert.equal(indoor.family, "daikin-vrv-bulkhead", `${model} must use the bulkhead family.`);
+  assert.equal(indoor.unitPriceInc, null, `${model} must not have a price until one is supplied.`);
+}
 for (const indoor of indoors) {
   const rated = capacityMap[indoor.model];
   assert.ok(rated, `${indoor.model} must have manufacturer-rated cooling and heating capacities.`);

@@ -4071,6 +4071,12 @@ const MULTI_SPLIT_OUTDOORS=[
   multiOutdoor('Rinnai','PX Multi System Outdoor',11.6,'MON5H11B1LA',2462.79,5,{family:'rinnai-px-multi',phase:'Single phase'}),
   multiOutdoor('Rinnai','PX Multi System Outdoor',13.5,'MON5H14B1LA',2709.63,5,{family:'rinnai-px-multi',phase:'Single phase'}),
   multiOutdoor('Rinnai','PX Multi System Outdoor',19.0,'MON6H19B1TA',3240.34,6,{family:'rinnai-px-multi',phase:'Single phase'}),
+  multiOutdoor('Daikin','VRV Bulkhead Outdoor',9.0,'RXYMQ3A2V4A',null,5,{family:'daikin-vrv-bulkhead',phase:'Single phase'}),
+  multiOutdoor('Daikin','VRV Bulkhead Outdoor',11.2,'RXYMQ4A2V4A',null,6,{family:'daikin-vrv-bulkhead',phase:'Single phase'}),
+  multiOutdoor('Daikin','VRV Bulkhead Outdoor',14.0,'RXYMQ5B2VM',null,8,{family:'daikin-vrv-bulkhead',phase:'Single phase'}),
+  multiOutdoor('Daikin','VRV Bulkhead Outdoor',16.0,'RXYMQ6B2VM',null,9,{family:'daikin-vrv-bulkhead',phase:'Single phase'}),
+  multiOutdoor('Daikin','VRV Bulkhead Outdoor',22.4,'RXYMQ8AY1',null,13,{family:'daikin-vrv-bulkhead',phase:'Three phase'}),
+  multiOutdoor('Daikin','VRV Bulkhead Outdoor',24.0,'RXYMQ9AY1',null,14,{family:'daikin-vrv-bulkhead',phase:'Three phase'}),
   multiOutdoor('Samsung','Multi Splits Outdoor',5.0,'AJ050TXJ2KH/EA',1068,2,{family:'samsung-multi'}),
   multiOutdoor('Samsung','Multi Splits Outdoor',7.0,'AJ068TXJ3KH/EA',1260,3,{family:'samsung-multi'}),
   multiOutdoor('Samsung','Multi Splits Outdoor',8.0,'AJ080TXJ4KH/EA',1350,4,{family:'samsung-multi'}),
@@ -4091,6 +4097,12 @@ const MULTI_SPLIT_INDOORS=[
   multiIndoor('Daikin','Reverse Cycle Cora',7.1,'CTXM71RVMA',400,'1/4 & 5/8','295 x 990 x 263',{family:'daikin-cora'}),
   multiIndoor('Daikin','Reverse Cycle Cora',8.0,'CTXM85RVMA',545,'1/4 & 5/8','340 x 1200 x 259',{family:'daikin-cora'}),
   multiIndoor('Daikin','Reverse Cycle Cora',10.0,'CTXM95RVMA',590,'1/4 & 5/8','340 x 1200 x 259',{family:'daikin-cora'}),
+  multiIndoor('Daikin','VRV Bulkhead Indoor',2.2,'FXDQ20TV1C',null,'','',{family:'daikin-vrv-bulkhead',note:'Price not set'}),
+  multiIndoor('Daikin','VRV Bulkhead Indoor',2.8,'FXDQ25TV1C',null,'','',{family:'daikin-vrv-bulkhead',note:'Price not set'}),
+  multiIndoor('Daikin','VRV Bulkhead Indoor',3.6,'FXDQ32TV1C',null,'','',{family:'daikin-vrv-bulkhead',note:'Price not set'}),
+  multiIndoor('Daikin','VRV Bulkhead Indoor',4.5,'FXDQ40TV1C',null,'','',{family:'daikin-vrv-bulkhead',note:'Price not set'}),
+  multiIndoor('Daikin','VRV Bulkhead Indoor',5.6,'FXDQ50TV1C',null,'','',{family:'daikin-vrv-bulkhead',note:'Price not set'}),
+  multiIndoor('Daikin','VRV Bulkhead Indoor',7.1,'FXDQ63TV1C',null,'','',{family:'daikin-vrv-bulkhead',note:'Price not set'}),
   multiIndoor('Mitsubishi Electric','AP Series Indoor',1.5,'MSZ-AP15VGD-A1',278,'1/4 & 3/8','250 x 760 x 178',{family:'mitsubishi-electric',note:'Non WiFi'}),
   multiIndoor('Mitsubishi Electric','AP Series Indoor',2.0,'MSZ-AP20VGD-A1',280,'1/4 & 3/8','250 x 760 x 178',{family:'mitsubishi-electric',note:'Non WiFi'}),
   multiIndoor('Mitsubishi Electric','AP Series Indoor',2.5,'MSZ-AP25VGKD2-A2',300,'1/4 & 3/8','299 x 798 x 219',{family:'mitsubishi-electric'}),
@@ -4153,7 +4165,8 @@ const MULTI_SPLIT_INDOOR_RATED_CAPACITIES={
   'CS-MRZ20WKR':[2.0,2.0],'CS-RZ25XKRW':[2.5,3.0],'CS-RZ35XKRW':[3.5,3.7],'CS-RZ42XKRW':[4.2,5.1],'CS-RZ50XKRW':[5.0,6.0],'CS-RZ60XKRW':[6.0,6.5],'CS-RZ71XKRW':[7.1,8.0],
   'CS-Z25XKRW':[2.5,3.0],'CS-Z35XKRW':[3.5,4.0],'CS-Z42XKRW':[4.2,5.1],'CS-Z50XKRW':[5.0,6.0],'CS-Z60XKRW':[6.0,6.5],'CS-Z71XKRW':[7.1,8.0],
   HINRPX20M:[2.0,2.3],HINRPX25M:[2.6,3.25],HINRPX35M:[3.5,3.8],HINRPX50M:[5.0,6.0],HINRPX60M:[6.0,6.55],HINRPX70M:[7.0,7.7],HINRPX80M:[7.95,8.7],
-  'AJ020TNTDKH/EA':[2.0,2.2],'AJ025TNTDKH/EA':[2.5,3.2],'AJ035TNTDKH/EA':[3.5,4.0],'AJ050TNTDKH/EA':[5.0,6.0],'AJ068TNTDKH/EA':[6.5,7.0]
+  'AJ020TNTDKH/EA':[2.0,2.2],'AJ025TNTDKH/EA':[2.5,3.2],'AJ035TNTDKH/EA':[3.5,4.0],'AJ050TNTDKH/EA':[5.0,6.0],'AJ068TNTDKH/EA':[6.5,7.0],
+  FXDQ20TV1C:[2.2,2.5],FXDQ25TV1C:[2.8,3.2],FXDQ32TV1C:[3.6,4.0],FXDQ40TV1C:[4.5,5.0],FXDQ50TV1C:[5.6,6.3],FXDQ63TV1C:[7.1,8.0]
 };
 MULTI_SPLIT_INDOORS.forEach(row=>{
   const rated=MULTI_SPLIT_INDOOR_RATED_CAPACITIES[row.model];
@@ -6211,9 +6224,13 @@ function multiSplitCompatibleIndoorIndexes(outdoor){
     .filter(item=>item.row.brand===outdoor.brand && (!outdoor.family || item.row.family===outdoor.family))
     .map(item=>item.index);
 }
+function multiSplitPriceLabel(value){
+  const numeric=Number(value);
+  return Number.isFinite(numeric)&&numeric>0?money(numeric):'Price not set';
+}
 function multiSplitIndoorLabel(row){
   const note=row.note?` - ${row.note}`:'';
-  return `${row.capacity} - ${row.series} - ${row.model} - ${money(row.unitPriceInc)}${note}`;
+  return `${row.capacity} - ${row.series} - ${row.model} - ${multiSplitPriceLabel(row.unitPriceInc)}${note}`;
 }
 function selectedMultiSplitIndoorItems(){
   return multiSplitIndoorSelections.map(selection=>{
@@ -6460,9 +6477,9 @@ function renderMultiSplitTrial(){
   updateMultiSplitInstallTabs();
   if($('multiSplitOutdoorCapacity')) $('multiSplitOutdoorCapacity').textContent=outdoor?outdoor.capacity:'Select outdoor';
   if($('multiSplitMaxHeads')) $('multiSplitMaxHeads').textContent=maxHeads?String(maxHeads):'Select outdoor';
-  if($('multiSplitOutdoorPrice')) $('multiSplitOutdoorPrice').textContent=money(outdoorTotal);
+  if($('multiSplitOutdoorPrice')) $('multiSplitOutdoorPrice').textContent=outdoor?multiSplitPriceLabel(outdoor.unitPriceInc):'Price not set';
   if($('multiSplitSelectedModel')) $('multiSplitSelectedModel').textContent=outdoor?outdoor.model:'Select an outdoor unit';
-  if($('multiSplitSelectedMeta')) $('multiSplitSelectedMeta').textContent=outdoor?`${outdoor.brand} ${outdoor.series} - ${outdoor.capacity} outdoor - ${money(outdoor.unitPriceInc)} inc GST`:'Choose a brand and outdoor unit, then add compatible indoor heads below.';
+  if($('multiSplitSelectedMeta')) $('multiSplitSelectedMeta').textContent=outdoor?`${outdoor.brand} ${outdoor.series} - ${outdoor.capacity} outdoor - ${multiSplitPriceLabel(outdoor.unitPriceInc)}${outdoor.phase?` - ${outdoor.phase}`:''}`:'Choose a brand and outdoor unit, then add compatible indoor heads below.';
   if($('multiSplitConnectedCapacity')){
     const heating=indoorItems.every(item=>Number(item.row.ratedHeatingCapacity)>0)?` / ${connectedHeatingCapacity.toFixed(1)}kW heat`:'';
     $('multiSplitConnectedCapacity').textContent=`${connectedCapacity.toFixed(1)}kW cool${heating}`;
@@ -6502,7 +6519,7 @@ function renderMultiSplitTrial(){
           <div class="multiSplitIndoorFacts">
             <div class="multiSplitIndoorFact"><span>Cooling</span><strong>${ratedCooling.toFixed(1)}kW</strong></div>
             <div class="multiSplitIndoorFact"><span>Heating</span><strong>${ratedHeating?ratedHeating.toFixed(1)+'kW':'Not rated'}</strong></div>
-            <div class="multiSplitIndoorFact"><span>Price inc GST</span><strong>${money(Number(row&&row.unitPriceInc)||0)}</strong></div>
+            <div class="multiSplitIndoorFact"><span>Price inc GST</span><strong>${multiSplitPriceLabel(row&&row.unitPriceInc)}</strong></div>
           </div>
         </div>
         <div class="multiSplitIndoorControls">
@@ -6541,7 +6558,7 @@ function populateMultiSplitOutdoors(){
   const outdoorEl=$('multiSplitOutdoor');
   if(!outdoorEl) return;
   const rows=MULTI_SPLIT_OUTDOORS.map((row,index)=>({row,index})).filter(item=>item.row.brand===brand);
-  outdoorEl.innerHTML=rows.map(item=>`<option value="${item.index}">${htmlEscape(`${item.row.capacity} - ${item.row.series} - ${item.row.model} - ${money(item.row.unitPriceInc)}`)}</option>`).join('');
+  outdoorEl.innerHTML=rows.map(item=>`<option value="${item.index}">${htmlEscape(`${item.row.capacity} - ${item.row.series} - ${item.row.model} - ${multiSplitPriceLabel(item.row.unitPriceInc)}${item.row.phase?` - ${item.row.phase}`:''}`)}</option>`).join('');
   onMultiSplitOutdoorChange();
 }
 function onMultiSplitOutdoorChange(){
