@@ -85,5 +85,8 @@ assert.match(html, /const effective=applyDcceewContractRebate\(dcceewMatch,resul
 assert.match(html, /\$\('rebate'\)\.value=\(Math\.round\(effective\.rebate\*100\)\/100\)\.toFixed\(2\);/, "contract rebate is not written to the Costs section");
 assert.match(html, /id="rebateCostHint"/, "Costs section does not explain the contract uplift");
 assert.match(html, /DCCEEW contract rate applied/, "rebate metadata does not disclose the applied contract rate");
+assert.match(html, /\.dcceewComparisonCard:first-child\{\s*order:1;/, "standard rebate is not displayed first");
+assert.match(html, /\.dcceewComparisonCard\.uplift\{\s*order:2;/, "additional contract value is not displayed second");
+assert.match(html, /\.dcceewComparisonCard\.contract\{\s*order:3;/, "contract rebate is not displayed last");
 
 console.log(`DCCEEW contract verifier passed (${postcodes.length} postcodes, ${productKeys.length} active products)`);
