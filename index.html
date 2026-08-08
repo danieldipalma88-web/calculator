@@ -912,6 +912,47 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
 .agencyProfitHighlight span{color:#1d4ed8}
 .checkbox{display:flex;gap:10px;align-items:center;margin:10px 0}
 .checkbox input{width:auto;height:auto;padding:0;border:0;background:transparent}
+.labourInstallerChoice{
+  margin-top:14px;
+  padding:12px;
+  border:1px solid #dbe5ef;
+  border-radius:14px;
+  background:#f8fbff;
+}
+.labourInstallerLabel{
+  color:#334155;
+  font-size:11px;
+  font-weight:900;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+.labourInstallerOptions{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+  margin-top:9px;
+}
+.labourInstallerOption{
+  min-height:42px;
+  padding:9px 12px;
+  border:1px solid #cbd5e1;
+  border-radius:10px;
+  background:#eef3f7;
+  color:#0f172a;
+  box-shadow:none;
+  font-size:12px;
+}
+.labourInstallerOption.active{
+  border-color:#0f172a;
+  background:#0f172a;
+  color:#fff;
+}
+.labourInstallerStatus{
+  margin-top:8px;
+  color:#64748b;
+  font-size:11px;
+  line-height:1.4;
+}
 .toggleRow{
   position:relative;
   display:flex;
@@ -2829,8 +2870,34 @@ tbody tr:hover td{background:#f0f7ff}
         <div class="finalPriceStrip"><div><div class="fieldLabelRow"><label for="finalInc">Final customer price inc GST</label><span class="fieldPill confirmed">Customer pays</span></div><div class="fieldHint">Main quoted price shown to the customer.</div></div><input id="finalInc" type="number" step="0.01"></div>
         <div class="row3"><div><label>Unit price inc GST</label><input id="unitPriceInc" type="number" step="0.01"></div><div><label>Labour ex GST</label><input id="labour" type="number" step="0.01"></div><div id="rebateCostField"><label id="rebateCostLabel">Rebate</label><input id="rebate" type="number" step="0.01"><div id="rebateCostHint" class="rebateCostHint" aria-live="polite"></div></div></div>
         <div class="row2" style="margin-top:14px"><div><label>Materials inc GST</label><input id="materials" type="number" step="0.01"></div><div><label>Misc cost inc GST</label><input id="misc" type="number" step="0.01" value="0"></div></div>
-        <div id="splitOnly" style="margin-top:14px"><div class="row2"><div id="powerCircuitCostField" class="powerCircuitCostField"><label>Power circuit ex GST</label><input id="powerCircuit" type="number" step="0.01" value="500"><div id="powerCircuitCostHint" class="powerCircuitCostHint">Not applied to this quote</div></div><div><label>Power circuit</label><select id="powerMode" class="hidden" aria-hidden="true" tabindex="-1"><option value="auto">Auto above 3.5kW</option><option value="on">Force on</option><option value="off">Force off</option></select><div id="powerCircuitRule" class="powerCircuitRule" data-enabled="false"><div class="powerCircuitCopy"><strong id="powerCircuitStateLabel">Not included</strong><span id="powerCircuitStatus" class="powerCircuitStatus" aria-live="polite">Automatic rule</span></div><div class="powerCircuitActions"><button id="powerCircuitReset" class="powerCircuitAutoBtn hidden" type="button" onclick="resetPowerCircuitToAuto()">Use automatic rule</button><label class="powerCircuitSwitch" for="powerCircuitToggle"><input id="powerCircuitToggle" type="checkbox" aria-label="Include power circuit" aria-describedby="powerCircuitStatus"><span class="toggleTrack" aria-hidden="true"></span></label></div></div></div></div><div class="checkbox" style="margin-top:12px"><input id="installerRetainsLabour" type="checkbox" checked><label for="installerRetainsLabour" style="margin:0;text-transform:none;letter-spacing:0;font-size:13px;color:#0f172a">Installer retains labour profit</label></div><div class="tiny">When turned on, split-system labour is treated as owner-retained value. When turned off, split-system labour is treated as a paid expense.</div></div>
-        <div id="ductedOnly" class="hidden" style="margin-top:14px"><div class="row3"><div><label>Electrician ex GST</label><input id="electrician" type="number" step="0.01" value="500"></div><div><label>Airtouch</label><select id="airtouch"><option value="no">No</option><option value="yes">Yes</option></select></div><div><label>Zones</label><input id="zones" type="number" value="0"></div></div><div class="row2" style="margin-top:14px"><div><label>Sensors</label><input id="sensors" type="number" value="0"></div><div><label>Airtouch cost rule</label><input readonly value="$1,100 + $82/sensor + $65/zone"></div></div><div class="checkbox" style="margin-top:12px"><input id="ductedInstallerRetainsLabour" type="checkbox"><label for="ductedInstallerRetainsLabour" style="margin:0;text-transform:none;letter-spacing:0;font-size:13px;color:#0f172a">Installer retains labour profit</label></div><div class="tiny">When turned on, ducted labour is treated as owner-retained value. When turned off, ducted labour is treated as a paid expense.</div></div>
+        <div id="splitOnly" style="margin-top:14px">
+          <div class="row2">
+            <div id="powerCircuitCostField" class="powerCircuitCostField"><label>Power circuit ex GST</label><input id="powerCircuit" type="number" step="0.01" value="500"><div id="powerCircuitCostHint" class="powerCircuitCostHint">Not applied to this quote</div></div>
+            <div><label>Power circuit</label><select id="powerMode" class="hidden" aria-hidden="true" tabindex="-1"><option value="auto">Auto above 3.5kW</option><option value="on">Force on</option><option value="off">Force off</option></select><div id="powerCircuitRule" class="powerCircuitRule" data-enabled="false"><div class="powerCircuitCopy"><strong id="powerCircuitStateLabel">Not included</strong><span id="powerCircuitStatus" class="powerCircuitStatus" aria-live="polite">Automatic rule</span></div><div class="powerCircuitActions"><button id="powerCircuitReset" class="powerCircuitAutoBtn hidden" type="button" onclick="resetPowerCircuitToAuto()">Use automatic rule</button><label class="powerCircuitSwitch" for="powerCircuitToggle"><input id="powerCircuitToggle" type="checkbox" aria-label="Include power circuit" aria-describedby="powerCircuitStatus"><span class="toggleTrack" aria-hidden="true"></span></label></div></div></div>
+          </div>
+          <div class="labourInstallerChoice" data-labour-checkbox="installerRetainsLabour">
+            <div class="labourInstallerLabel">Who will complete the installation?</div>
+            <div class="labourInstallerOptions" role="group" aria-label="Split-system installation team">
+              <button class="labourInstallerOption" type="button" data-retained="true" onclick="setLabourInstallerMode('installerRetainsLabour',true)">In-house team</button>
+              <button class="labourInstallerOption" type="button" data-retained="false" onclick="setLabourInstallerMode('installerRetainsLabour',false)">External subcontractor</button>
+            </div>
+            <div class="labourInstallerStatus" data-labour-status aria-live="polite"></div>
+            <input id="installerRetainsLabour" class="hidden" type="checkbox" checked aria-hidden="true" tabindex="-1">
+          </div>
+        </div>
+        <div id="ductedOnly" class="hidden" style="margin-top:14px">
+          <div class="row3"><div><label>Electrician ex GST</label><input id="electrician" type="number" step="0.01" value="500"></div><div><label>Airtouch</label><select id="airtouch"><option value="no">No</option><option value="yes">Yes</option></select></div><div><label>Zones</label><input id="zones" type="number" value="0"></div></div>
+          <div class="row2" style="margin-top:14px"><div><label>Sensors</label><input id="sensors" type="number" value="0"></div><div><label>Airtouch cost rule</label><input readonly value="$1,100 + $82/sensor + $65/zone"></div></div>
+          <div class="labourInstallerChoice" data-labour-checkbox="ductedInstallerRetainsLabour">
+            <div class="labourInstallerLabel">Who will complete the installation?</div>
+            <div class="labourInstallerOptions" role="group" aria-label="Ducted-system installation team">
+              <button class="labourInstallerOption" type="button" data-retained="true" onclick="setLabourInstallerMode('ductedInstallerRetainsLabour',true)">In-house team</button>
+              <button class="labourInstallerOption" type="button" data-retained="false" onclick="setLabourInstallerMode('ductedInstallerRetainsLabour',false)">External subcontractor</button>
+            </div>
+            <div class="labourInstallerStatus" data-labour-status aria-live="polite"></div>
+            <input id="ductedInstallerRetainsLabour" class="hidden" type="checkbox" aria-hidden="true" tabindex="-1">
+          </div>
+        </div>
         <div class="priceResetRow"><button class="secondary" type="button" onclick="resetSuggestedPrice()">Reset suggested price</button></div>
         <div class="addonPanel">
           <div class="addonPanelHead"><div><div class="kicker">Installation add-ons</div><div class="addonPanelTitle">Optional install extras</div></div><div class="addonSummary" id="installAddonSummary">No add-ons selected</div></div>
@@ -2972,8 +3039,15 @@ tbody tr:hover td{background:#f0f7ff}
             <div><label>Misc cost inc GST</label><input id="multiMisc" type="number" step="0.01" value="0"></div>
             <div><label>Power / electrical ex GST</label><input id="multiPower" type="number" step="0.01" value="500"></div>
           </div>
-          <div class="checkbox" style="margin-top:12px"><input id="multiInstallerRetainsLabour" type="checkbox" checked><label for="multiInstallerRetainsLabour" style="margin:0;text-transform:none;letter-spacing:0;font-size:13px;color:#0f172a">Installer retains labour profit</label></div>
-          <div class="tiny">When turned on, multi-head labour is treated as owner-retained value. When turned off, labour is treated as a paid expense.</div>
+          <div class="labourInstallerChoice" data-labour-checkbox="multiInstallerRetainsLabour">
+            <div class="labourInstallerLabel">Who will complete the installation?</div>
+            <div class="labourInstallerOptions" role="group" aria-label="Multi-head installation team">
+              <button class="labourInstallerOption" type="button" data-retained="true" onclick="setLabourInstallerMode('multiInstallerRetainsLabour',true)">In-house team</button>
+              <button class="labourInstallerOption" type="button" data-retained="false" onclick="setLabourInstallerMode('multiInstallerRetainsLabour',false)">External subcontractor</button>
+            </div>
+            <div class="labourInstallerStatus" data-labour-status aria-live="polite"></div>
+            <input id="multiInstallerRetainsLabour" class="hidden" type="checkbox" checked aria-hidden="true" tabindex="-1">
+          </div>
           <div class="priceResetRow"><button class="secondary" type="button" onclick="resetMultiSplitSuggestedPrice()">Reset suggested price</button></div>
         </div>
       </main>
@@ -5693,6 +5767,32 @@ function resetPowerCircuitToAuto(){
   if(!finalPriceLocked) autoFinal();
   render();
 }
+function syncLabourInstallerControl(checkboxId){
+  const checkbox=$(checkboxId);
+  const panel=document.querySelector(`[data-labour-checkbox="${checkboxId}"]`);
+  if(!checkbox||!panel) return;
+  const inHouse=checkbox.checked;
+  panel.dataset.mode=inHouse?'in-house':'subcontractor';
+  panel.querySelectorAll('.labourInstallerOption').forEach(button=>{
+    const active=(button.dataset.retained==='true')===inHouse;
+    button.classList.toggle('active',active);
+    button.setAttribute('aria-pressed',String(active));
+  });
+  const status=panel.querySelector('[data-labour-status]');
+  if(status) status.textContent=inHouse
+    ? 'Business owner or employee completing install. Labour allowance stays in the business.'
+    : 'External contractor completing install. Labour allowance is treated as a job cost.';
+}
+function syncLabourInstallerControls(){
+  ['installerRetainsLabour','ductedInstallerRetainsLabour','multiInstallerRetainsLabour'].forEach(syncLabourInstallerControl);
+}
+function setLabourInstallerMode(checkboxId,inHouse){
+  const checkbox=$(checkboxId);
+  if(!checkbox) return;
+  checkbox.checked=!!inHouse;
+  syncLabourInstallerControl(checkboxId);
+  checkbox.dispatchEvent(new Event('change',{bubbles:true}));
+}
 function powerCost(c){if(systemType!=='split') return 0; const m=$('powerMode').value; if(m==='on') return num('powerCircuit'); if(m==='off') return 0; return c>3.5?num('powerCircuit'):0;}
 function installAddonQuantity(addon){
   if(!addon) return 0;
@@ -6368,6 +6468,7 @@ function resetMultiSplitSuggestedPrice(){
   renderMultiSplitFinancials();
 }
 function renderMultiSplitFinancials(){
+  syncLabourInstallerControls();
   if(!multiSplitTrialEnabled()) return;
   const x=calculateMultiSplitCosts();
   const showPrivate=canSeeProfitDetails();
@@ -6727,6 +6828,7 @@ function initMultiSplitTrial(){
   });
 }
 function render(){
+  syncLabourInstallerControls();
   syncPowerCircuitControl();
   const x=calculate();
   applyOwnerVisibility();
