@@ -3,7 +3,7 @@
 ## Purpose
 
 This repository powers the live air-conditioning quote calculator at
-`https://calculator.studioleads.com.au`.
+`https://calculator.rebateportal.com.au`.
 
 Treat calculator accuracy, business separation, saved quote durability, and
 mobile usability as core requirements. Do not make unrelated refactors.
