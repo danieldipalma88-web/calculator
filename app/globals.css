@@ -609,6 +609,68 @@ button.danger {
   background: #f8fafc;
 }
 
+.business-user-prompt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid #a7f3d0;
+  border-radius: 8px;
+  background: #f0fdf4;
+}
+
+.business-user-prompt h2 {
+  margin: 4px 0 6px;
+  font-size: 20px;
+}
+
+.business-user-prompt p {
+  margin: 0;
+}
+
+.business-user-prompt-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.business-user-setup-note {
+  display: grid;
+  gap: 4px;
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #1e3a8a;
+}
+
+.business-user-setup-note span {
+  color: #475569;
+  font-size: 14px;
+}
+
+.assign-approved-user-form {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto auto;
+  align-items: end;
+  gap: 10px;
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  background: #eff6ff;
+}
+
+.assign-approved-user-form .button,
+.assign-approved-user-form button {
+  width: 100%;
+}
+
 .admin-section {
   margin-top: 18px;
   border: 1px solid var(--line);
@@ -2429,6 +2491,24 @@ select {
   }
 
   .admin-form {
+    grid-template-columns: 1fr;
+  }
+
+  .business-user-prompt,
+  .business-user-prompt-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .business-user-prompt-actions {
+    width: 100%;
+  }
+
+  .business-user-prompt-actions .button {
+    width: 100%;
+  }
+
+  .assign-approved-user-form {
     grid-template-columns: 1fr;
   }
 

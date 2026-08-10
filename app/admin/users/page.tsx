@@ -17,6 +17,7 @@ import {
 } from "../../../lib/certificate-values";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
 import PageLoadingOverlay from "../../page-loading-overlay";
+import BusinessMultiSelect from "./business-multi-select";
 
 type UserRole = "admin" | "business_owner" | "agency" | "salesperson" | "user";
 type CommissionType = "none" | "standard" | "agency";
@@ -1043,49 +1044,6 @@ function optionRowLabel(row: Record<string, unknown>) {
 
 function formatMoney(value: number) {
   return value.toLocaleString("en-AU", { style: "currency", currency: "AUD" });
-}
-
-function businessSelectionLabel(businesses: Business[], selectedIds: string[]) {
-  if (!businesses.length) return "No businesses available";
-  const selected = businesses.filter((business) => selectedIds.includes(business.id));
-  if (!selected.length) return "No business selected";
-  if (selected.length === 1) return selected[0].name;
-  return `${selected.length} businesses selected`;
-}
-
-function BusinessMultiSelect({
-  businesses,
-  selectedIds,
-}: {
-  businesses: Business[];
-  selectedIds: string[];
-}) {
-  const selectedSet = new Set(selectedIds);
-
-  return (
-    <details className="business-multiselect">
-      <summary className="business-multiselect-summary">
-        <span className="business-multiselect-label">
-          {businessSelectionLabel(businesses, selectedIds)}
-        </span>
-        <span aria-hidden="true">v</span>
-      </summary>
-      <div className="business-multiselect-menu">
-        {businesses.map((business) => (
-          <label className="checkbox-pill" key={business.id}>
-            <input
-              type="checkbox"
-              name="businessIds"
-              value={business.id}
-              defaultChecked={selectedSet.has(business.id)}
-            />
-            <span>{business.name}</span>
-          </label>
-        ))}
-        {!businesses.length ? <span className="empty-select-note">Add a business first.</span> : null}
-      </div>
-    </details>
-  );
 }
 
 function formatShortDate(value: string) {
@@ -2339,40 +2297,6 @@ function wonExportScript() {
 `;
 }
 
-function businessMultiSelectScript() {
-  return `
-(function(){
-  function updateLabel(details) {
-    var label = details.querySelector(".business-multiselect-label");
-    var checked = Array.prototype.slice.call(details.querySelectorAll("input[type='checkbox']:checked"));
-    if (!label) return;
-    if (!checked.length) {
-      label.textContent = "No business selected";
-      return;
-    }
-    if (checked.length === 1) {
-      var text = checked[0].closest("label");
-      label.textContent = text ? text.innerText.trim() : "1 business selected";
-      return;
-    }
-    label.textContent = checked.length + " businesses selected";
-  }
-  Array.prototype.slice.call(document.querySelectorAll(".business-multiselect")).forEach(function(details){
-    updateLabel(details);
-    details.addEventListener("toggle", function(){
-      if (!details.open) return;
-      Array.prototype.slice.call(document.querySelectorAll(".business-multiselect[open]")).forEach(function(other){
-        if (other !== details) other.open = false;
-      });
-    });
-    Array.prototype.slice.call(details.querySelectorAll("input[type='checkbox']")).forEach(function(input){
-      input.addEventListener("change", function(){ updateLabel(details); });
-    });
-  });
-})();
-`;
-}
-
 const CURRENT_WON_SOURCE_ID = "current";
 
 function savedQuoteSetSourceId(set: Record<string, unknown>, index: number) {
@@ -3273,7 +3197,12 @@ async function upsertBusiness(formData: FormData) {
   }
 
   revalidatePath("/admin/users");
-  redirect(`/admin/users?message=${encodeURIComponent(`${name} was saved.`)}`);
+  const nextParams = new URLSearchParams({ message: name + " was saved." });
+  if (!businessId && businessSave.id) {
+    nextParams.set("setupBusiness", businessSave.id);
+    nextParams.set("setupAction", "choose");
+  }
+  redirect("/admin/users?" + nextParams.toString());
 }
 
 async function savePlatformCertificateValues(formData: FormData) {
@@ -3377,6 +3306,57 @@ async function addApprovedUser(formData: FormData) {
 
   revalidatePath("/admin/users");
   redirect(`/admin/users?message=${encodeURIComponent(`${displayName || email} is approved.`)}`);
+}
+
+async function assignApprovedUserToBusiness(formData: FormData) {
+  "use server";
+
+  const { supabase } = await requireAdmin();
+  const email = normalizeEmail(formData.get("existingUserEmail"));
+  const businessId = nullableUuid(formData.get("businessId"));
+
+  if (!email || !businessId) {
+    redirect("/admin/users?error=Select an approved user and business.");
+  }
+
+  const businessResult = await listBusinesses(supabase);
+  const business = businessResult.data.find((entry) => entry.id === businessId);
+  if (!business) {
+    redirect("/admin/users?error=That business could not be found.");
+  }
+
+  const [usersResult, membershipsResult] = await Promise.all([
+    listApprovedUsers(supabase, businessResult.data),
+    listUserBusinessMemberships(supabase, businessResult.data),
+  ]);
+  const approvedUser = applyMembershipsToUsers(
+    usersResult.data,
+    membershipsResult.data,
+  ).find((entry) => entry.email === email);
+
+  if (!approvedUser) {
+    redirect("/admin/users?error=That approved user could not be found.");
+  }
+
+  const businessIds = Array.from(new Set([...approvedUser.business_ids, businessId]));
+  const errorMessage = await saveApprovedUser(
+    supabase,
+    approvedUser.email,
+    approvedUser.display_name,
+    approvedUser.role,
+    businessIds,
+    approvedUser.commission_type_override || "business_default",
+    approvedUser.agency_commission_rate_override,
+    approvedUser.salesperson_commission_rate_override,
+  );
+
+  if (errorMessage) {
+    redirect("/admin/users?error=" + encodeURIComponent(errorMessage));
+  }
+
+  revalidatePath("/admin/users");
+  const message = displayNameFor(approvedUser) + " was assigned to " + business.name + ".";
+  redirect("/admin/users?message=" + encodeURIComponent(message));
 }
 
 async function updateApprovedUser(formData: FormData) {
@@ -3716,7 +3696,13 @@ function WonBulkActionControls({ mobile = false }: { mobile?: boolean }) {
 export default async function AdminUsersPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ error?: string; message?: string; checkBackups?: string }>;
+  searchParams?: Promise<{
+    error?: string;
+    message?: string;
+    checkBackups?: string;
+    setupBusiness?: string;
+    setupAction?: string;
+  }>;
 }) {
   const params = await searchParams;
   const includeBackupWonOptions = params?.checkBackups === "1";
@@ -3739,6 +3725,13 @@ export default async function AdminUsersPage({
   const salespersonSales = summarizeSalesBySalesperson(wonOptions);
   const certificateValues = certificateResult.data;
   const businessCertificateValues = certificateResult.businessValuesById;
+  const setupBusiness = businesses.find((business) => business.id === params?.setupBusiness) || null;
+  const setupAction = setupBusiness && ["choose", "create", "assign"].includes(params?.setupAction || "")
+    ? params?.setupAction
+    : "";
+  const setupNewUserBusinessIds = setupBusiness && setupAction === "create"
+    ? [setupBusiness.id]
+    : [];
 
   return (
     <main className="admin-shell">
@@ -3777,6 +3770,32 @@ export default async function AdminUsersPage({
         ) : null}
         {certificateResult.errorMessage ? (
           <div className="notice">Certificate values setup: {certificateResult.errorMessage}</div>
+        ) : null}
+        {setupBusiness && setupAction === "choose" ? (
+          <section className="business-user-prompt" aria-labelledby="business-user-prompt-title">
+            <div>
+              <p className="kicker">Business created</p>
+              <h2 id="business-user-prompt-title">Set up access for {setupBusiness.name}</h2>
+              <p>Create a new approved user or assign someone who already uses the calculator. You can also do this later.</p>
+            </div>
+            <div className="business-user-prompt-actions">
+              <a
+                className="button orange"
+                href={"/admin/users?setupBusiness=" + encodeURIComponent(setupBusiness.id) + "&setupAction=create#new-approved-user"}
+              >
+                Create new user
+              </a>
+              <a
+                className="button secondary"
+                href={"/admin/users?setupBusiness=" + encodeURIComponent(setupBusiness.id) + "&setupAction=assign#assign-approved-user"}
+              >
+                Assign existing user
+              </a>
+              <a className="button secondary" href="/admin/users">
+                Do this later
+              </a>
+            </div>
+          </section>
         ) : null}
 
         <details className="admin-section" id="certificate-values">
@@ -4055,7 +4074,7 @@ export default async function AdminUsersPage({
           </div>
         </details>
 
-        <details className="admin-section">
+        <details className="admin-section" id="approved-users" open={Boolean(setupBusiness)}>
           <summary className="section-heading admin-section-summary">
             <div>
               <h2>Approved users</h2>
@@ -4066,7 +4085,45 @@ export default async function AdminUsersPage({
           </summary>
 
           <div className="admin-section-body">
-            <form action={addApprovedUser} className="admin-form user-form" data-loading-label="Adding approved user...">
+            {setupBusiness && setupAction === "create" ? (
+              <div className="business-user-setup-note">
+                <strong>Create a user for {setupBusiness.name}</strong>
+                <span>The new business is already selected below. Enter the user details and add them when ready.</span>
+              </div>
+            ) : null}
+            {setupBusiness && setupAction === "assign" ? (
+              <form
+                action={assignApprovedUserToBusiness}
+                className="assign-approved-user-form"
+                id="assign-approved-user"
+                data-loading-label="Assigning approved user..."
+              >
+                <input type="hidden" name="businessId" value={setupBusiness.id} />
+                <div>
+                  <label htmlFor="existingUserEmail">Assign an existing user to {setupBusiness.name}</label>
+                  <select id="existingUserEmail" name="existingUserEmail" defaultValue="" required>
+                    <option value="" disabled>Select an approved user</option>
+                    {users.map((approvedUser) => (
+                      <option key={approvedUser.email} value={approvedUser.email}>
+                        {displayNameFor(approvedUser)} ({approvedUser.email})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <button className="orange" type="submit" disabled={!users.length}>
+                  Assign user
+                </button>
+                <a className="button secondary" href="/admin/users">
+                  Do this later
+                </a>
+              </form>
+            ) : null}
+            <form
+              action={addApprovedUser}
+              className="admin-form user-form"
+              id="new-approved-user"
+              data-loading-label="Adding approved user..."
+            >
             <div>
               <label htmlFor="displayName">Name</label>
               <input id="displayName" name="displayName" placeholder="Alex Quinn" />
@@ -4087,7 +4144,7 @@ export default async function AdminUsersPage({
             </div>
             <div>
               <label>Businesses</label>
-              <BusinessMultiSelect businesses={businesses} selectedIds={[]} />
+              <BusinessMultiSelect businesses={businesses} selectedIds={setupNewUserBusinessIds} />
             </div>
             <div>
               <label htmlFor="commissionType">Commission override</label>
@@ -4837,7 +4894,7 @@ export default async function AdminUsersPage({
         </details>
       </section>
       <Script id="admin-users-page-actions" strategy="afterInteractive">
-        {`${businessMultiSelectScript()}\n${wonExportScript()}`}
+        {wonExportScript()}
       </Script>
     </main>
   );

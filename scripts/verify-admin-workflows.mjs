@@ -1,8 +1,9 @@
 import { readFile } from "node:fs/promises";
 
-const [adminPage, calculatorPage, rawRoute, dataRoute, addressRoute, authCallback, schema, migration, userActivityMigration, styles] =
+const [adminPage, businessMultiSelect, calculatorPage, rawRoute, dataRoute, addressRoute, authCallback, schema, migration, userActivityMigration, styles] =
   await Promise.all([
     readFile(new URL("../app/admin/users/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/admin/users/business-multi-select.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/calculator/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/calculator/raw/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/calculator-data/route.ts", import.meta.url), "utf8"),
@@ -30,7 +31,12 @@ const checks = [
   [!adminPage.includes("Select visible"), "old Select visible label removed"],
   [adminPage.includes("var selectedEmails = activeSalespersonEmails();"), "salesperson-scoped payment filters"],
   [adminPage.includes("var summaryPayments = appliesToSummary ? activePayments : [];"), "unselected salesperson totals preserved"],
-  [adminPage.includes("<BusinessMultiSelect businesses={businesses} selectedIds={[]} />"), "new users start without a business"],
+  [adminPage.includes('nextParams.set("setupAction", "choose")'), "new-business user setup prompt redirect"],
+  [adminPage.includes("action={assignApprovedUserToBusiness}"), "existing-user business assignment action"],
+  [adminPage.includes("selectedIds={setupNewUserBusinessIds}"), "new business preselected for user creation"],
+  [businessMultiSelect.includes("checked={selected.includes(business.id)}"), "business selection controlled checkbox"],
+  [businessMultiSelect.includes("selectionLabel(businesses, selected)"), "business selection live summary"],
+  [businessMultiSelect.includes("onChange={(event) => updateSelection"), "business selection state update"],
   [adminPage.includes("user-card-collapsible"), "collapsible approved users"],
   [adminPage.includes("action={setApprovedUserLock}"), "approved-user lock action"],
   [adminPage.includes("admin_list_approved_user_activity"), "approved-user activity lookup"],
