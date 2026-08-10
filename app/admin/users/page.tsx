@@ -16,6 +16,7 @@ import {
   type PlatformCertificateValuesRow,
 } from "../../../lib/certificate-values";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
+import { sendApprovedUserInvitation } from "../../../lib/supabase/approved-user-invitation";
 import PageLoadingOverlay from "../../page-loading-overlay";
 import BusinessMultiSelect from "./business-multi-select";
 
@@ -3304,8 +3305,23 @@ async function addApprovedUser(formData: FormData) {
     redirect(`/admin/users?error=${encodeURIComponent(errorMessage)}`);
   }
 
+  const invitationError = await sendApprovedUserInvitation(supabase, email);
+
+  if (invitationError) {
+    revalidatePath("/admin/users");
+    redirect(
+      `/admin/users?error=${encodeURIComponent(
+        `${displayName || email} was approved, but the invitation email could not be sent. ${invitationError}`,
+      )}`,
+    );
+  }
+
   revalidatePath("/admin/users");
-  redirect(`/admin/users?message=${encodeURIComponent(`${displayName || email} is approved.`)}`);
+  redirect(
+    `/admin/users?message=${encodeURIComponent(
+      `${displayName || email} is approved and has been emailed a login code.`,
+    )}`,
+  );
 }
 
 async function assignApprovedUserToBusiness(formData: FormData) {

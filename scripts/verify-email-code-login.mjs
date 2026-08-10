@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-const source = await readFile(new URL("../app/signin-button.tsx", import.meta.url), "utf8");
+const [source, adminSource, invitationSource] = await Promise.all([
+  readFile(new URL("../app/signin-button.tsx", import.meta.url), "utf8"),
+  readFile(new URL("../app/admin/users/page.tsx", import.meta.url), "utf8"),
+  readFile(new URL("../lib/supabase/approved-user-invitation.ts", import.meta.url), "utf8"),
+]);
 
 assert.match(source, /signInWithOtp\(\{\s*email:\s*trimmedEmail,\s*\}\)/s);
 assert.doesNotMatch(source, /emailRedirectTo/);
@@ -15,5 +19,12 @@ assert.match(source, /Verify and sign in/);
 assert.match(source, /Resend code/);
 assert.match(source, /Change email/);
 assert.match(source, /safeNextPath\(next\)/);
+
+assert.match(invitationSource, /supabase\.auth\.signInWithOtp\(\{/);
+assert.match(invitationSource, /email,/);
+assert.match(invitationSource, /shouldCreateUser:\s*true/);
+assert.match(adminSource, /await sendApprovedUserInvitation\(supabase, email\)/);
+assert.match(adminSource, /was approved, but the invitation email could not be sent/);
+assert.match(adminSource, /is approved and has been emailed a login code/);
 
 console.log("email code login checks ok");
