@@ -416,6 +416,28 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
   margin-top:7px;
   word-break:break-word;
 }
+.recommendationBasis{
+  display:inline-flex;
+  align-items:center;
+  margin-top:8px;
+  border:1px solid #dbe3ea;
+  border-radius:999px;
+  padding:4px 8px;
+  background:#f8fafc;
+  color:#475569;
+  font-size:10.5px;
+  font-weight:800;
+}
+.recommendationBasis.contract{
+  border-color:#e8c76a;
+  background:#fff7d6;
+  color:#92400e;
+}
+.recommendationBasis.manual{
+  border-color:#bfdbfe;
+  background:#eff6ff;
+  color:#1d4ed8;
+}
 .recommendationStats{
   display:grid;
   grid-template-columns:1fr 1fr;
@@ -3983,6 +4005,16 @@ function legacyLabourRetainKey(){return 'green'+'EnergyKeepsLabour';}
 let essCache={brands:null,modelsByBrand:{},metadata:{},gemsByLookup:{},zoneByPostcode:{},requestSeq:0};
 let essRuntime={lastEsc:0,lastPrc:0,lastOfficialEsc:0,lastOfficialPrc:0,lastZone:'',lastBcaZone:'',lastBrand:'',lastModel:''};
 let essBestValueRuntime={requestSeq:0,cache:{},lastEntry:null};
+let bestValueRefreshTimer=null;
+function invalidateBestValueRecommendations(scheduleRefresh){
+  essBestValueRuntime.requestSeq++;
+  essBestValueRuntime.cache={};
+  essBestValueRuntime.lastEntry=null;
+  setSectionLoading('bestValueComparison',false);
+  if(!scheduleRefresh) return;
+  clearTimeout(bestValueRefreshTimer);
+  bestValueRefreshTimer=setTimeout(()=>refreshBestValueIndicator(),300);
+}
 let certValues={escRate:DEFAULT_ESC_RATE,prcRate:DEFAULT_PRC_RATE,escSpotPrice:DEFAULT_ESC_SPOT_PRICE,prcSpotPrice:DEFAULT_PRC_SPOT_PRICE,escAgreementDeduction:DEFAULT_ESC_AGREEMENT_DEDUCTION,prcAgreementDeduction:DEFAULT_PRC_AGREEMENT_DEDUCTION,source:'Electric Future',locked:true,updatedAt:''};
 const ENERGY_HEATING_HOURS=543;
 const ENERGY_COOLING_HOURS=350;
@@ -4315,16 +4347,24 @@ applyProductModelDisplayAliases();
 function productDisplayName(p){return `${p.brand}${p.series?' '+p.series:''}`.trim();}
 function quoteProductName(r){return `${r.size||''} ${r.brand||''}${r.series?' '+r.series:''} (${r.model||''})`.trim();}
 function brands(){return [...new Set(data().map(p=>p.brand))]}
-function setSystem(t){
+function setSystem(t,options){
   activeCalculatorView='standard';
   systemType=t;
   updateCalculatorSectionVisibility();
   $('splitOnly').classList.toggle('hidden',t!=='split');
   $('ductedOnly').classList.toggle('hidden',t!=='ducted');
-  populateBrands();
+  populateBrands(options);
 }
-function setInstall(t){installType=t; $('newBtn').classList.toggle('active',t==='new'); $('replacementBtn').classList.toggle('active',t==='replacement'); applyDefaults(); refreshLiveRebateForCurrentProduct(); refreshBestValueIndicator();}
-function populateBrands(){$('brand').innerHTML=brands().map(b=>`<option>${b}</option>`).join(''); populateProducts();}
+function setInstall(t,options){
+  installType=t;
+  $('newBtn').classList.toggle('active',t==='new');
+  $('replacementBtn').classList.toggle('active',t==='replacement');
+  applyDefaults();
+  if(options&&options.skipRefresh) return;
+  refreshLiveRebateForCurrentProduct();
+  refreshBestValueIndicator();
+}
+function populateBrands(options){$('brand').innerHTML=brands().map(b=>`<option>${b}</option>`).join(''); populateProducts(options);}
 function sortedProductOptions(list){
   const seriesOrder={};
   list.forEach(x=>{
@@ -4339,7 +4379,7 @@ function sortedProductOptions(list){
     return a.i-b.i;
   });
 }
-function populateProducts(){const b=$('brand').value; const list=sortedProductOptions(data().map((p,i)=>({p,i})).filter(x=>x.p.brand===b)); $('product').innerHTML=list.map(x=>`<option value="${x.i}">${unitSelectLabel(x.p)}</option>`).join(''); onProductChange();}
+function populateProducts(options){const b=$('brand').value; const list=sortedProductOptions(data().map((p,i)=>({p,i})).filter(x=>x.p.brand===b)); $('product').innerHTML=list.map(x=>`<option value="${x.i}">${unitSelectLabel(x.p)}</option>`).join(''); if(!(options&&options.skipProductChange)) onProductChange();}
 function unitSelectLabel(p){return `${p.capacity||p.size+'kW'}${p.series?' - '+p.series:''}${p.phase?' - '+p.phase:''}`;}
 function label(p){return `${unitSelectLabel(p)} - ${p.model}`;}
 function product(){return data()[Number($('product').value)||0]||data()[0]}
@@ -4782,10 +4822,59 @@ function setBestValueMeta(msg,isError){setRecommendationStatus('bestValueMeta','
 function setBestNetCostMeta(msg,isError){setRecommendationStatus('bestNetCostMeta','Best net unit cost',msg,isError,'net');}
 function kwCategoryValue(v){const n=Number(v); if(!Number.isFinite(n) || n<=0) return NaN; return Math.floor((n+1e-9)*2)/2;}
 function kwCategoryLabel(v){if(!Number.isFinite(v)) return ''; const whole=Math.round(v); return Math.abs(v-whole)<1e-9?`${whole}kW`:`${v.toFixed(1)}kW`;}
-function bestValueCacheKey(category,postcode,zoneSel,escRate,prcRate){return [systemType,installType,postcode,zoneSel,category.toFixed(1),escRate.toFixed(2),prcRate.toFixed(2)].join('|');}
+function recommendationPhaseValue(p){return String((p&&p.phase)||'').trim().toLowerCase();}
+function recommendationCandidateMatchesScope(current,candidate,category,type){
+  if(kwCategoryValue(cap(candidate))!==category) return false;
+  if(type!=='ducted') return true;
+  const selectedPhase=recommendationPhaseValue(current);
+  return !selectedPhase || recommendationPhaseValue(candidate)===selectedPhase;
+}
+function recommendationScopeLabel(categoryLabel,current){
+  if(systemType!=='ducted') return categoryLabel;
+  const phase=String((current&&current.phase)||'').trim();
+  if(!phase) return categoryLabel;
+  return `${categoryLabel} ${/phase$/i.test(phase)?phase:`${phase} phase`}`;
+}
+function recommendationCandidateSignature(items){
+  return items.map(item=>{
+    const p=item.p;
+    const unitCost=Number(p.unitPriceInc||p.priceIncGst||0);
+    const manual=hasManualRebateOverride(systemType,p);
+    const manualRebate=manual?Number(p.rebate||0):0;
+    return `${item.i}:${normalizeLookup(p.model)}:${Number.isFinite(unitCost)?unitCost.toFixed(2):'0.00'}:${manual?'manual':'live'}:${Number.isFinite(manualRebate)?manualRebate.toFixed(2):'0.00'}`;
+  }).join(',');
+}
+function dcceewRecommendationSignature(){
+  const contract=dcceewContractData();
+  return `${Number(contract.rate)||30}:${Array.isArray(contract.postcodes)?contract.postcodes.length:0}:${Array.isArray(contract.productKeys)?contract.productKeys.length:0}`;
+}
+function bestValueCacheKey(category,postcode,zoneSel,escRate,prcRate,phase,candidateSignature){
+  return [normalizeLookup(activeBusinessName()),activeBusinessState(),activeCatalogKey(),systemType,installType,postcode,zoneSel,category.toFixed(1),phase,escRate.toFixed(2),prcRate.toFixed(2),dcceewRecommendationSignature(),candidateSignature].join('|');
+}
 function unitDisplayName(row){return `${row.brand||''}${row.series?' '+row.series:''} ${row.model||''}`.trim();}
 function findCurrentRecommendationMatch(entry,currentProduct){
-  return ((entry&&entry.rows)||[]).find(r=>r.brand===currentProduct.brand && r.model===currentProduct.model)||null;
+  return ((entry&&entry.rows)||[]).find(r=>brandsEquivalent(r.brand,currentProduct.brand) && normalizeLookup(r.model)===normalizeLookup(currentProduct.model))||null;
+}
+function recommendationEffectiveRebate(p,result,postcode){
+  if(hasManualRebateOverride(systemType,p)){
+    const manual=Number(p&&p.rebate);
+    return {rebate:Number.isFinite(manual)?manual:0,rebateSource:'manual',contractApplied:false,contractUplift:0};
+  }
+  const match=getDcceewContractMatch(p,postcode);
+  const effective=applyDcceewContractRebate(match,result);
+  return {...effective,rebateSource:effective&&effective.contractApplied?'contract':'standard'};
+}
+function recommendationRebateBasis(row){
+  if(row&&row.rebateSource==='contract') return {label:'DCCEEW $30 ESC rate',className:'contract'};
+  if(row&&row.rebateSource==='manual') return {label:'Manual rebate',className:'manual'};
+  return {label:'Standard business rate',className:''};
+}
+async function calculateRecommendationCandidate(item,postcode){
+  const p=item.p;
+  const result=hasManualRebateOverride(systemType,p)?null:await estimateLiveEssRebate(p.brand,p.model);
+  const effective=recommendationEffectiveRebate(p,result,postcode);
+  const unitCost=Number(p.unitPriceInc||p.priceIncGst||0);
+  return {ok:true,brand:p.brand,series:p.series||'',model:p.model,phase:p.phase||'',productIndex:item.i,productManagedKey:managedProductKey(systemType,item.i),unitCost,rebate:Number(effective.rebate)||0,netCost:unitCost-(Number(effective.rebate)||0),rebateSource:effective.rebateSource,contractApplied:!!effective.contractApplied,contractUplift:Number(effective.contractUplift)||0};
 }
 function recommendationMoney(value,fallback){
   const n=Number(value);
@@ -4812,20 +4901,21 @@ function loadRecommendedUnit(kind){
   if(idx<0){setRecommendationStatus(kind==='net'?'bestNetCostMeta':'bestValueMeta',kind==='net'?'Best net unit cost':'Best rebate','Could not match that recommendation to a calculator unit.',true,kind==='net'?'net':''); return;}
   const p=data()[idx];
   $('brand').value=p.brand;
-  populateProducts();
+  populateProducts({skipProductChange:true});
   $('product').value=String(idx);
   onProductChange();
   document.querySelector('.wrap').scrollIntoView({behavior:'smooth',block:'start'});
 }
-function renderRecommendationCard(id,kind,title,value,model,stats,delta,foot,isError){
+function renderRecommendationCard(id,kind,title,value,model,stats,basis,delta,foot,isError){
   const el=$(id);
   if(!el) return;
   el.className=`recommendationCard${kind==='net'?' net':''}${isError?' error':''}`;
   const action=!isError?`<button class="recommendationLoadBtn" type="button" onclick="loadRecommendedUnit('${kind}')">Load</button>`:'';
-  el.innerHTML=`<div class="recommendationCardHead"><div class="recommendationEyebrow">${htmlEscape(title)}</div>${action}</div><div class="recommendationValue">${htmlEscape(value)}</div><div class="recommendationModel">${htmlEscape(model)}</div>${recommendationStatsHtml(stats)}${delta?`<div class="recommendationDelta">${htmlEscape(delta)}</div>`:''}${foot?`<div class="recommendationFoot">${htmlEscape(foot)}</div>`:''}`;
+  const basisHtml=basis&&basis.label?`<div class="recommendationBasis${basis.className?` ${htmlEscape(basis.className)}`:''}">${htmlEscape(basis.label)}</div>`:'';
+  el.innerHTML=`<div class="recommendationCardHead"><div class="recommendationEyebrow">${htmlEscape(title)}</div>${action}</div><div class="recommendationValue">${htmlEscape(value)}</div><div class="recommendationModel">${htmlEscape(model)}</div>${basisHtml}${recommendationStatsHtml(stats)}${delta?`<div class="recommendationDelta">${htmlEscape(delta)}</div>`:''}${foot?`<div class="recommendationFoot">${htmlEscape(foot)}</div>`:''}`;
 }
-function recommendationFootnote(categoryLabel,postcode,failedCount){
-  return `${categoryLabel} category - ${installType}, postcode ${postcode}${failedCount?` - ${failedCount} unavailable`:''}`;
+function recommendationFootnote(scopeLabel,postcode,failedCount){
+  return `${scopeLabel} category - ${installType}, postcode ${postcode}${failedCount?` - ${failedCount} unavailable`:''}`;
 }
 function rebateDeltaText(best,currentMatch){
   if(!currentMatch) return 'Highest rebate in this kW category';
@@ -4852,7 +4942,7 @@ function renderBestRecommendationCards(entry,currentProduct,categoryLabel,postco
     renderRecommendationCard('bestValueMeta','rebate','Best rebate',money(best.rebate),unitDisplayName(best),[
       {label:'Unit price',value:unitCost>0?money(unitCost):'Not saved'},
       {label:'Net cost',value:unitCost>0?money(netCost):'-'}
-    ],rebateDeltaText(best,currentMatch),recommendationFootnote(categoryLabel,postcode,failedCount),false);
+    ],recommendationRebateBasis(best),rebateDeltaText(best,currentMatch),recommendationFootnote(categoryLabel,postcode,failedCount),false);
   }
   if(!entry || !entry.bestNetCost){
     setBestNetCostMeta(`Best net unit cost unavailable for ${categoryLabel} (${installType}, postcode ${postcode}).`,true);
@@ -4862,7 +4952,7 @@ function renderBestRecommendationCards(entry,currentProduct,categoryLabel,postco
     renderRecommendationCard('bestNetCostMeta','net','Best net unit cost',recommendationMoney(best.netCost),unitDisplayName(best),[
       {label:'Unit price',value:recommendationMoney(best.unitCost)},
       {label:'Rebate',value:recommendationMoney(best.rebate)}
-    ],netCostDeltaText(best,currentMatch),recommendationFootnote(categoryLabel,postcode,failedCount),false);
+    ],recommendationRebateBasis(best),netCostDeltaText(best,currentMatch),recommendationFootnote(categoryLabel,postcode,failedCount),false);
   }
 }
 function formatBestValueMessage(entry,currentProduct,categoryLabel,postcode,failedCount){
@@ -4899,6 +4989,7 @@ function formatBestNetCostMessage(entry,currentProduct,categoryLabel,postcode,fa
 }
 async function refreshBestValueIndicator(){
   setSectionLoading('bestValueComparison',false);
+  const requestId=++essBestValueRuntime.requestSeq;
   if(!rebatesEnabled()){
     essBestValueRuntime.lastEntry=null;
     setBestValueMeta(rebateSchemeStatusText(),false);
@@ -4914,35 +5005,34 @@ async function refreshBestValueIndicator(){
   const category=kwCategoryValue(cap(current));
   if(!Number.isFinite(category)){setBestValueMeta('Unable to determine kW category for this model.',true); setBestNetCostMeta('Unable to determine kW category for this model.',true); return;}
   const categoryLabel=kwCategoryLabel(category);
+  const scopeLabel=recommendationScopeLabel(categoryLabel,current);
   const zoneSel=getEssZoneSelection();
-  const cacheKey=bestValueCacheKey(category,postcode,zoneSel,escRate,prcRate);
-  const cached=essBestValueRuntime.cache[cacheKey];
-  if(cached){
-    renderBestRecommendationCards(cached,current,categoryLabel,postcode,cached.failedCount||0);
-    return;
-  }
-  const allCandidates=data().map((p,i)=>({p,i})).filter(item=>kwCategoryValue(cap(item.p))===category);
+  const phase=recommendationPhaseValue(current);
+  const allCandidates=data().map((p,i)=>({p,i})).filter(item=>recommendationCandidateMatchesScope(current,item.p,category,systemType));
   const uniqueCandidates=[];
   const seenKeys=new Set();
   allCandidates.forEach(item=>{
-    const key=`${item.p.brand}|${item.p.model}`;
+    const key=`${normalizeLookup(item.p.brand)}|${normalizeLookup(item.p.model)}`;
     if(seenKeys.has(key)) return;
     seenKeys.add(key);
     uniqueCandidates.push(item);
   });
-  if(!uniqueCandidates.length){setBestValueMeta(`No models found for ${categoryLabel} category.`,true); setBestNetCostMeta(`No models found for ${categoryLabel} category.`,true); return;}
-  const requestId=++essBestValueRuntime.requestSeq;
-  setBestValueMeta(`Checking best rebate in ${categoryLabel} category...`,false);
-  setBestNetCostMeta(`Checking best net unit cost in ${categoryLabel} category...`,false);
-  setSectionLoading('bestValueComparison',true,`Comparing ${categoryLabel} models...`);
+  if(!uniqueCandidates.length){setBestValueMeta(`No models found for ${scopeLabel} category.`,true); setBestNetCostMeta(`No models found for ${scopeLabel} category.`,true); return;}
+  const candidateSignature=recommendationCandidateSignature(uniqueCandidates);
+  const cacheKey=bestValueCacheKey(category,postcode,zoneSel,escRate,prcRate,phase,candidateSignature);
+  const cached=essBestValueRuntime.cache[cacheKey];
+  if(cached){
+    renderBestRecommendationCards(cached,current,scopeLabel,postcode,cached.failedCount||0);
+    return;
+  }
+  setBestValueMeta(`Checking best rebate in ${scopeLabel} category...`,false);
+  setBestNetCostMeta(`Checking best net unit cost in ${scopeLabel} category...`,false);
+  setSectionLoading('bestValueComparison',true,`Comparing ${scopeLabel} models...`);
   let settled=[];
   try{
     settled=await Promise.all(uniqueCandidates.map(async item=>{
       try{
-        const p=item.p;
-        const result=await estimateLiveEssRebate(p.brand,p.model);
-        const unitCost=Number(p.unitPriceInc||p.priceIncGst||0);
-        return {ok:true,brand:p.brand,series:p.series||'',model:p.model,productIndex:item.i,productManagedKey:managedProductKey(systemType,item.i),unitCost,rebate:result.rebate,netCost:unitCost-result.rebate};
+        return await calculateRecommendationCandidate(item,postcode);
       }catch(e){
         return {ok:false,error:String(e && e.message ? e.message : e)};
       }
@@ -4951,19 +5041,19 @@ async function refreshBestValueIndicator(){
     if(requestId===essBestValueRuntime.requestSeq) setSectionLoading('bestValueComparison',false);
   }
   if(requestId!==essBestValueRuntime.requestSeq) return;
-  const winners=settled.filter(r=>r.ok).map(r=>({brand:r.brand,series:r.series||'',model:r.model,productIndex:r.productIndex,productManagedKey:r.productManagedKey,unitCost:r.unitCost,rebate:r.rebate,netCost:r.netCost}));
+  const winners=settled.filter(r=>r.ok);
   const failedCount=settled.length-winners.length;
   if(!winners.length){
-    setBestValueMeta(`Best value unavailable for ${categoryLabel} (${installType}, postcode ${postcode}).`,true);
-    setBestNetCostMeta(`Best net unit cost unavailable for ${categoryLabel} (${installType}, postcode ${postcode}).`,true);
+    setBestValueMeta(`Best value unavailable for ${scopeLabel} (${installType}, postcode ${postcode}).`,true);
+    setBestNetCostMeta(`Best net unit cost unavailable for ${scopeLabel} (${installType}, postcode ${postcode}).`,true);
     return;
   }
-  const best=[...winners].sort((a,b)=>b.rebate-a.rebate)[0];
+  const best=[...winners].sort((a,b)=>(b.rebate-a.rebate)||(a.netCost-b.netCost)||unitDisplayName(a).localeCompare(unitDisplayName(b)))[0];
   const netCostCandidates=winners.filter(r=>r.unitCost>0);
-  const bestNetCost=netCostCandidates.length?[...netCostCandidates].sort((a,b)=>a.netCost-b.netCost)[0]:null;
+  const bestNetCost=netCostCandidates.length?[...netCostCandidates].sort((a,b)=>(a.netCost-b.netCost)||(b.rebate-a.rebate)||unitDisplayName(a).localeCompare(unitDisplayName(b)))[0]:null;
   const entry={best,bestNetCost,rows:winners,failedCount};
   essBestValueRuntime.cache[cacheKey]=entry;
-  renderBestRecommendationCards(entry,current,categoryLabel,postcode,failedCount);
+  renderBestRecommendationCards(entry,current,scopeLabel,postcode,failedCount);
 }
 function hasManualRebateOverride(type,p){const key=managedKeyForProduct(type,p); return !!(key && priceLocks[key] && priceLocks[key].rebateManual===true);}
 function getEssEscRate(){const n=Number(($('essEscRate')&&$('essEscRate').value)||0); return Number.isFinite(n)&&n>0?n:0;}
@@ -5591,9 +5681,9 @@ async function loadLiveCertificatePriceIfNeeded(){
 async function refreshLiveRebateForCurrentProduct(){
   const p=product();
   setLiveRebateLoading(false);
+  const requestId=++essCache.requestSeq;
   if(!p){setDcceewContractDisplay(null,null); return;}
   if(!rebatesEnabled()){
-    essCache.requestSeq++;
     clearCertificateRuntime();
     setDcceewContractDisplay(null,null);
     if($('rebate')) $('rebate').value='0.00';
@@ -5610,7 +5700,6 @@ async function refreshLiveRebateForCurrentProduct(){
     setDcceewContractDisplay(dcceewMatch,null,'Manual rebate override prevents a live contract comparison.');
     return;
   }
-  const requestId=++essCache.requestSeq;
   clearCertificateRuntime();
   if($('rebate')) $('rebate').value='0.00';
   render();
@@ -5650,12 +5739,13 @@ async function refreshLiveRebateForCurrentProduct(){
     if(requestId===essCache.requestSeq) setLiveRebateLoading(false);
   }
 }
-function onProductChange(){
+function onProductChange(options){
   const p=product();
   $('unitPriceInc').value=(p.unitPriceInc||p.priceIncGst||0).toFixed(2);
   $('rebate').value=rebatesEnabled()?(p.rebate||0).toFixed(2):'0.00';
   applyDefaults();
   resetEnergySavingsResults();
+  if(options&&options.skipAsyncRefresh) return;
   refreshEnergySavingsEstimate();
   refreshLiveRebateForCurrentProduct();
   refreshBestValueIndicator();
@@ -7137,6 +7227,7 @@ function updateManagedPrice(key,field,value){
     if(field==='rebate'){ item.p.rebate=n; entry.rebateManual=true; }
   }
   persistManagedPrices();
+  invalidateBestValueRecommendations(true);
   syncCurrentProductAfterPriceChange(item);
 }
 function syncCurrentProductAfterPriceChange(changedItem){
@@ -7689,7 +7780,7 @@ function loadQuote(i){
   const savedEss=s.ess||{};
   const savedPostcode=savedEss.postcode ?? s.postcode ?? q.postcode;
   const savedClimateZone=savedEss.climateZone ?? savedEss.zone ?? s.essClimateZone ?? q.essClimateZone;
-  setSystem(s.systemType||'split');
+  setSystem(s.systemType||'split',{skipProductChange:true});
   if(s.customer!==undefined) $('customer').value=s.customer;
   if(s.address!==undefined) $('address').value=s.address;
   if(s.date!==undefined) $('date').value=s.date;
@@ -7697,15 +7788,15 @@ function loadQuote(i){
   const idx=productLookupIndexFromState(s,list);
   if(idx>=0){
     $('brand').value=list[idx].brand;
-    populateProducts();
+    populateProducts({skipProductChange:true});
     $('product').value=String(idx);
-    onProductChange();
   } else {
     setRebateCalcMeta('Could not find an exact saved unit match. Quote was not loaded.',true);
     return;
   }
+  setInstall(s.installType||'new',{skipRefresh:true});
+  onProductChange({skipAsyncRefresh:true});
   applyEssState(Object.assign({}, savedEss, {postcode:savedPostcode, climateZone:savedClimateZone}));
-  setInstall(s.installType||'new');
   const fieldIds=['unitPriceInc','labour','rebate','materials','misc','finalInc','powerCircuit','powerMode','electrician','airtouch','zones','sensors'];
   fieldIds.forEach(id=>{ if(s[id]!==undefined && $(id)) $(id).value=s[id]; });
   setInstallAddonState(s.installAddons||[], s.installAddonQuantities||{});
@@ -7717,7 +7808,7 @@ function loadQuote(i){
   if(s.salespersonCommissionRate===undefined) s.salespersonCommissionRate=q.salespersonCommissionRate!==undefined?q.salespersonCommissionRate:50;
   applyCommissionSettingsFromState(s);
   finalPriceLocked=true;
-  render(); refreshLiveRebateForCurrentProduct(); refreshBestValueIndicator(); closeDrawer();
+  render(); refreshEnergySavingsEstimate(); refreshLiveRebateForCurrentProduct(); refreshBestValueIndicator(); closeDrawer();
   document.querySelector('.wrap').scrollIntoView({behavior:'smooth',block:'start'});
 }
 
