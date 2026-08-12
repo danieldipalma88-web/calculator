@@ -12,6 +12,7 @@
     "verify:user-view": "node scripts/verify-user-view-default.mjs",
     "verify:admin": "node scripts/verify-admin-workflows.mjs && node scripts/verify-agency-profit-visibility.mjs",
     "verify:auth": "node scripts/verify-email-code-login.mjs",
+    "verify:guidance": "node scripts/verify-calculator-guidance-and-model-requests.mjs",
     "verify:price-updates": "node scripts/verify-business-price-update-tool.mjs",
     "verify:daikin-catalogue": "node scripts/verify-daikin-business-catalogue.mjs",
     "build": "next build",

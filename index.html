@@ -1957,6 +1957,80 @@ tbody tr:hover td{background:#f0f7ff}
 .quoteNameModalCard p{margin:0;color:#475569;font-size:14px;line-height:1.45}
 .quoteNameModalCard label{margin-top:18px}
 .quoteNameModalActions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
+.modelRequestLinkRow{
+  display:flex;
+  justify-content:flex-end;
+  margin-top:9px;
+}
+.modelRequestLink{
+  padding:4px 0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  color:#0f766e;
+  box-shadow:none;
+  font-size:12px;
+  font-weight:850;
+}
+.modelRequestLink:hover,
+.modelRequestLink:focus{transform:none;background:transparent;box-shadow:none;color:#115e59;text-decoration:underline}
+body.guidanceModalOpen{overflow:hidden}
+#calculatorGuidanceModal{z-index:150}
+#modelRequestModal{z-index:140}
+.calculatorGuidanceCard{width:min(620px,100%);max-height:calc(100dvh - 40px);overflow-y:auto}
+.calculatorGuidanceIntro{
+  margin-top:16px;
+  padding:14px 15px;
+  border-left:4px solid #0f766e;
+  border-radius:8px;
+  background:#edf8f6;
+  color:#134e4a;
+  font-size:13px;
+  font-weight:750;
+  line-height:1.5;
+}
+.calculatorGuidancePoints{display:grid;gap:12px;margin-top:16px}
+.calculatorGuidancePoint{display:grid;grid-template-columns:28px minmax(0,1fr);gap:10px;align-items:start}
+.calculatorGuidancePointIcon{
+  display:grid;
+  place-items:center;
+  width:28px;
+  height:28px;
+  border-radius:50%;
+  background:#e2e8f0;
+  color:#0f172a;
+  font-size:13px;
+  font-weight:900;
+}
+.calculatorGuidancePoint strong{display:block;color:#0f172a;font-size:14px}
+.calculatorGuidancePoint span{display:block;margin-top:3px;color:#475569;font-size:13px;line-height:1.45}
+.guidanceCheck{
+  display:flex!important;
+  align-items:flex-start;
+  gap:10px;
+  margin-top:18px!important;
+  padding:13px 14px;
+  border:1px solid #cbd8e6;
+  border-radius:9px;
+  background:#f8fafc;
+  color:#1e293b;
+  font-size:13px;
+  font-weight:750;
+  line-height:1.45;
+  cursor:pointer;
+}
+.guidanceCheck input{flex:0 0 auto;width:18px;height:18px;margin:1px 0 0;padding:0}
+.modelRequestCard{width:min(560px,100%);max-height:calc(100dvh - 40px);overflow-y:auto}
+.modelRequestGrid{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin-top:17px}
+.modelRequestField.wide{grid-column:1 / -1}
+.modelRequestField label{margin:0 0 6px}
+.modelRequestField textarea{min-height:88px;resize:vertical}
+.modelRequestStatus{display:none;margin-top:13px;padding:10px 12px;border-radius:8px;font-size:12px;font-weight:750;line-height:1.4}
+.modelRequestStatus.show{display:block}
+.modelRequestStatus.error{border:1px solid #fecaca;background:#fff1f2;color:#b91c1c}
+.modelRequestStatus.success{border:1px solid #86efac;background:#f0fdf4;color:#166534}
+.modelRequestStatus.saved{border:1px solid #fde68a;background:#fffbeb;color:#92400e}
+.modelRequestSubmit[aria-busy="true"]{cursor:wait;opacity:.78}
 .quoteTargetControl{margin-top:12px}
 .selectedQuoteNameBar{
   display:flex;
@@ -2793,6 +2867,8 @@ tbody tr:hover td{background:#f0f7ff}
     max-height:calc(100dvh - 24px);
     overflow-y:auto;
   }
+  .modelRequestLinkRow{justify-content:stretch}
+  .modelRequestLink{width:100%;padding:8px 0;text-align:left}
   .quoteNameModal{align-items:flex-end;padding:12px}
   .quoteNameModalCard{padding:18px;border-radius:14px}
   .wonDetailsModalCard{
@@ -2834,6 +2910,19 @@ tbody tr:hover td{background:#f0f7ff}
   }
   .quoteNameModalActions{display:grid;grid-template-columns:1fr 1fr}
   .quoteNameModalActions button{width:100%}
+  .calculatorGuidanceCard,
+  .modelRequestCard{
+    width:100%;
+    max-width:100%;
+    max-height:calc(100dvh - 24px);
+    padding:17px;
+  }
+  .calculatorGuidancePoints{gap:10px}
+  .calculatorGuidanceIntro{padding:12px}
+  .guidanceCheck{padding:12px}
+  .calculatorGuidanceCard .quoteNameModalActions{grid-template-columns:1fr}
+  .modelRequestGrid{grid-template-columns:1fr;gap:11px}
+  .modelRequestField.wide{grid-column:auto}
 }
 @media(max-width:900px) and (max-height:600px) and (orientation:landscape){
   .portraitOnlyNotice{display:flex}
@@ -2853,6 +2942,7 @@ tbody tr:hover td{background:#f0f7ff}
       <div class="card">
         <h2 class="sectionTitle">Product and install setup</h2>
         <div class="row2"><div><label>Brand</label><select id="brand" onchange="populateProducts()"></select></div><div><label>Unit</label><select id="product" onchange="onProductChange()"></select></div></div>
+        <div class="modelRequestLinkRow"><button class="modelRequestLink" type="button" onclick="openModelRequestModal('standard')">Can't find your system? Request a model</button></div>
         <div class="productSupportMeta" id="productSupportMeta">
           <div class="productSupportChip unknown" id="warrantySupportChip"><span>Warranty</span><strong id="warrantyMeta">Select a unit</strong></div>
           <div class="productSupportChip unknown" id="wifiSupportChip"><span>Wi-Fi</span><strong id="wifiMeta">Select a unit</strong></div>
@@ -2993,6 +3083,7 @@ tbody tr:hover td{background:#f0f7ff}
             <div><label>Brand</label><select id="multiSplitBrand" onchange="populateMultiSplitOutdoors()"></select></div>
             <div><label>Outdoor unit</label><select id="multiSplitOutdoor" onchange="onMultiSplitOutdoorChange()"></select></div>
           </div>
+          <div class="modelRequestLinkRow"><button class="modelRequestLink" type="button" onclick="openModelRequestModal('multi')">Can't find your system? Request a model</button></div>
           <div class="productSupportMeta">
             <div class="productSupportChip optional"><span>Outdoor capacity</span><strong id="multiSplitOutdoorCapacity">Select outdoor</strong></div>
             <div class="productSupportChip optional"><span>Max indoor heads</span><strong id="multiSplitMaxHeads">Select outdoor</strong></div>
@@ -3133,6 +3224,8 @@ tbody tr:hover td{background:#f0f7ff}
 <div id="removeSystemModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="removeSystemModalTitle" onclick="if(event.target===this)closeRemoveSystemModal()"><div class="quoteNameModalCard"><div class="kicker">Current quote</div><h2 id="removeSystemModalTitle">Remove this system?</h2><p id="removeSystemModalMessage">This system will no longer be included in the quote totals.</p><div class="quoteNameModalActions"><button class="secondary" type="button" onclick="closeRemoveSystemModal()">Cancel</button><button class="danger" type="button" onclick="confirmRemoveCurrentQuoteSystem()">Remove system</button></div></div></div>
 <div id="wonDetailsModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="wonDetailsModalTitle" aria-describedby="wonDetailsModalDescription" onclick="if(event.target===this)closeWonDetailsModal()"><div class="quoteNameModalCard wonDetailsModalCard"><div class="kicker">Won job details</div><h2 id="wonDetailsModalTitle">Complete won job</h2><p id="wonDetailsModalDescription">Confirm the installation location and proposed date before locking this quote.</p><div class="wonDetailsFields"><div class="wonDetailsField"><label id="wonAddressLabel">Installation address <span class="wonRequired">Required</span></label><div id="wonAddressLookup" class="wonAddressLookup" aria-labelledby="wonAddressLabel"><div class="wonAddressLoading">Loading Google address search...</div></div><div id="wonAddressStatus" class="wonAddressStatus" role="status" aria-live="polite">A Google address selection is required.</div></div><div class="wonDetailsField"><label for="wonInstallDate">Proposed installation date <span class="wonRequired">Required</span></label><div class="wonDateControl"><input id="wonInstallDate" type="date" required onchange="updateWonDetailsSubmitState()" oninput="updateWonDetailsSubmitState()"></div></div></div><div id="wonDetailsHint" class="hint" role="status" aria-live="polite" style="display:none"></div><div class="quoteNameModalActions"><button class="secondary" type="button" onclick="closeWonDetailsModal()">Cancel</button><button id="wonDetailsSubmit" class="green" type="button" onclick="confirmWonDetails()" disabled>Mark as won</button></div></div></div>
 <div id="dcceewInfoModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="dcceewInfoModalTitle" aria-describedby="dcceewInfoModalDescription" onclick="if(event.target===this)closeDcceewInfoModal()"><div class="quoteNameModalCard dcceewInfoModalCard"><div class="kicker">DCCEEW $30 ESC contract rate</div><h2 id="dcceewInfoModalTitle">Complete every required step</h2><p id="dcceewInfoModalDescription">This job is potentially eligible because the selected postcode and product are on the approved lists.</p><div class="dcceewInfoModalIntro">The fixed $30 rate is not automatic. Complete all applicable requirements to receive it.</div><ol class="dcceewCriteria"><li>Select <strong>Yes</strong> for DCCEEW consent in Alitsy when setting up the job. This cannot be corrected after payment processing begins.</li><li>For replacement jobs, enter the existing unit's <strong>year of manufacture</strong> in the Compliance tab.</li><li>For replacement jobs, attach a clear photo of the existing indoor or outdoor unit's <strong>compliance plate</strong>.</li><li>Ensure the customer invoice clearly itemises the <strong>incentive or discount passed through to the customer</strong>.</li></ol><div class="dcceewFallbackNotice">If any required information is missing, the job will be paid at the standard market rate instead of the fixed $30 ESC rate.</div><div class="quoteNameModalActions"><button type="button" onclick="closeDcceewInfoModal()">Understood</button></div></div></div>
+<div id="calculatorGuidanceModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="calculatorGuidanceTitle" aria-describedby="calculatorGuidanceDescription"><div class="quoteNameModalCard calculatorGuidanceCard"><div class="kicker">Before you start quoting</div><h2 id="calculatorGuidanceTitle">A quick note about this calculator</h2><p id="calculatorGuidanceDescription">This quote calculator is built around the systems installers use most often.</p><div class="calculatorGuidanceIntro">Use it to check rebates, build customer quotes and understand likely profit margins. The figures below are practical starting points, not fixed guarantees.</div><div class="calculatorGuidancePoints"><div class="calculatorGuidancePoint"><span class="calculatorGuidancePointIcon" aria-hidden="true">1</span><div><strong>Products and costs</strong><span>We include a curated range of commonly installed systems, selected wholesaler pricing and common labour, materials and installation costs. Review these figures before issuing a quote.</span></div></div><div class="calculatorGuidancePoint"><span class="calculatorGuidancePointIcon" aria-hidden="true">2</span><div><strong>Missing models</strong><span>The catalogue is not exhaustive. Use <em>Request a model</em> near the product selector if a system you install is missing.</span></div></div><div class="calculatorGuidancePoint"><span class="calculatorGuidancePointIcon" aria-hidden="true">3</span><div><strong>Rebate movement</strong><span>Rebate values are indicative and can move up or down with certificate market prices and trading conditions before a claim is submitted or processed. Build enough margin into each quote to allow for movement.</span></div></div></div><label class="guidanceCheck" for="calculatorGuidanceAccepted"><input id="calculatorGuidanceAccepted" type="checkbox" onchange="updateCalculatorGuidanceState()"><span>I understand that rebate amounts and preloaded costs are estimates, may change, and should be verified before I issue a customer quote.</span></label><div id="calculatorGuidanceStatus" class="modelRequestStatus" role="status" aria-live="polite"></div><div class="quoteNameModalActions"><button id="calculatorGuidanceContinue" type="button" onclick="confirmCalculatorGuidance()" disabled>Continue to calculator</button></div></div></div>
+<div id="modelRequestModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="modelRequestTitle" aria-describedby="modelRequestDescription" onclick="if(event.target===this)closeModelRequestModal()"><div class="quoteNameModalCard modelRequestCard"><div class="kicker">Product catalogue</div><h2 id="modelRequestTitle">Request a missing model</h2><p id="modelRequestDescription">Send the product details for review. Your account, email and active business will be attached automatically.</p><div class="modelRequestGrid"><div class="modelRequestField"><label for="modelRequestSystemType">System type</label><input id="modelRequestSystemType" type="text" readonly></div><div class="modelRequestField"><label for="modelRequestBrand">Brand</label><input id="modelRequestBrand" type="text" maxlength="100" autocomplete="organization"></div><div class="modelRequestField wide"><label for="modelRequestModel">Model <span class="wonRequired">Required</span></label><input id="modelRequestModel" type="text" maxlength="180" autocomplete="off" placeholder="Outdoor / indoor model numbers"></div><div class="modelRequestField"><label for="modelRequestCapacity">Capacity</label><input id="modelRequestCapacity" type="text" maxlength="40" placeholder="Example: 7.1kW"></div><div id="modelRequestPhaseField" class="modelRequestField"><label for="modelRequestPhase">Phase</label><select id="modelRequestPhase"><option value="unknown">Not sure</option><option value="single">Single phase</option><option value="three">Three phase</option></select></div><div class="modelRequestField wide"><label for="modelRequestNotes">Notes</label><textarea id="modelRequestNotes" maxlength="600" placeholder="Series, pricing or any other useful details"></textarea></div></div><div id="modelRequestStatus" class="modelRequestStatus" role="status" aria-live="polite"></div><div class="quoteNameModalActions"><button class="secondary" type="button" onclick="closeModelRequestModal()">Cancel</button><button id="modelRequestSubmit" class="modelRequestSubmit" type="button" onclick="submitModelRequest()">Send request</button></div></div></div>
 <div class="portraitOnlyNotice" aria-live="polite"><div><strong>Use portrait view</strong><span>Rotate your phone upright to continue quoting.</span></div></div>
 <div id="overlay" class="drawerOverlay" onclick="closeAllDrawers()"></div>
 <div id="drawer" class="quoteDrawer quoteBuilderDrawer"><div class="drawerHead"><div><div class="kicker">Quote builder</div><h2 style="margin:4px 0">View quotes</h2><div class="sub drawerIntro">Compare split, ducted and multi-head quotes. Quotes save automatically to your calculator profile. Use Save Quote to keep a named snapshot.</div><div class="quoteExportField" style="margin-top:14px;max-width:420px"><label>Quote / customer export name</label><input id="quoteExportName" placeholder="Example: Ash Macquarie Links" oninput="saveQuoteExportName()"></div></div><div class="actions"><button class="orange" onclick="saveCurrentQuoteSet()">Save Quote</button><button class="secondary" onclick="downloadCsv()">Download CSV</button><button class="danger" onclick="clearQuotes()">Clear</button><button class="secondary" onclick="closeDrawer()">Close</button></div></div>
@@ -4735,6 +4828,161 @@ function closeDcceewInfoModal(){
   if(modal) modal.classList.remove('open');
   const infoButton=$('dcceewInfoButton');
   if(infoButton) infoButton.focus();
+}
+const CALCULATOR_GUIDANCE_VERSION=1;
+let calculatorGuidanceSubmitting=false;
+let modelRequestSubmitting=false;
+let modelRequestClientId='';
+let modelRequestSystemValue='split';
+function setInlineRequestStatus(id,message,tone){
+  const status=$(id);
+  if(!status) return;
+  status.textContent=message||'';
+  status.className=`modelRequestStatus${message?' show':''}${tone?' '+tone:''}`;
+}
+function updateCalculatorGuidanceState(){
+  const checkbox=$('calculatorGuidanceAccepted');
+  const button=$('calculatorGuidanceContinue');
+  if(button) button.disabled=calculatorGuidanceSubmitting||!(checkbox&&checkbox.checked);
+}
+function openCalculatorGuidance(){
+  const modal=$('calculatorGuidanceModal');
+  if(!modal) return;
+  const checkbox=$('calculatorGuidanceAccepted');
+  if(checkbox) checkbox.checked=false;
+  calculatorGuidanceSubmitting=false;
+  setInlineRequestStatus('calculatorGuidanceStatus','','');
+  updateCalculatorGuidanceState();
+  modal.classList.add('open');
+  document.body.classList.add('guidanceModalOpen');
+  setTimeout(()=>{if(checkbox) checkbox.focus()},60);
+}
+function closeCalculatorGuidance(){
+  const modal=$('calculatorGuidanceModal');
+  if(modal) modal.classList.remove('open');
+  document.body.classList.remove('guidanceModalOpen');
+}
+async function initializeCalculatorGuidance(){
+  try{
+    const response=await fetch('/api/calculator-guidance',{headers:{Accept:'application/json'},credentials:'same-origin',cache:'no-store'});
+    if(!response.ok) return;
+    const result=await response.json();
+    if(!result.acknowledged && Number(result.acknowledgementVersion)===CALCULATOR_GUIDANCE_VERSION) openCalculatorGuidance();
+  }catch(e){}
+}
+async function confirmCalculatorGuidance(){
+  const checkbox=$('calculatorGuidanceAccepted');
+  const button=$('calculatorGuidanceContinue');
+  if(calculatorGuidanceSubmitting||!(checkbox&&checkbox.checked)) return;
+  calculatorGuidanceSubmitting=true;
+  if(button){button.disabled=true;button.textContent='Saving...';button.setAttribute('aria-busy','true')}
+  setInlineRequestStatus('calculatorGuidanceStatus','','');
+  try{
+    const response=await fetch('/api/calculator-guidance',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      credentials:'same-origin',
+      body:JSON.stringify({accepted:true,acknowledgementVersion:CALCULATOR_GUIDANCE_VERSION})
+    });
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok) throw new Error(result.error||'Your acknowledgement could not be saved.');
+    closeCalculatorGuidance();
+  }catch(error){
+    setInlineRequestStatus('calculatorGuidanceStatus',error&&error.message?error.message:'Your acknowledgement could not be saved. Please try again.','error');
+  }finally{
+    calculatorGuidanceSubmitting=false;
+    if(button){button.textContent='Continue to calculator';button.removeAttribute('aria-busy')}
+    updateCalculatorGuidanceState();
+  }
+}
+function modelRequestUuid(){
+  if(window.crypto&&typeof window.crypto.randomUUID==='function') return window.crypto.randomUUID();
+  return '10000000-1000-4000-8000-100000000000'.replace(/[018]/g,c=>(Number(c)^crypto.getRandomValues(new Uint8Array(1))[0]&15>>Number(c)/4).toString(16));
+}
+function normalizedRequestPhase(value){
+  const phase=String(value||'').toLowerCase();
+  if(phase.includes('three')||phase.includes('3')) return 'three';
+  if(phase.includes('single')||phase.includes('1')) return 'single';
+  return 'unknown';
+}
+function modelRequestContext(source){
+  if(source==='multi'){
+    const outdoor=selectedMultiSplitOutdoor();
+    return {systemType:'multi-head',label:'Multi-head split',brand:String(($('multiSplitBrand')&&$('multiSplitBrand').value)||(outdoor&&outdoor.brand)||''),phase:''};
+  }
+  const current=product();
+  return {systemType, label:systemType==='ducted'?'Ducted':'Split system',brand:String(($('brand')&&$('brand').value)||(current&&current.brand)||''),phase:systemType==='ducted'?normalizedRequestPhase(current&&current.phase):''};
+}
+function openModelRequestModal(source){
+  const modal=$('modelRequestModal');
+  if(!modal) return;
+  const context=modelRequestContext(source);
+  modelRequestSystemValue=context.systemType;
+  modelRequestClientId=modelRequestUuid();
+  modelRequestSubmitting=false;
+  $('modelRequestSystemType').value=context.label;
+  $('modelRequestBrand').value=context.brand;
+  $('modelRequestModel').value='';
+  $('modelRequestCapacity').value='';
+  $('modelRequestPhase').value=context.phase||'unknown';
+  $('modelRequestNotes').value='';
+  $('modelRequestPhaseField').classList.toggle('hidden',context.systemType!=='ducted');
+  setInlineRequestStatus('modelRequestStatus','','');
+  const submit=$('modelRequestSubmit');
+  if(submit){submit.disabled=false;submit.textContent='Send request';submit.removeAttribute('aria-busy')}
+  modal.classList.add('open');
+  document.body.classList.add('guidanceModalOpen');
+  setTimeout(()=>$('modelRequestModel').focus(),60);
+}
+function closeModelRequestModal(){
+  if(modelRequestSubmitting) return;
+  const modal=$('modelRequestModal');
+  if(modal) modal.classList.remove('open');
+  if(!$('calculatorGuidanceModal')?.classList.contains('open')) document.body.classList.remove('guidanceModalOpen');
+}
+async function submitModelRequest(){
+  if(modelRequestSubmitting) return;
+  const brand=String($('modelRequestBrand').value||'').trim();
+  const model=String($('modelRequestModel').value||'').trim();
+  if(!brand||!model){
+    setInlineRequestStatus('modelRequestStatus','Enter both the brand and model number.','error');
+    (model?$('modelRequestBrand'):$('modelRequestModel')).focus();
+    return;
+  }
+  const submit=$('modelRequestSubmit');
+  modelRequestSubmitting=true;
+  if(submit){submit.disabled=true;submit.textContent='Sending...';submit.setAttribute('aria-busy','true')}
+  setInlineRequestStatus('modelRequestStatus','','');
+  try{
+    const user=calculatorUserContext();
+    const response=await fetch('/api/model-requests',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      credentials:'same-origin',
+      body:JSON.stringify({
+        clientRequestId:modelRequestClientId,
+        businessId:user.businessId||'',
+        systemType:modelRequestSystemValue,
+        brand,
+        model,
+        capacity:String($('modelRequestCapacity').value||'').trim(),
+        phase:modelRequestSystemValue==='ducted'?$('modelRequestPhase').value:'',
+        notes:String($('modelRequestNotes').value||'').trim()
+      })
+    });
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok) throw new Error(result.error||'The model request could not be sent.');
+    const notificationDelayed=result.notificationStatus&&result.notificationStatus!=='sent';
+    setInlineRequestStatus('modelRequestStatus',notificationDelayed?'Request saved. The email notification is delayed, but your request has not been lost.':'Request sent. We will review the model for the calculator.',notificationDelayed?'saved':'success');
+    if(submit) submit.textContent='Request saved';
+    const completedRequestId=modelRequestClientId;
+    setTimeout(()=>{if(modelRequestClientId===completedRequestId){modelRequestSubmitting=false;closeModelRequestModal()}},1800);
+    return;
+  }catch(error){
+    setInlineRequestStatus('modelRequestStatus',error&&error.message?error.message:'The model request could not be sent. Please try again.','error');
+  }
+  modelRequestSubmitting=false;
+  if(submit){submit.disabled=false;submit.textContent='Send request';submit.removeAttribute('aria-busy')}
 }
 function certCountText(value,digits){
   const n=Number(value);
@@ -10062,6 +10310,7 @@ if(multiFinalInput){
 });
 document.addEventListener('keydown',event=>{
   if(event.key==='Escape' && $('dcceewInfoModal')?.classList.contains('open')) closeDcceewInfoModal();
+  if(event.key==='Escape' && $('modelRequestModal')?.classList.contains('open')) closeModelRequestModal();
 });
 setupMobileMoneySteppers();
 setupMobileHorizontalDragLock();
@@ -10137,5 +10386,6 @@ populateBrands();
 renderQuotes();
 scheduleSecondaryStartup();
 announceCalculatorReady();
+setTimeout(initializeCalculatorGuidance,500);
 </script>
 </body></html>
