@@ -1957,12 +1957,16 @@ tbody tr:hover td{background:#f0f7ff}
 .quoteNameModalCard p{margin:0;color:#475569;font-size:14px;line-height:1.45}
 .quoteNameModalCard label{margin-top:18px}
 .quoteNameModalActions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
-.modelRequestLinkRow{
+.modelRequestSelectorHeader{
   display:flex;
-  justify-content:flex-end;
-  margin-top:9px;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:8px;
+  margin-bottom:6px;
 }
+.modelRequestSelectorHeader label{margin:0}
 .modelRequestLink{
+  max-width:calc(100% - 44px);
   padding:4px 0;
   border:0;
   border-radius:0;
@@ -1971,6 +1975,8 @@ tbody tr:hover td{background:#f0f7ff}
   box-shadow:none;
   font-size:12px;
   font-weight:850;
+  line-height:1.2;
+  text-align:right;
 }
 .modelRequestLink:hover,
 .modelRequestLink:focus{transform:none;background:transparent;box-shadow:none;color:#115e59;text-decoration:underline}
@@ -2867,8 +2873,8 @@ body.guidanceModalOpen{overflow:hidden}
     max-height:calc(100dvh - 24px);
     overflow-y:auto;
   }
-  .modelRequestLinkRow{justify-content:stretch}
-  .modelRequestLink{width:100%;padding:8px 0;text-align:left}
+  .modelRequestSelectorHeader{align-items:center;gap:6px}
+  .modelRequestLink{width:auto;padding:3px 0;font-size:11px}
   .quoteNameModal{align-items:flex-end;padding:12px}
   .quoteNameModalCard{padding:18px;border-radius:14px}
   .wonDetailsModalCard{
@@ -2941,8 +2947,7 @@ body.guidanceModalOpen{overflow:hidden}
     <main>
       <div class="card">
         <h2 class="sectionTitle">Product and install setup</h2>
-        <div class="row2"><div><label>Brand</label><select id="brand" onchange="populateProducts()"></select></div><div><label>Unit</label><select id="product" onchange="onProductChange()"></select></div></div>
-        <div class="modelRequestLinkRow"><button class="modelRequestLink" type="button" onclick="openModelRequestModal('standard')">Can't find your system? Request a model</button></div>
+        <div class="row2"><div><label>Brand</label><select id="brand" onchange="populateProducts()"></select></div><div><div class="modelRequestSelectorHeader"><label>Unit</label><button class="modelRequestLink" type="button" onclick="openModelRequestModal('standard')">Can't find your system? Request a model</button></div><select id="product" onchange="onProductChange()"></select></div></div>
         <div class="productSupportMeta" id="productSupportMeta">
           <div class="productSupportChip unknown" id="warrantySupportChip"><span>Warranty</span><strong id="warrantyMeta">Select a unit</strong></div>
           <div class="productSupportChip unknown" id="wifiSupportChip"><span>Wi-Fi</span><strong id="wifiMeta">Select a unit</strong></div>
@@ -3081,9 +3086,8 @@ body.guidanceModalOpen{overflow:hidden}
           <h2 class="sectionTitle">Product and install setup</h2>
           <div class="row2">
             <div><label>Brand</label><select id="multiSplitBrand" onchange="populateMultiSplitOutdoors()"></select></div>
-            <div><label>Outdoor unit</label><select id="multiSplitOutdoor" onchange="onMultiSplitOutdoorChange()"></select></div>
+            <div><div class="modelRequestSelectorHeader"><label>Outdoor unit</label><button class="modelRequestLink" type="button" onclick="openModelRequestModal('multi')">Can't find your system? Request a model</button></div><select id="multiSplitOutdoor" onchange="onMultiSplitOutdoorChange()"></select></div>
           </div>
-          <div class="modelRequestLinkRow"><button class="modelRequestLink" type="button" onclick="openModelRequestModal('multi')">Can't find your system? Request a model</button></div>
           <div class="productSupportMeta">
             <div class="productSupportChip optional"><span>Outdoor capacity</span><strong id="multiSplitOutdoorCapacity">Select outdoor</strong></div>
             <div class="productSupportChip optional"><span>Max indoor heads</span><strong id="multiSplitMaxHeads">Select outdoor</strong></div>
