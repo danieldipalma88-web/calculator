@@ -19,6 +19,8 @@ type WonJobSnapshot = {
   installationAddress: string;
   googlePlaceId: string;
   proposedInstallationDate: string;
+  quoteRowCount: number;
+  missingPriceModels: string[];
 };
 
 export type WonJobValidationResult =
@@ -28,10 +30,71 @@ export type WonJobValidationResult =
       optionId: string;
       optionName: string;
       missingFields: string[];
+      missingPriceModels: string[];
     };
 
 function recordText(record: StoredRecord, key: string) {
   return String(record[key] || "").trim();
+}
+
+function recordObject(record: StoredRecord, key: string) {
+  const value = record[key];
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as StoredRecord
+    : {};
+}
+
+function positivePrice(value: unknown) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) && numeric > 0;
+}
+
+function recordVersion(record: StoredRecord) {
+  const direct = Number(record.syncUpdatedAt ?? record.timestamp);
+  if (Number.isFinite(direct) && direct > 0) return direct;
+  const parsed = Date.parse(recordText(record, "wonAt"));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function quoteRowMissingPriceModels(record: StoredRecord) {
+  const state = recordObject(record, "state");
+  const type = `${recordText(record, "type")} ${recordText(state, "systemType")}`.toLowerCase();
+  const isMultiHead = type.includes("multi-head") || type.includes("multi_split");
+  const rowModel = recordText(record, "model") || recordText(state, "model") || "selected unit";
+
+  if (!isMultiHead) {
+    return positivePrice(record.unitInc ?? state.unitPriceInc) ? [] : [rowModel];
+  }
+
+  const missing: string[] = [];
+  const rawHeads = state.indoorHeads;
+  const heads = Array.isArray(rawHeads)
+    ? rawHeads.filter((head): head is StoredRecord => !!head && typeof head === "object" && !Array.isArray(head))
+    : [];
+  let pricedIndoorTotal = 0;
+
+  heads.forEach((head) => {
+    const quantity = Math.max(1, Math.floor(Number(head.qty) || 1));
+    if (positivePrice(head.unitPriceInc)) {
+      pricedIndoorTotal += Number(head.unitPriceInc) * quantity;
+    } else {
+      missing.push(recordText(head, "model") || "selected indoor unit");
+    }
+  });
+
+  let outdoorPrice = Number(state.outdoorUnitPriceInc);
+  if (!Number.isFinite(outdoorPrice)) {
+    const total = Number(record.unitInc ?? state.unitPriceInc);
+    outdoorPrice = Number.isFinite(total) ? total - pricedIndoorTotal : 0;
+  }
+  if (!positivePrice(outdoorPrice)) {
+    missing.push(recordText(state, "outdoorModel") || recordText(state, "model") || rowModel);
+  }
+  if (!heads.length && !positivePrice(record.unitInc ?? state.unitPriceInc)) {
+    missing.push(rowModel);
+  }
+
+  return [...new Set(missing)];
 }
 
 function parseStoredRecords(value: unknown) {
@@ -76,6 +139,8 @@ function wonJobsFromCalculatorData(value: unknown) {
       installationAddress: "",
       googlePlaceId: "",
       proposedInstallationDate: "",
+      quoteRowCount: 0,
+      missingPriceModels: [],
     };
     jobs.set(id, created);
     return created;
@@ -88,11 +153,23 @@ function wonJobsFromCalculatorData(value: unknown) {
     });
   });
 
+  const latestQuoteRows = new Map<string, StoredRecord>();
   QUOTE_COLLECTION_STORAGE_KEYS.forEach((storageKey) => {
     parseStoredRecords(data[storageKey]).forEach((record, index) => {
-      const id = recordText(record, "optionId") || `${storageKey}:row:${recordText(record, "id") || index}`;
-      mergeWonJobRecord(jobFor(id), record, "optionName");
+      const rowId = recordText(record, "id") || `${storageKey}:row:${index}`;
+      const existing = latestQuoteRows.get(rowId);
+      if (!existing || recordVersion(record) >= recordVersion(existing)) {
+        latestQuoteRows.set(rowId, record);
+      }
     });
+  });
+  latestQuoteRows.forEach((record, rowId) => {
+    const id = recordText(record, "optionId") || `row:${rowId}`;
+    const job = jobFor(id);
+    mergeWonJobRecord(job, record, "optionName");
+    job.quoteRowCount += 1;
+    job.missingPriceModels.push(...quoteRowMissingPriceModels(record));
+    job.missingPriceModels = [...new Set(job.missingPriceModels)];
   });
 
   return jobs;
@@ -124,13 +201,17 @@ export function validateNewWonJobTransitions(
     if (!isValidInstallationDate(candidate.proposedInstallationDate)) {
       missingFields.push("proposed installation date");
     }
+    const missingPriceModels = candidate.quoteRowCount > 0
+      ? candidate.missingPriceModels
+      : [];
 
-    if (missingFields.length) {
+    if (missingFields.length || missingPriceModels.length) {
       return {
         valid: false,
         optionId: candidate.id,
         optionName: candidate.name || "Unnamed quote",
         missingFields,
+        missingPriceModels,
       };
     }
   }
@@ -139,5 +220,12 @@ export function validateNewWonJobTransitions(
 }
 
 export function wonJobValidationMessage(result: Exclude<WonJobValidationResult, { valid: true }>) {
-  return `${result.optionName} cannot be marked as won. Add a Google-verified installation address and a proposed installation date, then try again.`;
+  const requirements: string[] = [];
+  if (result.missingFields.length) {
+    requirements.push("Add a Google-verified installation address and a proposed installation date.");
+  }
+  if (result.missingPriceModels.length) {
+    requirements.push(`Add a unit price for ${result.missingPriceModels.join(", ")}.`);
+  }
+  return `${result.optionName} cannot be marked as won. ${requirements.join(" ")} Then try again.`;
 }

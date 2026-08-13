@@ -20,7 +20,7 @@ const checks = [
   [files.raw, "setCloudSaveStatus('Saving...', 'saving')", "cloud saving status"],
   [files.raw, "setCloudSaveStatus('Retrying...', 'retrying')", "cloud retry status"],
   [files.ui, "setLiveRebateLoading(true)", "live rebate loader"],
-  [files.ui, "data-rebate-disabled-before", "Add to Quote rebate protection"],
+  [files.ui, "standardMissing||liveRebateLoading", "Add to Quote rebate protection"],
   [files.ui, "setSectionLoading('bestValueComparison',true", "best value comparison loader"],
   [files.ui, "setSectionLoading('energySavingsBody',true", "energy savings loader"],
   [files.ui, "setSectionLoading('multiSplitRebatePanel',true", "multi-head rebate loader"],

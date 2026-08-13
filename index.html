@@ -296,6 +296,42 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
   margin-top:14px;
   display:block;
 }
+.selected.priceMissingProduct{
+  border-color:#ef4444;
+  background:#fff7f7;
+  box-shadow:0 0 0 3px rgba(239,68,68,.08);
+}
+.priceRequiredField.priceMissing label{color:#b91c1c}
+.priceRequiredField.priceMissing input{
+  border-color:#ef4444;
+  background:#fff1f2;
+  color:#991b1b;
+  box-shadow:0 0 0 3px rgba(239,68,68,.1);
+}
+.priceMissingMessage{
+  display:none;
+  margin-top:6px;
+  color:#b91c1c;
+  font-size:12px;
+  font-weight:850;
+  line-height:1.35;
+}
+.priceRequiredField.priceMissing .priceMissingMessage{display:block}
+.priceMissingBadge{
+  display:inline-flex;
+  align-items:center;
+  width:max-content;
+  margin-top:5px;
+  padding:3px 7px;
+  border:1px solid #fecaca;
+  border-radius:999px;
+  background:#fee2e2;
+  color:#991b1b;
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+}
 .sectionLoadingHost{position:relative!important;isolation:isolate}
 .sectionLoadingOverlay{
   position:absolute;
@@ -1240,6 +1276,15 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
 .productSupportChip.included{border-color:#b9e7cf;background:#f3fff8}
 .productSupportChip.optional{border-color:#dbe4f0;background:#f8fbfd}
 .productSupportChip.unknown{border-color:#fde68a;background:#fffbeb}
+.productSupportChip.priceMissing,
+.multiSplitMetric.priceMissing{
+  border-color:#ef4444;
+  background:#fff1f2;
+}
+.productSupportChip.priceMissing span,
+.productSupportChip.priceMissing strong,
+.multiSplitMetric.priceMissing span,
+.multiSplitMetric.priceMissing strong{color:#991b1b}
 .multiSplitTrialCard{display:none;margin-top:18px}
 .multiSplitTrialCard.visible{display:block}
 .multiSplitTrialIntro{
@@ -1351,6 +1396,15 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
   color:#0f172a;
   font-size:13px;
 }
+.multiSplitIndoorFact.priceMissing{
+  margin:-1px -6px -4px;
+  padding:8px 6px 4px;
+  border:1px solid #fecaca;
+  border-radius:8px;
+  background:#fff1f2;
+}
+.multiSplitIndoorFact.priceMissing span,
+.multiSplitIndoorFact.priceMissing strong{color:#991b1b}
 .multiSplitIndoorControls{
   display:grid;
   grid-template-columns:1fr 38px;
@@ -1637,6 +1691,14 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
   color:#64748b;
   margin-top:2px;
 }
+.multiSplitHeadItem.priceIncomplete{
+  border:1px solid #fecaca;
+  border-radius:10px;
+  background:#fff1f2;
+  padding:9px;
+  color:#991b1b;
+}
+.multiSplitHeadItem.priceIncomplete small{color:#b91c1c}
 .energySavingsCard{
   padding:0;
   overflow:hidden;
@@ -2347,6 +2409,26 @@ body.guidanceModalOpen{overflow:hidden}
 .wonNotice{display:flex;justify-content:space-between;gap:12px;align-items:center;border:1px solid #bbf7d0;background:#f0fdf4;border-radius:14px;padding:12px 14px;margin-bottom:12px;color:#166534}
 .wonNotice strong{font-size:13px}
 .wonNotice span{font-size:12px;color:#3f6b4b}
+.priceIncompleteNotice{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:center;
+  border:1px solid #fecaca;
+  background:#fff1f2;
+  border-radius:14px;
+  padding:12px 14px;
+  margin-bottom:12px;
+  color:#991b1b;
+}
+.priceIncompleteNotice strong{font-size:13px}
+.priceIncompleteNotice span{font-size:12px;color:#b91c1c;line-height:1.4}
+.priceIncompleteRow{background:#fff8f8}
+.priceIncompleteRow td{border-color:#fee2e2}
+.currentQuoteMobileItem.priceIncomplete{border-color:#fecaca;background:#fff8f8}
+.optionCard.priceIncomplete{border-color:#fca5a5;box-shadow:0 6px 18px rgba(185,28,28,.08)}
+.optionCard.priceIncomplete .optionHeader{background:#fff7f7}
+.optionCard>.priceIncompleteNotice{margin:12px 16px 0}
 .wonJobsDrawer{width:min(980px,96vw)}
 .wonJobsSummary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:14px 0}
 .wonJobsSummaryCard{border:1px solid #bbf7d0;background:#f0fdf4;border-radius:14px;padding:12px}
@@ -2988,7 +3070,7 @@ body.guidanceModalOpen{overflow:hidden}
       <div class="card">
         <h2 class="sectionTitle">Costs</h2>
         <div class="finalPriceStrip"><div><div class="fieldLabelRow"><label for="finalInc">Final customer price inc GST</label><span class="fieldPill confirmed">Customer pays</span></div><div class="fieldHint">Main quoted price shown to the customer.</div></div><input id="finalInc" type="number" step="0.01"></div>
-        <div class="row3"><div><label>Unit price inc GST</label><input id="unitPriceInc" type="number" step="0.01"></div><div><label>Labour ex GST</label><input id="labour" type="number" step="0.01"></div><div id="rebateCostField"><label id="rebateCostLabel">Rebate</label><input id="rebate" type="number" step="0.01"><div id="rebateCostHint" class="rebateCostHint" aria-live="polite"></div></div></div>
+        <div class="row3"><div id="unitPriceCostField" class="priceRequiredField"><label>Unit price inc GST</label><input id="unitPriceInc" type="number" step="0.01"><div id="unitPriceMissingMessage" class="priceMissingMessage" role="alert">Price missing. Enter the unit price before adding this system to a quote.</div></div><div><label>Labour ex GST</label><input id="labour" type="number" step="0.01"></div><div id="rebateCostField"><label id="rebateCostLabel">Rebate</label><input id="rebate" type="number" step="0.01"><div id="rebateCostHint" class="rebateCostHint" aria-live="polite"></div></div></div>
         <div class="row2" style="margin-top:14px"><div><label>Materials inc GST</label><input id="materials" type="number" step="0.01"></div><div><label>Misc cost inc GST</label><input id="misc" type="number" step="0.01" value="0"></div></div>
         <div id="splitOnly" style="margin-top:14px">
           <div class="row2">
@@ -3091,7 +3173,7 @@ body.guidanceModalOpen{overflow:hidden}
           <div class="productSupportMeta">
             <div class="productSupportChip optional"><span>Outdoor capacity</span><strong id="multiSplitOutdoorCapacity">Select outdoor</strong></div>
             <div class="productSupportChip optional"><span>Max indoor heads</span><strong id="multiSplitMaxHeads">Select outdoor</strong></div>
-            <div class="productSupportChip optional"><span>Outdoor price inc GST</span><strong id="multiSplitOutdoorPrice">$0.00</strong></div>
+            <div id="multiSplitOutdoorPriceChip" class="productSupportChip optional"><span>Outdoor price inc GST</span><strong id="multiSplitOutdoorPrice">$0.00</strong></div>
           </div>
           <div class="installTabs">
             <button id="multiSplitNewBtn" type="button" onclick="setMultiSplitInstall('new')">New install</button>
@@ -3150,7 +3232,7 @@ body.guidanceModalOpen{overflow:hidden}
           <h2 class="sectionTitle">Costs</h2>
           <div class="finalPriceStrip"><div><div class="fieldLabelRow"><label for="multiFinalInc">Final customer price inc GST</label><span class="fieldPill confirmed">Customer pays</span></div><div class="fieldHint">Main quoted price shown to the customer.</div></div><input id="multiFinalInc" type="number" step="0.01"></div>
           <div class="row3">
-            <div><label>Equipment price inc GST</label><input id="multiUnitPriceInc" type="number" step="0.01" readonly></div>
+            <div id="multiUnitPriceCostField" class="priceRequiredField"><label>Equipment price inc GST</label><input id="multiUnitPriceInc" type="number" step="0.01" readonly><div id="multiUnitPriceMissingMessage" class="priceMissingMessage" role="alert">Price missing for selected equipment. Add the missing model price before adding this system to a quote.</div></div>
             <div><label>Labour ex GST</label><input id="multiLabour" type="number" step="0.01" value="500"></div>
             <div><label>Rebate</label><input id="multiRebate" type="number" step="0.01" value="0"></div>
           </div>
@@ -3174,7 +3256,7 @@ body.guidanceModalOpen{overflow:hidden}
       <aside class="summary card multiSplitSummaryCard">
         <div class="final"><div class="finalCopy"><span>Final customer price inc GST</span><strong id="multiFinalBig">$0.00</strong></div><div class="finalBumpGroup"><button class="finalBumpBtn" type="button" onclick="applyMoneyStep('multiFinalInc',-50)">- $50</button><button class="finalBumpBtn" type="button" onclick="applyMoneyStep('multiFinalInc',50)">+ $50</button></div></div>
         <div class="multiSplitSummaryKeyGrid">
-          <div class="multiSplitMetric"><span>Equipment inc GST</span><strong id="multiSplitEquipmentTotal">$0.00</strong></div>
+          <div id="multiSplitEquipmentMetric" class="multiSplitMetric"><span>Equipment inc GST</span><strong id="multiSplitEquipmentTotal">$0.00</strong></div>
           <div class="multiSplitMetric"><span>Rebate</span><strong id="multiSplitSummaryRebate">$0.00</strong></div>
           <div class="multiSplitMetric"><span>Installer profit</span><strong id="multiSplitSummaryNetProfit">$0.00</strong></div>
           <div class="multiSplitMetric"><span>Net margin</span><strong id="multiSplitSummaryMargin">0.00%</strong></div>
@@ -4058,17 +4140,11 @@ function setSectionLoading(containerId,busy,message){
   container.classList.toggle('is-loading',!!busy);
   container.setAttribute('aria-busy',busy?'true':'false');
 }
+let liveRebateLoading=false;
 function setLiveRebateLoading(busy){
+  liveRebateLoading=!!busy;
   setSectionLoading('liveRebatePanel',busy,'Calculating live rebate...');
-  document.querySelectorAll('button[onclick="addToQuote()"]').forEach(button=>{
-    if(busy){
-      if(!button.hasAttribute('data-rebate-disabled-before')) button.setAttribute('data-rebate-disabled-before',button.disabled?'1':'0');
-      button.disabled=true;
-      return;
-    }
-    if(button.getAttribute('data-rebate-disabled-before')==='0') button.disabled=false;
-    button.removeAttribute('data-rebate-disabled-before');
-  });
+  updateQuotePriceValidationUi();
 }
 function legacyStorageKey(suffix){return 'green'+'Energy'+suffix;}
 function storageGet(key,legacySuffix){const current=localStorage.getItem(key); return current!==null?current:(legacySuffix?localStorage.getItem(legacyStorageKey(legacySuffix)):null);}
@@ -6725,6 +6801,97 @@ function multiSplitEquipmentTotals(){
   const connectedHeatingCapacity=indoorItems.reduce((sum,item)=>sum+(Number(item.row.ratedHeatingCapacity)||0)*item.qty,0);
   return {outdoor,indoorItems,outdoorTotal,indoorTotal,total:outdoorTotal+indoorTotal,headCount,connectedCapacity:connectedCoolingCapacity,connectedCoolingCapacity,connectedHeatingCapacity};
 }
+function hasPositiveUnitPrice(value){
+  const numeric=Number(value);
+  return Number.isFinite(numeric)&&numeric>0;
+}
+function uniquePriceModels(models){
+  return [...new Set((models||[]).map(model=>String(model||'').trim()).filter(Boolean))];
+}
+function formatPriceModelList(models){
+  return uniquePriceModels(models).join(', ')||'the selected equipment';
+}
+function multiSplitMissingPriceModels(totals){
+  const current=totals||multiSplitEquipmentTotals();
+  const missing=[];
+  if(current.outdoor&&!hasPositiveUnitPrice(current.outdoor.unitPriceInc)) missing.push(current.outdoor.model||'selected outdoor unit');
+  current.indoorItems.forEach(item=>{
+    if(!hasPositiveUnitPrice(item.row&&item.row.unitPriceInc)) missing.push(item.row&&item.row.model||'selected indoor unit');
+  });
+  return uniquePriceModels(missing);
+}
+function standardQuotePriceReadiness(){
+  if(hasPositiveUnitPrice($('unitPriceInc')&&$('unitPriceInc').value)) return {ok:true,message:'',missingPriceModels:[]};
+  const selected=product();
+  const missingPriceModels=[selected&&selected.model||'selected unit'];
+  return {
+    ok:false,
+    priceMissing:true,
+    missingPriceModels,
+    message:`Enter a unit price for ${formatPriceModelList(missingPriceModels)} before adding this system to a quote.`
+  };
+}
+function updateQuotePriceValidationUi(){
+  const standardReadiness=standardQuotePriceReadiness();
+  const standardMissing=!standardReadiness.ok;
+  const standardField=$('unitPriceCostField');
+  const selectedPanel=$('liveRebatePanel');
+  if(standardField) standardField.classList.toggle('priceMissing',standardMissing);
+  if(selectedPanel) selectedPanel.classList.toggle('priceMissingProduct',standardMissing);
+  const standardMessage=$('unitPriceMissingMessage');
+  if(standardMessage && standardMissing) standardMessage.textContent=standardReadiness.message;
+  document.querySelectorAll('button[onclick="addToQuote()"]:not(#multiSplitAddToQuoteBtn)').forEach(button=>{
+    button.disabled=standardMissing||liveRebateLoading;
+    button.title=standardMissing?standardReadiness.message:(liveRebateLoading?'Wait for the rebate calculation to finish.':'Add this system to the selected quote.');
+  });
+
+  const totals=multiSplitEquipmentTotals();
+  const multiMissing=multiSplitMissingPriceModels(totals);
+  const multiPriceMissing=multiMissing.length>0;
+  const multiField=$('multiUnitPriceCostField');
+  const outdoorChip=$('multiSplitOutdoorPriceChip');
+  const equipmentMetric=$('multiSplitEquipmentMetric');
+  if(multiField) multiField.classList.toggle('priceMissing',multiPriceMissing);
+  if(outdoorChip) outdoorChip.classList.toggle('priceMissing',!!(totals.outdoor&&!hasPositiveUnitPrice(totals.outdoor.unitPriceInc)));
+  if(equipmentMetric) equipmentMetric.classList.toggle('priceMissing',multiPriceMissing);
+  const multiMessage=$('multiUnitPriceMissingMessage');
+  if(multiMessage && multiPriceMissing) multiMessage.textContent=`Price missing for ${formatPriceModelList(multiMissing)}. Add the missing price in Price Manager before quoting this system.`;
+  if(multiSplitViewActive()){
+    document.querySelectorAll('button[onclick="addToQuote()"]:not(#multiSplitAddToQuoteBtn)').forEach(button=>{
+      button.disabled=multiPriceMissing;
+      button.title=multiPriceMissing
+        ? `Add prices for ${formatPriceModelList(multiMissing)} before adding this system.`
+        : 'Add this system to the selected quote.';
+    });
+  }
+}
+function quoteRowMissingPriceModels(row){
+  if(!row) return [];
+  const state=row.state&&typeof row.state==='object'?row.state:{};
+  if(!isMultiHeadQuoteType(row.type)&&String(state.systemType||'')!=='multi_split'){
+    return hasPositiveUnitPrice(row.unitInc??state.unitPriceInc)?[]:[row.model||state.model||'selected unit'];
+  }
+  const missing=[];
+  const heads=Array.isArray(state.indoorHeads)?state.indoorHeads:[];
+  let pricedIndoorTotal=0;
+  heads.forEach(head=>{
+    const qty=Math.max(1,Math.floor(Number(head&&head.qty)||1));
+    const price=Number(head&&head.unitPriceInc);
+    if(hasPositiveUnitPrice(price)) pricedIndoorTotal+=price*qty;
+    else missing.push(head&&head.model||'selected indoor unit');
+  });
+  let outdoorPrice=Number(state.outdoorUnitPriceInc);
+  if(!Number.isFinite(outdoorPrice)){
+    const total=Number(row.unitInc??state.unitPriceInc);
+    outdoorPrice=Number.isFinite(total)?total-pricedIndoorTotal:0;
+  }
+  if(!hasPositiveUnitPrice(outdoorPrice)) missing.push(state.outdoorModel||state.model||row.model||'selected outdoor unit');
+  if(!heads.length&&!hasPositiveUnitPrice(row.unitInc??state.unitPriceInc)) missing.push(row.model||'selected equipment');
+  return uniquePriceModels(missing);
+}
+function quoteRowsMissingPriceModels(rows){
+  return uniquePriceModels((rows||[]).flatMap(quoteRowMissingPriceModels));
+}
 function multiSplitCertificateInputs(meta,indoorItems){
   const outdoorCooling=toNumber(meta&&meta['Cooling Capacity']);
   const outdoorHeating=toNumber(meta&&meta['Heating Capacity']);
@@ -6868,6 +7035,7 @@ function updateMultiSplitRebateFreshness(state){
   const indicator=$('multiSplitRebateFreshness');
   const button=$('multiSplitCheckRebateBtn');
   const totals=multiSplitEquipmentTotals();
+  const missingPrices=multiSplitMissingPriceModels(totals);
   const maxHeads=Number(totals.outdoor&&totals.outdoor.maxHeads)||0;
   const invalid=!totals.outdoor||!totals.headCount||(maxHeads&&totals.headCount>maxHeads);
   if(indicator){
@@ -6891,9 +7059,14 @@ function updateMultiSplitRebateFreshness(state){
   const addButton=$('multiSplitAddToQuoteBtn');
   if(addButton){
     const needsRebate=rebatesEnabled()&&!multiSplitRebateFresh;
-    addButton.disabled=!!invalid||needsRebate;
-    addButton.title=invalid?'Complete a valid indoor-unit combination first.':(needsRebate?'Calculate the current rebate before adding this system.':'Add this system to the selected quote.');
+    addButton.disabled=!!invalid||needsRebate||missingPrices.length>0;
+    addButton.title=invalid
+      ? 'Complete a valid indoor-unit combination first.'
+      : (missingPrices.length
+        ? `Add prices for ${formatPriceModelList(missingPrices)} before adding this system.`
+        : (needsRebate?'Calculate the current rebate before adding this system.':'Add this system to the selected quote.'));
   }
+  updateQuotePriceValidationUi();
 }
 function resetMultiSplitRebateMetrics(message){
   multiSplitRebateFresh=false;
@@ -6950,6 +7123,7 @@ function setMultiSplitInstall(type){
 function renderMultiSplitTrial(){
   if(!multiSplitTrialEnabled()) return;
   const {outdoor,indoorItems,outdoorTotal,indoorTotal,total,headCount,connectedCapacity,connectedHeatingCapacity}=multiSplitEquipmentTotals();
+  const missingPrices=multiSplitMissingPriceModels({outdoor,indoorItems});
   const maxHeads=Number(outdoor&&outdoor.maxHeads)||0;
   updateMultiSplitInstallTabs();
   if($('multiSplitOutdoorCapacity')) $('multiSplitOutdoorCapacity').textContent=outdoor?outdoor.capacity:'Select outdoor';
@@ -6996,7 +7170,7 @@ function renderMultiSplitTrial(){
           <div class="multiSplitIndoorFacts">
             <div class="multiSplitIndoorFact"><span>Cooling</span><strong>${ratedCooling.toFixed(1)}kW</strong></div>
             <div class="multiSplitIndoorFact"><span>Heating</span><strong>${ratedHeating?ratedHeating.toFixed(1)+'kW':'Not rated'}</strong></div>
-            <div class="multiSplitIndoorFact"><span>Price inc GST</span><strong>${multiSplitPriceLabel(row&&row.unitPriceInc)}</strong></div>
+            <div class="multiSplitIndoorFact${hasPositiveUnitPrice(row&&row.unitPriceInc)?'':' priceMissing'}"><span>Price inc GST</span><strong>${multiSplitPriceLabel(row&&row.unitPriceInc)}</strong></div>
           </div>
         </div>
         <div class="multiSplitIndoorControls">
@@ -7008,11 +7182,13 @@ function renderMultiSplitTrial(){
   }
   const list=$('multiSplitHeadsList');
   if(list){
-    const outdoorItem=outdoor?`<div class="multiSplitHeadItem"><div><strong>${htmlEscape(outdoor.model)}</strong><small>${htmlEscape(`${outdoor.brand} ${outdoor.series} - ${outdoor.capacity} outdoor`)}</small></div><div class="money">${money(outdoorTotal)}</div></div>`:'';
+    const outdoorPriceMissing=!!(outdoor&&!hasPositiveUnitPrice(outdoor.unitPriceInc));
+    const outdoorItem=outdoor?`<div class="multiSplitHeadItem${outdoorPriceMissing?' priceIncomplete':''}"><div><strong>${htmlEscape(outdoor.model)}</strong><small>${htmlEscape(`${outdoor.brand} ${outdoor.series} - ${outdoor.capacity} outdoor`)}${outdoorPriceMissing?' - Price missing':''}</small></div><div class="money">${outdoorPriceMissing?'Price missing':money(outdoorTotal)}</div></div>`:'';
     list.innerHTML=outdoorItem+indoorItems.map(item=>{
       const row=item.row;
+      const priceMissing=!hasPositiveUnitPrice(row.unitPriceInc);
       const detail=[row.pipe?`Pipe ${row.pipe}`:'',row.dimensions?`Dim ${row.dimensions}`:'',row.note||''].filter(Boolean).join(' - ');
-      return `<div class="multiSplitHeadItem"><div><strong>${htmlEscape(`${item.qty} x ${row.capacity} ${row.model}`)}</strong><small>${htmlEscape(row.series)}${detail?` - ${htmlEscape(detail)}`:''}</small></div><div class="money">${money((Number(row.unitPriceInc)||0)*item.qty)}</div></div>`;
+      return `<div class="multiSplitHeadItem${priceMissing?' priceIncomplete':''}"><div><strong>${htmlEscape(`${item.qty} x ${row.capacity} ${row.model}`)}</strong><small>${htmlEscape(row.series)}${detail?` - ${htmlEscape(detail)}`:''}${priceMissing?' - Price missing':''}</small></div><div class="money">${priceMissing?'Price missing':money(Number(row.unitPriceInc)*item.qty)}</div></div>`;
     }).join('');
   }
   if(headCount>maxHeads && maxHeads){
@@ -7023,6 +7199,7 @@ function renderMultiSplitTrial(){
   }else{
     resetMultiSplitRebateMetrics('Equipment or postcode changed. Calculate the rebate before adding this system to a quote.');
   }
+  if(missingPrices.length) updateQuotePriceValidationUi();
 }
 function populateMultiSplitBrands(){
   const brandEl=$('multiSplitBrand');
@@ -7238,6 +7415,7 @@ function render(){
   if($('netProfitMargin')) $('netProfitMargin').textContent=`Margin ${pct(x.netMargin)}`;
   renderInstallAddonSummary(x);
   updatePriceLockNote();
+  updateQuotePriceValidationUi();
 }
 
 
@@ -8553,6 +8731,14 @@ async function completeOptionWon(id,details){
   if(!def||def.wonAt||wonSaveInProgress) return false;
   const targetRows=quotes.filter(q=>q.optionId===id);
   if(!targetRows.length) return false;
+  const missingPriceModels=quoteRowsMissingPriceModels(targetRows);
+  if(missingPriceModels.length){
+    const message=`Add a unit price for ${formatPriceModelList(missingPriceModels)} before marking this quote as won.`;
+    const hint=$('wonDetailsHint');
+    if(hint){hint.textContent=message;hint.style.display='block';}
+    showQuoteActionNotice(message);
+    return false;
+  }
   const previousDef=JSON.parse(JSON.stringify(def));
   const previousRows=new Map(targetRows.map(row=>[row.id,JSON.parse(JSON.stringify(row))]));
   const now=new Date().toISOString();
@@ -8625,6 +8811,8 @@ function markOptionWon(id){
   if(def.wonAt){alert('This quote is already marked as won.');return;}
   const rows=quotes.filter(q=>q.optionId===id);
   if(!rows.length){alert('Add at least one system to this quote before marking it as won.');return;}
+  const missingPriceModels=quoteRowsMissingPriceModels(rows);
+  if(missingPriceModels.length){alert(`Add a unit price for ${formatPriceModelList(missingPriceModels)} before marking this quote as won.`);return;}
   openWonDetailsModal(id);
 }
 function unlockWonOption(id){
@@ -8664,8 +8852,11 @@ function updateCurrentOptionWonButton(def,rows){
     return;
   }
   btn.textContent='Mark won';
-  btn.disabled=!rows||!rows.length;
-  btn.title=rows&&rows.length?'Mark the selected quote as won.':'Add at least one system before marking this quote as won.';
+  const missingPriceModels=quoteRowsMissingPriceModels(rows);
+  btn.disabled=!rows||!rows.length||missingPriceModels.length>0;
+  btn.title=missingPriceModels.length
+    ? `Add a unit price for ${formatPriceModelList(missingPriceModels)} before marking this quote as won.`
+    : (rows&&rows.length?'Mark the selected quote as won.':'Add at least one system before marking this quote as won.');
 }
 const QUOTE_SEARCH_SELECT_IDS=['addOptionSelect','drawerAddOptionSelect','multiAddOptionSelect'];
 let quoteSearchDocumentEventsBound=false;
@@ -9332,27 +9523,31 @@ function renderCurrentOptionPanel(){
     return;
   }
   const t=groupTotals(rows);
+  const missingPriceModels=quoteRowsMissingPriceModels(rows);
   const showPrivate=canSeeProfitDetails();
   const showLimitedSales=!showPrivate&&canSeeSalespersonCommission();
   const showAgencyProfit=canSeeAgencyProfit()&&rows.some(r=>agencyProfitAfterSalesInc(r.agencyCommissionInc??r.commissionInc,r.salespersonCommissionInc,r.commissionType)>0);
-  summary.textContent=`${rows.length} system${rows.length===1?'':'s'} in this quote. Customer total ${money(t.customer)} inc GST.${isWon?' Marked as won and locked.':''}`;
+  summary.textContent=`${rows.length} system${rows.length===1?'':'s'} in this quote. Customer total ${money(t.customer)} inc GST.${missingPriceModels.length?' Pricing incomplete.':''}${isWon?' Marked as won and locked.':''}`;
   const agencyProfitMetric=showAgencyProfit?`<div class="currentOptionMetric agencyProfitHighlight"><span>Agency profit after salesperson commission inc GST</span><strong>${money(t.agencyProfitAfterSales)}</strong></div>`:'';
   const commissionMetrics=(showPrivate||showLimitedSales)?`<div class="currentOptionMetric"><span>Salesperson commission inc</span><strong>${money(t.salespersonCommission)}</strong></div>${agencyProfitMetric}<div class="currentOptionMetric"><span>Installer profit ex</span><strong>${money(t.profit)}</strong></div>`:'';
   const privateHeads=showPrivate?`<th>Agency comm inc</th><th>Salesperson comm inc</th>${showAgencyProfit?'<th>Agency profit inc</th>':''}<th>Installer profit ex</th>`:(showLimitedSales?'<th>Salesperson commission</th><th>Installer profit ex</th>':'');
   const rowsHtml=rows.map(r=>{
     const materialsInc=savedMaterialsInc(r);
     const power=money(savedPowerOrElectricianEx(r));
+    const rowMissingPrices=quoteRowMissingPriceModels(r);
+    const priceBadge=rowMissingPrices.length?'<span class="priceMissingBadge">Price missing</span>':'';
     const privateCells=showPrivate?`<td class="money">${money(r.commissionInc)}</td><td class="money">${money(r.salespersonCommissionInc)}</td>${showAgencyProfit?`<td class="money">${money(agencyProfitAfterSalesInc(r.agencyCommissionInc??r.commissionInc,r.salespersonCommissionInc,r.commissionType))}</td>`:''}<td class="money">${money(r.netProfit)}</td>`:(showLimitedSales?`<td class="money">${money(r.salespersonCommissionInc)}</td><td class="money">${money(r.netProfit)}</td>`:'');
     const actionCell=isWon?`<button class="load" onclick="loadQuote(${r._index})">Load</button> <button class="secondary smallBtn" disabled>Locked</button>`:`<button class="load" onclick="loadQuote(${r._index})">Load</button> <button class="danger" onclick="removeQuote(${r._index})">Remove</button>`;
-    return `<tr><td>${htmlEscape(r.type)}</td><td>${htmlEscape(r.brand)}</td><td>${htmlEscape(r.size)}</td><td>${htmlEscape(r.model)}</td><td>${htmlEscape(r.install)}</td><td class="money">${money(r.finalInc)}</td>${rebateCellHtml(r.rebate,r)}<td class="money">${money(r.labour)}</td><td class="money">${money(materialsInc)}</td><td class="money">${power}</td>${privateCells}<td>${actionCell}</td></tr>`;
+    return `<tr class="${rowMissingPrices.length?'priceIncompleteRow':''}"><td>${htmlEscape(r.type)}</td><td>${htmlEscape(r.brand)}</td><td>${htmlEscape(r.size)}</td><td>${htmlEscape(r.model)}${priceBadge}</td><td>${htmlEscape(r.install)}</td><td class="money">${money(r.finalInc)}</td>${rebateCellHtml(r.rebate,r)}<td class="money">${money(r.labour)}</td><td class="money">${money(materialsInc)}</td><td class="money">${power}</td>${privateCells}<td>${actionCell}</td></tr>`;
   }).join('');
   const mobileDetail=(label,value,wide)=>`<div class="currentQuoteMobileDetail${wide?' wide':''}"><span>${htmlEscape(label)}</span><strong>${htmlEscape(value)}</strong></div>`;
   const mobileRowsHtml=rows.map(r=>{
     const materialsInc=savedMaterialsInc(r);
     const miscInc=savedMiscInc(r);
     const power=money(savedPowerOrElectricianEx(r));
+    const rowMissingPrices=quoteRowMissingPriceModels(r);
     const rebateVisible=rowShowsRebate(r);
-    const meta=[r.type,r.install].map(value=>`<span>${htmlEscape(value)}</span>`).concat(rebateVisible?[`<span>Rebate ${money(r.rebate)}</span>`]:[]).join('');
+    const meta=[r.type,r.install].map(value=>`<span>${htmlEscape(value)}</span>`).concat(rebateVisible?[`<span>Rebate ${money(r.rebate)}</span>`]:[]).concat(rowMissingPrices.length?['<span class="priceMissingBadge">Price missing</span>']:[]).join('');
     const rebateDetail=rebateVisible?mobileDetail('Rebate',money(r.rebate)):'';
     const privateDetails=showPrivate
       ? mobileDetail('Agency commission inc',money(r.commissionInc))+mobileDetail('Salesperson commission inc',money(r.salespersonCommissionInc))+(showAgencyProfit?mobileDetail('Agency profit after salesperson commission inc GST',money(agencyProfitAfterSalesInc(r.agencyCommissionInc??r.commissionInc,r.salespersonCommissionInc,r.commissionType))):'')+mobileDetail('Installer profit ex',money(r.netProfit))
@@ -9360,10 +9555,11 @@ function renderCurrentOptionPanel(){
     const removeButton=isWon
       ? '<button class="danger" type="button" disabled>Remove</button>'
       : `<button class="danger" type="button" onclick="requestRemoveCurrentQuoteSystem(${r._index})">Remove</button>`;
-    return `<div class="currentQuoteMobileItem"><div class="currentQuoteMobileHead"><div><strong class="currentQuoteMobileTitle">${htmlEscape(r.brand)} - ${htmlEscape(r.size)}</strong><div class="currentQuoteMobileMeta">${meta}</div></div><div class="currentQuoteMobilePrice"><span>Customer</span><strong>${money(r.finalInc)}</strong></div></div><div class="currentQuoteMobileActions"><button id="currentQuoteMobileDetailsButton_${r._index}" class="secondary" type="button" aria-expanded="false" aria-controls="currentQuoteMobileDetails_${r._index}" onclick="toggleCurrentQuoteMobileDetails(${r._index})">Details</button>${removeButton}</div><div id="currentQuoteMobileDetails_${r._index}" class="currentQuoteMobileDetails hidden">${mobileDetail('Model',r.model||'N/A',true)}${mobileDetail('Unit price inc GST',money(r.unitInc))}${rebateDetail}${mobileDetail('Labour ex GST',money(r.labour))}${mobileDetail('Labour treatment',quoteLabourTreatment(r))}${mobileDetail('Materials inc GST',money(materialsInc))}${mobileDetail('Misc inc GST',money(miscInc))}${mobileDetail('Power ex GST',power)}${privateDetails}<button class="secondary currentQuoteMobileLoad" type="button" onclick="loadQuote(${r._index})">Load into calculator</button></div></div>`;
+    return `<div class="currentQuoteMobileItem${rowMissingPrices.length?' priceIncomplete':''}"><div class="currentQuoteMobileHead"><div><strong class="currentQuoteMobileTitle">${htmlEscape(r.brand)} - ${htmlEscape(r.size)}</strong><div class="currentQuoteMobileMeta">${meta}</div></div><div class="currentQuoteMobilePrice"><span>Customer</span><strong>${money(r.finalInc)}</strong></div></div><div class="currentQuoteMobileActions"><button id="currentQuoteMobileDetailsButton_${r._index}" class="secondary" type="button" aria-expanded="false" aria-controls="currentQuoteMobileDetails_${r._index}" onclick="toggleCurrentQuoteMobileDetails(${r._index})">Details</button>${removeButton}</div><div id="currentQuoteMobileDetails_${r._index}" class="currentQuoteMobileDetails hidden">${mobileDetail('Model',r.model||'N/A',true)}${mobileDetail('Unit price inc GST',rowMissingPrices.length?'Price missing':money(r.unitInc))}${rebateDetail}${mobileDetail('Labour ex GST',money(r.labour))}${mobileDetail('Labour treatment',quoteLabourTreatment(r))}${mobileDetail('Materials inc GST',money(materialsInc))}${mobileDetail('Misc inc GST',money(miscInc))}${mobileDetail('Power ex GST',power)}${privateDetails}<button class="secondary currentQuoteMobileLoad" type="button" onclick="loadQuote(${r._index})">Load into calculator</button></div></div>`;
   }).join('');
   if(isWon) currentQuoteTotalsEditing=false;
   const lockNotice=isWon?`<div class="wonNotice"><strong>${htmlEscape(optionWonLabel(def))}</strong><span>This quote is locked. Ask Daniel to unlock it before making changes.</span></div>`:'';
+  const priceNotice=missingPriceModels.length?`<div class="priceIncompleteNotice" role="alert"><strong>Unit price required</strong><span>Add a price for ${htmlEscape(formatPriceModelList(missingPriceModels))} before this quote can be marked as won.</span></div>`:'';
   const isEditing=currentQuoteTotalsEditing&&!isWon;
   const quoteMetric=(label,id,value)=>`<div class="currentOptionMetric${isEditing?' editing':''}"><span>${label}</span>${isEditing?`<div class="currentOptionMetricInputWrap"><b>$</b><input id="${id}" type="number" inputmode="decimal" step="0.01" value="${value.toFixed(2)}" aria-label="${htmlEscape(label)}"></div>`:`<strong>${money(value)}</strong>`}</div>`;
   const systemsTable=`<div class="currentQuoteSystemsSection"><div class="currentQuoteSectionHead"><div><div class="kicker">Systems in this quote</div><h3>${rows.length} system${rows.length===1?'':'s'} included</h3></div></div><div class="currentQuoteDesktopTable"><div class="tableWrap"><table><thead><tr><th>Type</th><th>Brand</th><th>Size</th><th>Model</th><th>Install</th><th>Customer inc</th>${rebateHeadHtml('Rebate',rows)}<th>Labour ex</th><th>Materials inc</th><th>Power</th>${privateHeads}<th>Actions</th></tr></thead><tbody>${rowsHtml}</tbody></table></div></div><div class="currentQuoteMobileList">${mobileRowsHtml}</div></div>`;
@@ -9371,7 +9567,7 @@ function renderCurrentOptionPanel(){
   const totalsIntro=`<div class="currentQuoteTotalsIntro"><div><div class="kicker">Quote totals</div><h3>Combined totals for every system in this quote</h3><div class="sub">${isEditing?'Update the adjustable values below, then save your changes.':'Review the complete quote totals below.'}</div></div>${adjustAction}</div>`;
   const editActions=isEditing?'<div class="currentOptionEditActions"><button class="secondary" type="button" onclick="cancelCurrentQuoteTotalsEdit()">Cancel</button><button class="orange" type="button" onclick="saveCurrentQuoteTotals()">Save changes</button></div>':'';
   const editStatus=currentOptionEditMessage?`<div class="currentOptionEditHint" id="currentOptionEditHint">${htmlEscape(currentOptionEditMessage)}</div>`:(isEditing?'<div class="currentOptionEditHint" id="currentOptionEditHint">Customer total, labour, materials, miscellaneous and power costs can be adjusted. Rebate, commissions and profit remain calculated automatically.</div>':'');
-  body.innerHTML=`${lockNotice}${systemsTable}${totalsIntro}<div class="currentOptionSummaryGrid">${quoteMetric('Customer total inc GST','currentOptionCustomerTotal',t.customer)}${rebateMetricHtml(t.rebate,rows)}${quoteMetric('Labour ex GST','currentOptionLabourTotal',t.labour)}${quoteMetric('Materials inc GST','currentOptionMaterialsTotal',t.materials)}${quoteMetric('Misc inc GST','currentOptionMiscTotal',t.misc)}${quoteMetric('Power / electrical ex GST','currentOptionPowerTotal',t.power)}${commissionMetrics}</div>${editActions}${editStatus}`;
+  body.innerHTML=`${lockNotice}${priceNotice}${systemsTable}${totalsIntro}<div class="currentOptionSummaryGrid">${quoteMetric('Customer total inc GST','currentOptionCustomerTotal',t.customer)}${rebateMetricHtml(t.rebate,rows)}${quoteMetric('Labour ex GST','currentOptionLabourTotal',t.labour)}${quoteMetric('Materials inc GST','currentOptionMaterialsTotal',t.materials)}${quoteMetric('Misc inc GST','currentOptionMiscTotal',t.misc)}${quoteMetric('Power / electrical ex GST','currentOptionPowerTotal',t.power)}${commissionMetrics}</div>${editActions}${editStatus}`;
 }
 function currentMultiSplitState(x){
   const outdoor=x&&x.outdoor?x.outdoor:selectedMultiSplitOutdoor();
@@ -9391,6 +9587,7 @@ function currentMultiSplitState(x){
     size:outdoor?outdoor.capacity:'',
     capacityNum:outdoor?outdoor.capacityNum:0,
     outdoorModel:outdoor?outdoor.model:'',
+    outdoorUnitPriceInc:outdoor?outdoor.unitPriceInc:0,
     outdoorIndex:Math.max(0,MULTI_SPLIT_OUTDOORS.indexOf(outdoor)),
     indoorSelections:multiSplitIndoorSelections.map(item=>({indoorIndex:Number(item.indoorIndex),qty:Math.max(1,Math.floor(Number(item.qty)||1))})),
     indoorHeads:indoorItems.map(item=>({brand:item.row.brand,series:item.row.series,capacity:item.row.capacity,model:item.row.model,qty:item.qty,unitPriceInc:item.row.unitPriceInc})),
@@ -9531,14 +9728,33 @@ function multiSplitQuoteReadiness(){
   if(!totals.outdoor) return {ok:false,message:'Select an outdoor unit first.'};
   if(!totals.headCount) return {ok:false,message:'Add at least one indoor head before adding this system.'};
   if(maxHeads&&totals.headCount>maxHeads) return {ok:false,message:`Remove ${totals.headCount-maxHeads} indoor head${totals.headCount-maxHeads===1?'':'s'} to meet the selected outdoor limit.`};
+  const missingPriceModels=multiSplitMissingPriceModels(totals);
+  if(missingPriceModels.length) return {
+    ok:false,
+    priceMissing:true,
+    missingPriceModels,
+    message:`Add prices for ${formatPriceModelList(missingPriceModels)} before adding this system to a quote.`
+  };
   if(rebatesEnabled()&&!/^\d{4}$/.test(String(($('multiSplitPostcode')&&$('multiSplitPostcode').value)||'').trim())) return {ok:false,message:'Enter the customer postcode and calculate the rebate before adding this system.'};
   if(rebatesEnabled()&&!multiSplitRebateFresh) return {ok:false,message:'Calculate the current rebate before adding this system to the quote.'};
   return {ok:true,message:''};
 }
-function showMultiSplitReadinessMessage(message){
-  setMultiSplitStatus(message,'error');
+function showPriceReadinessMessage(readiness,targetId){
+  updateQuotePriceValidationUi();
+  showQuoteActionNotice(readiness.message);
+  const target=$(targetId);
+  if(target) target.scrollIntoView({behavior:'smooth',block:'center'});
+  if(targetId==='unitPriceCostField'&&$('unitPriceInc')) setTimeout(()=>$('unitPriceInc').focus(),350);
+}
+function showMultiSplitReadinessMessage(readiness){
+  if(readiness.priceMissing){
+    showPriceReadinessMessage(readiness,'multiUnitPriceCostField');
+    updateMultiSplitRebateFreshness();
+    return;
+  }
+  setMultiSplitStatus(readiness.message,'error');
   updateMultiSplitRebateFreshness('error');
-  showQuoteActionNotice(message);
+  showQuoteActionNotice(readiness.message);
   const panel=$('multiSplitRebatePanel');
   if(panel) panel.scrollIntoView({behavior:'smooth',block:'center'});
 }
@@ -9546,7 +9762,7 @@ function addMultiSplitToQuoteNow(){
   const optionId=currentAddOptionId();
   if(!assertOptionEditable(optionId)) return;
   const readiness=multiSplitQuoteReadiness();
-  if(!readiness.ok){showMultiSplitReadinessMessage(readiness.message);return;}
+  if(!readiness.ok){showMultiSplitReadinessMessage(readiness);return;}
   const x=calculateMultiSplitCosts();
   const state=currentMultiSplitState(x);
   const optionName=optionNameById(optionId);
@@ -9571,7 +9787,10 @@ function addToQuote(){
   if(!assertOptionEditable(optionId)) return;
   if(multiSplitViewActive()){
     const readiness=multiSplitQuoteReadiness();
-    if(!readiness.ok){showMultiSplitReadinessMessage(readiness.message);return;}
+    if(!readiness.ok){showMultiSplitReadinessMessage(readiness);return;}
+  }else{
+    const readiness=standardQuotePriceReadiness();
+    if(!readiness.ok){showPriceReadinessMessage(readiness,'unitPriceCostField');return;}
   }
   if(quoteNeedsCustomerName(optionNameById(optionId))){
     pendingQuoteAddKind=multiSplitViewActive()?'multi':'standard';
@@ -9584,6 +9803,8 @@ function addToQuote(){
 function addStandardSystemToQuoteNow(){
   const optionId=currentAddOptionId();
   if(!assertOptionEditable(optionId)) return;
+  const readiness=standardQuotePriceReadiness();
+  if(!readiness.ok){showPriceReadinessMessage(readiness,'unitPriceCostField');return;}
   const x=calculate();
   const state=currentState();
   const optionName=optionNameById(optionId);
@@ -9619,6 +9840,7 @@ function renderQuotes(){
     } else {
       container.innerHTML=groups.map(g=>{
         const t=groupTotals(g.rows);
+        const missingPriceModels=quoteRowsMissingPriceModels(g.rows);
         const showGroupAgencyProfit=canSeeAgencyProfit()&&t.agencyProfitAfterSales>0;
         const rec=recommendedOptionId===g.def.id;
         const isWon=!!g.def.wonAt;
@@ -9627,9 +9849,11 @@ function renderQuotes(){
         const bodyRows=g.rows.length?g.rows.map(r=>{
           const materialsInc=savedMaterialsInc(r);
           const power=money(savedPowerOrElectricianEx(r));
+          const rowMissingPrices=quoteRowMissingPriceModels(r);
+          const priceBadge=rowMissingPrices.length?'<span class="priceMissingBadge">Price missing</span>':'';
           const privateCells=showPrivate?`<td class="money">${money(r.commissionInc)}</td><td class="money">${money(r.salespersonCommissionInc)}</td>${showGroupAgencyProfit?`<td class="money">${money(agencyProfitAfterSalesInc(r.agencyCommissionInc??r.commissionInc,r.salespersonCommissionInc,r.commissionType))}</td>`:''}<td class="money">${money(r.netProfit)}</td>`:(showLimitedSales?`<td class="money">${money(r.salespersonCommissionInc)}</td><td class="money">${money(r.netProfit)}</td>`:'');
           const actionCell=isWon?`<button class="load" onclick="loadQuote(${r._index})">Load</button> <button class="secondary smallBtn" disabled>Locked</button>`:`<button class="load" onclick="loadQuote(${r._index})">Load</button> <button class="danger" onclick="removeQuote(${r._index})">Remove</button>`;
-          return `<tr><td>${htmlEscape(r.type)}</td><td>${htmlEscape(r.brand)}</td><td>${htmlEscape(r.size)}</td><td>${htmlEscape(r.model)}</td><td>${htmlEscape(r.install)}</td><td class="money">${money(r.finalInc)}</td>${rebateCellHtml(r.rebate,r)}<td class="money">${money(r.unitInc)}</td><td class="money">${money(r.labour)}</td><td>${htmlEscape(quoteLabourTreatment(r))}</td><td class="money">${money(materialsInc)}</td><td class="money">${power}</td>${privateCells}<td>${actionCell}</td></tr>`;
+          return `<tr class="${rowMissingPrices.length?'priceIncompleteRow':''}"><td>${htmlEscape(r.type)}</td><td>${htmlEscape(r.brand)}</td><td>${htmlEscape(r.size)}</td><td>${htmlEscape(r.model)}${priceBadge}</td><td>${htmlEscape(r.install)}</td><td class="money">${money(r.finalInc)}</td>${rebateCellHtml(r.rebate,r)}<td class="money">${rowMissingPrices.length?'Price missing':money(r.unitInc)}</td><td class="money">${money(r.labour)}</td><td>${htmlEscape(quoteLabourTreatment(r))}</td><td class="money">${money(materialsInc)}</td><td class="money">${power}</td>${privateCells}<td>${actionCell}</td></tr>`;
         }).join(''):`<tr><td colspan="${emptyColspan}">No systems in this quote yet.</td></tr>`;
         const privateSummary=(showPrivate||showLimitedSales)?`${showGroupAgencyProfit?` | Agency profit ${money(t.agencyProfitAfterSales)} inc GST`:''} | Installer profit ${money(t.profit)} ex GST`:'';
         const privateHeads=showPrivate?`<th>Agency comm inc</th><th>Salesperson comm inc</th>${showGroupAgencyProfit?'<th>Agency profit inc</th>':''}<th>Installer Profit ex</th>`:(showLimitedSales?'<th>Salesperson commission</th><th>Installer Profit ex</th>':'');
@@ -9637,8 +9861,11 @@ function renderQuotes(){
         const wonBadge=isWon?`<span class="wonBadge">${htmlEscape(optionWonLabel(g.def))}</span>`:'';
         const wonTools=isWon
           ? (canUnlockWonOptions()?`<button class="smallBtn secondary" onclick="unlockWonOption('${g.def.id}')">Unlock won quote</button>`:`<button class="smallBtn secondary" disabled>Locked</button>`)
-          : `<button class="smallBtn orange" onclick="markOptionWon('${g.def.id}')">Mark won</button>`;
-        return `<div class="optionCard${isWon?' wonOption':''}">
+          : (missingPriceModels.length
+            ? `<button class="smallBtn orange" disabled title="Add a unit price before marking this quote as won.">Mark won</button>`
+            : `<button class="smallBtn orange" onclick="markOptionWon('${g.def.id}')">Mark won</button>`);
+        const priceNotice=missingPriceModels.length?`<div class="priceIncompleteNotice" role="alert"><strong>Unit price required</strong><span>Add a price for ${htmlEscape(formatPriceModelList(missingPriceModels))} before this quote can be marked as won.</span></div>`:'';
+        return `<div class="optionCard${isWon?' wonOption':''}${missingPriceModels.length?' priceIncomplete':''}">
           <div class="optionHeader">
             <div class="optionHeaderLeft">
               <div class="optionNameRow"><strong class="optionNameDisplay">${htmlEscape(g.def.name)}</strong><button class="smallBtn secondary" type="button" onclick="openRenameQuoteModal('${g.def.id}')"${isWon?' disabled title="Won quotes must be unlocked before renaming."':' title="Rename this quote"'}>Rename</button>${rec?'<span class="recommendedBadge">Recommended</span>':''}${wonBadge}</div>
@@ -9646,6 +9873,7 @@ function renderQuotes(){
             </div>
             <div class="optionTools">${wonTools}<button class="smallBtn secondary" onclick="markRecommendedOption('${g.def.id}')">Recommend</button><button class="smallBtn secondary" onclick="duplicateOptionGroup('${g.def.id}')">Duplicate</button><button class="smallBtn danger" onclick="deleteOptionGroup('${g.def.id}')">Delete quote</button></div>
           </div>
+          ${priceNotice}
           <div class="optionBody">
             <div class="tableWrap"><table><thead><tr><th>Type</th><th>Brand</th><th>Size</th><th>Model</th><th>Install</th><th>Customer inc</th>${rebateHeadHtml('Rebate',g.rows)}<th>Unit inc</th><th>Labour ex</th><th>Installer Labour</th><th>Materials inc</th><th>Power</th>${privateHeads}<th>Actions</th></tr></thead><tbody>${bodyRows}</tbody></table></div>
             <div class="optionTotals"><span>Customer total<strong>${money(t.customer)}</strong></span>${optionRebateTotalHtml(t.rebate,g.rows)}<span>Labour ex<strong>${money(t.labour)}</strong></span><span>Materials inc<strong>${money(t.materials)}</strong></span><span>Misc inc<strong>${money(t.misc)}</strong></span>${privateTotals}</div>

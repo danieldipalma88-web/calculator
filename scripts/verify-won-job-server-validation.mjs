@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
-import { validateNewWonJobTransitions } from "../lib/won-job-validation.ts";
+import {
+  validateNewWonJobTransitions,
+  wonJobValidationMessage,
+} from "../lib/won-job-validation.ts";
 
 const optionsKey = "installerQuoteOptionDefsV1";
 const rowsKey = "installerMasterQuoteLogV1";
@@ -79,10 +82,83 @@ const detailsOnRow = validateNewWonJobTransitions({}, snapshot(
     optionId: "quote-row-details",
     optionName: "Row details",
     wonAt: "2026-07-22T00:00:00.000Z",
+    model: "PAID-MODEL",
+    unitInc: 1200,
     ...completeDetails,
   }],
 ));
 assert.deepEqual(detailsOnRow, { valid: true }, "Details saved on a quote row should satisfy the requirement.");
+
+const zeroPriceWin = validateNewWonJobTransitions({}, snapshot(
+  { id: "quote-zero-price", name: "Zero price customer", wonAt: "2026-07-22T00:00:00.000Z", ...completeDetails },
+  [{
+    id: "system-zero-price",
+    optionId: "quote-zero-price",
+    optionName: "Zero price customer",
+    wonAt: "2026-07-22T00:00:00.000Z",
+    model: "MISSING-STANDARD-PRICE",
+    unitInc: 0,
+    ...completeDetails,
+  }],
+));
+assert.equal(zeroPriceWin.valid, false, "A zero-priced system must not be marked as won.");
+if (!zeroPriceWin.valid) {
+  assert.deepEqual(zeroPriceWin.missingPriceModels, ["MISSING-STANDARD-PRICE"]);
+  assert.match(wonJobValidationMessage(zeroPriceWin), /MISSING-STANDARD-PRICE/);
+}
+
+const multiHeadMissingPriceWin = validateNewWonJobTransitions({}, snapshot(
+  { id: "quote-multi-price", name: "Multi price customer", wonAt: "2026-07-22T00:00:00.000Z", ...completeDetails },
+  [{
+    id: "system-multi-price",
+    optionId: "quote-multi-price",
+    optionName: "Multi price customer",
+    wonAt: "2026-07-22T00:00:00.000Z",
+    type: "Multi-head Split",
+    model: "OUTDOOR-100 + indoor heads",
+    unitInc: 2500,
+    state: {
+      systemType: "multi_split",
+      outdoorModel: "OUTDOOR-100",
+      outdoorUnitPriceInc: 2000,
+      indoorHeads: [
+        { model: "INDOOR-25", qty: 1, unitPriceInc: 500 },
+        { model: "INDOOR-35", qty: 1, unitPriceInc: 0 },
+      ],
+    },
+    ...completeDetails,
+  }],
+));
+assert.equal(multiHeadMissingPriceWin.valid, false, "A multi-head quote with an unpriced component must not be marked as won.");
+if (!multiHeadMissingPriceWin.valid) {
+  assert.deepEqual(multiHeadMissingPriceWin.missingPriceModels, ["INDOOR-35"]);
+}
+
+const multiHeadMissingOutdoorPriceWin = validateNewWonJobTransitions({}, snapshot(
+  { id: "quote-multi-outdoor-price", name: "Multi outdoor customer", wonAt: "2026-07-22T00:00:00.000Z", ...completeDetails },
+  [{
+    id: "system-multi-outdoor-price",
+    optionId: "quote-multi-outdoor-price",
+    optionName: "Multi outdoor customer",
+    wonAt: "2026-07-22T00:00:00.000Z",
+    type: "Multi-head Split",
+    model: "OUTDOOR-ZERO + indoor heads",
+    unitInc: 500,
+    state: {
+      systemType: "multi_split",
+      outdoorModel: "OUTDOOR-ZERO",
+      outdoorUnitPriceInc: 0,
+      indoorHeads: [
+        { model: "INDOOR-25", qty: 1, unitPriceInc: 500 },
+      ],
+    },
+    ...completeDetails,
+  }],
+));
+assert.equal(multiHeadMissingOutdoorPriceWin.valid, false, "A multi-head quote with an unpriced outdoor unit must not be marked as won.");
+if (!multiHeadMissingOutdoorPriceWin.valid) {
+  assert.deepEqual(multiHeadMissingOutdoorPriceWin.missingPriceModels, ["OUTDOOR-ZERO"]);
+}
 
 const rowOnlyWin = validateNewWonJobTransitions({}, snapshot(null, [{
   id: "system-2",
