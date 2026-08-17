@@ -19,6 +19,7 @@ import { createSupabaseServerClient } from "../../../lib/supabase/server";
 import { sendApprovedUserInvitation } from "../../../lib/supabase/approved-user-invitation";
 import PageLoadingOverlay from "../../page-loading-overlay";
 import BusinessMultiSelect from "./business-multi-select";
+import CertificateHistoryRangeSelect from "./certificate-history-range";
 
 type UserRole = "admin" | "business_owner" | "agency" | "salesperson" | "user";
 type CommissionType = "none" | "standard" | "agency";
@@ -26,6 +27,17 @@ type CommissionOverride = CommissionType | "business_default";
 type OperatingState = "NSW" | "VIC" | "QLD" | "SA" | "WA" | "TAS" | "ACT" | "NT";
 type WonPaymentStatus = "payment_open" | "payment_requested" | "payment_partial" | "payment_complete";
 type WonOptionUpdateMode = "unlock" | "delete" | "payment_requested" | "paid_in" | "paid_out" | "reset_payment";
+type CertificateHistoryRange = "4w" | "3m" | "6m" | "1y" | "all";
+
+type CertificateValueHistory = {
+  id: number;
+  effectiveWeek: string;
+  observedAt: string;
+  escSpotPrice: number;
+  prcSpotPrice: number;
+  source: string;
+  observedByEmail: string;
+};
 
 type Business = {
   id: string;
@@ -323,6 +335,142 @@ function formatMoneyNumber(value: number | null | undefined) {
   return `$${Number(value ?? 0).toFixed(2)}`;
 }
 
+function normalizeCertificateHistoryRange(value: string | null | undefined): CertificateHistoryRange {
+  return value === "3m" || value === "6m" || value === "1y" || value === "all" ? value : "4w";
+}
+
+function certificateHistoryRangeLabel(value: CertificateHistoryRange) {
+  if (value === "3m") return "Last 3 months";
+  if (value === "6m") return "Last 6 months";
+  if (value === "1y") return "Last year";
+  if (value === "all") return "All time";
+  return "Last 4 weeks";
+}
+
+function certificateHistoryCutoff(value: CertificateHistoryRange) {
+  if (value === "all") return null;
+  const sydneyDate = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Australia/Sydney",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+  const cutoff = new Date(`${sydneyDate}T00:00:00Z`);
+  if (value === "4w") cutoff.setUTCDate(cutoff.getUTCDate() - 28);
+  if (value === "3m") cutoff.setUTCMonth(cutoff.getUTCMonth() - 3);
+  if (value === "6m") cutoff.setUTCMonth(cutoff.getUTCMonth() - 6);
+  if (value === "1y") cutoff.setUTCFullYear(cutoff.getUTCFullYear() - 1);
+  return cutoff.toISOString().slice(0, 10);
+}
+
+function filterCertificateHistory(rows: CertificateValueHistory[], range: CertificateHistoryRange) {
+  const cutoff = certificateHistoryCutoff(range);
+  if (!cutoff) return rows;
+  return rows.filter((row) => row.effectiveWeek >= cutoff);
+}
+
+function formatCertificateHistoryWeek(value: string) {
+  const parsed = new Date(`${value}T00:00:00+10:00`);
+  return Number.isFinite(parsed.getTime())
+    ? parsed.toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })
+    : value;
+}
+
+function certificateTrendClass(change: number | null) {
+  if (change === null || Math.abs(change) < 0.005) return "steady";
+  return change > 0 ? "up" : "down";
+}
+
+function certificateTrendLabel(change: number | null) {
+  if (change === null) return "First recorded value";
+  if (Math.abs(change) < 0.005) return "No change from prior record";
+  return `${change > 0 ? "+" : "-"}${formatMoneyNumber(Math.abs(change))} from prior record`;
+}
+
+function formatCertificateChange(change: number | null) {
+  if (change === null) return "-";
+  if (Math.abs(change) < 0.005) return "$0.00";
+  return `${change > 0 ? "+" : "-"}${formatMoneyNumber(Math.abs(change))}`;
+}
+
+function certificateHistoryExtremes(
+  rows: CertificateValueHistory[],
+  metric: "escSpotPrice" | "prcSpotPrice",
+) {
+  if (!rows.length) return { high: null, low: null };
+  const values = rows.map((row) => row[metric]);
+  return { high: Math.max(...values), low: Math.min(...values) };
+}
+
+function CertificatePriceChart({
+  rows,
+  metric,
+  label,
+  color,
+}: {
+  rows: CertificateValueHistory[];
+  metric: "escSpotPrice" | "prcSpotPrice";
+  label: string;
+  color: string;
+}) {
+  if (!rows.length) {
+    return <div className="certificate-chart-empty">No observations in this range.</div>;
+  }
+
+  const width = 640;
+  const height = 180;
+  const horizontalPadding = 26;
+  const verticalPadding = 22;
+  const values = rows.map((row) => row[metric]);
+  const rawMin = Math.min(...values);
+  const rawMax = Math.max(...values);
+  const spread = Math.max(rawMax - rawMin, Math.max(rawMax * 0.02, 0.02));
+  const min = Math.max(0, rawMin - spread * 0.35);
+  const max = rawMax + spread * 0.35;
+  const xFor = (index: number) => rows.length === 1
+    ? width / 2
+    : horizontalPadding + (index * (width - (horizontalPadding * 2))) / (rows.length - 1);
+  const yFor = (value: number) => verticalPadding
+    + ((max - value) * (height - (verticalPadding * 2))) / Math.max(max - min, 0.01);
+  const points = rows.map((row, index) => `${xFor(index)},${yFor(row[metric])}`).join(" ");
+
+  return (
+    <svg
+      className="certificate-price-chart"
+      viewBox={`0 0 ${width} ${height}`}
+      role="img"
+      aria-label={`${label} spot price history`}
+      preserveAspectRatio="none"
+    >
+      <title>{label} spot price history</title>
+      {[0.25, 0.5, 0.75].map((position) => (
+        <line
+          key={position}
+          x1={horizontalPadding}
+          x2={width - horizontalPadding}
+          y1={height * position}
+          y2={height * position}
+          className="certificate-chart-gridline"
+        />
+      ))}
+      <polyline points={points} fill="none" stroke={color} strokeWidth="4" strokeLinejoin="round" strokeLinecap="round" />
+      {rows.map((row, index) => (
+        <circle
+          key={row.id}
+          cx={xFor(index)}
+          cy={yFor(row[metric])}
+          r="5"
+          fill="#fff"
+          stroke={color}
+          strokeWidth="3"
+        >
+          <title>{`${formatCertificateHistoryWeek(row.effectiveWeek)}: ${formatMoneyNumber(row[metric])}`}</title>
+        </circle>
+      ))}
+    </svg>
+  );
+}
+
 function certificateAgreementLabel(values: CertificateValues) {
   return `ESC ${formatMoneyNumber(values.escAgreementDeduction)} / PERC ${formatMoneyNumber(values.prcAgreementDeduction)}`;
 }
@@ -531,6 +679,47 @@ async function getPlatformCertificateValues(supabase: SupabaseServer, businesses
       : authoritativeValues
         ? ""
         : "The authoritative certificate value record is missing. Apply the latest Supabase certificate values migration.",
+  };
+}
+
+async function listPlatformCertificateValueHistory(supabase: SupabaseServer) {
+  const result = await supabase
+    .from("platform_certificate_value_history")
+    .select("id, effective_week, observed_at, esc_spot_price, prc_spot_price, source, observed_by_email")
+    .order("observed_at", { ascending: true });
+
+  if (result.error) {
+    return {
+      data: [] as CertificateValueHistory[],
+      errorMessage: schemaSetupMessage(result.error),
+    };
+  }
+
+  return {
+    data: ((result.data || []) as Record<string, unknown>[]).flatMap((row) => {
+      const escSpotPrice = Number(row.esc_spot_price);
+      const prcSpotPrice = Number(row.prc_spot_price);
+      const effectiveWeek = String(row.effective_week || "");
+      const observedAt = String(row.observed_at || "");
+      if (
+        !Number.isFinite(escSpotPrice)
+        || !Number.isFinite(prcSpotPrice)
+        || !effectiveWeek
+        || !observedAt
+      ) {
+        return [];
+      }
+      return [{
+        id: Number(row.id),
+        effectiveWeek,
+        observedAt,
+        escSpotPrice,
+        prcSpotPrice,
+        source: String(row.source || ""),
+        observedByEmail: String(row.observed_by_email || ""),
+      }];
+    }),
+    errorMessage: "",
   };
 }
 
@@ -3718,16 +3907,19 @@ export default async function AdminUsersPage({
     checkBackups?: string;
     setupBusiness?: string;
     setupAction?: string;
+    certificateHistoryRange?: string;
   }>;
 }) {
   const params = await searchParams;
   const includeBackupWonOptions = params?.checkBackups === "1";
+  const certificateHistoryRange = normalizeCertificateHistoryRange(params?.certificateHistoryRange);
   const { supabase, email: currentEmail } = await requireAdmin();
   const businessResult = await listBusinesses(supabase);
-  const [usersResult, membershipsResult, certificateResult, activityResult] = await Promise.all([
+  const [usersResult, membershipsResult, certificateResult, certificateHistoryResult, activityResult] = await Promise.all([
     listApprovedUsers(supabase, businessResult.data),
     listUserBusinessMemberships(supabase, businessResult.data),
     getPlatformCertificateValues(supabase, businessResult.data),
+    listPlatformCertificateValueHistory(supabase),
     listApprovedUserActivity(supabase),
   ]);
 
@@ -3741,6 +3933,22 @@ export default async function AdminUsersPage({
   const salespersonSales = summarizeSalesBySalesperson(wonOptions);
   const certificateValues = certificateResult.data;
   const businessCertificateValues = certificateResult.businessValuesById;
+  const certificateHistory = certificateHistoryResult.data;
+  const visibleCertificateHistory = filterCertificateHistory(certificateHistory, certificateHistoryRange);
+  const latestCertificateHistory = certificateHistory.at(-1) || null;
+  const previousCertificateHistory = certificateHistory.at(-2) || null;
+  const escTrend = previousCertificateHistory
+    ? certificateValues.escSpotPrice - previousCertificateHistory.escSpotPrice
+    : null;
+  const prcTrend = previousCertificateHistory
+    ? certificateValues.prcSpotPrice - previousCertificateHistory.prcSpotPrice
+    : null;
+  const certificateHistoryRows = visibleCertificateHistory.map((row, index) => ({
+    ...row,
+    previous: index > 0 ? visibleCertificateHistory[index - 1] : null,
+  })).reverse();
+  const escHistoryExtremes = certificateHistoryExtremes(visibleCertificateHistory, "escSpotPrice");
+  const prcHistoryExtremes = certificateHistoryExtremes(visibleCertificateHistory, "prcSpotPrice");
   const setupBusiness = businesses.find((business) => business.id === params?.setupBusiness) || null;
   const setupAction = setupBusiness && ["choose", "create", "assign"].includes(params?.setupAction || "")
     ? params?.setupAction
@@ -3787,6 +3995,9 @@ export default async function AdminUsersPage({
         {certificateResult.errorMessage ? (
           <div className="notice">Certificate values setup: {certificateResult.errorMessage}</div>
         ) : null}
+        {certificateHistoryResult.errorMessage ? (
+          <div className="notice">Certificate price history setup: {certificateHistoryResult.errorMessage}</div>
+        ) : null}
         {setupBusiness && setupAction === "choose" ? (
           <section className="business-user-prompt" aria-labelledby="business-user-prompt-title">
             <div>
@@ -3814,7 +4025,7 @@ export default async function AdminUsersPage({
           </section>
         ) : null}
 
-        <details className="admin-section" id="certificate-values">
+        <details className="admin-section" id="certificate-values" open={Boolean(params?.certificateHistoryRange)}>
           <summary className="section-heading admin-section-summary">
             <div>
               <h2>Certificate values</h2>
@@ -3914,6 +4125,140 @@ export default async function AdminUsersPage({
                 </form>
               </div>
             </div>
+
+            <div className="certificate-current-trends" aria-label="Current certificate price trends">
+              <article className="certificate-current-trend-card">
+                <div>
+                  <span>ESC current spot</span>
+                  <strong>{formatMoneyNumber(certificateValues.escSpotPrice)}</strong>
+                </div>
+                <p className={`certificate-trend ${certificateTrendClass(escTrend)}`}>
+                  {certificateTrendLabel(escTrend)}
+                </p>
+              </article>
+              <article className="certificate-current-trend-card">
+                <div>
+                  <span>PERC current spot</span>
+                  <strong>{formatMoneyNumber(certificateValues.prcSpotPrice)}</strong>
+                </div>
+                <p className={`certificate-trend ${certificateTrendClass(prcTrend)}`}>
+                  {certificateTrendLabel(prcTrend)}
+                </p>
+              </article>
+            </div>
+
+            <details
+              className="certificate-history-panel"
+              id="certificate-price-history"
+              open={Boolean(params?.certificateHistoryRange)}
+            >
+              <summary>
+                <div>
+                  <strong>View price history</strong>
+                  <span>
+                    {latestCertificateHistory
+                      ? `${certificateHistory.length} recorded ${certificateHistory.length === 1 ? "observation" : "observations"}; latest week ${formatCertificateHistoryWeek(latestCertificateHistory.effectiveWeek)}.`
+                      : "History will appear after the first verified spot-price observation."}
+                  </span>
+                </div>
+                <span className="section-chevron" aria-hidden="true" />
+              </summary>
+
+              <div className="certificate-history-body">
+                <div className="certificate-history-toolbar">
+                  <div>
+                    <h3>Spot-price trend</h3>
+                    <p>{certificateHistoryRangeLabel(certificateHistoryRange)}. The fixed DCCEEW $30 contract rate is separate from these market prices.</p>
+                  </div>
+                  <CertificateHistoryRangeSelect value={certificateHistoryRange} />
+                </div>
+
+                <div className="certificate-chart-grid">
+                  <article className="certificate-chart-card">
+                    <div className="certificate-chart-heading">
+                      <div>
+                        <span>ESC spot price</span>
+                        <strong>{formatMoneyNumber(certificateValues.escSpotPrice)}</strong>
+                      </div>
+                      <div className="certificate-chart-extremes">
+                        <span>High {escHistoryExtremes.high === null ? "-" : formatMoneyNumber(escHistoryExtremes.high)}</span>
+                        <span>Low {escHistoryExtremes.low === null ? "-" : formatMoneyNumber(escHistoryExtremes.low)}</span>
+                      </div>
+                    </div>
+                    <CertificatePriceChart
+                      rows={visibleCertificateHistory}
+                      metric="escSpotPrice"
+                      label="ESC"
+                      color="#0f766e"
+                    />
+                  </article>
+
+                  <article className="certificate-chart-card">
+                    <div className="certificate-chart-heading">
+                      <div>
+                        <span>PERC spot price</span>
+                        <strong>{formatMoneyNumber(certificateValues.prcSpotPrice)}</strong>
+                      </div>
+                      <div className="certificate-chart-extremes">
+                        <span>High {prcHistoryExtremes.high === null ? "-" : formatMoneyNumber(prcHistoryExtremes.high)}</span>
+                        <span>Low {prcHistoryExtremes.low === null ? "-" : formatMoneyNumber(prcHistoryExtremes.low)}</span>
+                      </div>
+                    </div>
+                    <CertificatePriceChart
+                      rows={visibleCertificateHistory}
+                      metric="prcSpotPrice"
+                      label="PERC"
+                      color="#c2410c"
+                    />
+                  </article>
+                </div>
+
+                <div className="certificate-history-table-wrap">
+                  <table className="certificate-history-table">
+                    <thead>
+                      <tr>
+                        <th>Effective week</th>
+                        <th>ESC spot</th>
+                        <th>ESC change</th>
+                        <th>PERC spot</th>
+                        <th>PERC change</th>
+                        <th>Source</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {certificateHistoryRows.length ? certificateHistoryRows.map((row) => {
+                        const escChange = row.previous ? row.escSpotPrice - row.previous.escSpotPrice : null;
+                        const prcChange = row.previous ? row.prcSpotPrice - row.previous.prcSpotPrice : null;
+                        return (
+                          <tr key={row.id}>
+                            <td>
+                              <strong>{formatCertificateHistoryWeek(row.effectiveWeek)}</strong>
+                              <span>{new Date(row.observedAt).toLocaleString("en-AU", { timeZone: "Australia/Sydney" })}</span>
+                            </td>
+                            <td>{formatMoneyNumber(row.escSpotPrice)}</td>
+                            <td className={`certificate-history-change ${certificateTrendClass(escChange)}`}>
+                              {formatCertificateChange(escChange)}
+                            </td>
+                            <td>{formatMoneyNumber(row.prcSpotPrice)}</td>
+                            <td className={`certificate-history-change ${certificateTrendClass(prcChange)}`}>
+                              {formatCertificateChange(prcChange)}
+                            </td>
+                            <td>
+                              <strong>{row.source}</strong>
+                              {row.observedByEmail ? <span>{row.observedByEmail}</span> : null}
+                            </td>
+                          </tr>
+                        );
+                      }) : (
+                        <tr>
+                          <td colSpan={6} className="certificate-history-empty">No spot-price observations fall within this range.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </details>
           </div>
         </details>
 
