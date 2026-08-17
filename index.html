@@ -4748,16 +4748,19 @@ function scoreGemsRecord(record,localBrand,localModel){
   score+=modelMetaScore(modelMetaFromGemsRecord(record));
   return score;
 }
-function selectBestGemsRecord(records,localBrand,localModel){
+function selectBestGemsRecord(records,localBrand,localModel,options){
+  const exactModelOnly=!!(options&&options.exactModelOnly);
+  const exactModels=new Set(rebateLookupModelSearchCandidates(localModel).map(m=>normalizeLookup(m)));
   return (records||[])
     .map(record=>({record,score:scoreGemsRecord(record,localBrand,localModel)}))
+    .filter(item=>!exactModelOnly || exactModels.has(normalizeLookup(gemsRecordModel(item.record))))
     .filter(item=>item.score>=140)
     .sort((a,b)=>b.score-a.score)[0]?.record||null;
 }
-async function fetchGemsRecordsForQuery(query){
+async function fetchGemsRecordsForQuery(query,limit=50){
   const all=[];
   for(const resourceId of GEMS_AIRCON_RESOURCE_IDS){
-    const url=`${GEMS_DATASTORE_API}?resource_id=${encodeURIComponent(resourceId)}&q=${encodeURIComponent(query)}&limit=50`;
+    const url=`${GEMS_DATASTORE_API}?resource_id=${encodeURIComponent(resourceId)}&q=${encodeURIComponent(query)}&limit=${encodeURIComponent(String(limit))}`;
     try{
       const data=await fetchJson(url);
       const records=((data||{}).result||{}).records;
@@ -4777,8 +4780,18 @@ async function fetchGemsModelMetadata(localBrand,localModel){
       const found=await fetchGemsRecordsForQuery(query);
       records.push(...found);
     }catch(e){}
-    record=selectBestGemsRecord(records,localBrand,localModel);
+    record=selectBestGemsRecord(records,localBrand,localModel,{exactModelOnly:true});
     if(record) break;
+  }
+  if(!record){
+    for(const query of rebateLookupBrandCandidates(localBrand)){
+      try{
+        const found=await fetchGemsRecordsForQuery(query,1000);
+        records.push(...found);
+      }catch(e){}
+      record=selectBestGemsRecord(records,localBrand,localModel,{exactModelOnly:true});
+      if(record) break;
+    }
   }
   if(!record) throw new Error(`Model not found in GEMS registry: ${localModel}`);
   const meta=modelMetaFromGemsRecord(record);

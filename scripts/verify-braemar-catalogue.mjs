@@ -42,4 +42,13 @@ assert.match(source, /\{brand:'Braemar',series:'Innov-aire'/);
 assert.match(source, /\{brand:'Braemar',series:'Braemar Ducted'/);
 assert.match(source, /'Braemar':'Australian'/);
 
+// The public estimator and full quote calculator must keep working when GEMS
+// only returns a model from a brand search. Keep this guard alongside the
+// catalogue test so future catalogue additions do not silently regress.
+assert.match(source, /async function fetchGemsRecordsForQuery\(query,limit=50\)/);
+assert.match(source, /fetchGemsRecordsForQuery\(query,1000\)/);
+assert.match(source, /selectBestGemsRecord\(records,localBrand,localModel,\{exactModelOnly:true\}\)/);
+assert.match(source, /record=selectBestGemsRecord\(records,localBrand,localModel,\{exactModelOnly:true\}\)/);
+assert.match(source, /filter\(item=>!exactModelOnly \|\| exactModels\.has\(normalizeLookup\(gemsRecordModel\(item\.record\)\)\)\)/);
+
 console.log("Braemar catalogue verification passed: 10 split, 5 ducted, prices unset.");
