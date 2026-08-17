@@ -3562,6 +3562,18 @@ SPLIT_PRODUCTS.push(
   {"brand":"Daikin","capacity":"8.5kW","capacityNum":8.5,"unitPriceInc":2445.00,"priceIncGst":2445.00,"model":"RKM85WVMA / FTKM85WVMA","rebate":0.0,"series":"XL Cooling Only","nswOnly":true},
   {"brand":"Daikin","capacity":"9.5kW","capacityNum":9.5,"unitPriceInc":2875.00,"priceIncGst":2875.00,"model":"RKM95WVMA / FTKM95WVMA","rebate":0.0,"series":"XL Cooling Only","nswOnly":true}
 );
+SPLIT_PRODUCTS.push(
+  {"brand":"Braemar","capacity":"2.7kW","capacityNum":2.70,"unitPriceInc":0.0,"priceIncGst":0.0,"model":"ACHV25D1S / ASHV25D1S","rebate":0.0,"series":"Austral-air"},
+  {"brand":"Braemar","capacity":"3.5kW","capacityNum":3.52,"unitPriceInc":0.0,"priceIncGst":0.0,"model":"ACHV35D1S / ASHV35D1S","rebate":0.0,"series":"Austral-air"},
+  {"brand":"Braemar","capacity":"5.2kW","capacityNum":5.20,"unitPriceInc":0.0,"priceIncGst":0.0,"model":"ACHV50D1S / ASHV50D1S","rebate":0.0,"series":"Austral-air"},
+  {"brand":"Braemar","capacity":"7.1kW","capacityNum":7.10,"unitPriceInc":0.0,"priceIncGst":0.0,"model":"ACHV70D1S / ASHV70D1S","rebate":0.0,"series":"Austral-air"},
+  {"brand":"Braemar","capacity":"8.2kW","capacityNum":8.20,"unitPriceInc":0.0,"priceIncGst":0.0,"model":"ACHV80D1S / ASHV80D1S","rebate":0.0,"series":"Austral-air"},
+  {"brand":"Braemar","capacity":"2.6kW","capacityNum":2.64,"unitPriceInc":0.0,"priceIncGst":0.0,"model":"TCHV02T1S / TSHV02T1S","rebate":0.0,"series":"Innov-aire"},
+  {"brand":"Braemar","capacity":"3.5kW","capacityNum":3.53,"unitPriceInc":0.0,"priceIncGst":0.0,"model":"TCHV03T1S / TSHV03T1S","rebate":0.0,"series":"Innov-aire"},
+  {"brand":"Braemar","capacity":"5.3kW","capacityNum":5.30,"unitPriceInc":0.0,"priceIncGst":0.0,"model":"TCHV05T1S / TSHV05T1S","rebate":0.0,"series":"Innov-aire"},
+  {"brand":"Braemar","capacity":"7.2kW","capacityNum":7.20,"unitPriceInc":0.0,"priceIncGst":0.0,"model":"TCHV07T1S / TSHV07T1S","rebate":0.0,"series":"Innov-aire"},
+  {"brand":"Braemar","capacity":"8.2kW","capacityNum":8.20,"unitPriceInc":0.0,"priceIncGst":0.0,"model":"TCHV08T1S / TSHV08T1S","rebate":0.0,"series":"Innov-aire"}
+);
 const DAIKIN_SPLIT_PRICE_UPDATES=[
   {series:"Alira",capacity:"2.0kW",capacityNum:2.0,model:"RXM20YVMA / FTXM20YVMA",unitPriceInc:830.00},
   {series:"Alira",capacity:"2.5kW",capacityNum:2.5,model:"RXM25YVMA / FTXM25YVMA",unitPriceInc:880.00},
@@ -3723,6 +3735,13 @@ DUCTED_PRODUCTS.push(
   {"brand":"Panasonic","series":"NX High Static 3 Phase","size":18.0,"phase":"Three","model":"U-180PZH3R8 / S-180PE4R","priceIncGst":5775.00,"rebate":0.0,"capacity":"18.0kW","capacityNum":18.0,"unitPriceInc":5775.00},
   {"brand":"Panasonic","series":"NX High Static 3 Phase","size":20.0,"phase":"Three","model":"U-200PZH3R8 / S-200PE4R","priceIncGst":6017.00,"rebate":0.0,"capacity":"20.0kW","capacityNum":20.0,"unitPriceInc":6017.00},
   {"brand":"Panasonic","series":"NX High Static 3 Phase","size":22.4,"phase":"Three","model":"U-224PZH3R8 / S-224PE4R","priceIncGst":7315.00,"rebate":0.0,"capacity":"22.4kW","capacityNum":22.4,"unitPriceInc":7315.00}
+);
+DUCTED_PRODUCTS.push(
+  {"brand":"Braemar","series":"Braemar Ducted","size":7.1,"phase":"Single","model":"KCHA070D1B / KDHA070D1S","priceIncGst":0.0,"rebate":0.0,"capacity":"7.1kW","capacityNum":7.1,"unitPriceInc":0.0},
+  {"brand":"Braemar","series":"Braemar Ducted","size":10.0,"phase":"Single","model":"KCHA100D1B / KDHA100D1S","priceIncGst":0.0,"rebate":0.0,"capacity":"10.0kW","capacityNum":10.0,"unitPriceInc":0.0},
+  {"brand":"Braemar","series":"Braemar Ducted","size":12.5,"phase":"Single","model":"KCHA125D1B / KDHA125D1S","priceIncGst":0.0,"rebate":0.0,"capacity":"12.5kW","capacityNum":12.5,"unitPriceInc":0.0},
+  {"brand":"Braemar","series":"Braemar Ducted","size":14.0,"phase":"Single","model":"KCHA140D1B / KDHA140D1S","priceIncGst":0.0,"rebate":0.0,"capacity":"14.0kW","capacityNum":14.0,"unitPriceInc":0.0},
+  {"brand":"Braemar","series":"Braemar Ducted","size":16.0,"phase":"Single","model":"KCHA160D1B / KDHA160D1S","priceIncGst":0.0,"rebate":0.0,"capacity":"16.0kW","capacityNum":16.0,"unitPriceInc":0.0}
 );
 function andosUnitPriceInc(setPriceExGst){return Number((Number(setPriceExGst||0)*1.1).toFixed(2));}
 function andosSplit(brand,series,capacityNum,indoor,outdoor,setPriceExGst){
@@ -3962,6 +3981,7 @@ const BRAND_ORIGIN_LABELS={
   'Mitsubishi Electric':'Japanese',
   'Mitsubishi Heavy Industries':'Japanese',
   'Panasonic':'Japanese',
+  'Braemar':'Australian',
   'Rinnai':'Japanese',
   'TCL':'Chinese',
   'Toshiba':'Thailand'
@@ -3991,7 +4011,9 @@ const SPLIT_PRODUCT_SUPPORT=[
   {brand:'Panasonic',series:'RZ Series',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional adaptor',warrantyYears:5,warrantyLabel:'5 yrs warranty'}},
   {brand:'Actron Air',series:'Serene DS',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:5,warrantyLabel:'5 yrs warranty'}},
   {brand:'Midea',series:'Athena',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:10,warrantyLabel:'10 yrs warranty'}},
-  {brand:'Toshiba',series:'Seiya Classic',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi capable via adapter',warrantyYears:7,warrantyLabel:'7 yrs warranty',originLabel:'Thailand'}}
+  {brand:'Toshiba',series:'Seiya Classic',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi capable via adapter',warrantyYears:7,warrantyLabel:'7 yrs warranty',originLabel:'Thailand'}},
+  {brand:'Braemar',series:'Austral-air',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi available on specific models',warrantyYears:5,warrantyLabel:'5 yrs warranty'}},
+  {brand:'Braemar',series:'Innov-aire',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi available on specific models',warrantyYears:5,warrantyLabel:'5 yrs warranty'}}
 ];
 const DUCTED_PRODUCT_SUPPORT=[
   {brand:'Mitsubishi Heavy Industries',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional controller',warrantyYears:5,warrantyLabel:'5 yrs warranty'}},
@@ -4004,7 +4026,8 @@ const DUCTED_PRODUCT_SUPPORT=[
   {brand:'Actron',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional controller',warrantyYears:5,warrantyLabel:'5 yrs warranty'}},
   {brand:'Midea',series:'Vesta',details:{wifiStatus:'optional',wifiLabel:'Controller required',warrantyYears:7,warrantyLabel:'7 yrs warranty'}},
   {brand:'Panasonic',series:'NX High Static',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional controller',warrantyYears:5,warrantyLabel:'5 yrs warranty'}},
-  {brand:'Panasonic',series:'NX High Static 3 Phase',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional controller',warrantyYears:5,warrantyLabel:'5 yrs warranty'}}
+  {brand:'Panasonic',series:'NX High Static 3 Phase',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional controller',warrantyYears:5,warrantyLabel:'5 yrs warranty'}},
+  {brand:'Braemar',series:'Braemar Ducted',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi module sold separately',warrantyYears:5,warrantyLabel:'5 yrs warranty'}}
 ];
 const ANDOS_SPLIT_PRODUCT_SUPPORT=[
   {brand:'Daikin',series:'Lite',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional adaptor',warrantyYears:5,warrantyLabel:'5 yrs warranty',originLabel:'Japanese'}},

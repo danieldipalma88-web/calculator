@@ -15,6 +15,7 @@
     "verify:guidance": "node scripts/verify-calculator-guidance-and-model-requests.mjs",
     "verify:price-updates": "node scripts/verify-business-price-update-tool.mjs",
     "verify:daikin-catalogue": "node scripts/verify-daikin-business-catalogue.mjs",
+    "verify:braemar-catalogue": "node scripts/verify-braemar-catalogue.mjs",
     "build": "next build",
     "start": "next start"
   },
