@@ -16,6 +16,7 @@
     "verify:price-updates": "node scripts/verify-business-price-update-tool.mjs",
     "verify:daikin-catalogue": "node scripts/verify-daikin-business-catalogue.mjs",
     "verify:braemar-catalogue": "node scripts/verify-braemar-catalogue.mjs",
+    "verify:actron-catalogue": "node scripts/verify-actron-catalogue.mjs",
     "build": "next build",
     "start": "next start"
   },
