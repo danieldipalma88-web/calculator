@@ -16,15 +16,15 @@ assert.ok(sharedEntry, `Missing shared Actron model: ${model}`);
 assert.match(sharedEntry, /"series":"Advance B"/);
 assert.match(sharedEntry, /"size":25\.0/);
 assert.match(sharedEntry, /"phase":"Three"/);
-assert.match(sharedEntry, /"priceIncGst":0\.0/);
+assert.match(sharedEntry, /"priceIncGst":9608\.50/);
 assert.match(sharedEntry, /"rebate":0\.0/);
 assert.match(sharedEntry, /"capacity":"25\.0kW"/);
 assert.match(sharedEntry, /"capacityNum":25\.0/);
-assert.match(sharedEntry, /"unitPriceInc":0\.0/);
+assert.match(sharedEntry, /"unitPriceInc":9608\.50/);
 
 assert.match(
   source,
-  /andosDuctedInc\("Actron", "Advance B", 25\.0, "Three", "CRV25BT \/ EVV25BS", 0\.0\)/,
+  /andosDuctedInc\("Actron", "Advance B", 25\.0, "Three", "CRV25BT \/ EVV25BS", 9608\.50\)/,
   "Andos Air must receive the model when the requested scope is all calculators.",
 );
 assert.match(
@@ -37,4 +37,4 @@ assert.ok(
   "The Actron pairing must remain recognised by the DCCEEW contract register.",
 );
 
-console.log("Actron catalogue verification passed: 25.0kW three-phase model is available in all catalogues at $0.00 inc GST.");
+console.log("Actron catalogue verification passed: 25.0kW three-phase model is available in all catalogues at $9,608.50 inc GST.");
