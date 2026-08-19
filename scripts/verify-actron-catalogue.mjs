@@ -21,6 +21,11 @@ assert.match(sharedEntry, /"rebate":0\.0/);
 assert.match(sharedEntry, /"capacity":"25\.0kW"/);
 assert.match(sharedEntry, /"capacityNum":25\.0/);
 assert.match(sharedEntry, /"unitPriceInc":9608\.50/);
+assert.match(
+  source,
+  /\{type:'ducted',model:'CRV25BT \/ EVV25BS',oldUnitPriceInc:0,newUnitPriceInc:9608\.50\}/,
+  "Saved zero-dollar entries must migrate to the current Actron price.",
+);
 
 assert.match(
   source,
