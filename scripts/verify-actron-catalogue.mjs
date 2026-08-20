@@ -6,6 +6,36 @@ const contractProducts = JSON.parse(
   readFileSync(new URL("../lib/dcceew-contract-products.json", import.meta.url), "utf8"),
 );
 
+const expectedNewModels = [
+  ["AIRES", 13, "Three", "CRS13AT / EVA13AS"],
+  ["AIRES", 15, "Three", "CRS15AT / EVA15AS"],
+  ["AIRES", 17, "Three", "CRS17AT / EVA17AS"],
+  ["Advance B", 13, "Single", "CRV13BS / EVV13BS"],
+  ["Advance B", 13, "Three", "CRV13BT / EVV13BS"],
+  ["Advance B", 15, "Single", "CRV15BS / EVV15BS"],
+  ["Advance B", 15, "Three", "CRV15BT / EVV15BS"],
+  ["Advance B", 17, "Single", "CRV17BS / EVV17BS"],
+  ["Advance B", 17, "Three", "CRV17BT / EVV17BS"],
+  ["Advance B", 19, "Three", "CRV19BT / EVV19BS"],
+  ["Advance B", 22, "Three", "CRV22BT / EVV22BS"],
+];
+
+for (const [series, size, phase, modelNumber] of expectedNewModels) {
+  const escaped = modelNumber.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const matches = source.match(new RegExp(`\\{"brand":"Actron"[^\\n]+"model":"${escaped}"[^\\n]+\\}`, "g")) || [];
+  assert.equal(matches.length, 1, `${modelNumber} must appear exactly once in the shared catalogue.`);
+  assert.match(matches[0], new RegExp(`"series":"${series}"`));
+  assert.match(matches[0], new RegExp(`"size":${size}\\.0`));
+  assert.match(matches[0], new RegExp(`"phase":"${phase}"`));
+  assert.match(matches[0], /"priceIncGst":0\.0/);
+  assert.match(matches[0], /"unitPriceInc":0\.0/);
+}
+
+assert.ok(
+  !source.includes('andosDuctedInc("Actron", "AIRES"'),
+  "NSW shared catalogue additions must not alter Andos Air's separate Queensland catalogue.",
+);
+
 const model = "CRV25BT / EVV25BS";
 const escapedModel = model.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const sharedEntry = source.match(
@@ -42,4 +72,4 @@ assert.ok(
   "The Actron pairing must remain recognised by the DCCEEW contract register.",
 );
 
-console.log("Actron catalogue verification passed: 25.0kW three-phase model is available in all catalogues at $9,608.50 inc GST.");
+console.log("Actron catalogue verification passed: 11 new NSW models are price-gated and the existing 25.0kW model remains available at $9,608.50 inc GST.");
