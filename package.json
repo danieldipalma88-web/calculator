@@ -18,6 +18,7 @@
     "verify:braemar-catalogue": "node scripts/verify-braemar-catalogue.mjs",
     "verify:actron-catalogue": "node scripts/verify-actron-catalogue.mjs",
     "verify:gree-catalogue": "node scripts/verify-gree-catalogue.mjs",
+    "verify:kaden-catalogue": "node scripts/verify-kaden-catalogue.mjs",
     "build": "next build",
     "start": "next start"
   },
