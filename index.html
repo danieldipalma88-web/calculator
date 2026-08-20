@@ -296,37 +296,39 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
   margin-top:14px;
   display:block;
 }
-.selected.priceMissingProduct{
-  border-color:#ef4444;
-  background:#fff7f7;
-  box-shadow:0 0 0 3px rgba(239,68,68,.08);
-}
-.priceRequiredField.priceMissing label{color:#b91c1c}
+.priceRequiredField.priceMissing label{color:#9a4d00}
 .priceRequiredField.priceMissing input{
-  border-color:#ef4444;
-  background:#fff1f2;
-  color:#991b1b;
-  box-shadow:0 0 0 3px rgba(239,68,68,.1);
+  border-color:#f2b84b;
+  background:#fff9e8;
+  color:#7a4b00;
+  box-shadow:0 0 0 3px rgba(245,158,11,.1);
 }
 .priceMissingMessage{
   display:none;
   margin-top:6px;
-  color:#b91c1c;
+  color:#9a4d00;
   font-size:12px;
   font-weight:850;
   line-height:1.35;
 }
 .priceRequiredField.priceMissing .priceMissingMessage{display:block}
+.finalPriceStrip input.pricePending:disabled{
+  opacity:1;
+  border-color:#f2b84b;
+  background:#fff9e8;
+  color:#9a4d00;
+  -webkit-text-fill-color:#9a4d00;
+}
 .priceMissingBadge{
   display:inline-flex;
   align-items:center;
   width:max-content;
   margin-top:5px;
   padding:3px 7px;
-  border:1px solid #fecaca;
+  border:1px solid #f6cf78;
   border-radius:999px;
-  background:#fee2e2;
-  color:#991b1b;
+  background:#fff8df;
+  color:#8a4b00;
   font-size:10px;
   font-weight:900;
   letter-spacing:.04em;
@@ -1278,13 +1280,13 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
 .productSupportChip.unknown{border-color:#fde68a;background:#fffbeb}
 .productSupportChip.priceMissing,
 .multiSplitMetric.priceMissing{
-  border-color:#ef4444;
-  background:#fff1f2;
+  border-color:#f2b84b;
+  background:#fff9e8;
 }
 .productSupportChip.priceMissing span,
 .productSupportChip.priceMissing strong,
 .multiSplitMetric.priceMissing span,
-.multiSplitMetric.priceMissing strong{color:#991b1b}
+.multiSplitMetric.priceMissing strong{color:#8a4b00}
 .multiSplitTrialCard{display:none;margin-top:18px}
 .multiSplitTrialCard.visible{display:block}
 .multiSplitTrialIntro{
@@ -1399,12 +1401,12 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
 .multiSplitIndoorFact.priceMissing{
   margin:-1px -6px -4px;
   padding:8px 6px 4px;
-  border:1px solid #fecaca;
+  border:1px solid #f6cf78;
   border-radius:8px;
-  background:#fff1f2;
+  background:#fff9e8;
 }
 .multiSplitIndoorFact.priceMissing span,
-.multiSplitIndoorFact.priceMissing strong{color:#991b1b}
+.multiSplitIndoorFact.priceMissing strong{color:#8a4b00}
 .multiSplitIndoorControls{
   display:grid;
   grid-template-columns:1fr 38px;
@@ -1692,13 +1694,13 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
   margin-top:2px;
 }
 .multiSplitHeadItem.priceIncomplete{
-  border:1px solid #fecaca;
+  border:1px solid #f6cf78;
   border-radius:10px;
-  background:#fff1f2;
+  background:#fff9e8;
   padding:9px;
-  color:#991b1b;
+  color:#8a4b00;
 }
-.multiSplitHeadItem.priceIncomplete small{color:#b91c1c}
+.multiSplitHeadItem.priceIncomplete small{color:#9a4d00}
 .energySavingsCard{
   padding:0;
   overflow:hidden;
@@ -2414,20 +2416,20 @@ body.guidanceModalOpen{overflow:hidden}
   justify-content:space-between;
   gap:12px;
   align-items:center;
-  border:1px solid #fecaca;
-  background:#fff1f2;
+  border:1px solid #f6cf78;
+  background:#fff9e8;
   border-radius:14px;
   padding:12px 14px;
   margin-bottom:12px;
-  color:#991b1b;
+  color:#8a4b00;
 }
 .priceIncompleteNotice strong{font-size:13px}
-.priceIncompleteNotice span{font-size:12px;color:#b91c1c;line-height:1.4}
-.priceIncompleteRow{background:#fff8f8}
-.priceIncompleteRow td{border-color:#fee2e2}
-.currentQuoteMobileItem.priceIncomplete{border-color:#fecaca;background:#fff8f8}
-.optionCard.priceIncomplete{border-color:#fca5a5;box-shadow:0 6px 18px rgba(185,28,28,.08)}
-.optionCard.priceIncomplete .optionHeader{background:#fff7f7}
+.priceIncompleteNotice span{font-size:12px;color:#9a4d00;line-height:1.4}
+.priceIncompleteRow{background:#fffaf0}
+.priceIncompleteRow td{border-color:#fde7b0}
+.currentQuoteMobileItem.priceIncomplete{border-color:#f6cf78;background:#fffaf0}
+.optionCard.priceIncomplete{border-color:#f2c66d;box-shadow:0 6px 18px rgba(154,77,0,.08)}
+.optionCard.priceIncomplete .optionHeader{background:#fffaf0}
 .optionCard>.priceIncompleteNotice{margin:12px 16px 0}
 .wonJobsDrawer{width:min(980px,96vw)}
 .wonJobsSummary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:14px 0}
@@ -3070,7 +3072,7 @@ body.guidanceModalOpen{overflow:hidden}
       <div class="card">
         <h2 class="sectionTitle">Costs</h2>
         <div class="finalPriceStrip"><div><div class="fieldLabelRow"><label for="finalInc">Final customer price inc GST</label><span class="fieldPill confirmed">Customer pays</span></div><div class="fieldHint">Main quoted price shown to the customer.</div></div><input id="finalInc" type="number" step="0.01"></div>
-        <div class="row3"><div id="unitPriceCostField" class="priceRequiredField"><label>Unit price inc GST</label><input id="unitPriceInc" type="number" step="0.01"><div id="unitPriceMissingMessage" class="priceMissingMessage" role="alert">Price missing. Enter the unit price before adding this system to a quote.</div></div><div><label>Labour ex GST</label><input id="labour" type="number" step="0.01"></div><div id="rebateCostField"><label id="rebateCostLabel">Rebate</label><input id="rebate" type="number" step="0.01"><div id="rebateCostHint" class="rebateCostHint" aria-live="polite"></div></div></div>
+        <div class="row3"><div id="unitPriceCostField" class="priceRequiredField"><label>Unit price inc GST</label><input id="unitPriceInc" type="number" step="0.01"><div id="unitPriceMissingMessage" class="priceMissingMessage" role="alert">Unit price required to complete this quote.</div></div><div><label>Labour ex GST</label><input id="labour" type="number" step="0.01"></div><div id="rebateCostField"><label id="rebateCostLabel">Rebate</label><input id="rebate" type="number" step="0.01"><div id="rebateCostHint" class="rebateCostHint" aria-live="polite"></div></div></div>
         <div class="row2" style="margin-top:14px"><div><label>Materials inc GST</label><input id="materials" type="number" step="0.01"></div><div><label>Misc cost inc GST</label><input id="misc" type="number" step="0.01" value="0"></div></div>
         <div id="splitOnly" style="margin-top:14px">
           <div class="row2">
@@ -6871,13 +6873,29 @@ function standardQuotePriceReadiness(){
     message:`Enter a unit price for ${formatPriceModelList(missingPriceModels)} before adding this system to a quote.`
   };
 }
+function syncFinalPriceInputAvailability(id,priceMissing,messageId){
+  const input=$(id);
+  if(!input) return;
+  input.classList.toggle('pricePending',priceMissing);
+  input.disabled=priceMissing;
+  if(priceMissing){
+    if(!Object.prototype.hasOwnProperty.call(input.dataset,'priceBeforeMissing')) input.dataset.priceBeforeMissing=input.value||'';
+    input.value='';
+    input.placeholder='Enter unit price first';
+    if(messageId) input.setAttribute('aria-describedby',messageId);
+    return;
+  }
+  input.placeholder='';
+  if(!input.value && input.dataset.priceBeforeMissing) input.value=input.dataset.priceBeforeMissing;
+  delete input.dataset.priceBeforeMissing;
+  if(messageId) input.removeAttribute('aria-describedby');
+}
 function updateQuotePriceValidationUi(){
   const standardReadiness=standardQuotePriceReadiness();
   const standardMissing=!standardReadiness.ok;
   const standardField=$('unitPriceCostField');
-  const selectedPanel=$('liveRebatePanel');
   if(standardField) standardField.classList.toggle('priceMissing',standardMissing);
-  if(selectedPanel) selectedPanel.classList.toggle('priceMissingProduct',standardMissing);
+  syncFinalPriceInputAvailability('finalInc',standardMissing,'unitPriceMissingMessage');
   const standardMessage=$('unitPriceMissingMessage');
   if(standardMessage && standardMissing) standardMessage.textContent=standardReadiness.message;
   document.querySelectorAll('button[onclick="addToQuote()"]:not(#multiSplitAddToQuoteBtn)').forEach(button=>{
@@ -6892,6 +6910,7 @@ function updateQuotePriceValidationUi(){
   const outdoorChip=$('multiSplitOutdoorPriceChip');
   const equipmentMetric=$('multiSplitEquipmentMetric');
   if(multiField) multiField.classList.toggle('priceMissing',multiPriceMissing);
+  syncFinalPriceInputAvailability('multiFinalInc',multiPriceMissing,'multiUnitPriceMissingMessage');
   if(outdoorChip) outdoorChip.classList.toggle('priceMissing',!!(totals.outdoor&&!hasPositiveUnitPrice(totals.outdoor.unitPriceInc)));
   if(equipmentMetric) equipmentMetric.classList.toggle('priceMissing',multiPriceMissing);
   const multiMessage=$('multiUnitPriceMissingMessage');
@@ -7029,33 +7048,36 @@ function renderMultiSplitFinancials(){
   const showAgencyProfit=x.commissionModelOn&&x.commissionType==='agency'&&canSeeAgencyProfit();
   const showSales=x.commissionModelOn&&['agency','standard'].includes(x.commissionType)&&(showPrivate||showLimitedSales);
   const showNetProfit=x.commissionModelOn&&(showPrivate||showLimitedSales);
+  const pricingReady=multiSplitMissingPriceModels(x).length===0;
+  const pricingMoney=value=>pricingReady?money(value):'Price required';
+  const pricingPercent=value=>pricingReady?pct(value):'Price required';
   const set=(id,value)=>{const el=$(id); if(el) el.textContent=value;};
-  set('multiFinalBig',money(x.finalInc));
-  set('multiSellEx',money(x.sellEx));
-  set('multiOriginalInc',money(x.finalInc+x.rebate));
-  set('multiSummaryUnitEx',money(x.unitEx));
+  set('multiFinalBig',pricingMoney(x.finalInc));
+  set('multiSellEx',pricingMoney(x.sellEx));
+  set('multiOriginalInc',pricingMoney(x.finalInc+x.rebate));
+  set('multiSummaryUnitEx',pricingMoney(x.unitEx));
   set('multiSummaryLabourEx',money(x.labour));
   set('multiSummaryMaterialsEx',money(x.matsEx));
   set('multiSummaryMiscEx',money(x.miscEx));
   set('multiSummaryServiceEx',money(x.service));
-  set('multiSummaryTrueCost',money(x.trueCost));
+  set('multiSummaryTrueCost',pricingMoney(x.trueCost));
   set('multiSummaryRebateOut',money(x.rebate));
   set('multiSplitSummaryRebate',money(x.rebate));
-  set('multiMargin',pct(x.margin));
-  set('multiSplitSummaryMargin',pct(x.netMargin));
-  set('multiCashProfit',money(x.cashProfit));
+  set('multiMargin',pricingPercent(x.margin));
+  set('multiSplitSummaryMargin',pricingPercent(x.netMargin));
+  set('multiCashProfit',pricingMoney(x.cashProfit));
   set('multiCommissionLabel',`Agency commission ${formatCommissionRate(x.agencyCommissionRate)}% ex GST`);
-  set('multiCommission',money(x.agencyCommission));
-  set('multiCommissionGst',money(x.agencyCommissionGst));
-  set('multiCommissionInc',money(x.agencyCommissionInc));
+  set('multiCommission',pricingMoney(x.agencyCommission));
+  set('multiCommissionGst',pricingMoney(x.agencyCommissionGst));
+  set('multiCommissionInc',pricingMoney(x.agencyCommissionInc));
   set('multiSalespersonCommissionLabel',x.commissionType==='standard'?`Salesperson commission ${formatCommissionRate(x.agencyCommissionRate)}% ex GST`:`Salesperson commission ${formatCommissionRate(x.salespersonCommissionRate)}% of agency ex GST`);
-  set('multiSalespersonCommission',money(x.salespersonCommission));
-  set('multiSalespersonCommissionGst',money(x.salespersonCommissionGst));
-  set('multiSalespersonCommissionInc',money(x.salespersonCommissionInc));
-  set('multiAgencyProfitAfterSalesInc',money(x.agencyProfitAfterSalesInc));
-  set('multiNetProfit',money(x.netProfit));
-  set('multiSplitSummaryNetProfit',money(x.netProfit));
-  set('multiNetProfitMargin',`Net margin ${pct(x.netMargin)}`);
+  set('multiSalespersonCommission',pricingMoney(x.salespersonCommission));
+  set('multiSalespersonCommissionGst',pricingMoney(x.salespersonCommissionGst));
+  set('multiSalespersonCommissionInc',pricingMoney(x.salespersonCommissionInc));
+  set('multiAgencyProfitAfterSalesInc',pricingMoney(x.agencyProfitAfterSalesInc));
+  set('multiNetProfit',pricingMoney(x.netProfit));
+  set('multiSplitSummaryNetProfit',pricingMoney(x.netProfit));
+  set('multiNetProfitMargin',pricingReady?`Net margin ${pct(x.netMargin)}`:'Price required');
   ['multiCommissionRow','multiCommissionGstRow','multiCommissionIncRow'].forEach(id=>{if($(id)) $(id).classList.toggle('hidden',!showAgency);});
   ['multiSalespersonCommissionRow'].forEach(id=>{if($(id)) $(id).classList.toggle('hidden',!showSales);});
   ['multiSalespersonCommissionGstRow','multiSalespersonCommissionIncRow'].forEach(id=>{if($(id)) $(id).classList.toggle('hidden',!showSales||showLimitedSales);});
@@ -7402,6 +7424,9 @@ function render(){
   const showAgencyProfit=x.commissionModelOn&&x.commissionType==='agency'&&canSeeAgencyProfit();
   const showSales=x.commissionModelOn&&['agency','standard'].includes(x.commissionType)&&(showPrivate||showLimitedSales);
   const showNetProfit=x.commissionModelOn&&(showPrivate||showLimitedSales);
+  const pricingReady=hasPositiveUnitPrice(x.unitInc);
+  const pricingMoney=value=>pricingReady?money(value):'Price required';
+  const pricingPercent=value=>pricingReady?pct(value):'Price required';
   const profitLabelBase=systemType==='ducted'?'Operating profit':'Cash profit';
 
   $('profitBeforeLabel').textContent=x.commissionModelOn?`${profitLabelBase} before commission ex GST`:`${profitLabelBase} ex GST`;
@@ -7422,37 +7447,39 @@ function render(){
 
   $('selectedModel').textContent=x.p.model;
   renderProductSupportDetails(x.p);
-  $('modelMeta').textContent=`${systemType==='split'?'Split system':'Ducted system'} - ${productDisplayName(x.p)} - ${x.p.capacity||x.p.size+'kW'} - Spreadsheet price ${money(x.p.unitPriceInc||x.p.priceIncGst)} inc GST`;
-  if($('unitEx')) $('unitEx').textContent=money(x.unitEx);
+  const selectedPrice=Number(x.p.unitPriceInc||x.p.priceIncGst||0);
+  const selectedPriceLabel=hasPositiveUnitPrice(selectedPrice)?`Spreadsheet price ${money(selectedPrice)} inc GST`:'Unit price not set';
+  $('modelMeta').textContent=`${systemType==='split'?'Split system':'Ducted system'} - ${productDisplayName(x.p)} - ${x.p.capacity||x.p.size+'kW'} - ${selectedPriceLabel}`;
+  if($('unitEx')) $('unitEx').textContent=pricingMoney(x.unitEx);
   if($('labourOut')) $('labourOut').textContent=money(x.labour);
   if($('materialsEx')) $('materialsEx').textContent=money(x.matsEx);
   if($('miscEx')) $('miscEx').textContent=money(x.miscEx);
   if($('serviceEx')) $('serviceEx').textContent=money(x.service);
   if($('addonsEx')) $('addonsEx').textContent=money(x.addons);
-  if($('trueCost')) $('trueCost').textContent=money(x.trueCost);
+  if($('trueCost')) $('trueCost').textContent=pricingMoney(x.trueCost);
   if($('rebateOut')) $('rebateOut').textContent=money(x.rebate);
-  $('summaryUnitEx').textContent=money(x.unitEx);
+  $('summaryUnitEx').textContent=pricingMoney(x.unitEx);
   $('summaryLabourEx').textContent=money(x.labour);
   $('summaryMaterialsEx').textContent=money(x.matsEx);
   $('summaryMiscEx').textContent=money(x.miscEx);
   $('summaryServiceEx').textContent=money(x.service);
   $('summaryAddonsEx').textContent=money(x.addons);
-  $('summaryTrueCost').textContent=money(x.trueCost);
+  $('summaryTrueCost').textContent=pricingMoney(x.trueCost);
   $('summaryRebateOut').textContent=money(x.rebate);
-  $('finalBig').textContent=money(x.finalInc);
-  $('sellEx').textContent=money(x.sellEx);
-  $('originalInc').textContent=money(x.finalInc+x.rebate);
-  $('margin').textContent=pct(x.margin);
-  $('cashProfit').textContent=money(x.cashProfit);
-  $('commission').textContent=money(x.commission);
-  $('commissionGst').textContent=money(x.commissionGst);
-  $('commissionInc').textContent=money(x.commissionInc);
-  $('salespersonCommission').textContent=money(showLimitedSales?x.salespersonCommissionInc:x.salespersonCommission);
-  $('salespersonCommissionGst').textContent=money(x.salespersonCommissionGst);
-  $('salespersonCommissionInc').textContent=money(x.salespersonCommissionInc);
-  $('agencyProfitAfterSalesInc').textContent=money(x.agencyProfitAfterSalesInc);
-  $('netProfit').textContent=money(x.netProfit);
-  if($('netProfitMargin')) $('netProfitMargin').textContent=`Margin ${pct(x.netMargin)}`;
+  $('finalBig').textContent=pricingMoney(x.finalInc);
+  $('sellEx').textContent=pricingMoney(x.sellEx);
+  $('originalInc').textContent=pricingMoney(x.finalInc+x.rebate);
+  $('margin').textContent=pricingPercent(x.margin);
+  $('cashProfit').textContent=pricingMoney(x.cashProfit);
+  $('commission').textContent=pricingMoney(x.commission);
+  $('commissionGst').textContent=pricingMoney(x.commissionGst);
+  $('commissionInc').textContent=pricingMoney(x.commissionInc);
+  $('salespersonCommission').textContent=pricingMoney(showLimitedSales?x.salespersonCommissionInc:x.salespersonCommission);
+  $('salespersonCommissionGst').textContent=pricingMoney(x.salespersonCommissionGst);
+  $('salespersonCommissionInc').textContent=pricingMoney(x.salespersonCommissionInc);
+  $('agencyProfitAfterSalesInc').textContent=pricingMoney(x.agencyProfitAfterSalesInc);
+  $('netProfit').textContent=pricingMoney(x.netProfit);
+  if($('netProfitMargin')) $('netProfitMargin').textContent=pricingReady?`Margin ${pct(x.netMargin)}`:'Price required';
   renderInstallAddonSummary(x);
   updatePriceLockNote();
   updateQuotePriceValidationUi();

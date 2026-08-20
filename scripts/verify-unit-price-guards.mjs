@@ -24,12 +24,19 @@ function functionSource(name) {
 assert.match(calculator, /id="unitPriceCostField" class="priceRequiredField"/);
 assert.match(calculator, /id="multiUnitPriceCostField" class="priceRequiredField"/);
 assert.match(calculator, /.priceRequiredField\.priceMissing input\{/);
+assert.doesNotMatch(calculator, /.selected\.priceMissingProduct/);
+assert.match(calculator, /.finalPriceStrip input\.pricePending:disabled\{/);
 assert.match(functionSource("addToQuote"), /standardQuotePriceReadiness\(\)/);
 assert.match(functionSource("addStandardSystemToQuoteNow"), /standardQuotePriceReadiness\(\)/);
 assert.match(functionSource("multiSplitQuoteReadiness"), /multiSplitMissingPriceModels\(totals\)/);
 assert.match(functionSource("markOptionWon"), /quoteRowsMissingPriceModels\(rows\)/);
 assert.match(functionSource("completeOptionWon"), /quoteRowsMissingPriceModels\(targetRows\)/);
 assert.match(functionSource("renderCurrentOptionPanel"), /priceIncompleteNotice/);
+assert.match(functionSource("updateQuotePriceValidationUi"), /syncFinalPriceInputAvailability\('finalInc',standardMissing/);
+assert.doesNotMatch(functionSource("updateQuotePriceValidationUi"), /priceMissingProduct/);
+assert.match(functionSource("render"), /pricingReady=hasPositiveUnitPrice\(x\.unitInc\)/);
+assert.match(functionSource("render"), /'Price required'/);
+assert.match(functionSource("renderMultiSplitFinancials"), /pricingReady=multiSplitMissingPriceModels\(x\)\.length===0/);
 assert.match(calculator, /const priceNotice=missingPriceModels\.length\?[\s\S]*optionCard\$\{isWon\?' wonOption':''\}\$\{missingPriceModels\.length\?' priceIncomplete':''\}/);
 
 const context = {};
