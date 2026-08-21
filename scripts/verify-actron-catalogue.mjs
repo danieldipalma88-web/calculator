@@ -20,6 +20,27 @@ const expectedNewModels = [
   ["Advance B", 22, "Three", "CRV22BT / EVV22BS"],
 ];
 
+const expectedFastRebateModels = [
+  "CRS10AS / EVA10AS",
+  "CRS13AS / EVA13AS",
+  "CRS13AT / EVA13AS",
+  "CRS15AS / EVA15AS",
+  "CRS15AT / EVA15AS",
+  "CRS17AS / EVA17AS",
+  "CRS17AT / EVA17AS",
+  "CRS20AT / EVA20AS",
+  "CRS23AT / EVA23AS",
+  "CRV13BS / EVV13BS",
+  "CRV13BT / EVV13BS",
+  "CRV15BS / EVV15BS",
+  "CRV15BT / EVV15BS",
+  "CRV17BS / EVV17BS",
+  "CRV17BT / EVV17BS",
+  "CRV19BT / EVV19BS",
+  "CRV22BT / EVV22BS",
+  "CRV25BT / EVV25BS",
+];
+
 for (const [series, size, phase, modelNumber] of expectedNewModels) {
   const escaped = modelNumber.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const matches = source.match(new RegExp(`\\{"brand":"Actron"[^\\n]+"model":"${escaped}"[^\\n]+\\}`, "g")) || [];
@@ -30,6 +51,25 @@ for (const [series, size, phase, modelNumber] of expectedNewModels) {
   assert.match(matches[0], /"priceIncGst":0\.0/);
   assert.match(matches[0], /"unitPriceInc":0\.0/);
 }
+
+for (const modelNumber of expectedFastRebateModels) {
+  const escaped = modelNumber.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const metadataMatches = source.match(
+    new RegExp(`\\{brand:'Actron Air',model:'${escaped}'[^\\n]+\\}`, "g"),
+  ) || [];
+  assert.equal(metadataMatches.length, 1, `${modelNumber} must have one verified local GEMS metadata row.`);
+  assert.match(metadataMatches[0], /productClass:'Class 11'/);
+  assert.match(metadataMatches[0], /tcspfMixed:[0-9.]+/);
+  assert.match(metadataMatches[0], /hspfCold:[0-9.]+/);
+  assert.match(metadataMatches[0], /tcecMixed:[0-9.]+/);
+  assert.match(metadataMatches[0], /thecMixed:[0-9.]+/);
+}
+
+assert.match(
+  source,
+  /const usePreferredLocalMeta=localMeta&&rebateLookupBrandCandidates\(localBrand\)\.some\(brand=>normalizeLookup\(brand\)==='ACTRONAIR'\);/,
+  "Actron rebate checks must use verified metadata immediately instead of waiting on the GEMS catalogue network lookup.",
+);
 
 assert.ok(
   !source.includes('andosDuctedInc("Actron", "AIRES"'),
