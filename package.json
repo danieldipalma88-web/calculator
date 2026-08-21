@@ -20,6 +20,7 @@
     "verify:gree-catalogue": "node scripts/verify-gree-catalogue.mjs",
     "verify:kaden-catalogue": "node scripts/verify-kaden-catalogue.mjs",
     "verify:mitsubishi-electric-ducted-catalogue": "node scripts/verify-mitsubishi-electric-ducted-catalogue.mjs",
+    "verify:public-rebate-catalogue": "node --experimental-strip-types scripts/verify-public-rebate-catalogue.mjs",
     "build": "next build",
     "start": "next start"
   },
