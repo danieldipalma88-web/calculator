@@ -48,6 +48,9 @@ assert.match(functionSource("populateMultiSplitOutdoors"), /productVisibleToCurr
 assert.match(functionSource("multiSplitCompatibleIndoorIndexes"), /productVisibleToCurrentUser\(item\.row\)/);
 assert.match(functionSource("loadQuote"), /includeProductIndex:idx/);
 assert.match(functionSource("loadMultiSplitQuote"), /includeOutdoorIndex:outdoorIdx/);
+assert.match(calculator, /id="pricedCatalogueNotice" class="pricedCatalogueNotice hidden"/);
+assert.match(calculator, /Priced catalogue only:<\/strong> Units without a saved price are hidden from this account\./);
+assert.match(functionSource("applyOwnerVisibility"), /pricedCatalogueNotice[\s\S]*roleUsesPricedCatalogueOnly\(\)/);
 
 const context = {};
 vm.runInNewContext(

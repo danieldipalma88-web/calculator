@@ -116,6 +116,19 @@ h1,h2,h3{
 .kicker{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--primary);font-weight:800}
 h1{margin:8px 0 6px;font-size:31px;line-height:1.15}
 .sub{color:var(--muted);font-size:14px;line-height:1.45}
+.pricedCatalogueNotice{
+  margin-top:12px;
+  padding:9px 11px;
+  border:1px solid #bfdbfe;
+  border-left:3px solid #2563eb;
+  border-radius:8px;
+  background:#eff6ff;
+  color:#1e3a5f;
+  font-size:12px;
+  font-weight:700;
+  line-height:1.4;
+}
+.pricedCatalogueNotice strong{color:#172554}
 
 .card{
   background:var(--card);
@@ -3073,7 +3086,7 @@ body.guidanceModalOpen{overflow:hidden}
 <body>
 <div class="wrap">
   <div class="header">
-  <div class="brand"><div class="kicker">Installer quote tool</div><h1>Master Quote Calculator</h1><div class="sub">Split system, ducted and multi-head internal quoting calculator with commission, GST and quote comparison.</div><div class="systemTabs"><button id="splitTab" class="active" onclick="setSystem('split')">Split System</button><button id="ductedTab" onclick="setSystem('ducted')">Ducted System</button><button id="multiSplitTab" onclick="setMultiSplitSection()">Multi-head Split System</button></div></div>
+  <div class="brand"><div class="kicker">Installer quote tool</div><h1>Master Quote Calculator</h1><div class="sub">Split system, ducted and multi-head internal quoting calculator with commission, GST and quote comparison.</div><div id="pricedCatalogueNotice" class="pricedCatalogueNotice hidden" role="note"><strong>Priced catalogue only:</strong> Units without a saved price are hidden from this account.</div><div class="systemTabs"><button id="splitTab" class="active" onclick="setSystem('split')">Split System</button><button id="ductedTab" onclick="setSystem('ducted')">Ducted System</button><button id="multiSplitTab" onclick="setMultiSplitSection()">Multi-head Split System</button></div></div>
     <div style="display:none"><input id="customer" type="hidden"><input id="date" type="hidden"><input id="address" type="hidden"></div>
   </div>
   <div class="grid" id="standardCalculatorSection">
@@ -6713,6 +6726,7 @@ function applyRebateSchemeUi(){
 }
 function applyOwnerVisibility(){
   if(document.body) document.body.classList.toggle('restrictedOwnerDetails',!canSeeOwnerDetails());
+  if($('pricedCatalogueNotice')) $('pricedCatalogueNotice').classList.toggle('hidden',!roleUsesPricedCatalogueOnly());
   applyRebateSchemeUi();
 }
 function effectiveCommissionType(){
