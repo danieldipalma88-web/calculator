@@ -574,6 +574,13 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
   background:linear-gradient(160deg,#fff7d6 0%,#fffbeb 58%,#fff8dc 100%);
   box-shadow:0 12px 28px rgba(146,64,14,.12);
 }
+#multiSplitRebatePanel.dcceewEligible{
+  border-color:#e8b84a;
+  background:linear-gradient(160deg,#fff7d6 0%,#fffbeb 58%,#fff8dc 100%);
+  box-shadow:0 12px 28px rgba(146,64,14,.12);
+}
+#multiSplitRebatePanel.dcceewEligible .multiSplitRebateResult{border-color:#e8c76a}
+#multiSplitRebatePanel.dcceewEligible .multiSplitRebateResult.primary{background:#fff4c2}
 .dcceewEligible .copyModelBtn,
 .dcceewEligible .certificateMetric,
 .dcceewEligible .recommendationCard:not(.net){border-color:#e8c76a}
@@ -597,6 +604,14 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
   line-height:1.3;
 }
 .dcceewEligible .rebateCostHint{display:block}
+.rebateCostHint.show{display:block}
+#multiRebateCostField.dcceewEligible{
+  padding:9px;
+  border:1px solid #e8c76a;
+  border-radius:10px;
+  background:#fffbeb;
+}
+#multiRebateCostField.dcceewEligible input{border-color:#d9a62e;background:#fffdf3}
 .dcceewContractPanel{
   display:none;
   margin-top:12px;
@@ -1327,7 +1342,15 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
 }
 .multiSplitPanelHead h3{margin:0;font-size:16px}
 .multiSplitSelected{margin-top:14px}
-.multiSplitPostcodeField{max-width:360px}
+.multiSplitRebateQuickRow{
+  display:grid;
+  grid-template-columns:minmax(220px,360px) minmax(180px,220px);
+  gap:12px;
+  align-items:end;
+  margin-top:12px;
+}
+.multiSplitPostcodeField{max-width:none}
+.multiSplitQuickRebateAction button{width:100%;min-height:46px}
 .multiSplitTrialActions{
   display:flex;
   justify-content:flex-end;
@@ -2527,6 +2550,7 @@ body.guidanceModalOpen{overflow:hidden}
   .trialBadge{
     justify-self:start;
   }
+  .multiSplitRebateQuickRow{grid-template-columns:1fr}
   .multiSplitPostcodeField{max-width:none}
   .multiSplitPanelHead{align-items:stretch;flex-direction:column}
   .multiSplitPanelHead>button{width:100%}
@@ -3182,7 +3206,10 @@ body.guidanceModalOpen{overflow:hidden}
             <button id="multiSplitReplacementBtn" type="button" class="active" onclick="setMultiSplitInstall('replacement')">Replacement</button>
           </div>
           <select id="multiSplitInstallType" class="hidden" onchange="renderMultiSplitTrial()"><option value="new">New install</option><option value="replacement" selected>Replacement</option></select>
-          <div class="postcodeField multiSplitPostcodeField" style="margin-top:12px"><div class="fieldLabelRow"><label for="multiSplitPostcode">Customer postcode</label><span class="fieldPill">Required for rebate</span></div><input id="multiSplitPostcode" type="text" inputmode="numeric" maxlength="4" value="2170"></div>
+          <div class="multiSplitRebateQuickRow">
+            <div class="postcodeField multiSplitPostcodeField" id="multiSplitPostcodeField"><div class="fieldLabelRow"><label for="multiSplitPostcode">Customer postcode</label><span class="fieldPill" id="multiSplitPostcodeRequiredPill">Required for rebate</span></div><input id="multiSplitPostcode" type="text" inputmode="numeric" maxlength="4" value="2170" aria-describedby="multiSplitPostcodeRequiredPill"></div>
+            <div class="multiSplitQuickRebateAction"><button id="multiSplitQuickRebateBtn" class="green" type="button" onclick="calculateMultiSplitTrialRebate(true)">Calculate rebate</button></div>
+          </div>
           <div class="selected multiSplitSelected">
             <div class="selectedText">
               <div class="selectedHeader"><strong id="multiSplitSelectedModel">Select an outdoor unit</strong></div>
@@ -3219,6 +3246,11 @@ body.guidanceModalOpen{overflow:hidden}
             </div>
             <div class="multiSplitTrialActions"><button id="multiSplitCheckRebateBtn" class="green" type="button" onclick="calculateMultiSplitTrialRebate()">Calculate rebate</button></div>
           </div>
+          <div class="dcceewContractPanel" id="multiSplitDcceewContractPanel" aria-hidden="true">
+            <div class="dcceewContractHead"><div class="dcceewContractCopy"><span class="dcceewContractBadge">DCCEEW contract match</span><strong>Potentially eligible for the fixed $30 per ESC rate</strong><p>The selected postcode and multi-head outdoor model are on the approved contract lists. Required compliance steps must still be completed.</p></div><div class="dcceewInfoPrompt"><span>Action required</span><button id="multiSplitDcceewInfoButton" class="dcceewInfoButton" type="button" onclick="openDcceewInfoModal()"><span class="dcceewInfoIcon" aria-hidden="true">i</span>Important information</button></div></div>
+            <div class="dcceewComparison"><div class="dcceewComparisonCard"><span>Standard rebate</span><strong id="multiSplitDcceewStandardTotal">Calculating...</strong><small id="multiSplitDcceewStandardMeta">Using the normal business ESC rate</small></div><div class="dcceewComparisonCard contract"><span>DCCEEW contract rebate</span><strong id="multiSplitDcceewContractTotal">Calculating...</strong><small id="multiSplitDcceewContractMeta">ESCs at $30.00 plus unchanged PERC</small></div><div class="dcceewComparisonCard uplift"><span>Additional contract value</span><strong id="multiSplitDcceewContractUplift">Calculating...</strong><small id="multiSplitDcceewUpliftMeta">Difference from the standard payout</small></div></div>
+            <div class="dcceewComparisonNote" id="multiSplitDcceewComparisonNote">The contract-rate rebate will be included in Costs when live certificate values are available. Missing a required compliance step means the standard market rate applies.</div>
+          </div>
           <div class="multiSplitRebateResults">
             <div class="multiSplitRebateResult primary"><span>Calculated rebate</span><strong id="multiSplitRebateValue">-</strong></div>
             <div class="multiSplitRebateResult"><span>ESC generated</span><strong id="multiSplitEscCount">-</strong></div>
@@ -3236,7 +3268,7 @@ body.guidanceModalOpen{overflow:hidden}
           <div class="row3">
             <div id="multiUnitPriceCostField" class="priceRequiredField"><label>Equipment price inc GST</label><input id="multiUnitPriceInc" type="number" step="0.01" readonly><div id="multiUnitPriceMissingMessage" class="priceMissingMessage" role="alert">Price missing for selected equipment. Add the missing model price before adding this system to a quote.</div></div>
             <div><label>Labour ex GST</label><input id="multiLabour" type="number" step="0.01" value="500"></div>
-            <div><label>Rebate</label><input id="multiRebate" type="number" step="0.01" value="0"></div>
+            <div id="multiRebateCostField"><label id="multiRebateCostLabel">Rebate</label><input id="multiRebate" type="number" step="0.01" value="0"><div id="multiRebateCostHint" class="rebateCostHint"></div></div>
           </div>
           <div class="row3" style="margin-top:14px">
             <div><label>Materials inc GST</label><input id="multiMaterials" type="number" step="0.01" value="150"></div>
@@ -5048,9 +5080,84 @@ function setDcceewContractDisplay(match,result,errorMessage){
   if(upliftMetaEl) upliftMetaEl.textContent=`ESC uplift of ${money(match.rate-standardEscRate)} per certificate`;
   if(noteEl) noteEl.textContent='The DCCEEW contract rebate is included in Costs for this match. Confirm every required compliance step because missing information means the standard market rate applies.';
 }
+function currentMultiSplitDcceewMatch(postcodeValue){
+  const outdoor=selectedMultiSplitOutdoor();
+  if(!outdoor) return null;
+  const postcode=postcodeValue===undefined?String(($('multiSplitPostcode')&&$('multiSplitPostcode').value)||'').trim():postcodeValue;
+  return getDcceewContractMatch({brand:outdoor.brand,model:outdoor.rebateModel||outdoor.model},postcode);
+}
+function setMultiSplitDcceewContractDisplay(match,result,errorMessage){
+  const rebatePanel=$('multiSplitRebatePanel');
+  const panel=$('multiSplitDcceewContractPanel');
+  const costField=$('multiRebateCostField');
+  const costLabel=$('multiRebateCostLabel');
+  const costHint=$('multiRebateCostHint');
+  if(!rebatePanel || !panel) return;
+  const matched=!!match;
+  rebatePanel.classList.toggle('dcceewEligible',matched);
+  panel.setAttribute('aria-hidden',matched?'false':'true');
+  if(costField) costField.classList.toggle('dcceewEligible',matched);
+  if(costLabel) costLabel.textContent=matched?'Rebate (DCCEEW contract)':'Rebate';
+  if(costHint){
+    costHint.classList.toggle('show',matched);
+    costHint.textContent=matched
+      ? (result?`Includes ${money(applyDcceewContractRebate(match,result).contractUplift)} additional contract value at ${money(match.rate)} per ESC.`:'Approved postcode and outdoor model match. Waiting for live certificate values.')
+      : '';
+  }
+  if(!matched){
+    panel.dataset.matchKey='';
+    return;
+  }
+  const infoButton=$('multiSplitDcceewInfoButton');
+  if(panel.dataset.matchKey!==match.matchKey){
+    panel.dataset.matchKey=match.matchKey;
+    if(infoButton){
+      infoButton.classList.remove('attention');
+      void infoButton.offsetWidth;
+      infoButton.classList.add('attention');
+    }
+  }
+  const standardTotalEl=$('multiSplitDcceewStandardTotal');
+  const contractTotalEl=$('multiSplitDcceewContractTotal');
+  const upliftEl=$('multiSplitDcceewContractUplift');
+  const standardMetaEl=$('multiSplitDcceewStandardMeta');
+  const contractMetaEl=$('multiSplitDcceewContractMeta');
+  const upliftMetaEl=$('multiSplitDcceewUpliftMeta');
+  const noteEl=$('multiSplitDcceewComparisonNote');
+  if(!result){
+    const pending=errorMessage?'Unavailable':'Calculating...';
+    if(standardTotalEl) standardTotalEl.textContent=pending;
+    if(contractTotalEl) contractTotalEl.textContent=pending;
+    if(upliftEl) upliftEl.textContent=pending;
+    if(standardMetaEl) standardMetaEl.textContent=errorMessage||'Using the normal business ESC rate';
+    if(contractMetaEl) contractMetaEl.textContent=errorMessage||`ESCs at ${money(match.rate)} plus unchanged PERC`;
+    if(upliftMetaEl) upliftMetaEl.textContent=errorMessage?'Live certificate counts are required':'Difference from the standard payout';
+    if(noteEl) noteEl.textContent='The contract-rate rebate will be included in Costs when live certificate values are available. Missing a required compliance step means the standard market rate applies.';
+    return;
+  }
+  const esc=Number(result.esc)||0;
+  const prc=Number(result.prc)||0;
+  const standardEscRate=Number(result.escRate)||0;
+  const prcRate=Number(result.prcRate)||0;
+  const standardEscValue=esc*standardEscRate;
+  const prcValue=prc*prcRate;
+  const standardTotal=standardEscValue+prcValue;
+  const contractTotal=esc*match.rate+prcValue;
+  const uplift=contractTotal-standardTotal;
+  if(standardTotalEl) standardTotalEl.textContent=money(standardTotal);
+  if(contractTotalEl) contractTotalEl.textContent=money(contractTotal);
+  if(upliftEl) upliftEl.textContent=dcceewSignedMoney(uplift);
+  if(standardMetaEl) standardMetaEl.textContent=`${certCountText(esc)} ESC x ${money(standardEscRate)} + ${money(prcValue)} PERC`;
+  if(contractMetaEl) contractMetaEl.textContent=`${certCountText(esc)} ESC x ${money(match.rate)} + ${money(prcValue)} PERC`;
+  if(upliftMetaEl) upliftMetaEl.textContent=`ESC uplift of ${money(match.rate-standardEscRate)} per certificate`;
+  if(noteEl) noteEl.textContent='The DCCEEW contract rebate is included in Costs for this match. Confirm every required compliance step because missing information means the standard market rate applies.';
+}
+let dcceewInfoReturnButton=null;
 function openDcceewInfoModal(){
   const modal=$('dcceewInfoModal');
   if(!modal) return;
+  const active=document.activeElement;
+  dcceewInfoReturnButton=active&&active.classList&&active.classList.contains('dcceewInfoButton')?active:null;
   modal.classList.add('open');
   const closeButton=modal.querySelector('.quoteNameModalActions button');
   if(closeButton) closeButton.focus();
@@ -5058,7 +5165,8 @@ function openDcceewInfoModal(){
 function closeDcceewInfoModal(){
   const modal=$('dcceewInfoModal');
   if(modal) modal.classList.remove('open');
-  const infoButton=$('dcceewInfoButton');
+  const infoButton=dcceewInfoReturnButton||$('dcceewInfoButton');
+  dcceewInfoReturnButton=null;
   if(infoButton) infoButton.focus();
 }
 const CALCULATOR_GUIDANCE_VERSION=1;
@@ -5539,6 +5647,28 @@ function hasManualRebateOverride(type,p){const key=managedKeyForProduct(type,p);
 function getEssEscRate(){const n=Number(($('essEscRate')&&$('essEscRate').value)||0); return Number.isFinite(n)&&n>0?n:0;}
 function getEssPrcRate(){const n=Number(($('essPrcRate')&&$('essPrcRate').value)||0); return Number.isFinite(n)&&n>0?n:0;}
 function getEssPostcode(){return String(($('essPostcode')&&$('essPostcode').value)||'').trim();}
+function updateMultiSplitPostcodeFieldState(){
+  const field=$('multiSplitPostcodeField');
+  const input=$('multiSplitPostcode');
+  const pill=$('multiSplitPostcodeRequiredPill');
+  if(!field || !input) return;
+  const valid=/^\d{4}$/.test(String(input.value||'').trim());
+  field.classList.toggle('valid',valid);
+  input.setAttribute('aria-invalid',valid?'false':'true');
+  if(pill){
+    pill.classList.toggle('confirmed',valid);
+    pill.textContent='Required for rebate';
+  }
+}
+function syncSharedEssPostcode(value,source,persist){
+  const postcode=String(value||'').trim();
+  if(source!=='standard' && $('essPostcode')) $('essPostcode').value=postcode;
+  if(source!=='multi' && $('multiSplitPostcode')) $('multiSplitPostcode').value=postcode;
+  updatePostcodeFieldState();
+  updateMultiSplitPostcodeFieldState();
+  if(persist) saveEssSettings();
+  return postcode;
+}
 function updatePostcodeFieldState(){
   const field=$('postcodeField');
   const input=$('essPostcode');
@@ -5560,7 +5690,7 @@ function applyEssState(state){
   if(!state) return;
   const postcode=state.postcode!==undefined ? state.postcode : state.essPostcode;
   const climateZone=state.climateZone!==undefined ? state.climateZone : (state.zone!==undefined ? state.zone : state.essClimateZone);
-  if(postcode!==undefined && $('essPostcode')) $('essPostcode').value=String(postcode||'');
+  if(postcode!==undefined) syncSharedEssPostcode(postcode,'state',false);
   if(climateZone!==undefined && $('essClimateZone')){
     const zone=String(climateZone||'auto').toLowerCase();
     $('essClimateZone').value=[...$('essClimateZone').options].some(o=>o.value===zone)?zone:'auto';
@@ -6934,6 +7064,7 @@ function updateCalculatorSectionVisibility(){
 function setMultiSplitSection(){
   if(!multiSplitTrialEnabled()) return;
   activeCalculatorView='multiSplit';
+  syncSharedEssPostcode(getEssPostcode(),'standard',false);
   updateCalculatorSectionVisibility();
   if($('multiSplitBrand')&&!$('multiSplitBrand').options.length) populateMultiSplitBrands();
   renderMultiSplitTrial();
@@ -7233,7 +7364,7 @@ function setMultiSplitStatus(message,type){
 }
 function updateMultiSplitRebateFreshness(state){
   const indicator=$('multiSplitRebateFreshness');
-  const button=$('multiSplitCheckRebateBtn');
+  const buttons=[$('multiSplitQuickRebateBtn'),$('multiSplitCheckRebateBtn')].filter(Boolean);
   const totals=multiSplitEquipmentTotals();
   const missingPrices=multiSplitMissingPriceModels(totals);
   const maxHeads=Number(totals.outdoor&&totals.outdoor.maxHeads)||0;
@@ -7252,10 +7383,10 @@ function updateMultiSplitRebateFreshness(state){
       indicator.textContent=multiSplitHasCalculated?'Recalculation required':'Calculation required';
     }
   }
-  if(button){
-    button.textContent=multiSplitHasCalculated?'Recalculate rebate':'Calculate rebate';
+  buttons.forEach(button=>{
+    button.textContent=state==='loading'?'Calculating...':(multiSplitHasCalculated?'Recalculate rebate':'Calculate rebate');
     button.disabled=state==='loading'||!!invalid;
-  }
+  });
   const addButton=$('multiSplitAddToQuoteBtn');
   if(addButton){
     const needsRebate=rebatesEnabled()&&!multiSplitRebateFresh;
@@ -7274,6 +7405,7 @@ function resetMultiSplitRebateMetrics(message){
   if($('multiSplitPrcCount')) $('multiSplitPrcCount').textContent='-';
   if($('multiSplitRebateValue')) $('multiSplitRebateValue').textContent='-';
   if($('multiRebate')) $('multiRebate').value='0.00';
+  setMultiSplitDcceewContractDisplay(currentMultiSplitDcceewMatch(),null);
   if(message) setMultiSplitStatus(message,'');
   updateMultiSplitRebateFreshness();
   renderMultiSplitFinancials();
@@ -7440,7 +7572,9 @@ function addMultiSplitIndoorRow(){
     setMultiSplitStatus(`The selected outdoor unit allows ${maxHeads} indoor heads.`, 'error');
     return;
   }
-  multiSplitIndoorSelections.push({indoorIndex:compatible[0],qty:1});
+  const previous=multiSplitIndoorSelections[multiSplitIndoorSelections.length-1];
+  const previousIndex=Number(previous&&previous.indoorIndex);
+  multiSplitIndoorSelections.push({indoorIndex:compatible.includes(previousIndex)?previousIndex:compatible[0],qty:1});
   renderMultiSplitTrial();
 }
 function removeMultiSplitIndoorRow(index){
@@ -7470,8 +7604,9 @@ function updateMultiSplitIndoorRow(index,field,value){
   }
   renderMultiSplitTrial();
 }
-async function calculateMultiSplitTrialRebate(){
+async function calculateMultiSplitTrialRebate(revealResults){
   setSectionLoading('multiSplitRebatePanel',false);
+  if(revealResults && $('multiSplitRebatePanel')) $('multiSplitRebatePanel').scrollIntoView({behavior:'smooth',block:'start'});
   const requestId=++multiSplitTrialRequestSeq;
   const totals=multiSplitEquipmentTotals();
   const {outdoor,total,headCount}=totals;
@@ -7484,6 +7619,8 @@ async function calculateMultiSplitTrialRebate(){
   const postcode=String(($('multiSplitPostcode')&&$('multiSplitPostcode').value)||'').trim();
   const install=String(($('multiSplitInstallType')&&$('multiSplitInstallType').value)||'replacement');
   if(!/^\d{4}$/.test(postcode)){setMultiSplitStatus('Enter a valid 4-digit postcode for the rebate calculation.','error'); return;}
+  const dcceewMatch=currentMultiSplitDcceewMatch(postcode);
+  setMultiSplitDcceewContractDisplay(dcceewMatch,null);
   setMultiSplitStatus('Checking GEMS data and NSW multi-split certificate calculation...','loading');
   setSectionLoading('multiSplitRebatePanel',true,'Calculating multi-head rebate...');
   updateMultiSplitRebateFreshness('loading');
@@ -7503,18 +7640,22 @@ async function calculateMultiSplitTrialRebate(){
     const prcRate=getEssPrcRate();
     const escValue=(Number(certs.esc)||0)*escRate;
     const prcValue=(Number(certs.prc)||0)*prcRate;
-    const rebate=escValue+prcValue;
+    const standardResult={esc:certs.esc,prc:certs.prc,escRate,prcRate,escValue,prcValue};
+    const effective=applyDcceewContractRebate(dcceewMatch,standardResult);
+    const rebate=effective.rebate;
     if($('multiSplitEscCount')) $('multiSplitEscCount').textContent=certCountText(certs.esc);
     if($('multiSplitPrcCount')) $('multiSplitPrcCount').textContent=certCountText(certs.prc);
     if($('multiSplitRebateValue')) $('multiSplitRebateValue').textContent=money(rebate);
     if($('multiRebate')) $('multiRebate').value=rebate.toFixed(2);
+    setMultiSplitDcceewContractDisplay(dcceewMatch,standardResult);
     multiSplitHasCalculated=true;
     multiSplitRebateFresh=true;
     renderMultiSplitFinancials();
     const capText=certs.caps&&Number.isFinite(certs.caps.esc)?` Caps applied: ${certs.caps.esc} ESC / ${certs.caps.prc} PERC.`:'';
     const eligibilityText=certs.eligibility&&certs.eligibility.message?` Eligibility: ${certs.eligibility.message}.`:' Eligibility passed.';
     const capacityText=` Capacity used: ${capacityInputs.coolingCapacity.toFixed(2)}kW cooling and ${capacityInputs.heatingCapacity.toFixed(2)}kW heating (the lesser of connected indoor and registered outdoor capacity). PDRS input power: ${capacityInputs.inputPower.toFixed(3)}kW at ${(capacityInputs.coolingRatio*100).toFixed(1)}% of outdoor input.`;
-    setMultiSplitStatus(`${resolved.source}: ${resolved.brand} ${resolved.model}. ESC ${certCountText(certs.esc)} x ${money(escRate)} = ${money(escValue)} | PERC ${certCountText(certs.prc)} x ${money(prcRate)} = ${money(prcValue)} | Total ${money(rebate)}. ${climate.climateZone}, ${climate.bcaZone}, ${install}.${capacityText}${capText}${eligibilityText}`,'');
+    const contractText=effective.contractApplied?` DCCEEW $30 contract rate applied; additional value ${money(effective.contractUplift)}.`:'';
+    setMultiSplitStatus(`${resolved.source}: ${resolved.brand} ${resolved.model}. ESC ${certCountText(certs.esc)} x ${money(escRate)} = ${money(escValue)} | PERC ${certCountText(certs.prc)} x ${money(prcRate)} = ${money(prcValue)} | Total ${money(rebate)}.${contractText} ${climate.climateZone}, ${climate.bcaZone}, ${install}.${capacityText}${capText}${eligibilityText}`,'');
     updateMultiSplitRebateFreshness();
   }catch(e){
     if(requestId!==multiSplitTrialRequestSeq) return;
@@ -7523,12 +7664,12 @@ async function calculateMultiSplitTrialRebate(){
     multiSplitHasCalculated=true;
     multiSplitRebateFresh=true;
     renderMultiSplitFinancials();
+    setMultiSplitDcceewContractDisplay(dcceewMatch,null,`Unable to calculate certificates: ${String(e.message||e||'Live data unavailable')}`);
     setMultiSplitStatus(`Rebate set to $0.00 because the multi-head rebate could not be calculated. ${String(e.message||e||'Live data unavailable')}`,'error');
     updateMultiSplitRebateFreshness('error');
   }finally{
     if(requestId===multiSplitTrialRequestSeq){
       setSectionLoading('multiSplitRebatePanel',false);
-      if($('multiSplitCheckRebateBtn')) $('multiSplitCheckRebateBtn').disabled=false;
       if(!multiSplitRebateFresh) updateMultiSplitRebateFreshness('error');
     }
   }
@@ -7537,17 +7678,21 @@ function initMultiSplitTrial(){
   applyMultiSplitTrialVisibility();
   if(!multiSplitTrialEnabled()) return;
   const postcode=$('multiSplitPostcode');
-  if(postcode && $('essPostcode')) postcode.value=$('essPostcode').value||postcode.value||'2170';
+  if(postcode && $('essPostcode')) syncSharedEssPostcode($('essPostcode').value||postcode.value||'2170','standard',false);
   const trialInstallType=$('multiSplitInstallType');
   if(trialInstallType && !trialInstallType.value) trialInstallType.value='replacement';
   populateMultiSplitBrands();
-  ['multiSplitPostcode','multiSplitInstallType'].forEach(id=>{
-    const el=$(id);
-    if(el){
-      el.addEventListener('input',()=>{resetMultiSplitRebateMetrics('Selection changed. Calculate the rebate again before adding this system to a quote.');});
-      el.addEventListener('change',()=>{renderMultiSplitTrial();});
-    }
-  });
+  if(postcode){
+    updateMultiSplitPostcodeFieldState();
+    postcode.addEventListener('input',()=>{
+      syncSharedEssPostcode(postcode.value,'multi',false);
+      resetMultiSplitRebateMetrics('Selection changed. Calculate the rebate again before adding this system to a quote.');
+    });
+    postcode.addEventListener('change',()=>{
+      syncSharedEssPostcode(postcode.value,'multi',true);
+      renderMultiSplitTrial();
+    });
+  }
 }
 function render(){
   syncLabourInstallerControls();
@@ -8371,7 +8516,7 @@ function loadMultiSplitQuote(q,s){
   populateMultiSplitOutdoors();
   if($('multiSplitOutdoor')) $('multiSplitOutdoor').value=String(outdoorIdx);
   multiSplitIndoorSelections=normaliseMultiSplitIndoorSelections(s,outdoor);
-  if($('multiSplitPostcode')) $('multiSplitPostcode').value=String(s.postcode || (s.ess&&s.ess.postcode) || q.postcode || '').trim();
+  syncSharedEssPostcode(String(s.postcode || (s.ess&&s.ess.postcode) || q.postcode || '').trim(),'state',true);
   if($('multiSplitInstallType')) $('multiSplitInstallType').value=s.installType==='new'?'new':'replacement';
   if($('multiLabour')) $('multiLabour').value=s.labour!==undefined?s.labour:(q.labour!==undefined?q.labour:'0');
   if($('multiRebate')) $('multiRebate').value=s.rebate!==undefined?s.rebate:(q.rebate!==undefined?q.rebate:'0');
@@ -10174,8 +10319,8 @@ function initEssControls(){
   applyLockedCertValuesToMain();
   if(postcodeEl){
     updatePostcodeFieldState();
-    postcodeEl.addEventListener('input',updatePostcodeFieldState);
-    postcodeEl.addEventListener('change',()=>{updatePostcodeFieldState(); saveEssSettings(); refreshEnergySavingsEstimate(); refreshLiveRebateForCurrentProduct(); refreshBestValueIndicator();});
+    postcodeEl.addEventListener('input',()=>{syncSharedEssPostcode(postcodeEl.value,'standard',false);});
+    postcodeEl.addEventListener('change',()=>{syncSharedEssPostcode(postcodeEl.value,'standard',true); refreshEnergySavingsEstimate(); refreshLiveRebateForCurrentProduct(); refreshBestValueIndicator();});
   }
   if(zoneEl){
     zoneEl.addEventListener('change',()=>{saveEssSettings(); refreshEnergySavingsEstimate(); refreshLiveRebateForCurrentProduct(); refreshBestValueIndicator();});
