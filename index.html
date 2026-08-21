@@ -4407,6 +4407,22 @@ function productListFor(type){
   return activeBusinessState()==='NSW'?list:list.filter(product=>product.nswOnly!==true);
 }
 function data(){return activeProducts(productListFor(systemType))};
+function roleUsesPricedCatalogueOnly(){
+  const role=String(calculatorUserContext().role||'').trim().toLowerCase();
+  return role==='salesperson'||role==='user';
+}
+function productHasConfiguredPrice(p){
+  if(!p) return false;
+  const price=p.unitPriceInc!==undefined?p.unitPriceInc:p.priceIncGst;
+  return hasPositiveUnitPrice(price);
+}
+function productVisibleToCurrentUser(p){
+  return !roleUsesPricedCatalogueOnly()||productHasConfiguredPrice(p);
+}
+function selectableProductOptions(options){
+  const includeIndex=Number(options&&options.includeProductIndex);
+  return data().map((p,i)=>({p,i})).filter(item=>item.i===includeIndex||productVisibleToCurrentUser(item.p));
+}
 const BRAND_ALIASES={"Fujitsu":"Fujitsu General","Fujitsu Lifestyle":"Fujitsu General","Hisense x3 series":"Hisense","Hisense G series":"Hisense","Hitachi AirHome 600":"Hitachi","TCL BreezeIN 2.0":"TCL","Daikin Alira":"Daikin","Daikin Cora":"Daikin","Mitsubishi Heavy Industries Avanti Plus":"Mitsubishi Heavy Industries","Mitsubishi Heavy Industries Bronte":"Mitsubishi Heavy Industries","Rinnai PB Series":"Rinnai","Rinnai PX Series":"Rinnai","Actron":"Actron Air"};
 const MODEL_ALIASES={"RXM46W1VMA / FTXM46W1VMA":"RXM46WVMA / FTXM46WVMA","FDUA125VH/FDCA125VNX":"FDCA125VNX-W/FDUA125VH","FDCA125VNX-FDUA125VH":"FDCA125VNX-W/FDUA125VH","FDCA125VNX-W-FDUA125VH":"FDCA125VNX-W/FDUA125VH","FDUA140VG/FDCA140VNX":"FDCA140VNX-W/FDUA140VH","FDUA160VG/FDCA160VNX":"FDCA160VNX-W/FDUA160VH","UHN100M2S/UU100WR3":"UU100WR3 U30/UHN100M2S N20","UHN125M3S/UU125WR3":"UU125WR3 U30/UHN125M3S N30","UHN140M3S/UU140WR3":"UU140WR3 U30/UHN140M3S N30","UHN150M3S/UU150WR3":"UU150WR3 U30 / UHN150M3S N30","PPHI-3.0UFA1NQ/PAS-3.0UFASNQ1":"PAS-3.0UFASNQ1 / PPIH-3.0UFA1NQ","PPHI-4.0UFA1NQ/PAS-4.0UFASNQ1":"PAS-4.0UFASNQ1 / PPIH-4.0UFA1NQ","PPHI-5.0UFA1NQ/PAS-5.0UFASNQ1":"PAS-5.0UFASNQ1 / PPIH-5.0UFA1NQ","PPHI-6.0UFA1NQ/PAS-6.0UFASNQ1":"PAS-6.0UFASNQ1 / PPIH-6.0UFA1NQ","PPHI-6.5UFA1NQ/PAS-6.5UFASNQ1":"PAS-6.5UFASNQ1 / PPIH-6.5UFA1NQ","PAS-6.5UFASMQ1 - PPIH-6.5UFA1NQ":"PAS-6.5UFASMQ1 / PPIH-6.5UFA1NQ","TCD71D1HWH-DV/TCD71D1HWH-DV":"TCD71D1HWH-DVO/TCD71D1HWH-DVI","TCD85D1HWH-DV/TCD85D1HWH-DV":"TCD85D1HWH-DVO/TCD85D1HWH-DVI","TCD100D1HWH-DVO-TCD100D1HWH-DVI":"TCD100D1HWH-DVO/TCD100D1HWH-DVI","TCD125D1HWH-DVO-TCD125D1HWH-DVI":"TCD125D1HWH-DVO/TCD125D1HWH-DVI","TCD140D1HWH-DVO - TCD140D1HWH-DVI":"TCD140D1HWH-DVO / TCD140D1HWH-DVI","TCD160D1HWH-DVO - TCD160D1HWH-DVI":"TCD160D1HWH-DVO / TCD160D1HWH-DVI","DONSR09B1-DINLR09B1":"DONSR09B1/DINLR09B1","DONSR11B1LA-DINLR11B1A":"DONSR11B1LA/DINLR11B1A","DONSR13B1LA-DINLR13B1A":"DONSR13B1LA/DINLR13B1A","DONSR15B1TA-DINLR15B1SA":"DONSR15B1TA/DINLR15B1SA","DONSR18B1-DINLR18B1":"DONSR18B1/DINLR18B1","CRS10AS - EVA10AS":"CRS10AS / EVA10AS","CRS13AS - EVA13AS":"CRS13AS / EVA13AS","CRS15AS - EVA15AS":"CRS15AS / EVA15AS","CRS17AS - EVA17AS":"CRS17AS / EVA17AS","CRS20AT - EVA20AS":"CRS20AT / EVA20AS","CRS23AT - EVA23AS":"CRS23AT / EVA23AS","AOTH24KBTA-ARTH24KHTA":"AOTH24KBTA/ARTH24KHTA","AOTH30KBTA-ARTH30KHTA":"AOTH30KBTA/ARTH30KHTA","AOTH36KBTA-ARTH36KHTA":"AOTH36KBTA/ARTH36KHTA","AOTH36KRTA-ARTH36KHTA":"AOTH36KRTA/ARTH36KHTA","AOTH45KBTA-ARTH45KHTA":"AOTH45KBTA/ARTH45KHTA","AOTH45KRTA-ARTH45KHTA":"AOTH45KRTA/ARTH45KHTA","AOTH54KBTA-ARTH54KHTA":"AOTH54KBTA/ARTH54KHTA","AOTH60KBTA-ARTH60KHTA":"AOTH60KBTA/ARTH60KHTA","AOTH60KRTA-ARTH60KHTA":"AOTH60KRTA/ARTH60KHTA","RZAS71C2V1 - FDYA71AV19":"RZAS71C2V1 / FDYA71AV19","RZAS100C2V1 - FDYA100AV19":"RZAS100C2V1 / FDYA100AV19","RZAS125C2V1 - FDYA125AV19":"RZAS125C2V1 / FDYA125AV19","RZAS140C2V1 - FDYA140AV19":"RZAS140C2V1 / FDYA140AV19","RZAS160C2V1 - FDYA160AV19":"RZAS160C2V1 / FDYA160AV19","RAC-VJ25PHAT-RAK-VJ25PHAT":"RAC-VJ25PHAT/RAK-VJ25PHAT","RAC-VJ35PHAT-RAK-VJ35PHAT":"RAC-VJ35PHAT/RAK-VJ35PHAT","RAC-VJ50PHAT-RAK-VJ50PHAT":"RAC-VJ50PHAT/RAK-VJ50PHAT","RAC-VJ60PHAT-RAK-VJ60PHAT":"RAC-VJ60PHAT/RAK-VJ60PHAT","RAC-VJ70PHAT-RAK-VJ70PHAT":"RAC-VJ70PHAT/RAK-VJ70PHAT","TAC-10CHSD-VEIH":"TAC-10CHSD/VEIH","TAC-13CHSD-VEIH":"TAC-13CHSD/VEIH","TAC-18CHSD-VEIH":"TAC-18CHSD/VEIH","TAC-24CHSD-VEIH":"TAC-24CHSD/VEIH","RXM20YVMA - FTXM20YVMA":"RXM20YVMA / FTXM20YVMA","RXM25YVMA - FTXM25YVMA":"RXM25YVMA / FTXM25YVMA","RXM35WVMA - FTXM35WVMA":"RXM35WVMA / FTXM35WVMA","RXM50WVMA - FTXM50WVMA":"RXM50WVMA / FTXM50WVMA","RXM60WVMA - FTXM60WVMA":"RXM60WVMA / FTXM60WVMA","RXM71WVMA - FTXM71WVMA":"RXM71WVMA / FTXM71WVMA","SRC20ZSXA-W-SRK20ZSXA-WF":"SRC20ZSXA-W/SRK20ZSXA-WF","SRC25ZSXA-W-SRK25ZSXA-WF":"SRC25ZSXA-W/SRK25ZSXA-WF","SRC35ZSXA-W-SRK35ZSXA-WF":"SRC35ZSXA-W/SRK35ZSXA-WF","SRC50ZSXA-W-SRK50ZSXA-WF":"SRC50ZSXA-W/SRK50ZSXA-WF","SRC60ZSXA-W-SRK60ZSXA-WF":"SRC60ZSXA-W/SRK60ZSXA-WF","SRC95ZRA-W - SRK95ZRA-WF1":"SRC95ZRA-W / SRK95ZRA-WF1","DXC24ZRA-W / DXK24ZRA-WF1":"DXC24ZRA-W - DXK24ZRA-WF1","HONRPX25-HINRPX25M":"HONRPX25/HINRPX25M","HONRPX35-HINRPX35M":"HONRPX35/HINRPX35M","HONRPX50-HINRPX50M":"HONRPX50/HINRPX50M","HONRPX60-HINRPX60M":"HONRPX60/HINRPX60M","HONRPX70-HINRPX70M":"HONRPX70/HINRPX70M","HONRPX80-HINRPX80M":"HONRPX80/HINRPX80M"};
 Object.assign(BRAND_ALIASES,{"Rinnai TX Series":"Rinnai","Rinnai VX Series":"Rinnai"});
@@ -4695,7 +4711,7 @@ function applyProductModelDisplayAliases(){
 applyProductModelDisplayAliases();
 function productDisplayName(p){return `${p.brand}${p.series?' '+p.series:''}`.trim();}
 function quoteProductName(r){return `${r.size||''} ${r.brand||''}${r.series?' '+r.series:''} (${r.model||''})`.trim();}
-function brands(){return [...new Set(data().map(p=>p.brand))]}
+function brands(options){return [...new Set(selectableProductOptions(options).map(item=>item.p.brand))]}
 function setSystem(t,options){
   activeCalculatorView='standard';
   systemType=t;
@@ -4713,7 +4729,7 @@ function setInstall(t,options){
   refreshLiveRebateForCurrentProduct();
   refreshBestValueIndicator();
 }
-function populateBrands(options){$('brand').innerHTML=brands().map(b=>`<option>${b}</option>`).join(''); populateProducts(options);}
+function populateBrands(options){$('brand').innerHTML=brands(options).map(b=>`<option>${b}</option>`).join(''); populateProducts(options);}
 function sortedProductOptions(list){
   const seriesOrder={};
   list.forEach(x=>{
@@ -4728,7 +4744,7 @@ function sortedProductOptions(list){
     return a.i-b.i;
   });
 }
-function populateProducts(options){const b=$('brand').value; const list=sortedProductOptions(data().map((p,i)=>({p,i})).filter(x=>x.p.brand===b)); $('product').innerHTML=list.map(x=>`<option value="${x.i}">${unitSelectLabel(x.p)}</option>`).join(''); if(!(options&&options.skipProductChange)) onProductChange();}
+function populateProducts(options){const b=$('brand').value; const list=sortedProductOptions(selectableProductOptions(options).filter(x=>x.p.brand===b)); $('product').innerHTML=list.map(x=>`<option value="${x.i}">${unitSelectLabel(x.p)}</option>`).join(''); if(!(options&&options.skipProductChange)) onProductChange();}
 function unitSelectLabel(p){return `${p.capacity||p.size+'kW'}${p.series?' - '+p.series:''}${p.phase?' - '+p.phase:''}`;}
 function label(p){return `${unitSelectLabel(p)} - ${p.model}`;}
 function product(){return data()[Number($('product').value)||0]||data()[0]}
@@ -5621,7 +5637,7 @@ async function refreshBestValueIndicator(){
   const scopeLabel=recommendationScopeLabel(categoryLabel,current);
   const zoneSel=getEssZoneSelection();
   const phase=recommendationPhaseValue(current);
-  const allCandidates=data().map((p,i)=>({p,i})).filter(item=>recommendationCandidateMatchesScope(current,item.p,category,systemType));
+  const allCandidates=data().map((p,i)=>({p,i})).filter(item=>productVisibleToCurrentUser(item.p)&&recommendationCandidateMatchesScope(current,item.p,category,systemType));
   const uniqueCandidates=[];
   const seenKeys=new Set();
   allCandidates.forEach(item=>{
@@ -7099,17 +7115,23 @@ function applyMultiSplitTrialVisibility(){
   updateCalculatorSectionVisibility();
 }
 function multiSplitBrands(){
-  return [...new Set(MULTI_SPLIT_OUTDOORS.map(row=>row.brand))].sort((a,b)=>a.localeCompare(b));
+  return [...new Set(MULTI_SPLIT_OUTDOORS.filter(productVisibleToCurrentUser).map(row=>row.brand))].sort((a,b)=>a.localeCompare(b));
 }
 function selectedMultiSplitOutdoor(){
-  const idx=Number(($('multiSplitOutdoor')&&$('multiSplitOutdoor').value)||0);
-  return MULTI_SPLIT_OUTDOORS[idx]||MULTI_SPLIT_OUTDOORS[0]||null;
+  const select=$('multiSplitOutdoor');
+  const idx=Number((select&&select.value)||0);
+  const selected=MULTI_SPLIT_OUTDOORS[idx];
+  const selectedIsAvailable=!!(select&&Array.from(select.options||[]).some(option=>Number(option.value)===idx));
+  if(selected&&(productVisibleToCurrentUser(selected)||selectedIsAvailable)) return selected;
+  return MULTI_SPLIT_OUTDOORS.find(productVisibleToCurrentUser)||null;
 }
-function multiSplitCompatibleIndoorIndexes(outdoor){
+function multiSplitCompatibleIndoorIndexes(outdoor,options){
   if(!outdoor) return [];
+  const includeUnpriced=!!(options&&options.includeUnpriced);
+  const includeIndexes=new Set((options&&options.includeIndexes)||[]);
   return MULTI_SPLIT_INDOORS
     .map((row,index)=>({row,index}))
-    .filter(item=>item.row.brand===outdoor.brand && (!outdoor.family || item.row.family===outdoor.family))
+    .filter(item=>item.row.brand===outdoor.brand && (!outdoor.family || item.row.family===outdoor.family) && (includeUnpriced||includeIndexes.has(item.index)||productVisibleToCurrentUser(item.row)))
     .map(item=>item.index);
 }
 function multiSplitPriceLabel(value){
@@ -7505,7 +7527,7 @@ function renderMultiSplitTrial(){
     $('multiSplitLimitHint').textContent=outdoor?`Max ${maxHeads||'?'} indoor heads. ${capacityText}.`:capacityText;
   }
   renderMultiSplitCapacityFeedback(outdoor,headCount,maxHeads,connectedCapacity);
-  const compatible=multiSplitCompatibleIndoorIndexes(outdoor);
+  const compatible=multiSplitCompatibleIndoorIndexes(outdoor,{includeIndexes:multiSplitIndoorSelections.map(selection=>Number(selection.indoorIndex))});
   const rows=$('multiSplitIndoorRows');
   if(rows){
     rows.innerHTML=multiSplitIndoorSelections.map((selection,rowIndex)=>{
@@ -7558,17 +7580,22 @@ function renderMultiSplitTrial(){
   }
   if(missingPrices.length) updateQuotePriceValidationUi();
 }
-function populateMultiSplitBrands(){
+function populateMultiSplitBrands(options){
   const brandEl=$('multiSplitBrand');
   if(!brandEl || !multiSplitTrialEnabled()) return;
-  brandEl.innerHTML=multiSplitBrands().map(brand=>`<option>${htmlEscape(brand)}</option>`).join('');
-  populateMultiSplitOutdoors();
+  const includeIndex=Number(options&&options.includeOutdoorIndex);
+  const included=MULTI_SPLIT_OUTDOORS[includeIndex];
+  const available=multiSplitBrands();
+  const brandList=included&&!available.includes(included.brand)?[...available,included.brand]:available;
+  brandEl.innerHTML=brandList.map(brand=>`<option>${htmlEscape(brand)}</option>`).join('');
+  populateMultiSplitOutdoors(options);
 }
-function populateMultiSplitOutdoors(){
+function populateMultiSplitOutdoors(options){
   const brand=String(($('multiSplitBrand')&&$('multiSplitBrand').value)||'');
   const outdoorEl=$('multiSplitOutdoor');
   if(!outdoorEl) return;
-  const rows=MULTI_SPLIT_OUTDOORS.map((row,index)=>({row,index})).filter(item=>item.row.brand===brand);
+  const includeIndex=Number(options&&options.includeOutdoorIndex);
+  const rows=MULTI_SPLIT_OUTDOORS.map((row,index)=>({row,index})).filter(item=>item.row.brand===brand&&(item.index===includeIndex||productVisibleToCurrentUser(item.row)));
   outdoorEl.innerHTML=rows.map(item=>`<option value="${item.index}">${htmlEscape(`${item.row.capacity} - ${item.row.series} - ${item.row.model} - ${multiSplitPriceLabel(item.row.unitPriceInc)}${item.row.phase?` - ${item.row.phase}`:''}`)}</option>`).join('');
   onMultiSplitOutdoorChange();
 }
@@ -8495,7 +8522,7 @@ function findMultiSplitOutdoorFromState(s){
   return MULTI_SPLIT_OUTDOORS.length?0:-1;
 }
 function normaliseMultiSplitIndoorSelections(s,outdoor){
-  const compatible=multiSplitCompatibleIndoorIndexes(outdoor);
+  const compatible=multiSplitCompatibleIndoorIndexes(outdoor,{includeUnpriced:true});
   if(!compatible.length) return [];
   const saved=Array.isArray(s && s.indoorSelections)?s.indoorSelections:[];
   const fromSelections=saved.map(item=>{
@@ -8537,8 +8564,9 @@ function loadMultiSplitQuote(q,s){
     return;
   }
   const outdoor=MULTI_SPLIT_OUTDOORS[outdoorIdx];
+  populateMultiSplitBrands({includeOutdoorIndex:outdoorIdx});
   if($('multiSplitBrand')) $('multiSplitBrand').value=outdoor.brand;
-  populateMultiSplitOutdoors();
+  populateMultiSplitOutdoors({includeOutdoorIndex:outdoorIdx});
   if($('multiSplitOutdoor')) $('multiSplitOutdoor').value=String(outdoorIdx);
   multiSplitIndoorSelections=normaliseMultiSplitIndoorSelections(s,outdoor);
   syncSharedEssPostcode(String(s.postcode || (s.ess&&s.ess.postcode) || q.postcode || '').trim(),'state',true);
@@ -8592,8 +8620,9 @@ function loadQuote(i){
   const list=data();
   const idx=productLookupIndexFromState(s,list);
   if(idx>=0){
+    populateBrands({skipProductChange:true,includeProductIndex:idx});
     $('brand').value=list[idx].brand;
-    populateProducts({skipProductChange:true});
+    populateProducts({skipProductChange:true,includeProductIndex:idx});
     $('product').value=String(idx);
   } else {
     setRebateCalcMeta('Could not find an exact saved unit match. Quote was not loaded.',true);

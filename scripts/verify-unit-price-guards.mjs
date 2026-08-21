@@ -38,6 +38,16 @@ assert.match(functionSource("render"), /pricingReady=hasPositiveUnitPrice\(x\.un
 assert.match(functionSource("render"), /'Price required'/);
 assert.match(functionSource("renderMultiSplitFinancials"), /pricingReady=multiSplitMissingPriceModels\(x\)\.length===0/);
 assert.match(calculator, /const priceNotice=missingPriceModels\.length\?[\s\S]*optionCard\$\{isWon\?' wonOption':''\}\$\{missingPriceModels\.length\?' priceIncomplete':''\}/);
+assert.match(functionSource("roleUsesPricedCatalogueOnly"), /role==='salesperson'\|\|role==='user'/);
+assert.match(functionSource("productVisibleToCurrentUser"), /productHasConfiguredPrice\(p\)/);
+assert.match(functionSource("brands"), /selectableProductOptions\(options\)/);
+assert.match(functionSource("populateProducts"), /selectableProductOptions\(options\)/);
+assert.match(functionSource("refreshBestValueIndicator"), /productVisibleToCurrentUser\(item\.p\)/);
+assert.match(functionSource("multiSplitBrands"), /filter\(productVisibleToCurrentUser\)/);
+assert.match(functionSource("populateMultiSplitOutdoors"), /productVisibleToCurrentUser\(item\.row\)/);
+assert.match(functionSource("multiSplitCompatibleIndoorIndexes"), /productVisibleToCurrentUser\(item\.row\)/);
+assert.match(functionSource("loadQuote"), /includeProductIndex:idx/);
+assert.match(functionSource("loadMultiSplitQuote"), /includeOutdoorIndex:outdoorIdx/);
 
 const context = {};
 vm.runInNewContext(
@@ -79,5 +89,27 @@ assert.deepEqual(
   ["HEAD-35"],
   "A missing multi-head component price must be named exactly.",
 );
+
+const visibilityContext = {window: {CALCULATOR_USER: {role: "salesperson"}}};
+vm.runInNewContext(
+  [
+    functionSource("calculatorUserContext"),
+    functionSource("hasPositiveUnitPrice"),
+    functionSource("roleUsesPricedCatalogueOnly"),
+    functionSource("productHasConfiguredPrice"),
+    functionSource("productVisibleToCurrentUser"),
+    "result = { productVisibleToCurrentUser };",
+  ].join("\n"),
+  visibilityContext,
+);
+
+assert.equal(visibilityContext.result.productVisibleToCurrentUser({unitPriceInc: 0}), false, "Salespeople must not see zero-priced products.");
+assert.equal(visibilityContext.result.productVisibleToCurrentUser({unitPriceInc: 1200}), true, "Salespeople must see priced products.");
+visibilityContext.window.CALCULATOR_USER.role = "user";
+assert.equal(visibilityContext.result.productVisibleToCurrentUser({priceIncGst: null}), false, "Legacy salesperson accounts must not see unpriced products.");
+visibilityContext.window.CALCULATOR_USER.role = "business_owner";
+assert.equal(visibilityContext.result.productVisibleToCurrentUser({unitPriceInc: 0}), true, "Business owners must retain the full pricing catalogue.");
+visibilityContext.window.CALCULATOR_USER.role = "admin";
+assert.equal(visibilityContext.result.productVisibleToCurrentUser({unitPriceInc: 0}), true, "Platform admins must retain the full pricing catalogue.");
 
 console.log("Unit-price quote and won-job guards verified.");
