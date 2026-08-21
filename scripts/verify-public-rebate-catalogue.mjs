@@ -1,6 +1,17 @@
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import { buildPublicRebateCatalogue } from "../lib/public-rebate-catalogue.ts";
 
 const catalogue = await buildPublicRebateCatalogue();
+const generatedPath = resolve(import.meta.dirname, "..", "lib", "public-rebate-catalogue.generated.json");
+const generatedCatalogue = JSON.parse(await readFile(generatedPath, "utf8"));
+
+if (JSON.stringify(generatedCatalogue) !== JSON.stringify(catalogue)) {
+  throw new Error(
+    "The generated public rebate catalogue is stale. Run pnpm generate:public-rebate-catalogue before verifying or deploying.",
+  );
+}
+
 const identities = new Set(catalogue.products.map((product) => `${product.systemType}|${product.brand}|${product.model}|${product.phase || ""}`));
 if (identities.size !== catalogue.products.length) throw new Error("The public rebate catalogue contains duplicate products.");
 if (catalogue.counts.total !== catalogue.products.length) throw new Error("The public rebate catalogue count is incorrect.");
