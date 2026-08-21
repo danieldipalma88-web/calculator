@@ -73,6 +73,21 @@ assert.equal(Number(effective.contractUplift.toFixed(2)), 51.66, "contract uplif
 
 assert.match(html, /Potentially eligible for the fixed \$30 per ESC rate/, "missing contract eligibility heading");
 assert.match(html, /Important information/, "missing prominent information action");
+assert.equal(
+  (html.match(/href="https:\/\/rebateportal\.com\.au\/first-job-guide"/g) || []).length,
+  2,
+  "standard and multi-head contract panels must both link to the first job guide",
+);
+assert.equal(
+  (html.match(/>Open first job checklist<\/a>/g) || []).length,
+  2,
+  "first job checklist actions must be clearly labelled",
+);
+assert.match(
+  html,
+  /class="dcceewGuideButton"[^>]+target="_blank"[^>]+rel="noopener noreferrer"/,
+  "first job guide must open safely without replacing the current quote",
+);
 assert.match(html, /DCCEEW consent in Alitsy/, "missing consent requirement");
 assert.match(html, /year of manufacture/, "missing baseline manufacture-year requirement");
 assert.match(html, /compliance plate/, "missing compliance-plate requirement");

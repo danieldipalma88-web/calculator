@@ -669,9 +669,15 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
   text-transform:uppercase;
 }
 .dcceewInfoPrompt>span:after{content:"  >"}
+.dcceewInfoActions{
+  display:grid;
+  gap:7px;
+  min-width:210px;
+}
 .dcceewInfoButton{
   display:inline-flex;
   align-items:center;
+  justify-content:center;
   gap:8px;
   border:1px solid #d6a122;
   background:#8a4b08;
@@ -681,6 +687,25 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
 }
 .dcceewInfoButton:hover{background:#713b07}
 .dcceewInfoButton.attention{animation:dcceewAttention 1.15s ease-in-out 3}
+.dcceewGuideButton{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:40px;
+  padding:9px 13px;
+  border:1px solid #d6a122;
+  border-radius:10px;
+  background:#fffdf3;
+  color:#78350f;
+  font-size:12px;
+  font-weight:850;
+  line-height:1.2;
+  text-align:center;
+  text-decoration:none;
+  white-space:nowrap;
+}
+.dcceewGuideButton:hover{background:#fef3c7}
+.dcceewGuideButton:focus-visible{outline:3px solid rgba(245,158,11,.35);outline-offset:2px}
 .dcceewInfoIcon{
   display:inline-grid;
   place-items:center;
@@ -3071,7 +3096,7 @@ body.guidanceModalOpen{overflow:hidden}
           <div class="mobileHideRebateConfig"><label>PERC (PRC) $ per cert</label><input id="essPrcRate" type="number" step="0.01" value="2.85"></div>
           <div class="mobileHideRebateConfig"><label>Live calc source</label><input readonly value="NSW ESS/PDRS API"></div>
         </div>
-        <div class="selected" id="liveRebatePanel"><div class="selectedText"><div class="selectedHeader"><strong id="selectedModel"></strong><button type="button" class="copyModelBtn" onclick="copyCurrentModel()">Copy model</button></div><div class="tiny" id="modelMeta"></div><div class="tiny rebateSchemeUi" id="rebateCalcMeta">Live ESS/PERC rebate status will appear here.</div><div class="dcceewContractPanel rebateSchemeUi" id="dcceewContractPanel" aria-hidden="true"><div class="dcceewContractHead"><div class="dcceewContractCopy"><span class="dcceewContractBadge">DCCEEW contract match</span><strong>Potentially eligible for the fixed $30 per ESC rate</strong><p>The selected postcode and product are on the approved contract lists. Required compliance steps must still be completed.</p></div><div class="dcceewInfoPrompt"><span>Action required</span><button id="dcceewInfoButton" class="dcceewInfoButton" type="button" onclick="openDcceewInfoModal()"><span class="dcceewInfoIcon" aria-hidden="true">i</span>Important information</button></div></div><div class="dcceewComparison"><div class="dcceewComparisonCard"><span>Standard rebate</span><strong id="dcceewStandardTotal">Calculating...</strong><small id="dcceewStandardMeta">Using the normal business ESC rate</small></div><div class="dcceewComparisonCard contract"><span>DCCEEW contract rebate</span><strong id="dcceewContractTotal">Calculating...</strong><small id="dcceewContractMeta">ESCs at $30.00 plus unchanged PERC</small></div><div class="dcceewComparisonCard uplift"><span>Additional contract value</span><strong id="dcceewContractUplift">Calculating...</strong><small id="dcceewUpliftMeta">Difference from the standard payout</small></div></div><div class="dcceewComparisonNote" id="dcceewComparisonNote">The contract-rate rebate is included in Costs for this match. Missing a required compliance step means the standard market rate applies.</div></div><div class="certificateBreakdown rebateSchemeUi" id="certificateBreakdown"><div class="certificateMetric"><span>ESC generated</span><strong id="escCertCount">-</strong><small id="escCertValue">Waiting for live lookup</small></div><div class="certificateMetric"><span>PERC generated</span><strong id="prcCertCount">-</strong><small id="prcCertValue">Waiting for live lookup</small></div><div class="certificateMetric"><span>Rebate calculation</span><strong id="certRebateValue">-</strong><small id="certRebateMeta">Waiting for live lookup</small></div></div><div class="recommendationCards rebateSchemeUi" id="bestValueComparison"><div class="recommendationCard" id="bestValueMeta"><div class="recommendationEyebrow">Best rebate</div><div class="recommendationStatus">Best rebate indicator will appear here.</div></div><div class="recommendationCard net" id="bestNetCostMeta"><div class="recommendationEyebrow">Best net unit cost</div><div class="recommendationStatus">Best net unit cost indicator will appear here.</div></div></div></div></div>
+        <div class="selected" id="liveRebatePanel"><div class="selectedText"><div class="selectedHeader"><strong id="selectedModel"></strong><button type="button" class="copyModelBtn" onclick="copyCurrentModel()">Copy model</button></div><div class="tiny" id="modelMeta"></div><div class="tiny rebateSchemeUi" id="rebateCalcMeta">Live ESS/PERC rebate status will appear here.</div><div class="dcceewContractPanel rebateSchemeUi" id="dcceewContractPanel" aria-hidden="true"><div class="dcceewContractHead"><div class="dcceewContractCopy"><span class="dcceewContractBadge">DCCEEW contract match</span><strong>Potentially eligible for the fixed $30 per ESC rate</strong><p>The selected postcode and product are on the approved contract lists. Required compliance steps must still be completed.</p></div><div class="dcceewInfoPrompt"><span>Action required</span><div class="dcceewInfoActions"><button id="dcceewInfoButton" class="dcceewInfoButton" type="button" onclick="openDcceewInfoModal()"><span class="dcceewInfoIcon" aria-hidden="true">i</span>Important information</button><a class="dcceewGuideButton" href="https://rebateportal.com.au/first-job-guide" target="_blank" rel="noopener noreferrer">Open first job checklist</a></div></div></div><div class="dcceewComparison"><div class="dcceewComparisonCard"><span>Standard rebate</span><strong id="dcceewStandardTotal">Calculating...</strong><small id="dcceewStandardMeta">Using the normal business ESC rate</small></div><div class="dcceewComparisonCard contract"><span>DCCEEW contract rebate</span><strong id="dcceewContractTotal">Calculating...</strong><small id="dcceewContractMeta">ESCs at $30.00 plus unchanged PERC</small></div><div class="dcceewComparisonCard uplift"><span>Additional contract value</span><strong id="dcceewContractUplift">Calculating...</strong><small id="dcceewUpliftMeta">Difference from the standard payout</small></div></div><div class="dcceewComparisonNote" id="dcceewComparisonNote">The contract-rate rebate is included in Costs for this match. Missing a required compliance step means the standard market rate applies.</div></div><div class="certificateBreakdown rebateSchemeUi" id="certificateBreakdown"><div class="certificateMetric"><span>ESC generated</span><strong id="escCertCount">-</strong><small id="escCertValue">Waiting for live lookup</small></div><div class="certificateMetric"><span>PERC generated</span><strong id="prcCertCount">-</strong><small id="prcCertValue">Waiting for live lookup</small></div><div class="certificateMetric"><span>Rebate calculation</span><strong id="certRebateValue">-</strong><small id="certRebateMeta">Waiting for live lookup</small></div></div><div class="recommendationCards rebateSchemeUi" id="bestValueComparison"><div class="recommendationCard" id="bestValueMeta"><div class="recommendationEyebrow">Best rebate</div><div class="recommendationStatus">Best rebate indicator will appear here.</div></div><div class="recommendationCard net" id="bestNetCostMeta"><div class="recommendationEyebrow">Best net unit cost</div><div class="recommendationStatus">Best net unit cost indicator will appear here.</div></div></div></div></div>
       </div>
       <div class="card energySavingsCard" id="energySavingsCard">
         <button type="button" class="energySavingsToggle" id="energySavingsToggle" onclick="toggleEnergySavingsPanel()" aria-expanded="false">
@@ -3247,7 +3272,7 @@ body.guidanceModalOpen{overflow:hidden}
             <div class="multiSplitTrialActions"><button id="multiSplitCheckRebateBtn" class="green" type="button" onclick="calculateMultiSplitTrialRebate()">Calculate rebate</button></div>
           </div>
           <div class="dcceewContractPanel" id="multiSplitDcceewContractPanel" aria-hidden="true">
-            <div class="dcceewContractHead"><div class="dcceewContractCopy"><span class="dcceewContractBadge">DCCEEW contract match</span><strong>Potentially eligible for the fixed $30 per ESC rate</strong><p>The selected postcode and multi-head outdoor model are on the approved contract lists. Required compliance steps must still be completed.</p></div><div class="dcceewInfoPrompt"><span>Action required</span><button id="multiSplitDcceewInfoButton" class="dcceewInfoButton" type="button" onclick="openDcceewInfoModal()"><span class="dcceewInfoIcon" aria-hidden="true">i</span>Important information</button></div></div>
+            <div class="dcceewContractHead"><div class="dcceewContractCopy"><span class="dcceewContractBadge">DCCEEW contract match</span><strong>Potentially eligible for the fixed $30 per ESC rate</strong><p>The selected postcode and multi-head outdoor model are on the approved contract lists. Required compliance steps must still be completed.</p></div><div class="dcceewInfoPrompt"><span>Action required</span><div class="dcceewInfoActions"><button id="multiSplitDcceewInfoButton" class="dcceewInfoButton" type="button" onclick="openDcceewInfoModal()"><span class="dcceewInfoIcon" aria-hidden="true">i</span>Important information</button><a class="dcceewGuideButton" href="https://rebateportal.com.au/first-job-guide" target="_blank" rel="noopener noreferrer">Open first job checklist</a></div></div></div>
             <div class="dcceewComparison"><div class="dcceewComparisonCard"><span>Standard rebate</span><strong id="multiSplitDcceewStandardTotal">Calculating...</strong><small id="multiSplitDcceewStandardMeta">Using the normal business ESC rate</small></div><div class="dcceewComparisonCard contract"><span>DCCEEW contract rebate</span><strong id="multiSplitDcceewContractTotal">Calculating...</strong><small id="multiSplitDcceewContractMeta">ESCs at $30.00 plus unchanged PERC</small></div><div class="dcceewComparisonCard uplift"><span>Additional contract value</span><strong id="multiSplitDcceewContractUplift">Calculating...</strong><small id="multiSplitDcceewUpliftMeta">Difference from the standard payout</small></div></div>
             <div class="dcceewComparisonNote" id="multiSplitDcceewComparisonNote">The contract-rate rebate will be included in Costs when live certificate values are available. Missing a required compliance step means the standard market rate applies.</div>
           </div>
