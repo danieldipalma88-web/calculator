@@ -4762,7 +4762,7 @@ function selectableProductOptions(options){
   const includeIndex=Number(options&&options.includeProductIndex);
   return data().map((p,i)=>({p,i})).filter(item=>item.i===includeIndex||productVisibleToCurrentUser(item.p));
 }
-const BRAND_ALIASES={"Fujitsu":"Fujitsu General","Fujitsu Lifestyle":"Fujitsu General","Hisense x3 series":"Hisense","Hisense G series":"Hisense","Hitachi AirHome 600":"Hitachi","TCL BreezeIN 2.0":"TCL","Daikin Alira":"Daikin","Daikin Cora":"Daikin","Mitsubishi Heavy Industries Avanti Plus":"Mitsubishi Heavy Industries","Mitsubishi Heavy Industries Bronte":"Mitsubishi Heavy Industries","Rinnai PB Series":"Rinnai","Rinnai PX Series":"Rinnai","Actron":"Actron Air"};
+const BRAND_ALIASES={"Fujitsu":"Fujitsu General","Fujitsu Lifestyle":"Fujitsu General","Hisense x3 series":"Hisense","Hisense G series":"Hisense","Hitachi AirHome 600":"Hitachi","TCL BreezeIN 2.0":"TCL","Daikin Alira":"Daikin","Daikin Cora":"Daikin","Mitsubishi Heavy Industries Avanti Plus":"Mitsubishi Heavy Industries","Mitsubishi Heavy Industries Bronte":"Mitsubishi Heavy Industries","Rinnai PB Series":"Rinnai","Rinnai PX Series":"Rinnai","Actron":"Actron Air","Actron AIR":"Actron Air","Samsung Electronics":"Samsung","Emerald Energy":"Emerald","Smartuser":"Smart User"};
 const MODEL_ALIASES={"RXM46W1VMA / FTXM46W1VMA":"RXM46WVMA / FTXM46WVMA","FDUA125VH/FDCA125VNX":"FDCA125VNX-W/FDUA125VH","FDCA125VNX-FDUA125VH":"FDCA125VNX-W/FDUA125VH","FDCA125VNX-W-FDUA125VH":"FDCA125VNX-W/FDUA125VH","FDUA140VG/FDCA140VNX":"FDCA140VNX-W/FDUA140VH","FDUA160VG/FDCA160VNX":"FDCA160VNX-W/FDUA160VH","UHN100M2S/UU100WR3":"UU100WR3 U30/UHN100M2S N20","UHN125M3S/UU125WR3":"UU125WR3 U30/UHN125M3S N30","UHN140M3S/UU140WR3":"UU140WR3 U30/UHN140M3S N30","UHN150M3S/UU150WR3":"UU150WR3 U30 / UHN150M3S N30","PPHI-3.0UFA1NQ/PAS-3.0UFASNQ1":"PAS-3.0UFASNQ1 / PPIH-3.0UFA1NQ","PPHI-4.0UFA1NQ/PAS-4.0UFASNQ1":"PAS-4.0UFASNQ1 / PPIH-4.0UFA1NQ","PPHI-5.0UFA1NQ/PAS-5.0UFASNQ1":"PAS-5.0UFASNQ1 / PPIH-5.0UFA1NQ","PPHI-6.0UFA1NQ/PAS-6.0UFASNQ1":"PAS-6.0UFASNQ1 / PPIH-6.0UFA1NQ","PPHI-6.5UFA1NQ/PAS-6.5UFASNQ1":"PAS-6.5UFASNQ1 / PPIH-6.5UFA1NQ","PAS-6.5UFASMQ1 - PPIH-6.5UFA1NQ":"PAS-6.5UFASMQ1 / PPIH-6.5UFA1NQ","TCD71D1HWH-DV/TCD71D1HWH-DV":"TCD71D1HWH-DVO/TCD71D1HWH-DVI","TCD85D1HWH-DV/TCD85D1HWH-DV":"TCD85D1HWH-DVO/TCD85D1HWH-DVI","TCD100D1HWH-DVO-TCD100D1HWH-DVI":"TCD100D1HWH-DVO/TCD100D1HWH-DVI","TCD125D1HWH-DVO-TCD125D1HWH-DVI":"TCD125D1HWH-DVO/TCD125D1HWH-DVI","TCD140D1HWH-DVO - TCD140D1HWH-DVI":"TCD140D1HWH-DVO / TCD140D1HWH-DVI","TCD160D1HWH-DVO - TCD160D1HWH-DVI":"TCD160D1HWH-DVO / TCD160D1HWH-DVI","DONSR09B1-DINLR09B1":"DONSR09B1/DINLR09B1","DONSR11B1LA-DINLR11B1A":"DONSR11B1LA/DINLR11B1A","DONSR13B1LA-DINLR13B1A":"DONSR13B1LA/DINLR13B1A","DONSR15B1TA-DINLR15B1SA":"DONSR15B1TA/DINLR15B1SA","DONSR18B1-DINLR18B1":"DONSR18B1/DINLR18B1","CRS10AS - EVA10AS":"CRS10AS / EVA10AS","CRS13AS - EVA13AS":"CRS13AS / EVA13AS","CRS15AS - EVA15AS":"CRS15AS / EVA15AS","CRS17AS - EVA17AS":"CRS17AS / EVA17AS","CRS20AT - EVA20AS":"CRS20AT / EVA20AS","CRS23AT - EVA23AS":"CRS23AT / EVA23AS","AOTH24KBTA-ARTH24KHTA":"AOTH24KBTA/ARTH24KHTA","AOTH30KBTA-ARTH30KHTA":"AOTH30KBTA/ARTH30KHTA","AOTH36KBTA-ARTH36KHTA":"AOTH36KBTA/ARTH36KHTA","AOTH36KRTA-ARTH36KHTA":"AOTH36KRTA/ARTH36KHTA","AOTH45KBTA-ARTH45KHTA":"AOTH45KBTA/ARTH45KHTA","AOTH45KRTA-ARTH45KHTA":"AOTH45KRTA/ARTH45KHTA","AOTH54KBTA-ARTH54KHTA":"AOTH54KBTA/ARTH54KHTA","AOTH60KBTA-ARTH60KHTA":"AOTH60KBTA/ARTH60KHTA","AOTH60KRTA-ARTH60KHTA":"AOTH60KRTA/ARTH60KHTA","RZAS71C2V1 - FDYA71AV19":"RZAS71C2V1 / FDYA71AV19","RZAS100C2V1 - FDYA100AV19":"RZAS100C2V1 / FDYA100AV19","RZAS125C2V1 - FDYA125AV19":"RZAS125C2V1 / FDYA125AV19","RZAS140C2V1 - FDYA140AV19":"RZAS140C2V1 / FDYA140AV19","RZAS160C2V1 - FDYA160AV19":"RZAS160C2V1 / FDYA160AV19","RAC-VJ25PHAT-RAK-VJ25PHAT":"RAC-VJ25PHAT/RAK-VJ25PHAT","RAC-VJ35PHAT-RAK-VJ35PHAT":"RAC-VJ35PHAT/RAK-VJ35PHAT","RAC-VJ50PHAT-RAK-VJ50PHAT":"RAC-VJ50PHAT/RAK-VJ50PHAT","RAC-VJ60PHAT-RAK-VJ60PHAT":"RAC-VJ60PHAT/RAK-VJ60PHAT","RAC-VJ70PHAT-RAK-VJ70PHAT":"RAC-VJ70PHAT/RAK-VJ70PHAT","TAC-10CHSD-VEIH":"TAC-10CHSD/VEIH","TAC-13CHSD-VEIH":"TAC-13CHSD/VEIH","TAC-18CHSD-VEIH":"TAC-18CHSD/VEIH","TAC-24CHSD-VEIH":"TAC-24CHSD/VEIH","RXM20YVMA - FTXM20YVMA":"RXM20YVMA / FTXM20YVMA","RXM25YVMA - FTXM25YVMA":"RXM25YVMA / FTXM25YVMA","RXM35WVMA - FTXM35WVMA":"RXM35WVMA / FTXM35WVMA","RXM50WVMA - FTXM50WVMA":"RXM50WVMA / FTXM50WVMA","RXM60WVMA - FTXM60WVMA":"RXM60WVMA / FTXM60WVMA","RXM71WVMA - FTXM71WVMA":"RXM71WVMA / FTXM71WVMA","SRC20ZSXA-W-SRK20ZSXA-WF":"SRC20ZSXA-W/SRK20ZSXA-WF","SRC25ZSXA-W-SRK25ZSXA-WF":"SRC25ZSXA-W/SRK25ZSXA-WF","SRC35ZSXA-W-SRK35ZSXA-WF":"SRC35ZSXA-W/SRK35ZSXA-WF","SRC50ZSXA-W-SRK50ZSXA-WF":"SRC50ZSXA-W/SRK50ZSXA-WF","SRC60ZSXA-W-SRK60ZSXA-WF":"SRC60ZSXA-W/SRK60ZSXA-WF","SRC95ZRA-W - SRK95ZRA-WF1":"SRC95ZRA-W / SRK95ZRA-WF1","DXC24ZRA-W / DXK24ZRA-WF1":"DXC24ZRA-W - DXK24ZRA-WF1","HONRPX25-HINRPX25M":"HONRPX25/HINRPX25M","HONRPX35-HINRPX35M":"HONRPX35/HINRPX35M","HONRPX50-HINRPX50M":"HONRPX50/HINRPX50M","HONRPX60-HINRPX60M":"HONRPX60/HINRPX60M","HONRPX70-HINRPX70M":"HONRPX70/HINRPX70M","HONRPX80-HINRPX80M":"HONRPX80/HINRPX80M"};
 Object.assign(BRAND_ALIASES,{"Rinnai TX Series":"Rinnai","Rinnai VX Series":"Rinnai"});
 Object.assign(MODEL_ALIASES,{
@@ -5020,11 +5020,210 @@ MULTI_SPLIT_INDOORS.forEach(row=>{
   }
 });
 const ALL_MODELS_MULTI_EXTRA_INDOORS=[
-  multiIndoor('Haier','Super Match High Wall',2.0,'AS20PBDHRA',null,'','',{family:'haier-super-match',ratedCoolingCapacity:2.0,ratedHeatingCapacity:2.3,note:'Wi-Fi compatible; rebate lookup only'}),
-  multiIndoor('Haier','Super Match High Wall',2.5,'AS26PBDHRA',null,'','',{family:'haier-super-match',ratedCoolingCapacity:2.5,ratedHeatingCapacity:3.0,note:'Wi-Fi compatible; rebate lookup only'}),
-  multiIndoor('Haier','Super Match High Wall',3.5,'AS35PBDHRA',null,'','',{family:'haier-super-match',ratedCoolingCapacity:3.5,ratedHeatingCapacity:3.7,note:'Wi-Fi compatible; rebate lookup only'}),
-  multiIndoor('Haier','Super Match High Wall',5.0,'AS53PDDHRA',null,'','',{family:'haier-super-match',ratedCoolingCapacity:5.0,ratedHeatingCapacity:5.5,note:'Wi-Fi compatible; rebate lookup only'}),
-  multiIndoor('Haier','Super Match High Wall',7.0,'AS71PDDHRA',null,'','',{family:'haier-super-match',ratedCoolingCapacity:7.0,ratedHeatingCapacity:7.6,note:'Wi-Fi compatible; rebate lookup only'})
+  multiIndoor('Mitsubishi Heavy Industries','Avanti High Wall',2.0,'SRK20ZSA-W',null,'','',{family:'mhi-multi',ratedCoolingCapacity:2.0,ratedHeatingCapacity:2.7,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Mitsubishi Heavy Industries','Avanti High Wall',2.5,'SRK25ZSA-W',null,'','',{family:'mhi-multi',ratedCoolingCapacity:2.5,ratedHeatingCapacity:3.2,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Mitsubishi Heavy Industries','Avanti High Wall',3.5,'SRK35ZSA-W',null,'','',{family:'mhi-multi',ratedCoolingCapacity:3.5,ratedHeatingCapacity:4.3,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Mitsubishi Heavy Industries','Avanti High Wall',5.0,'SRK50ZSA-W',null,'','',{family:'mhi-multi',ratedCoolingCapacity:5.0,ratedHeatingCapacity:6.0,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Mitsubishi Heavy Industries','Avanti High Wall',6.1,'SRK60ZSA-W',null,'','',{family:'mhi-multi',ratedCoolingCapacity:6.1,ratedHeatingCapacity:6.8,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Mitsubishi Heavy Industries','Avanti Plus High Wall',2.0,'SRK20ZSXA-W',null,'','',{family:'mhi-multi',ratedCoolingCapacity:2.0,ratedHeatingCapacity:2.7,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Mitsubishi Heavy Industries','Avanti Plus High Wall',2.5,'SRK25ZSXA-W',null,'','',{family:'mhi-multi',ratedCoolingCapacity:2.5,ratedHeatingCapacity:3.2,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Mitsubishi Heavy Industries','Avanti Plus High Wall',3.5,'SRK35ZSXA-W',null,'','',{family:'mhi-multi',ratedCoolingCapacity:3.5,ratedHeatingCapacity:4.3,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Mitsubishi Heavy Industries','Avanti Plus High Wall',5.0,'SRK50ZSXA-W',null,'','',{family:'mhi-multi',ratedCoolingCapacity:5.0,ratedHeatingCapacity:6.0,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Mitsubishi Heavy Industries','Avanti Plus High Wall',6.1,'SRK60ZSXA-W',null,'','',{family:'mhi-multi',ratedCoolingCapacity:6.1,ratedHeatingCapacity:6.8,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Mitsubishi Heavy Industries','Avanti Plus Wi-Fi High Wall',2.0,'SRK20ZSXA-WF',null,'','',{family:'mhi-multi',ratedCoolingCapacity:2.0,ratedHeatingCapacity:2.7,note:'Wi-Fi model; manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Mitsubishi Heavy Industries','Avanti Plus Wi-Fi High Wall',2.5,'SRK25ZSXA-WF',null,'','',{family:'mhi-multi',ratedCoolingCapacity:2.5,ratedHeatingCapacity:3.2,note:'Wi-Fi model; manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Mitsubishi Heavy Industries','Avanti Plus Wi-Fi High Wall',3.5,'SRK35ZSXA-WF',null,'','',{family:'mhi-multi',ratedCoolingCapacity:3.5,ratedHeatingCapacity:4.3,note:'Wi-Fi model; manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Mitsubishi Heavy Industries','Avanti Plus Wi-Fi High Wall',5.0,'SRK50ZSXA-WF',null,'','',{family:'mhi-multi',ratedCoolingCapacity:5.0,ratedHeatingCapacity:6.0,note:'Wi-Fi model; manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Mitsubishi Heavy Industries','Avanti Plus Wi-Fi High Wall',6.1,'SRK60ZSXA-WF',null,'','',{family:'mhi-multi',ratedCoolingCapacity:6.1,ratedHeatingCapacity:6.8,note:'Wi-Fi model; manufacturer indoor code; rebate lookup only'}),
+
+  multiIndoor('Mitsubishi Electric','LN High Wall',2.5,'MSZ-LN25VG2V-A3',null,'','',{family:'mitsubishi-electric-current',ratedCoolingCapacity:2.5,ratedHeatingCapacity:3.2,note:'White model; built-in Wi-Fi; rebate lookup only'}),
+  multiIndoor('Mitsubishi Electric','LN High Wall',2.5,'MSZ-LN25VG2B-A3',null,'','',{family:'mitsubishi-electric-current',ratedCoolingCapacity:2.5,ratedHeatingCapacity:3.2,note:'Black model; built-in Wi-Fi; rebate lookup only'}),
+  multiIndoor('Mitsubishi Electric','LN High Wall',2.5,'MSZ-LN25VG2R-A3',null,'','',{family:'mitsubishi-electric-current',ratedCoolingCapacity:2.5,ratedHeatingCapacity:3.2,note:'Red model; built-in Wi-Fi; rebate lookup only'}),
+  multiIndoor('Mitsubishi Electric','LN High Wall',3.5,'MSZ-LN35VG2V-A3',null,'','',{family:'mitsubishi-electric-current',ratedCoolingCapacity:3.5,ratedHeatingCapacity:4.0,note:'White model; built-in Wi-Fi; rebate lookup only'}),
+  multiIndoor('Mitsubishi Electric','LN High Wall',3.5,'MSZ-LN35VG2B-A3',null,'','',{family:'mitsubishi-electric-current',ratedCoolingCapacity:3.5,ratedHeatingCapacity:4.0,note:'Black model; built-in Wi-Fi; rebate lookup only'}),
+  multiIndoor('Mitsubishi Electric','LN High Wall',3.5,'MSZ-LN35VG2R-A3',null,'','',{family:'mitsubishi-electric-current',ratedCoolingCapacity:3.5,ratedHeatingCapacity:4.0,note:'Red model; built-in Wi-Fi; rebate lookup only'}),
+  multiIndoor('Mitsubishi Electric','LN High Wall',5.0,'MSZ-LN50VG3V-A1',null,'','',{family:'mitsubishi-electric-current',ratedCoolingCapacity:5.0,ratedHeatingCapacity:6.0,note:'White model; built-in Wi-Fi; rebate lookup only'}),
+  multiIndoor('Mitsubishi Electric','LN High Wall',5.0,'MSZ-LN50VG3B-A1',null,'','',{family:'mitsubishi-electric-current',ratedCoolingCapacity:5.0,ratedHeatingCapacity:6.0,note:'Black model; built-in Wi-Fi; rebate lookup only'}),
+  multiIndoor('Mitsubishi Electric','LN High Wall',5.0,'MSZ-LN50VG3R-A1',null,'','',{family:'mitsubishi-electric-current',ratedCoolingCapacity:5.0,ratedHeatingCapacity:6.0,note:'Red model; built-in Wi-Fi; rebate lookup only'}),
+  multiIndoor('Mitsubishi Electric','EF High Wall',2.5,'MSZ-EF25VGKDW-A1',null,'','',{family:'mitsubishi-electric-current',ratedCoolingCapacity:2.5,ratedHeatingCapacity:3.2,note:'White model; Wi-Fi control; rebate lookup only'}),
+  multiIndoor('Mitsubishi Electric','EF High Wall',2.5,'MSZ-EF25VGKDB-A1',null,'','',{family:'mitsubishi-electric-current',ratedCoolingCapacity:2.5,ratedHeatingCapacity:3.2,note:'Black model; Wi-Fi control; rebate lookup only'}),
+  multiIndoor('Mitsubishi Electric','EF High Wall',2.5,'MSZ-EF25VGKDS-A1',null,'','',{family:'mitsubishi-electric-current',ratedCoolingCapacity:2.5,ratedHeatingCapacity:3.2,note:'Silver model; Wi-Fi control; rebate lookup only'}),
+  multiIndoor('Mitsubishi Electric','EF High Wall',3.5,'MSZ-EF35VGKDW-A1',null,'','',{family:'mitsubishi-electric-current',ratedCoolingCapacity:3.5,ratedHeatingCapacity:4.0,note:'White model; Wi-Fi control; rebate lookup only'}),
+  multiIndoor('Mitsubishi Electric','EF High Wall',3.5,'MSZ-EF35VGKDB-A1',null,'','',{family:'mitsubishi-electric-current',ratedCoolingCapacity:3.5,ratedHeatingCapacity:4.0,note:'Black model; Wi-Fi control; rebate lookup only'}),
+  multiIndoor('Mitsubishi Electric','EF High Wall',3.5,'MSZ-EF35VGKDS-A1',null,'','',{family:'mitsubishi-electric-current',ratedCoolingCapacity:3.5,ratedHeatingCapacity:4.0,note:'Silver model; Wi-Fi control; rebate lookup only'}),
+  multiIndoor('Mitsubishi Electric','EF High Wall',4.2,'MSZ-EF42VGKDW-A1',null,'','',{family:'mitsubishi-electric-current',ratedCoolingCapacity:4.2,ratedHeatingCapacity:5.4,note:'White model; Wi-Fi control; rebate lookup only'}),
+  multiIndoor('Mitsubishi Electric','EF High Wall',4.2,'MSZ-EF42VGKDB-A1',null,'','',{family:'mitsubishi-electric-current',ratedCoolingCapacity:4.2,ratedHeatingCapacity:5.4,note:'Black model; Wi-Fi control; rebate lookup only'}),
+  multiIndoor('Mitsubishi Electric','EF High Wall',4.2,'MSZ-EF42VGKDS-A1',null,'','',{family:'mitsubishi-electric-current',ratedCoolingCapacity:4.2,ratedHeatingCapacity:5.4,note:'Silver model; Wi-Fi control; rebate lookup only'}),
+  multiIndoor('Mitsubishi Electric','EF High Wall',5.0,'MSZ-EF50VGKDW-A1',null,'','',{family:'mitsubishi-electric-current',ratedCoolingCapacity:5.0,ratedHeatingCapacity:5.8,note:'White model; Wi-Fi control; rebate lookup only'}),
+  multiIndoor('Mitsubishi Electric','EF High Wall',5.0,'MSZ-EF50VGKDB-A1',null,'','',{family:'mitsubishi-electric-current',ratedCoolingCapacity:5.0,ratedHeatingCapacity:5.8,note:'Black model; Wi-Fi control; rebate lookup only'}),
+  multiIndoor('Mitsubishi Electric','EF High Wall',5.0,'MSZ-EF50VGKDS-A1',null,'','',{family:'mitsubishi-electric-current',ratedCoolingCapacity:5.0,ratedHeatingCapacity:5.8,note:'Silver model; Wi-Fi control; rebate lookup only'}),
+  multiIndoor('Mitsubishi Electric','MFXZ-KW Floor Console',2.5,'MFXZ-KW25VG-A2',null,'','',{family:'mitsubishi-electric-current',ratedCoolingCapacity:2.5,ratedHeatingCapacity:3.4,note:'Optional Wi-Fi adapter; rebate lookup only'}),
+  multiIndoor('Mitsubishi Electric','MFXZ-KW Floor Console',3.5,'MFXZ-KW35VG-A2',null,'','',{family:'mitsubishi-electric-current',ratedCoolingCapacity:3.5,ratedHeatingCapacity:4.3,note:'Optional Wi-Fi adapter; rebate lookup only'}),
+  multiIndoor('Mitsubishi Electric','MFXZ-KW Floor Console',5.0,'MFXZ-KW50VG-A2',null,'','',{family:'mitsubishi-electric-current',ratedCoolingCapacity:5.0,ratedHeatingCapacity:5.8,note:'Optional Wi-Fi adapter; rebate lookup only'}),
+  multiIndoor('Mitsubishi Electric','MLZ-KP One-Way Cassette',2.5,'MLZ-KP25VG-A1',null,'','',{family:'mitsubishi-electric-current',ratedCoolingCapacity:2.5,ratedHeatingCapacity:3.2,note:'Optional Wi-Fi adapter; rebate lookup only'}),
+  multiIndoor('Mitsubishi Electric','MLZ-KP One-Way Cassette',3.5,'MLZ-KP35VG-A1',null,'','',{family:'mitsubishi-electric-current',ratedCoolingCapacity:3.5,ratedHeatingCapacity:4.1,note:'Optional Wi-Fi adapter; rebate lookup only'}),
+  multiIndoor('Mitsubishi Electric','MLZ-KP One-Way Cassette',5.0,'MLZ-KP50VG-A1',null,'','',{family:'mitsubishi-electric-current',ratedCoolingCapacity:5.0,ratedHeatingCapacity:6.0,note:'Optional Wi-Fi adapter; rebate lookup only'}),
+  multiIndoor('Mitsubishi Electric','SLZ-M Four-Way Cassette',2.5,'SLZ-M25FA-A',null,'','',{family:'mitsubishi-electric-current',ratedCoolingCapacity:2.5,ratedHeatingCapacity:3.0,note:'Optional Wi-Fi adapter; rebate lookup only'}),
+  multiIndoor('Mitsubishi Electric','SLZ-M Four-Way Cassette',3.5,'SLZ-M35FA-A',null,'','',{family:'mitsubishi-electric-current',ratedCoolingCapacity:3.5,ratedHeatingCapacity:4.0,note:'Optional Wi-Fi adapter; rebate lookup only'}),
+  multiIndoor('Mitsubishi Electric','SLZ-M Four-Way Cassette',5.0,'SLZ-M50FA-A',null,'','',{family:'mitsubishi-electric-current',ratedCoolingCapacity:5.0,ratedHeatingCapacity:5.0,note:'Optional Wi-Fi adapter; rebate lookup only'}),
+  multiIndoor('Mitsubishi Electric','SEZ-M Bulkhead',2.5,'SEZ-M25DAL',null,'','',{family:'mitsubishi-electric-current',ratedCoolingCapacity:2.5,ratedHeatingCapacity:3.0,note:'Optional Wi-Fi adapter; rebate lookup only'}),
+  multiIndoor('Mitsubishi Electric','SEZ-M Bulkhead',3.5,'SEZ-M35DAL',null,'','',{family:'mitsubishi-electric-current',ratedCoolingCapacity:3.5,ratedHeatingCapacity:4.0,note:'Optional Wi-Fi adapter; rebate lookup only'}),
+  multiIndoor('Mitsubishi Electric','SEZ-M Bulkhead',5.0,'SEZ-M50DAL',null,'','',{family:'mitsubishi-electric-current',ratedCoolingCapacity:5.0,ratedHeatingCapacity:6.0,note:'Optional Wi-Fi adapter; rebate lookup only'}),
+  multiIndoor('Mitsubishi Electric','SEZ-M Bulkhead',6.0,'SEZ-M60DAL',null,'','',{family:'mitsubishi-electric-current',ratedCoolingCapacity:6.0,ratedHeatingCapacity:7.0,note:'Optional Wi-Fi adapter; rebate lookup only'}),
+  multiIndoor('Mitsubishi Electric','SEZ-M Bulkhead',7.1,'SEZ-M71DAL',null,'','',{family:'mitsubishi-electric-current',ratedCoolingCapacity:7.1,ratedHeatingCapacity:8.0,note:'Optional Wi-Fi adapter; rebate lookup only'}),
+
+  multiIndoor('Gree','Free Match High Wall',2.55,'GWH09ABAXD-K6DNC8A-I',null,'','',{family:'gree-free-match-current',ratedCoolingCapacity:2.55,ratedHeatingCapacity:3.25,note:'Current manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Gree','Free Match High Wall',3.5,'GWH12ABAXD-K6DNC8A-I',null,'','',{family:'gree-free-match-current',ratedCoolingCapacity:3.5,ratedHeatingCapacity:4.0,note:'Current manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Gree','Free Match High Wall',4.6,'GWH15QDXE-K6DNC8B-I',null,'','',{family:'gree-free-match-current',ratedCoolingCapacity:4.6,ratedHeatingCapacity:4.7,note:'Current manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Gree','Free Match High Wall',5.2,'GWH18QEXF-K6DNC8A-I',null,'','',{family:'gree-free-match-current',ratedCoolingCapacity:5.2,ratedHeatingCapacity:5.6,note:'Current manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Gree','Free Match High Wall',6.3,'GWH21QEXF-K6DNC8A-I',null,'','',{family:'gree-free-match-current',ratedCoolingCapacity:6.3,ratedHeatingCapacity:7.4,note:'Current manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Gree','Free Match High Wall',7.1,'GWH24QEXF-K6DNC8A-I',null,'','',{family:'gree-free-match-current',ratedCoolingCapacity:7.1,ratedHeatingCapacity:8.0,note:'Current manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Gree','Free Match Floor Console',5.2,'GEH18AA-K6DNA1F-I',null,'','',{family:'gree-free-match-current',ratedCoolingCapacity:5.2,ratedHeatingCapacity:5.3,note:'Current manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Gree','Free Match Slim Duct',2.65,'GFH(09)CA-K6DNA1B/I',null,'','',{family:'gree-free-match-current',ratedCoolingCapacity:2.65,ratedHeatingCapacity:2.8,note:'Current manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Gree','Free Match Slim Duct',3.5,'GFH(12)CA-K6DNA1B/I',null,'','',{family:'gree-free-match-current',ratedCoolingCapacity:3.5,ratedHeatingCapacity:4.0,note:'Current manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Gree','Free Match Slim Duct',5.0,'GFH(18)CB-K6DNA1B/I',null,'','',{family:'gree-free-match-current',ratedCoolingCapacity:5.0,ratedHeatingCapacity:5.5,note:'Current manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Gree','Free Match Slim Duct',7.0,'GFH(24)CC-K6DNA1B/I',null,'','',{family:'gree-free-match-current',ratedCoolingCapacity:7.0,ratedHeatingCapacity:8.0,note:'Current manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Gree','Free Match Cassette',3.5,'GKH(12)BB-K6DNA3A/I',null,'','',{family:'gree-free-match-current',ratedCoolingCapacity:3.5,ratedHeatingCapacity:4.0,note:'Current manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Gree','Free Match Cassette',4.5,'GKH(18)BB-K6DNA3A/I',null,'','',{family:'gree-free-match-current',ratedCoolingCapacity:4.5,ratedHeatingCapacity:5.0,note:'Current manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Gree','Free Match Cassette',7.1,'GKH(24)BC-K6DNA4A/I',null,'','',{family:'gree-free-match-current',ratedCoolingCapacity:7.1,ratedHeatingCapacity:8.0,note:'Current manufacturer indoor code; rebate lookup only'}),
+
+  multiIndoor('Haier','Super Match Pinnacle High Wall',2.0,'AS20PBDHRA',null,'','',{family:'haier-super-match',ratedCoolingCapacity:2.0,ratedHeatingCapacity:2.3,note:'Wi-Fi compatible; rebate lookup only'}),
+  multiIndoor('Haier','Super Match Pinnacle High Wall',2.5,'AS26PBDHRA',null,'','',{family:'haier-super-match',ratedCoolingCapacity:2.5,ratedHeatingCapacity:3.0,note:'Wi-Fi compatible; rebate lookup only'}),
+  multiIndoor('Haier','Super Match Pinnacle High Wall',3.5,'AS35PBDHRA',null,'','',{family:'haier-super-match',ratedCoolingCapacity:3.5,ratedHeatingCapacity:3.7,note:'Wi-Fi compatible; rebate lookup only'}),
+  multiIndoor('Haier','Super Match Pinnacle High Wall',5.0,'AS53PDDHRA',null,'','',{family:'haier-super-match',ratedCoolingCapacity:5.0,ratedHeatingCapacity:5.5,note:'Wi-Fi compatible; rebate lookup only'}),
+  multiIndoor('Haier','Super Match 500 High Wall',2.5,'AS25PFHRA',null,'','',{family:'haier-super-match',ratedCoolingCapacity:2.5,ratedHeatingCapacity:3.2,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Haier','Super Match 500 High Wall',3.5,'AS35PFHRA',null,'','',{family:'haier-super-match',ratedCoolingCapacity:3.5,ratedHeatingCapacity:3.7,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Haier','Super Match 500 High Wall',5.0,'AS50PFHRA',null,'','',{family:'haier-super-match',ratedCoolingCapacity:5.0,ratedHeatingCapacity:5.3,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Haier','Super Match 500 High Wall',7.1,'AS71PFHRA',null,'','',{family:'haier-super-match',ratedCoolingCapacity:7.1,ratedHeatingCapacity:8.0,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Haier','Super Match 600 High Wall',2.5,'AS25QCFHRA',null,'','',{family:'haier-super-match',ratedCoolingCapacity:2.5,ratedHeatingCapacity:3.2,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Haier','Super Match 600 High Wall',3.5,'AS35QCFHRA',null,'','',{family:'haier-super-match',ratedCoolingCapacity:3.5,ratedHeatingCapacity:3.7,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Haier','Super Match 600 High Wall',5.0,'AS50QDFHRA',null,'','',{family:'haier-super-match',ratedCoolingCapacity:5.0,ratedHeatingCapacity:6.0,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Haier','Super Match 600 High Wall',7.1,'AS71QEFHRA',null,'','',{family:'haier-super-match',ratedCoolingCapacity:7.1,ratedHeatingCapacity:8.0,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Haier','Super Match Floor Console',5.0,'AF50DBAHRA',null,'','',{family:'haier-super-match',ratedCoolingCapacity:5.0,ratedHeatingCapacity:6.0,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Haier','Super Match Cassette',2.6,'AB25S2PC1FA',null,'','',{family:'haier-super-match',ratedCoolingCapacity:2.6,ratedHeatingCapacity:3.2,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Haier','Super Match Cassette',3.5,'AB35S2PC1FA',null,'','',{family:'haier-super-match',ratedCoolingCapacity:3.5,ratedHeatingCapacity:4.0,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Haier','Super Match Cassette',5.0,'AB50S2PC1FA',null,'','',{family:'haier-super-match',ratedCoolingCapacity:5.0,ratedHeatingCapacity:5.5,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Haier','Super Match Slim Duct',2.5,'AD25S2PS1FA',null,'','',{family:'haier-super-match',ratedCoolingCapacity:2.5,ratedHeatingCapacity:3.0,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Haier','Super Match Slim Duct',3.5,'AD35S2PS1FA',null,'','',{family:'haier-super-match',ratedCoolingCapacity:3.5,ratedHeatingCapacity:4.0,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Haier','Super Match Slim Duct',5.0,'AD50S2PS1FA',null,'','',{family:'haier-super-match',ratedCoolingCapacity:5.0,ratedHeatingCapacity:5.5,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Haier','Super Match Slim Duct',7.1,'AD71S2PS1FA',null,'','',{family:'haier-super-match',ratedCoolingCapacity:7.1,ratedHeatingCapacity:7.5,note:'Manufacturer indoor code; rebate lookup only'}),
+
+  multiIndoor('Hisense','Eros X3 High Wall',2.5,'HAWJ9KR',null,'','',{family:'hisense-multi',ratedCoolingCapacity:2.5,ratedHeatingCapacity:3.1,note:'ConnectLife Wi-Fi; rebate lookup only'}),
+  multiIndoor('Hisense','Eros X3 High Wall',3.5,'HAWJ12KR',null,'','',{family:'hisense-multi',ratedCoolingCapacity:3.5,ratedHeatingCapacity:3.8,note:'ConnectLife Wi-Fi; rebate lookup only'}),
+  multiIndoor('Hisense','Eros X3 High Wall',5.3,'HAWJ18KR',null,'','',{family:'hisense-multi',ratedCoolingCapacity:5.3,ratedHeatingCapacity:5.4,note:'ConnectLife Wi-Fi; rebate lookup only'}),
+  multiIndoor('Hisense','Eros X3 High Wall',7.1,'HAWJ24KRP',null,'','',{family:'hisense-multi',ratedCoolingCapacity:7.1,ratedHeatingCapacity:7.2,note:'ConnectLife Wi-Fi; rebate lookup only'}),
+  multiIndoor('Hisense','Eros X3 High Wall',8.0,'HAWJ28KR',null,'','',{family:'hisense-multi',ratedCoolingCapacity:8.0,ratedHeatingCapacity:8.0,note:'ConnectLife Wi-Fi; rebate lookup only'}),
+  multiIndoor('Hisense','Air Q Slim Duct',2.5,'AMD-25UX4RAL4',null,'','',{family:'hisense-multi',ratedCoolingCapacity:2.5,ratedHeatingCapacity:3.0,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Hisense','Air Q Slim Duct',3.6,'AMD-35UX4RBL4',null,'','',{family:'hisense-multi',ratedCoolingCapacity:3.6,ratedHeatingCapacity:3.8,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Hisense','Air Q Slim Duct',5.3,'AMD-50UX4RCL4',null,'','',{family:'hisense-multi',ratedCoolingCapacity:5.3,ratedHeatingCapacity:5.8,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Hisense','Air Q Slim Duct',7.2,'AMD-71UX4RCL4',null,'','',{family:'hisense-multi',ratedCoolingCapacity:7.2,ratedHeatingCapacity:7.9,note:'Manufacturer indoor code; rebate lookup only'}),
+
+  multiIndoor('Panasonic','Multi Floor Console',2.5,'CS-Z25UFRAW',null,'','',{family:'panasonic-multi',ratedCoolingCapacity:2.5,ratedHeatingCapacity:3.3,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Panasonic','Multi Floor Console',3.5,'CS-Z35UFRAW',null,'','',{family:'panasonic-multi',ratedCoolingCapacity:3.5,ratedHeatingCapacity:4.2,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Panasonic','Multi Floor Console',5.0,'CS-Z50UFRAW',null,'','',{family:'panasonic-multi',ratedCoolingCapacity:5.0,ratedHeatingCapacity:5.6,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Panasonic','Multi Slim Duct',2.6,'CS-Z25UD3RAW',null,'','',{family:'panasonic-multi',ratedCoolingCapacity:2.6,ratedHeatingCapacity:3.3,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Panasonic','Multi Slim Duct',3.7,'CS-Z35UD3RAW',null,'','',{family:'panasonic-multi',ratedCoolingCapacity:3.7,ratedHeatingCapacity:4.2,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Panasonic','Multi Slim Duct',5.0,'CS-Z50UD3RAW',null,'','',{family:'panasonic-multi',ratedCoolingCapacity:5.0,ratedHeatingCapacity:6.1,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Panasonic','Multi Slim Duct',5.6,'CS-Z60UD3RAW',null,'','',{family:'panasonic-multi',ratedCoolingCapacity:5.6,ratedHeatingCapacity:7.0,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Panasonic','Multi Cassette',2.5,'CS-Z25UB4RAW',null,'','',{family:'panasonic-multi',ratedCoolingCapacity:2.5,ratedHeatingCapacity:3.2,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Panasonic','Multi Cassette',3.5,'CS-Z35UB4RAW',null,'','',{family:'panasonic-multi',ratedCoolingCapacity:3.5,ratedHeatingCapacity:4.2,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Panasonic','Multi Cassette',4.8,'CS-Z50UB4RAW',null,'','',{family:'panasonic-multi',ratedCoolingCapacity:4.8,ratedHeatingCapacity:5.6,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Panasonic','Multi Cassette',5.7,'CS-Z60UB4RAW',null,'','',{family:'panasonic-multi',ratedCoolingCapacity:5.7,ratedHeatingCapacity:7.0,note:'Manufacturer indoor code; rebate lookup only'}),
+
+  multiIndoor('Rinnai','Multi Slim Duct',2.6,'DINSD26MBA',null,'','',{family:'rinnai-multi',ratedCoolingCapacity:2.6,ratedHeatingCapacity:2.9,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Rinnai','Multi Slim Duct',3.5,'DINSD35MBA',null,'','',{family:'rinnai-multi',ratedCoolingCapacity:3.5,ratedHeatingCapacity:3.8,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Rinnai','Multi Slim Duct',5.28,'DINSD50MBA',null,'','',{family:'rinnai-multi',ratedCoolingCapacity:5.28,ratedHeatingCapacity:6.0,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Rinnai','Multi Ducted',7.3,'DINLR07B1A',null,'','',{family:'rinnai-multi',ratedCoolingCapacity:7.3,ratedHeatingCapacity:8.0,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Rinnai','Multi Ducted',9.0,'DINLR09B1A',null,'','',{family:'rinnai-multi',ratedCoolingCapacity:9.0,ratedHeatingCapacity:11.0,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Rinnai','Multi Ducted',10.5,'DINLR11B1A',null,'','',{family:'rinnai-multi',ratedCoolingCapacity:10.5,ratedHeatingCapacity:13.0,note:'Manufacturer indoor code; rebate lookup only'}),
+
+  multiIndoor('LG','Multi Split High Wall',2.05,'MS07AH',null,'','',{family:'lg-multi',ratedCoolingCapacity:2.05,ratedHeatingCapacity:2.34,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('LG','Multi Split High Wall',2.64,'MS09AH',null,'','',{family:'lg-multi',ratedCoolingCapacity:2.64,ratedHeatingCapacity:2.93,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('LG','Multi Split High Wall',3.52,'MS12AH',null,'','',{family:'lg-multi',ratedCoolingCapacity:3.52,ratedHeatingCapacity:3.87,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('LG','Multi Split High Wall',5.28,'MS18AH',null,'','',{family:'lg-multi',ratedCoolingCapacity:5.28,ratedHeatingCapacity:5.8,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('LG','Multi Split High Wall',6.74,'MS24AH',null,'','',{family:'lg-multi',ratedCoolingCapacity:6.74,ratedHeatingCapacity:7.47,note:'Manufacturer indoor code; rebate lookup only'}),
+
+  multiIndoor('Samsung','FJM Slim Duct',3.5,'AJ035TNLDKH/EA',null,'','',{family:'samsung-fjm',ratedCoolingCapacity:3.5,ratedHeatingCapacity:3.8,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Samsung','FJM Slim Duct',5.2,'AJ052TNLDKH/EA',null,'','',{family:'samsung-fjm',ratedCoolingCapacity:5.2,ratedHeatingCapacity:5.6,note:'Manufacturer indoor code; rebate lookup only'}),
+
+  multiIndoor('TCL','Free Match P7 High Wall',2.6,'TAC-09CHSD/P7',null,'','',{family:'tcl-free-match',ratedCoolingCapacity:2.6,ratedHeatingCapacity:3.6,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('TCL','Free Match P7 High Wall',3.5,'TAC-12CHSD/P7',null,'','',{family:'tcl-free-match',ratedCoolingCapacity:3.5,ratedHeatingCapacity:3.6,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('TCL','Free Match Elite High Wall',1.7,'TAC-06CHSD/VEIH',null,'','',{family:'tcl-free-match',ratedCoolingCapacity:1.7,ratedHeatingCapacity:1.8,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('TCL','Free Match Elite High Wall',2.6,'TAC-10CHSD/VEIH',null,'','',{family:'tcl-free-match',ratedCoolingCapacity:2.6,ratedHeatingCapacity:3.3,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('TCL','Free Match Elite High Wall',3.5,'TAC-13CHSD/VEIH',null,'','',{family:'tcl-free-match',ratedCoolingCapacity:3.5,ratedHeatingCapacity:3.7,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('TCL','Free Match FreshIN High Wall',2.6,'TAC-10CHSD/VFIH',null,'','',{family:'tcl-free-match',ratedCoolingCapacity:2.6,ratedHeatingCapacity:3.3,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('TCL','Free Match FreshIN High Wall',3.5,'TAC-13CHSD/VFIH',null,'','',{family:'tcl-free-match',ratedCoolingCapacity:3.5,ratedHeatingCapacity:3.7,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('TCL','Free Match Elite High Wall',5.3,'TAC-18CHSD/VEIH',null,'','',{family:'tcl-free-match',ratedCoolingCapacity:5.3,ratedHeatingCapacity:5.3,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('TCL','Free Match Elite High Wall',7.2,'TAC-24CHSD/VEIH',null,'','',{family:'tcl-free-match',ratedCoolingCapacity:7.2,ratedHeatingCapacity:7.3,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('TCL','Free Match Slim Duct',2.6,'TACM-DT09INV/R',null,'','',{family:'tcl-free-match',ratedCoolingCapacity:2.6,ratedHeatingCapacity:2.8,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('TCL','Free Match Slim Duct',3.5,'TACM-DT12INV/R',null,'','',{family:'tcl-free-match',ratedCoolingCapacity:3.5,ratedHeatingCapacity:4.0,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('TCL','Free Match Slim Duct',5.3,'TACM-DT18INV/R',null,'','',{family:'tcl-free-match',ratedCoolingCapacity:5.3,ratedHeatingCapacity:5.7,note:'Manufacturer indoor code; rebate lookup only'}),
+
+  multiIndoor('Actron Air','MultiElite High Wall',2.63,'WRE-026DS',null,'','',{family:'actron-multielite',ratedCoolingCapacity:2.63,ratedHeatingCapacity:2.7,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Actron Air','MultiElite High Wall',3.5,'WRE-035DS',null,'','',{family:'actron-multielite',ratedCoolingCapacity:3.5,ratedHeatingCapacity:3.9,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Actron Air','MultiElite High Wall',5.05,'WRE-050DS',null,'','',{family:'actron-multielite',ratedCoolingCapacity:5.05,ratedHeatingCapacity:6.0,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Actron Air','MultiElite High Wall',6.0,'WRE-060DS',null,'','',{family:'actron-multielite',ratedCoolingCapacity:6.0,ratedHeatingCapacity:6.6,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Actron Air','MultiElite High Wall',7.2,'WRE-072DS',null,'','',{family:'actron-multielite',ratedCoolingCapacity:7.2,ratedHeatingCapacity:8.2,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Actron Air','MultiElite High Wall',8.0,'WRE-080DS',null,'','',{family:'actron-multielite',ratedCoolingCapacity:8.0,ratedHeatingCapacity:9.0,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Actron Air','MultiElite High Wall',9.0,'WRE-090DS',null,'','',{family:'actron-multielite',ratedCoolingCapacity:9.0,ratedHeatingCapacity:9.8,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Actron Air','MultiElite Slim Duct',2.6,'BRE-026DS',null,'','',{family:'actron-multielite',ratedCoolingCapacity:2.6,ratedHeatingCapacity:2.9,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Actron Air','MultiElite Slim Duct',3.5,'BRE-035DS',null,'','',{family:'actron-multielite',ratedCoolingCapacity:3.5,ratedHeatingCapacity:3.8,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Actron Air','MultiElite Slim Duct',5.0,'BRE-050DS',null,'','',{family:'actron-multielite',ratedCoolingCapacity:5.0,ratedHeatingCapacity:5.5,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Actron Air','MultiElite Slim Duct',7.0,'BRE-070CS',null,'','',{family:'actron-multielite',ratedCoolingCapacity:7.0,ratedHeatingCapacity:7.6,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Actron Air','MultiElite Cassette',3.5,'MRE-035DS',null,'','',{family:'actron-multielite',ratedCoolingCapacity:3.5,ratedHeatingCapacity:3.8,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Actron Air','MultiElite Cassette',5.3,'MRE-053DS',null,'','',{family:'actron-multielite',ratedCoolingCapacity:5.3,ratedHeatingCapacity:5.57,note:'Manufacturer indoor code; rebate lookup only'}),
+
+  multiIndoor('Carrier','Multi Split High Wall',2.0,'42QAG020N8',null,'','',{family:'carrier-multi',ratedCoolingCapacity:2.0,ratedHeatingCapacity:2.2,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Carrier','Multi Split High Wall',2.65,'42QAG026N8',null,'','',{family:'carrier-multi',ratedCoolingCapacity:2.65,ratedHeatingCapacity:2.75,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Carrier','Multi Split High Wall',3.5,'42QAG035N8',null,'','',{family:'carrier-multi',ratedCoolingCapacity:3.5,ratedHeatingCapacity:3.75,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Carrier','Multi Split High Wall',5.0,'42QAG050N8',null,'','',{family:'carrier-multi',ratedCoolingCapacity:5.0,ratedHeatingCapacity:5.35,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Carrier','Multi Split High Wall',7.0,'42QAG070N8',null,'','',{family:'carrier-multi',ratedCoolingCapacity:7.0,ratedHeatingCapacity:7.6,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Carrier','Multi Split Slim Duct',2.05,'42QSS020N8',null,'','',{family:'carrier-multi',ratedCoolingCapacity:2.05,ratedHeatingCapacity:2.05,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Carrier','Multi Split Slim Duct',2.64,'42QSS026N8',null,'','',{family:'carrier-multi',ratedCoolingCapacity:2.64,ratedHeatingCapacity:2.64,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Carrier','Multi Split Slim Duct',3.52,'42QSS035N8',null,'','',{family:'carrier-multi',ratedCoolingCapacity:3.52,ratedHeatingCapacity:3.52,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Carrier','Multi Split Slim Duct',5.28,'42QSS050N8',null,'','',{family:'carrier-multi',ratedCoolingCapacity:5.28,ratedHeatingCapacity:5.28,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Carrier','Multi Split Cassette',2.05,'42QTD020N8',null,'','',{family:'carrier-multi',ratedCoolingCapacity:2.05,ratedHeatingCapacity:2.05,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Carrier','Multi Split Cassette',2.64,'42QTD026N8',null,'','',{family:'carrier-multi',ratedCoolingCapacity:2.64,ratedHeatingCapacity:2.64,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Carrier','Multi Split Cassette',3.52,'42QTD035N8',null,'','',{family:'carrier-multi',ratedCoolingCapacity:3.52,ratedHeatingCapacity:3.52,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Carrier','Multi Split Cassette',5.28,'42QTD050N8',null,'','',{family:'carrier-multi',ratedCoolingCapacity:5.28,ratedHeatingCapacity:5.28,note:'Manufacturer indoor code; rebate lookup only'}),
+
+  multiIndoor('Kaden','Multi Split High Wall',2.0,'KSI06',null,'','',{family:'kaden-multi',ratedCoolingCapacity:2.0,ratedHeatingCapacity:2.3,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Kaden','Multi Split High Wall',2.6,'KSI09',null,'','',{family:'kaden-multi',ratedCoolingCapacity:2.6,ratedHeatingCapacity:2.7,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Kaden','Multi Split High Wall',3.6,'KSI12',null,'','',{family:'kaden-multi',ratedCoolingCapacity:3.6,ratedHeatingCapacity:4.0,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Kaden','Multi Split High Wall',5.0,'KSI18',null,'','',{family:'kaden-multi',ratedCoolingCapacity:5.0,ratedHeatingCapacity:5.2,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Kaden','Multi Split High Wall',7.0,'KSI24',null,'','',{family:'kaden-multi',ratedCoolingCapacity:7.0,ratedHeatingCapacity:7.5,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Kaden','Multi Split High Wall',7.6,'KSI28',null,'','',{family:'kaden-multi',ratedCoolingCapacity:7.6,ratedHeatingCapacity:8.5,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Kaden','Multi Slim Duct',2.6,'KMD09',null,'','',{family:'kaden-multi',ratedCoolingCapacity:2.6,ratedHeatingCapacity:2.9,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Kaden','Multi Slim Duct',3.5,'KMD12',null,'','',{family:'kaden-multi',ratedCoolingCapacity:3.5,ratedHeatingCapacity:3.8,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Kaden','Multi Slim Duct',5.0,'KMD18',null,'','',{family:'kaden-multi',ratedCoolingCapacity:5.0,ratedHeatingCapacity:5.5,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Kaden','Multi Slim Duct',7.0,'KMD24',null,'','',{family:'kaden-multi',ratedCoolingCapacity:7.0,ratedHeatingCapacity:7.6,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Kaden','Multi Cassette',2.6,'KMC09',null,'','',{family:'kaden-multi',ratedCoolingCapacity:2.6,ratedHeatingCapacity:2.9,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Kaden','Multi Cassette',3.5,'KMC12',null,'','',{family:'kaden-multi',ratedCoolingCapacity:3.5,ratedHeatingCapacity:4.1,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Kaden','Multi Cassette',5.3,'KMC18',null,'','',{family:'kaden-multi',ratedCoolingCapacity:5.3,ratedHeatingCapacity:5.4,note:'Manufacturer indoor code; rebate lookup only'}),
+
+  multiIndoor('Emerald','Multi Split High Wall',2.5,'ACR25W',null,'','',{family:'emerald-multi',ratedCoolingCapacity:2.5,ratedHeatingCapacity:3.1,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Emerald','Multi Split High Wall',5.3,'ACR53W',null,'','',{family:'emerald-multi',ratedCoolingCapacity:5.3,ratedHeatingCapacity:5.4,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Emerald','Multi Split High Wall',7.1,'ACR71W',null,'','',{family:'emerald-multi',ratedCoolingCapacity:7.1,ratedHeatingCapacity:7.2,note:'Manufacturer indoor code; rebate lookup only'}),
+
+  multiIndoor('Midea','Multi Split Slim Duct',2.6,'MULMID09B',null,'','',{family:'midea-multi',ratedCoolingCapacity:2.6,ratedHeatingCapacity:2.9,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Midea','Multi Split Slim Duct',3.5,'MULMID12B',null,'','',{family:'midea-multi',ratedCoolingCapacity:3.5,ratedHeatingCapacity:3.8,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Midea','Multi Split Slim Duct',5.0,'MULMID18B',null,'','',{family:'midea-multi',ratedCoolingCapacity:5.0,ratedHeatingCapacity:5.5,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Midea','Multi Split Slim Duct',7.0,'MULMID24B',null,'','',{family:'midea-multi',ratedCoolingCapacity:7.0,ratedHeatingCapacity:7.6,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Midea','Multi Split Cassette',2.0,'MULMICO7B',null,'','',{family:'midea-multi',ratedCoolingCapacity:2.0,ratedHeatingCapacity:2.35,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Midea','Multi Split Cassette',2.6,'MULMICO9B',null,'','',{family:'midea-multi',ratedCoolingCapacity:2.6,ratedHeatingCapacity:2.93,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Midea','Multi Split Cassette',3.5,'MULMIC12B',null,'','',{family:'midea-multi',ratedCoolingCapacity:3.5,ratedHeatingCapacity:4.1,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Midea','Multi Split Cassette',5.0,'MULMIC18B',null,'','',{family:'midea-multi',ratedCoolingCapacity:5.0,ratedHeatingCapacity:5.42,note:'Manufacturer indoor code; rebate lookup only'}),
+
+  multiIndoor('Teco','Multi Split High Wall',2.25,'TWSM22HVAG',null,'','',{family:'teco-multi',ratedCoolingCapacity:2.25,ratedHeatingCapacity:2.7,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Teco','Multi Split High Wall',2.65,'TWSM26HVAG',null,'','',{family:'teco-multi',ratedCoolingCapacity:2.65,ratedHeatingCapacity:3.2,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Teco','Multi Split High Wall',3.52,'TWSM35HVAG',null,'','',{family:'teco-multi',ratedCoolingCapacity:3.52,ratedHeatingCapacity:4.0,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Teco','Multi Split High Wall',5.2,'TWSM50HVAG',null,'','',{family:'teco-multi',ratedCoolingCapacity:5.2,ratedHeatingCapacity:6.0,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Teco','Multi Split High Wall',6.3,'TWSM64HVAG',null,'','',{family:'teco-multi',ratedCoolingCapacity:6.3,ratedHeatingCapacity:7.4,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Teco','Multi Split High Wall',7.1,'TWSM71HVAG',null,'','',{family:'teco-multi',ratedCoolingCapacity:7.1,ratedHeatingCapacity:8.0,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Teco','Multi Slim Duct',2.65,'TDSM26HVAG',null,'','',{family:'teco-multi',ratedCoolingCapacity:2.65,ratedHeatingCapacity:2.8,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Teco','Multi Slim Duct',3.5,'TDSM35HVAG',null,'','',{family:'teco-multi',ratedCoolingCapacity:3.5,ratedHeatingCapacity:4.0,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Teco','Multi Slim Duct',5.0,'TDSM50HVAG',null,'','',{family:'teco-multi',ratedCoolingCapacity:5.0,ratedHeatingCapacity:5.5,note:'Manufacturer indoor code; rebate lookup only'}),
+  multiIndoor('Teco','Multi Slim Duct',7.0,'TDSM70HVAG',null,'','',{family:'teco-multi',ratedCoolingCapacity:7.0,ratedHeatingCapacity:8.0,note:'Manufacturer indoor code; rebate lookup only'})
 ];
 const ALL_MODELS_MULTI_INDOORS=[...MULTI_SPLIT_INDOORS,...ALL_MODELS_MULTI_EXTRA_INDOORS];
 function normaliseBrandName(b){return BRAND_ALIASES[b]||b||'';}
@@ -7558,11 +7757,8 @@ function allModelsMultiHeadLimit(outdoor){
 function allModelsMultiAvailableIndoorIndexes(outdoor){
   return ALL_MODELS_MULTI_INDOORS
     .map((row,index)=>({row,index}))
-    .sort((a,b)=>{
-      const brandOrder=Number(!(outdoor&&brandsEquivalent(a.row.brand,outdoor.brand)))-Number(!(outdoor&&brandsEquivalent(b.row.brand,outdoor.brand)));
-      if(brandOrder) return brandOrder;
-      return a.row.brand.localeCompare(b.row.brand)||a.row.series.localeCompare(b.row.series)||(Number(a.row.capacityNum)||0)-(Number(b.row.capacityNum)||0)||a.row.model.localeCompare(b.row.model);
-    })
+    .filter(item=>outdoor&&brandsEquivalent(item.row.brand,outdoor.brand))
+    .sort((a,b)=>a.row.series.localeCompare(b.row.series)||(Number(a.row.capacityNum)||0)-(Number(b.row.capacityNum)||0)||a.row.model.localeCompare(b.row.model))
     .map(item=>item.index);
 }
 function allModelsMultiIndoorSearchText(row){
@@ -7777,7 +7973,7 @@ function renderAllModelsMultiBuilder(){
       }).join('');
       const placeholder=currentVisible?'':`<option value="" selected disabled>${matches.length?`${matches.length} matching heads - select one`:'No matching indoor heads'}</option>`;
       return `<div class="allModelsMultiRow"><div class="allModelsMultiRowMeta"><label for="allModelsMultiHeadSearch${index}">Indoor head ${index+1}</label><div class="allModelsMultiHeadSearchWrap"><input class="allModelsMultiHeadSearch" id="allModelsMultiHeadSearch${index}" type="search" autocomplete="off" placeholder="Search model code, brand or size" value="${htmlEscape(query)}" oninput="filterAllModelsMultiHeadOptions(${index},this.value)"><span class="allModelsMultiHeadSearchMeta" id="allModelsMultiHeadSearchMeta${index}">${matches.length} ${matches.length===1?'match':'matches'}</span></div><select id="allModelsMultiHead${index}" aria-label="Select indoor head ${index+1}" onchange="updateAllModelsMultiHead(${index},'indoorIndex',this.value)">${placeholder}${options}</select></div><div class="allModelsMultiRowActions"><div class="allModelsMultiQty" role="group" aria-label="Indoor head ${index+1} quantity"><button type="button" aria-label="Reduce quantity" onclick="adjustAllModelsMultiHeadQty(${index},-1)"${qty<=1?' disabled':''}>-</button><input type="number" min="1" max="${effectiveLimit}" value="${qty}" aria-label="Quantity" onchange="updateAllModelsMultiHead(${index},'qty',this.value)"><button type="button" aria-label="Increase quantity" onclick="adjustAllModelsMultiHeadQty(${index},1)"${totals.headCount>=effectiveLimit?' disabled':''}>+</button></div><button class="allModelsMultiRemove" type="button" title="Remove indoor head" aria-label="Remove indoor head ${index+1}" onclick="removeAllModelsMultiHead(${index})">&times;</button></div></div>`;
-    }).join('')||'<div class="allModelsSearchMessage">Add at least one indoor head.</div>';
+    }).join('')||`<div class="allModelsSearchMessage">${outdoor&&!available.length?`No verified current indoor heads are loaded for ${htmlEscape(outdoor.brand)} yet.`:'Add at least one indoor head.'}</div>`;
   }
   const feedback=$('allModelsMultiCompatibility');
   if(feedback){
@@ -7787,7 +7983,7 @@ function renderAllModelsMultiBuilder(){
       feedback.textContent='Select an outdoor unit, then confirm the final indoor and outdoor combination with the manufacturer before quoting.';
     }else if(!available.length){
       feedback.classList.add('invalid');
-      feedback.textContent='No registered indoor heads are currently available.';
+      feedback.textContent=`No verified current indoor heads are loaded for ${outdoor.brand}. The calculator will not substitute heads from another brand.`;
     }else if(hasKnownHeadLimit&&totals.headCount>headLimit){
       feedback.classList.add('invalid');
       feedback.textContent=`This outdoor unit allows a maximum of ${headLimit} indoor heads.`;
