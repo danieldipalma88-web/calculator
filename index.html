@@ -3616,14 +3616,14 @@ body.guidanceModalOpen{overflow:hidden}
           </div>
           <div id="allModelsMultiLookup" class="hidden">
             <h2 class="sectionTitle">Build a registered multi-head combination</h2>
-            <div class="sub">Select the outdoor unit first, then choose indoor heads from the full registered indoor catalogue. Models from the same brand are listed first.</div>
+            <div class="sub">Outdoor brands and models come from the live Australian GEMS multi-split register. GEMS does not register indoor heads, so choose from the indoor-head catalogue below and confirm compatibility with the manufacturer.</div>
             <div class="allModelsLookupGrid" style="margin-top:14px">
               <div><label for="allModelsMultiBrand">Brand</label><select id="allModelsMultiBrand" onchange="populateAllModelsMultiOutdoors()"></select></div>
               <div><label for="allModelsMultiOutdoor">Outdoor unit</label><select id="allModelsMultiOutdoor" onchange="onAllModelsMultiOutdoorChange()"></select></div>
             </div>
             <div class="allModelsMultiSummary">
               <div class="allModelsMultiMetric"><span>Outdoor capacity</span><strong id="allModelsMultiOutdoorCapacity">Select outdoor</strong></div>
-              <div class="allModelsMultiMetric"><span>Maximum heads</span><strong id="allModelsMultiMaxHeads">-</strong></div>
+              <div class="allModelsMultiMetric"><span>Head limit</span><strong id="allModelsMultiMaxHeads">-</strong></div>
               <div class="allModelsMultiMetric"><span>Connected capacity</span><strong id="allModelsMultiConnectedCapacity">0.0kW</strong></div>
             </div>
             <div class="allModelsMultiBuilder">
@@ -4565,6 +4565,11 @@ let allModelsCalculationRequestSeq=0;
 let allModelsMode='single';
 let allModelsMultiOutdoorIndex=-1;
 let allModelsMultiIndoorSelections=[];
+let allModelsMultiOutdoors=[];
+let allModelsMultiBrandsLoaded=false;
+let allModelsMultiBrandRequestSeq=0;
+let allModelsMultiOutdoorRequestSeq=0;
+const ALL_MODELS_MULTI_TECHNICAL_HEAD_CAP=64;
 const INSTALL_ADDONS=[
   {id:'addonExtraPipeRun',qtyId:'addonExtraPipeRunQty',type:'quantity',label:'Extra 5m pipe run',labour:200,materialsInc:100},
   {id:'addonCondensatePump',label:'Condensate pump',labour:200,materialsInc:200},
@@ -7529,18 +7534,19 @@ function resetAllModelsResult(message){
   updateAllModelsRates();
   setSectionLoading('allModelsResultCard',false);
 }
-function allModelsMultiBrands(){
-  return [...new Set(MULTI_SPLIT_OUTDOORS.map(row=>row.brand))].sort((a,b)=>a.localeCompare(b));
-}
 function selectedAllModelsMultiOutdoor(){
   const index=Number(($('allModelsMultiOutdoor')&&$('allModelsMultiOutdoor').value)||allModelsMultiOutdoorIndex);
-  return Number.isInteger(index)&&MULTI_SPLIT_OUTDOORS[index]?MULTI_SPLIT_OUTDOORS[index]:null;
+  return Number.isInteger(index)&&allModelsMultiOutdoors[index]?allModelsMultiOutdoors[index]:null;
+}
+function allModelsMultiHeadLimit(outdoor){
+  const limit=Number(outdoor&&outdoor.maxHeads);
+  return Number.isFinite(limit)&&limit>0?limit:Infinity;
 }
 function allModelsMultiAvailableIndoorIndexes(outdoor){
   return MULTI_SPLIT_INDOORS
     .map((row,index)=>({row,index}))
     .sort((a,b)=>{
-      const brandOrder=Number(!(outdoor&&a.row.brand===outdoor.brand))-Number(!(outdoor&&b.row.brand===outdoor.brand));
+      const brandOrder=Number(!(outdoor&&brandsEquivalent(a.row.brand,outdoor.brand)))-Number(!(outdoor&&brandsEquivalent(b.row.brand,outdoor.brand)));
       if(brandOrder) return brandOrder;
       return a.row.brand.localeCompare(b.row.brand)||a.row.series.localeCompare(b.row.series)||(Number(a.row.capacityNum)||0)-(Number(b.row.capacityNum)||0)||a.row.model.localeCompare(b.row.model);
     })
@@ -7565,25 +7571,76 @@ function allModelsMultiSelectionChanged(message){
   resetAllModelsResult(message||'Multi-head combination changed. Calculate the rebate again.');
   renderAllModelsMultiBuilder();
 }
-function populateAllModelsMultiBrands(){
+async function populateAllModelsMultiBrands(){
   const select=$('allModelsMultiBrand');
   if(!select) return;
+  const requestId=++allModelsMultiBrandRequestSeq;
   const current=String(select.value||'');
-  const rows=allModelsMultiBrands();
-  select.innerHTML=rows.map(brand=>`<option value="${htmlEscape(brand)}">${htmlEscape(brand)}</option>`).join('');
-  if(current&&rows.includes(current)) select.value=current;
-  populateAllModelsMultiOutdoors();
+  select.disabled=true;
+  select.innerHTML='<option value="">Loading GEMS multi-split brands...</option>';
+  try{
+    const payload=await fetchJson('/api/gems-model-search?mode=multi-brands');
+    if(requestId!==allModelsMultiBrandRequestSeq) return;
+    const rows=Array.isArray(payload&&payload.brands)?payload.brands:[];
+    if(!rows.length) throw new Error('No registered multi-split brands were returned');
+    select.innerHTML=rows.map(brand=>`<option value="${htmlEscape(brand)}">${htmlEscape(brand)}</option>`).join('');
+    if(current&&rows.includes(current)) select.value=current;
+    allModelsMultiBrandsLoaded=true;
+    select.disabled=false;
+    await populateAllModelsMultiOutdoors();
+  }catch(error){
+    if(requestId!==allModelsMultiBrandRequestSeq) return;
+    select.innerHTML='<option value="">GEMS brands unavailable</option>';
+    allModelsMultiBrandsLoaded=false;
+    allModelsMultiOutdoors=[];
+    allModelsMultiOutdoorIndex=-1;
+    renderAllModelsMultiBuilder();
+    const feedback=$('allModelsMultiCompatibility');
+    if(feedback){feedback.className='allModelsCompatibility invalid';feedback.textContent=String(error&&error.message||error||'The GEMS multi-split register is unavailable.');}
+  }finally{
+    if(requestId===allModelsMultiBrandRequestSeq) select.disabled=false;
+  }
 }
-function populateAllModelsMultiOutdoors(){
+async function populateAllModelsMultiOutdoors(){
   const brand=String(($('allModelsMultiBrand')&&$('allModelsMultiBrand').value)||'');
   const select=$('allModelsMultiOutdoor');
   if(!select) return;
-  const previous=Number(select.value);
-  const rows=MULTI_SPLIT_OUTDOORS.map((row,index)=>({row,index})).filter(item=>item.row.brand===brand);
-  select.innerHTML=rows.map(item=>`<option value="${item.index}">${htmlEscape(`${item.row.capacity} - ${item.row.series} - ${item.row.model}${item.row.phase?` - ${item.row.phase}`:''}`)}</option>`).join('');
-  if(rows.some(item=>item.index===previous)) select.value=String(previous);
-  allModelsMultiOutdoorIndex=Number(select.value);
-  onAllModelsMultiOutdoorChange();
+  const requestId=++allModelsMultiOutdoorRequestSeq;
+  const previousModel=selectedAllModelsMultiOutdoor()&&selectedAllModelsMultiOutdoor().model;
+  allModelsMultiOutdoors=[];
+  allModelsMultiOutdoorIndex=-1;
+  allModelsMultiIndoorSelections=[];
+  select.disabled=true;
+  select.innerHTML='<option value="">Loading registered outdoor models...</option>';
+  renderAllModelsMultiBuilder();
+  if(!brand){select.disabled=false;return;}
+  try{
+    const payload=await fetchJson(`/api/gems-model-search?mode=multi-outdoors&brand=${encodeURIComponent(brand)}`);
+    if(requestId!==allModelsMultiOutdoorRequestSeq) return;
+    const rows=Array.isArray(payload&&payload.models)?payload.models:[];
+    allModelsMultiOutdoors=rows.map(row=>{
+      const known=MULTI_SPLIT_OUTDOORS.find(item=>brandsEquivalent(item.brand,row.brand)&&[item.model,item.rebateModel].filter(Boolean).some(model=>normalizeLookup(model)===normalizeLookup(row.model)));
+      const capacityNum=Number(row.capacityKw)||0;
+      return {brand:row.brand||brand,series:row.family||row.productType||'GEMS registered multi-split',capacityNum,capacity:capacityNum>0?`${capacityNum.toFixed(1)}kW`:'Capacity unavailable',model:row.model,rebateModel:row.model,phase:row.phase||'',maxHeads:known&&Number(known.maxHeads)>0?Number(known.maxHeads):null,metadata:row.metadata||null,completeEnergyData:!!row.completeEnergyData,configuration:row.metadata&&row.metadata.Configuration2||''};
+    });
+    if(!allModelsMultiOutdoors.length) throw new Error(`No available Australian GEMS multi-split outdoor models were returned for ${brand}`);
+    select.innerHTML=allModelsMultiOutdoors.map((row,index)=>`<option value="${index}">${htmlEscape(`${row.model} - ${row.capacity}${row.phase?` - ${row.phase} phase`:''}${row.configuration?` - ${String(row.configuration).toUpperCase()}`:''}`)}</option>`).join('');
+    const previousIndex=allModelsMultiOutdoors.findIndex(row=>normalizeLookup(row.model)===normalizeLookup(previousModel));
+    select.value=String(previousIndex>=0?previousIndex:0);
+    allModelsMultiOutdoorIndex=Number(select.value);
+    select.disabled=false;
+    onAllModelsMultiOutdoorChange();
+  }catch(error){
+    if(requestId!==allModelsMultiOutdoorRequestSeq) return;
+    allModelsMultiOutdoors=[];
+    allModelsMultiOutdoorIndex=-1;
+    select.innerHTML='<option value="">Outdoor models unavailable</option>';
+    renderAllModelsMultiBuilder();
+    const feedback=$('allModelsMultiCompatibility');
+    if(feedback){feedback.className='allModelsCompatibility invalid';feedback.textContent=String(error&&error.message||error||'The GEMS outdoor model register is unavailable.');}
+  }finally{
+    if(requestId===allModelsMultiOutdoorRequestSeq) select.disabled=false;
+  }
 }
 function onAllModelsMultiOutdoorChange(){
   const select=$('allModelsMultiOutdoor');
@@ -7604,8 +7661,9 @@ function addAllModelsMultiHead(){
   const available=allModelsMultiAvailableIndoorIndexes(outdoor);
   if(!available.length) return;
   const totals=allModelsMultiTotals();
-  const maxHeads=Number(outdoor&&outdoor.maxHeads)||12;
-  if(totals.headCount>=maxHeads) return;
+  const headLimit=allModelsMultiHeadLimit(outdoor);
+  const effectiveLimit=Number.isFinite(headLimit)?headLimit:ALL_MODELS_MULTI_TECHNICAL_HEAD_CAP;
+  if(totals.headCount>=effectiveLimit) return;
   const previous=allModelsMultiIndoorSelections[allModelsMultiIndoorSelections.length-1];
   const previousIndex=Number(previous&&previous.indoorIndex);
   allModelsMultiIndoorSelections.push({indoorIndex:available.includes(previousIndex)?previousIndex:available[0],qty:1});
@@ -7620,7 +7678,8 @@ function adjustAllModelsMultiHeadQty(index,delta){
   if(!selection) return;
   const totals=allModelsMultiTotals();
   const current=Math.max(1,Math.floor(Number(selection.qty)||1));
-  const maxHeads=Number(totals.outdoor&&totals.outdoor.maxHeads)||12;
+  const headLimit=allModelsMultiHeadLimit(totals.outdoor);
+  const maxHeads=Number.isFinite(headLimit)?headLimit:ALL_MODELS_MULTI_TECHNICAL_HEAD_CAP;
   const otherHeads=totals.headCount-current;
   selection.qty=Math.max(1,Math.min(Math.max(1,maxHeads-otherHeads),current+(Number(delta)||0)));
   allModelsMultiSelectionChanged('Indoor head quantity changed. Calculate the rebate again.');
@@ -7631,7 +7690,8 @@ function updateAllModelsMultiHead(index,field,value){
   if(field==='qty'){
     const totals=allModelsMultiTotals();
     const current=Math.max(1,Math.floor(Number(selection.qty)||1));
-    const maxHeads=Number(totals.outdoor&&totals.outdoor.maxHeads)||12;
+    const headLimit=allModelsMultiHeadLimit(totals.outdoor);
+    const maxHeads=Number.isFinite(headLimit)?headLimit:ALL_MODELS_MULTI_TECHNICAL_HEAD_CAP;
     const otherHeads=totals.headCount-current;
     selection.qty=Math.max(1,Math.min(Math.max(1,maxHeads-otherHeads),Math.floor(Number(value)||1)));
   }else{
@@ -7643,12 +7703,14 @@ function renderAllModelsMultiBuilder(){
   const outdoor=selectedAllModelsMultiOutdoor();
   const available=allModelsMultiAvailableIndoorIndexes(outdoor);
   const totals=allModelsMultiTotals();
-  const maxHeads=Number(outdoor&&outdoor.maxHeads)||0;
+  const headLimit=allModelsMultiHeadLimit(outdoor);
+  const hasKnownHeadLimit=Number.isFinite(headLimit);
+  const effectiveLimit=hasKnownHeadLimit?headLimit:ALL_MODELS_MULTI_TECHNICAL_HEAD_CAP;
   if($('allModelsMultiOutdoorCapacity')) $('allModelsMultiOutdoorCapacity').textContent=outdoor?outdoor.capacity:'Select outdoor';
-  if($('allModelsMultiMaxHeads')) $('allModelsMultiMaxHeads').textContent=outdoor?String(maxHeads):'-';
+  if($('allModelsMultiMaxHeads')) $('allModelsMultiMaxHeads').textContent=outdoor?(hasKnownHeadLimit?String(headLimit):'Manufacturer check'):'-';
   if($('allModelsMultiConnectedCapacity')) $('allModelsMultiConnectedCapacity').textContent=`${totals.connectedCoolingCapacity.toFixed(1)}kW`;
   if($('allModelsMultiHeadCount')) $('allModelsMultiHeadCount').textContent=`${totals.headCount} ${totals.headCount===1?'head':'heads'} connected`;
-  if($('allModelsMultiAddHeadBtn')) $('allModelsMultiAddHeadBtn').disabled=!available.length||totals.headCount>=maxHeads;
+  if($('allModelsMultiAddHeadBtn')) $('allModelsMultiAddHeadBtn').disabled=!available.length||totals.headCount>=effectiveLimit;
   const rows=$('allModelsMultiRows');
   if(rows){
     rows.innerHTML=allModelsMultiIndoorSelections.map((selection,index)=>{
@@ -7658,7 +7720,7 @@ function renderAllModelsMultiBuilder(){
         const row=MULTI_SPLIT_INDOORS[indoorIndex];
         return `<option value="${indoorIndex}"${indoorIndex===current?' selected':''}>${htmlEscape(`${row.model} - ${row.capacity} - ${row.brand} - ${row.series}`)}</option>`;
       }).join('');
-      return `<div class="allModelsMultiRow"><div class="allModelsMultiRowMeta"><label for="allModelsMultiHead${index}">Indoor head ${index+1}</label><select id="allModelsMultiHead${index}" onchange="updateAllModelsMultiHead(${index},'indoorIndex',this.value)">${options}</select></div><div class="allModelsMultiRowActions"><div class="allModelsMultiQty" role="group" aria-label="Indoor head ${index+1} quantity"><button type="button" aria-label="Reduce quantity" onclick="adjustAllModelsMultiHeadQty(${index},-1)"${qty<=1?' disabled':''}>-</button><input type="number" min="1" max="${maxHeads}" value="${qty}" aria-label="Quantity" onchange="updateAllModelsMultiHead(${index},'qty',this.value)"><button type="button" aria-label="Increase quantity" onclick="adjustAllModelsMultiHeadQty(${index},1)"${totals.headCount>=maxHeads?' disabled':''}>+</button></div><button class="allModelsMultiRemove" type="button" title="Remove indoor head" aria-label="Remove indoor head ${index+1}" onclick="removeAllModelsMultiHead(${index})">&times;</button></div></div>`;
+      return `<div class="allModelsMultiRow"><div class="allModelsMultiRowMeta"><label for="allModelsMultiHead${index}">Indoor head ${index+1}</label><select id="allModelsMultiHead${index}" onchange="updateAllModelsMultiHead(${index},'indoorIndex',this.value)">${options}</select></div><div class="allModelsMultiRowActions"><div class="allModelsMultiQty" role="group" aria-label="Indoor head ${index+1} quantity"><button type="button" aria-label="Reduce quantity" onclick="adjustAllModelsMultiHeadQty(${index},-1)"${qty<=1?' disabled':''}>-</button><input type="number" min="1" max="${effectiveLimit}" value="${qty}" aria-label="Quantity" onchange="updateAllModelsMultiHead(${index},'qty',this.value)"><button type="button" aria-label="Increase quantity" onclick="adjustAllModelsMultiHeadQty(${index},1)"${totals.headCount>=effectiveLimit?' disabled':''}>+</button></div><button class="allModelsMultiRemove" type="button" title="Remove indoor head" aria-label="Remove indoor head ${index+1}" onclick="removeAllModelsMultiHead(${index})">&times;</button></div></div>`;
     }).join('')||'<div class="allModelsSearchMessage">Add at least one indoor head.</div>';
   }
   const feedback=$('allModelsMultiCompatibility');
@@ -7670,9 +7732,9 @@ function renderAllModelsMultiBuilder(){
     }else if(!available.length){
       feedback.classList.add('invalid');
       feedback.textContent='No registered indoor heads are currently available.';
-    }else if(totals.headCount>maxHeads){
+    }else if(hasKnownHeadLimit&&totals.headCount>headLimit){
       feedback.classList.add('invalid');
-      feedback.textContent=`This outdoor unit allows a maximum of ${maxHeads} indoor heads.`;
+      feedback.textContent=`This outdoor unit allows a maximum of ${headLimit} indoor heads.`;
     }else if(unrated.length){
       feedback.classList.add('invalid');
       feedback.textContent='Rated cooling and heating data is missing for one or more selected indoor heads.';
@@ -7698,10 +7760,10 @@ function setAllModelsMode(mode){
   if($('allModelsSingleLookup')) $('allModelsSingleLookup').classList.toggle('hidden',allModelsMode!=='single');
   if($('allModelsMultiLookup')) $('allModelsMultiLookup').classList.toggle('hidden',allModelsMode!=='multi');
   if(allModelsMode==='multi'){
-    if(!$('allModelsMultiBrand')?.options.length) populateAllModelsMultiBrands();
+    if(!allModelsMultiBrandsLoaded) populateAllModelsMultiBrands();
     else renderAllModelsMultiBuilder();
   }
-  resetAllModelsResult(allModelsMode==='multi'?'Build a compatible multi-head combination, then calculate its rebate.':'Select a registered model and calculate its rebate.');
+  resetAllModelsResult(allModelsMode==='multi'?'Build a multi-head combination, confirm compatibility, then calculate its rebate.':'Select a registered model and calculate its rebate.');
   updateAllModelsCalculateState();
 }
 function updateAllModelsCalculateState(){
@@ -7710,8 +7772,8 @@ function updateAllModelsCalculateState(){
   const postcode=String(($('allModelsPostcode')&&$('allModelsPostcode').value)||'').trim();
   const blocked=allModelsMode==='single'&&!!(allModelsSelected&&allModelsSelected.multiHead);
   const multiTotals=allModelsMode==='multi'?allModelsMultiTotals():null;
-  const multiMax=Number(multiTotals&&multiTotals.outdoor&&multiTotals.outdoor.maxHeads)||0;
-  const multiReady=!!(multiTotals&&multiTotals.outdoor&&multiTotals.headCount>0&&multiTotals.headCount<=multiMax);
+  const multiLimit=allModelsMultiHeadLimit(multiTotals&&multiTotals.outdoor);
+  const multiReady=!!(multiTotals&&multiTotals.outdoor&&multiTotals.headCount>0&&(!Number.isFinite(multiLimit)||multiTotals.headCount<=multiLimit));
   const selectionReady=allModelsMode==='multi'?multiReady:!!allModelsSelected&&!blocked;
   button.disabled=!selectionReady||!/^\d{4}$/.test(postcode)||!rebatesEnabled();
   const notice=$('allModelsLookupNotice');
@@ -7897,14 +7959,16 @@ async function calculateAllModelsMultiRebate(){
   const totals=allModelsMultiTotals();
   const outdoor=totals.outdoor;
   const postcode=String(($('allModelsPostcode')&&$('allModelsPostcode').value)||'').trim();
-  const maxHeads=Number(outdoor&&outdoor.maxHeads)||0;
-  if(!outdoor||!totals.headCount||totals.headCount>maxHeads||!/^\d{4}$/.test(postcode)) return;
+  const headLimit=allModelsMultiHeadLimit(outdoor);
+  if(!outdoor||!totals.headCount||(Number.isFinite(headLimit)&&totals.headCount>headLimit)||!/^\d{4}$/.test(postcode)) return;
   const requestId=++allModelsCalculationRequestSeq;
   const button=$('allModelsCalculateBtn');
   if(button){button.disabled=true;button.textContent='Calculating...';button.setAttribute('aria-busy','true');}
   setSectionLoading('allModelsResultCard',true,'Calculating multi-head rebate...');
   try{
-    const resolved=await resolveModelMetadataForRebate(outdoor.brand,outdoor.rebateModel||outdoor.model);
+    const resolved=outdoor.completeEnergyData&&outdoor.metadata&&isUsableModelMeta(outdoor.metadata)
+      ?{meta:outdoor.metadata,brand:outdoor.brand,model:outdoor.rebateModel||outdoor.model,source:'Live GEMS multi-split register + NSW formula'}
+      :await resolveModelMetadataForRebate(outdoor.brand,outdoor.rebateModel||outdoor.model);
     const climate=await getClimateContext(postcode);
     const capacityInputs=multiSplitCertificateInputs(resolved.meta,totals.indoorItems);
     const certs=await withTimeout(calculateCertificatesForModel(resolved.meta,climate,{

@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import {
   cleanGemsBrand,
   isEligibleAustralianGemsRecord,
+  isGemsMultiSplitOutdoorRecord,
   mapGemsModelSearchItem,
   normalizeGemsModelQuery,
 } from "../lib/gems-model-search.ts";
@@ -36,6 +37,8 @@ assert.doesNotMatch(allModelsSection, /onclick="addToQuote\(/);
 assert.doesNotMatch(allModelsSection, /unitPriceInc|finalInc|Add to Quote/);
 
 assert.match(route, /mode === "brands"/);
+assert.match(route, /mode === "multi-brands"/);
+assert.match(route, /mode === "multi-outdoors"/);
 assert.match(route, /query\.length < 2/);
 assert.match(route, /slice\(0, 30\)/);
 
@@ -90,8 +93,21 @@ assert.equal(mapped?.metadata["Product Class"], "Class 8");
 const multi = mapGemsModelSearchItem({
   ...completeRecord,
   Model_No: "2MXM50",
+  ApplStandard: "[SEER Multi-Split <=65kW] AS/NZS 3823.4.1",
+  Configuration2: "fixed",
   "Outdoor unit only": "Yes",
 });
+assert.equal(isGemsMultiSplitOutdoorRecord(multi?.metadata || {}), true);
 assert.equal(multi?.multiHead, true);
+assert.equal(multi?.multiSplitOutdoor, true);
+
+const ordinaryOutdoorOnly = mapGemsModelSearchItem({
+  ...completeRecord,
+  Model_No: "RXM25YVMA",
+  Configuration2: "non_ducted_single_split_system",
+  "Outdoor unit only": "Yes",
+});
+assert.equal(ordinaryOutdoorOnly?.outdoorOnly, true);
+assert.equal(ordinaryOutdoorOnly?.multiHead, false);
 
 console.log("All Models lookup verification passed.");

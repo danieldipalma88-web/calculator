@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   cleanGemsBrand,
   fetchGemsDatastoreRecords,
+  fetchGemsMultiSplitRecords,
   isEligibleAustralianGemsRecord,
+  isGemsMultiSplitOutdoorRecord,
   mapGemsModelSearchItem,
   normalizeGemsModelQuery,
 } from "../../../lib/gems-model-search";
@@ -15,6 +17,7 @@ const responseHeaders = {
 
 const brandFields = ["Brand", "SubmitStatus", "Availability Status", "Sold_in"];
 const modelFields = [
+  "ApplStandard",
   "Brand",
   "Model_No",
   "Family Name",
@@ -42,9 +45,92 @@ const modelFields = [
   "Sold_in",
 ];
 
+const multiBrandFields = [
+  "ApplStandard",
+  "Brand",
+  "Configuration2",
+  "SubmitStatus",
+  "Availability Status",
+  "Sold_in",
+];
+
+function displayBrand(value: string) {
+  return value
+    .trim()
+    .split(/\s+/)
+    .map((part) =>
+      /^[A-Z0-9&-]{2,3}$/.test(part)
+        ? part
+        : `${part.charAt(0).toUpperCase()}${part.slice(1).toLowerCase()}`,
+    )
+    .join(" ");
+}
+
+function distinctMappedModels(records: Record<string, unknown>[]) {
+  const seen = new Set<string>();
+  return records
+    .filter(isEligibleAustralianGemsRecord)
+    .filter(isGemsMultiSplitOutdoorRecord)
+    .map(mapGemsModelSearchItem)
+    .filter((item): item is NonNullable<typeof item> => Boolean(item))
+    .filter((item) => {
+      const key = `${item.brand.toUpperCase()}|${normalizeGemsModelQuery(item.model)}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
 export async function GET(request: NextRequest) {
   const mode = request.nextUrl.searchParams.get("mode") || "models";
   try {
+    if (mode === "multi-brands") {
+      const records = await fetchGemsMultiSplitRecords({
+        fields: multiBrandFields,
+        limit: 10_000,
+        revalidateSeconds: 86_400,
+      });
+      const grouped = new Map<string, string[]>();
+      for (const record of records) {
+        if (!isEligibleAustralianGemsRecord(record) || !isGemsMultiSplitOutdoorRecord(record)) continue;
+        const raw = cleanGemsBrand(String(record.Brand || ""));
+        if (!raw) continue;
+        const key = raw.toLowerCase();
+        const values = grouped.get(key) || [];
+        values.push(raw);
+        grouped.set(key, values);
+      }
+      const brands = [...grouped.values()]
+        .map((values) => displayBrand(values[0]))
+        .sort((a, b) => a.localeCompare(b));
+      return NextResponse.json(
+        { brands, count: brands.length },
+        { headers: responseHeaders },
+      );
+    }
+
+    if (mode === "multi-outdoors") {
+      const brand = cleanGemsBrand(request.nextUrl.searchParams.get("brand") || "");
+      if (!brand) {
+        return NextResponse.json({ error: "Select a brand first." }, { status: 400 });
+      }
+      const records = await fetchGemsMultiSplitRecords({
+        brand,
+        fields: modelFields,
+        limit: 10_000,
+        revalidateSeconds: 3_600,
+      });
+      const models = distinctMappedModels(records).sort(
+        (a, b) =>
+          (a.capacityKw || 0) - (b.capacityKw || 0) ||
+          a.model.localeCompare(b.model),
+      );
+      return NextResponse.json(
+        { models, count: models.length },
+        { headers: responseHeaders },
+      );
+    }
+
     if (mode === "brands") {
       const records = await fetchGemsDatastoreRecords({
         fields: brandFields,

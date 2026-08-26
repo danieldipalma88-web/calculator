@@ -1,5 +1,7 @@
 const GEMS_DATASTORE_API =
   "https://data.gov.au/data/api/3/action/datastore_search";
+const GEMS_DATASTORE_SQL_API =
+  "https://data.gov.au/data/api/3/action/datastore_search_sql";
 
 export const GEMS_AIRCON_RESOURCE_IDS = [
   "0973a476-eb0c-45e6-9a18-054f74307843",
@@ -35,6 +37,7 @@ export type GemsModelSearchItem = {
   phase: string;
   outdoorOnly: boolean;
   multiHead: boolean;
+  multiSplitOutdoor: boolean;
   completeEnergyData: boolean;
   metadata: Record<string, unknown>;
 };
@@ -81,6 +84,17 @@ export function isEligibleAustralianGemsRecord(record: GemsSearchRecord) {
   );
 }
 
+export function isGemsMultiSplitOutdoorRecord(record: GemsSearchRecord) {
+  const applicationStandard = String(
+    recordValue(record, ["ApplStandard", "Application Standard"]),
+  );
+  const configuration = String(recordValue(record, ["Configuration2"]));
+  return (
+    /multi[ -]?split/i.test(applicationStandard) &&
+    /^(fixed|vrf)$/i.test(configuration.trim())
+  );
+}
+
 export function mapGemsModelSearchItem(
   record: GemsSearchRecord,
 ): GemsModelSearchItem | null {
@@ -109,7 +123,9 @@ export function mapGemsModelSearchItem(
   ).trim();
   const combinedType = `${productType} ${configuration} ${family}`.toLowerCase();
   const outdoorOnly = /^(yes|true|1)$/i.test(outdoorOnlyText);
-  const multiHead = outdoorOnly || /multi[ -]?(split|head)/i.test(combinedType);
+  const multiSplitOutdoor =
+    isGemsMultiSplitOutdoorRecord(record) || /multi[ -]?(split|head)/i.test(combinedType);
+  const multiHead = multiSplitOutdoor;
   const mappedEnergyValues: Record<string, unknown> = {
     "Cooling Capacity": recordValue(record, ["C-Total Cool Rated", "Cooling Capacity"]),
     "Heating Capacity": recordValue(record, ["H-Total Heat Rated", "Heating Capacity"]),
@@ -139,6 +155,8 @@ export function mapGemsModelSearchItem(
     "Product Type": productType,
     "Product Class": productClass,
     Configuration2: configuration,
+    ApplStandard: recordValue(record, ["ApplStandard", "Application Standard"]),
+    Phase: phaseText,
     ...mappedEnergyValues,
   };
 
@@ -152,9 +170,80 @@ export function mapGemsModelSearchItem(
     phase: phaseText,
     outdoorOnly,
     multiHead,
+    multiSplitOutdoor,
     completeEnergyData,
     metadata,
   };
+}
+
+function safeSqlFields(fields: string[]) {
+  return fields.map((field) => {
+    if (!/^[A-Za-z0-9 _-]+$/.test(field)) {
+      throw new Error(`Unsupported GEMS field: ${field}`);
+    }
+    return `"${field}"`;
+  });
+}
+
+function sqlLiteral(value: string) {
+  return value.replace(/'/g, "''");
+}
+
+export async function fetchGemsMultiSplitRecords(options: {
+  brand?: string;
+  fields: string[];
+  limit?: number;
+  revalidateSeconds: number;
+}) {
+  const fields = safeSqlFields(options.fields);
+  const limit = Math.min(Math.max(Math.floor(options.limit || 10_000), 1), 10_000);
+  const brand = cleanGemsBrand(options.brand || "");
+  let lastError: unknown = null;
+
+  for (const resourceId of GEMS_AIRCON_RESOURCE_IDS) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12_000);
+    try {
+      const clauses = [
+        `"SubmitStatus" = 'Approved'`,
+        `"Availability Status" = 'Available'`,
+        `LOWER("Sold_in") LIKE '%australia%'`,
+        `LOWER("Configuration2") IN ('fixed', 'vrf')`,
+        `LOWER("ApplStandard") LIKE '%multi-split%'`,
+      ];
+      if (brand) clauses.push(`LOWER("Brand") = LOWER('${sqlLiteral(brand)}')`);
+      const sql = `SELECT ${fields.join(", ")} FROM "${resourceId}" WHERE ${clauses.join(" AND ")} LIMIT ${limit}`;
+      const response = await fetch(
+        `${GEMS_DATASTORE_SQL_API}?sql=${encodeURIComponent(sql)}`,
+        {
+          signal: controller.signal,
+          headers: {
+            Accept: "application/json",
+            "User-Agent": "RebatePortalCalculator/1.0",
+          },
+          next: { revalidate: options.revalidateSeconds },
+        },
+      );
+      if (!response.ok) throw new Error(`GEMS registry returned HTTP ${response.status}`);
+      const payload = await response.json();
+      const records = payload?.result?.records;
+      if (!payload?.success || !Array.isArray(records)) {
+        throw new Error("GEMS registry returned an invalid response");
+      }
+      return records as GemsSearchRecord[];
+    } catch (error) {
+      lastError = error;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  if (lastError instanceof Error && lastError.name === "AbortError") {
+    throw new Error("GEMS registry search timed out");
+  }
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("GEMS registry search is unavailable");
 }
 
 export async function fetchGemsDatastoreRecords(options: {
