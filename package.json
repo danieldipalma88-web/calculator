@@ -21,7 +21,7 @@
     "verify:kaden-catalogue": "node scripts/verify-kaden-catalogue.mjs",
     "verify:mitsubishi-electric-ducted-catalogue": "node scripts/verify-mitsubishi-electric-ducted-catalogue.mjs",
     "verify:public-rebate-catalogue": "node --experimental-strip-types scripts/verify-public-rebate-catalogue.mjs",
-    "verify:all-models": "node --experimental-strip-types scripts/verify-all-models-lookup.mjs",
+    "verify:all-models": "node --experimental-strip-types scripts/verify-all-models-lookup.mjs && node scripts/verify-all-models-multi-head.mjs",
     "generate:public-rebate-catalogue": "node --experimental-strip-types scripts/generate-public-rebate-catalogue.mjs",
     "build": "node --experimental-strip-types scripts/generate-public-rebate-catalogue.mjs && next build",
     "start": "next start"
