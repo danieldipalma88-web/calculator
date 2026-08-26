@@ -3766,6 +3766,17 @@ const KADEN_NSW_SPLIT_PRODUCTS=[
   {"brand":"Kaden","capacity":"9.0kW","capacityNum":9.0,"unitPriceInc":0.0,"priceIncGst":0.0,"model":"KSI-9.0","rebate":0.0,"series":"KSI V3","nswOnly":true}
 ];
 SPLIT_PRODUCTS.push(...KADEN_NSW_SPLIT_PRODUCTS);
+const DAIKIN_ZENA_SPLIT_PRODUCTS=[
+  {"brand":"Daikin","capacity":"2.5kW","capacityNum":2.5,"unitPriceInc":1103.41,"priceIncGst":1103.41,"model":"RXJ25TVMA / FTXJ25TVMAW","rebate":0.0,"series":"Zena"},
+  {"brand":"Daikin","capacity":"3.5kW","capacityNum":3.5,"unitPriceInc":1311.96,"priceIncGst":1311.96,"model":"RXJ35TVMA / FTXJ35TVMAW","rebate":0.0,"series":"Zena"},
+  {"brand":"Daikin","capacity":"5.0kW","capacityNum":5.0,"unitPriceInc":1754.70,"priceIncGst":1754.70,"model":"RXJ50TVMA / FTXJ50TVMAW","rebate":0.0,"series":"Zena"},
+  {"brand":"Daikin","capacity":"6.0kW","capacityNum":6.0,"unitPriceInc":1951.28,"priceIncGst":1951.28,"model":"RXJ60TVMA / FTXJ60TVMAW","rebate":0.0,"series":"Zena"},
+  {"brand":"Daikin","capacity":"2.5kW","capacityNum":2.5,"unitPriceInc":1103.41,"priceIncGst":1103.41,"model":"RXJ25TVMA / FTXJ25TVMAK","rebate":0.0,"series":"Zena"},
+  {"brand":"Daikin","capacity":"3.5kW","capacityNum":3.5,"unitPriceInc":1311.96,"priceIncGst":1311.96,"model":"RXJ35TVMA / FTXJ35TVMAK","rebate":0.0,"series":"Zena"},
+  {"brand":"Daikin","capacity":"5.0kW","capacityNum":5.0,"unitPriceInc":1754.70,"priceIncGst":1754.70,"model":"RXJ50TVMA / FTXJ50TVMAK","rebate":0.0,"series":"Zena"},
+  {"brand":"Daikin","capacity":"6.0kW","capacityNum":6.0,"unitPriceInc":1951.28,"priceIncGst":1951.28,"model":"RXJ60TVMA / FTXJ60TVMAK","rebate":0.0,"series":"Zena"}
+];
+SPLIT_PRODUCTS.push(...DAIKIN_ZENA_SPLIT_PRODUCTS.map(product=>({...product})));
 const DUCTED_PRODUCTS = [
   {"brand":"Mitsubishi Heavy Industries","size":7.1,"phase":"Single","model":"FDCA71VNX-W / FDU71VH","priceIncGst":2524.0,"rebate":1380.0,"capacity":"7.1kW","capacityNum":7.1,"unitPriceInc":2524.0},
   {"brand":"Mitsubishi Heavy Industries","size":10.0,"phase":"Single","model":"FDC100VNP-W / FDU100VH","priceIncGst":2464.44,"rebate":1823.5,"capacity":"10.0kW","capacityNum":10.0,"unitPriceInc":2464.44},
@@ -3896,6 +3907,9 @@ DUCTED_PRODUCTS.push(
   {"brand":"Braemar","series":"Braemar Ducted","size":12.5,"phase":"Single","model":"KCHA125D1B / KDHA125D1S","priceIncGst":0.0,"rebate":0.0,"capacity":"12.5kW","capacityNum":12.5,"unitPriceInc":0.0},
   {"brand":"Braemar","series":"Braemar Ducted","size":14.0,"phase":"Single","model":"KCHA140D1B / KDHA140D1S","priceIncGst":0.0,"rebate":0.0,"capacity":"14.0kW","capacityNum":14.0,"unitPriceInc":0.0},
   {"brand":"Braemar","series":"Braemar Ducted","size":16.0,"phase":"Single","model":"KCHA160D1B / KDHA160D1S","priceIncGst":0.0,"rebate":0.0,"capacity":"16.0kW","capacityNum":16.0,"unitPriceInc":0.0}
+);
+DUCTED_PRODUCTS.push(
+  {"brand":"Daikin","series":"Premium Inverter 3 Phase R410A","size":24.0,"phase":"Three","model":"RZYQ10TY1 / FDYQ250LCV1","priceIncGst":0.0,"rebate":0.0,"capacity":"24.0kW","capacityNum":24.0,"unitPriceInc":0.0}
 );
 function andosUnitPriceInc(setPriceExGst){return Number((Number(setPriceExGst||0)*1.1).toFixed(2));}
 function andosSplit(brand,series,capacityNum,indoor,outdoor,setPriceExGst){
@@ -4110,6 +4124,7 @@ ANDOS_SPLIT_PRODUCTS.push(
   andosSplitInc("Hisense", "Eros R32 / X3 Series Wall Mounted", 7.1, "HAWJ24KR / HS01071", 1118.44),
   andosSplitInc("Hisense", "Eros R32 / X3 Series Wall Mounted", 8.0, "HAWJ28KR / HS01080", 1279.61)
 );
+ANDOS_SPLIT_PRODUCTS.push(...DAIKIN_ZENA_SPLIT_PRODUCTS.map(product=>({...product})));
 ANDOS_DUCTED_PRODUCTS.push(
   andosDuctedInc("Actron", "Advance B", 25.0, "Three", "CRV25BT / EVV25BS", 9608.50),
   andosDuctedInc("Hisense", "Air Q Compact Ducted Hi-Nano", 8.5, "", "AUD-85UXHT-SET (AUD-85UX4RTH1 / AUW-85U4RK1)", 2158.20, "8.5kW ducted set"),
@@ -4156,6 +4171,7 @@ const SPLIT_PRODUCT_SUPPORT=[
   {brand:'Daikin',series:'Cora',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional adaptor',warrantyYears:5,warrantyLabel:'5 yrs warranty'}},
   {brand:'Daikin',series:'Lite',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional adaptor',warrantyYears:5,warrantyLabel:'5 yrs warranty'}},
   {brand:'Daikin',series:'XL Cooling Only',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional adaptor',warrantyYears:5,warrantyLabel:'5 yrs warranty'}},
+  {brand:'Daikin',series:'Zena',details:{wifiStatus:'included',wifiLabel:'Built-in Wi-Fi',warrantyYears:5,warrantyLabel:'5 yrs parts & labour'}},
   {brand:'Gree',series:'Alto',details:{wifiStatus:'included',wifiLabel:'Built-in Wi-Fi',warrantyYears:6,warrantyLabel:'6 yrs parts & labour'}},
   {brand:'Gree',series:'Pular',details:{wifiStatus:'included',wifiLabel:'Factory-fitted Wi-Fi',warrantyYears:6,warrantyLabel:'6 yrs parts & labour'}},
   {brand:'Gree',series:'Bora-X',details:{wifiStatus:'included',wifiLabel:'Built-in Wi-Fi',warrantyYears:6,warrantyLabel:'6 yrs parts & labour'}},
@@ -4197,6 +4213,7 @@ const ANDOS_SPLIT_PRODUCT_SUPPORT=[
   {brand:'Daikin',series:'Lite',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional adaptor',warrantyYears:5,warrantyLabel:'5 yrs warranty',originLabel:'Japanese'}},
   {brand:'Daikin',series:'Cora XL',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional adaptor',warrantyYears:5,warrantyLabel:'5 yrs warranty',originLabel:'Japanese'}},
   {brand:'Daikin',series:'Alira X XL Premium',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:5,warrantyLabel:'5 yrs warranty',originLabel:'Japanese'}},
+  {brand:'Daikin',series:'Zena',details:{wifiStatus:'included',wifiLabel:'Built-in Wi-Fi',warrantyYears:5,warrantyLabel:'5 yrs parts & labour',originLabel:'Japanese'}},
   {brand:'Mitsubishi Electric',series:'AP Series W/WiFi',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:5,warrantyLabel:'5 yrs warranty',originLabel:'Japanese'}},
   {brand:'Fujitsu',series:'Lifestyle',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional adaptor',warrantyYears:5,warrantyLabel:'5 yrs warranty',originLabel:'Japanese'}},
   {brand:'Fujitsu',series:'Comfort',details:{wifiStatus:'unknown',wifiLabel:'Wi-Fi not listed',warrantyYears:5,warrantyLabel:'5 yrs warranty',originLabel:'Japanese'}},

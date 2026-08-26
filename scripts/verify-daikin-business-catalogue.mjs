@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 const source = await readFile(new URL("../index.html", import.meta.url), "utf8");
 
 const sharedCatalogueSection = source.slice(
-  source.indexOf('SPLIT_PRODUCTS.push(\n  {"brand":"Daikin"'),
+  source.search(/SPLIT_PRODUCTS\.push\(\r?\n  \{"brand":"Daikin"/),
   source.indexOf("const DAIKIN_SPLIT_PRICE_UPDATES"),
 );
 const globalDaikinUpdateSection = source.slice(
