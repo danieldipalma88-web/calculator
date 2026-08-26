@@ -19,9 +19,24 @@ assert.match(html, /id="allModelsMultiCompatibility"/);
 
 assert.match(
   html,
-  /function allModelsMultiAvailableIndoorIndexes\(outdoor\)[\s\S]*MULTI_SPLIT_INDOORS[\s\S]*brandsEquivalent\(a\.row\.brand,outdoor\.brand\)/,
+  /function allModelsMultiAvailableIndoorIndexes\(outdoor\)[\s\S]*ALL_MODELS_MULTI_INDOORS[\s\S]*brandsEquivalent\(a\.row\.brand,outdoor\.brand\)/,
   "The rebate-only lookup must include the complete indoor catalogue with the outdoor brand listed first.",
 );
+for (const model of ["AS20PBDHRA", "AS26PBDHRA", "AS35PBDHRA", "AS53PDDHRA", "AS71PDDHRA"]) {
+  assert.match(html, new RegExp(`multiIndoor\\('Haier',[^\\n]+${model}`), `${model} must be available in the rebate-only Haier indoor register.`);
+}
+const pricedIndoorCatalogue = html.slice(
+  html.indexOf("const MULTI_SPLIT_INDOORS="),
+  html.indexOf("const ALL_MODELS_MULTI_EXTRA_INDOORS="),
+);
+assert.doesNotMatch(pricedIndoorCatalogue, /multiIndoor\('Haier'/, "Unpriced Haier heads must not leak into the normal quote catalogue.");
+assert.match(html, /const ALL_MODELS_MULTI_INDOORS=\[\.\.\.MULTI_SPLIT_INDOORS,\.\.\.ALL_MODELS_MULTI_EXTRA_INDOORS\]/);
+assert.match(html, /id="allModelsMultiHeadSearch\$\{index\}"[^>]+type="search"/);
+assert.match(html, /placeholder="Search model code, brand or size"/);
+assert.match(html, /function filterAllModelsMultiHeadOptions\(index,value\)/);
+assert.match(html, /function allModelsMultiMatchingIndoorIndexes\(outdoor,query\)/);
+assert.match(html, /function allModelsMultiSelectedIndoorIndex\(selection\)/);
+assert.match(html, /else\{\s*selection\.indoorIndex=null;\s*resetAllModelsResult\(/);
 assert.match(
   html,
   /available\.includes\(previousIndex\)\?previousIndex:available\[0\]/,

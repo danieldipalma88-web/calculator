@@ -1888,7 +1888,10 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
 .allModelsMultiBuilderHead h3{margin:0;font-size:16px}
 .allModelsMultiRows{display:grid;gap:10px}
 .allModelsMultiRow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:end;padding:12px;border:1px solid #d9e3ec;border-radius:8px;background:#fff}
-.allModelsMultiRowMeta{margin-top:6px;color:#64748b;font-size:11px;line-height:1.4}
+.allModelsMultiRowMeta{display:grid;gap:7px;margin-top:6px;color:#64748b;font-size:11px;line-height:1.4}
+.allModelsMultiHeadSearchWrap{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center}
+.allModelsMultiHeadSearch{min-width:0}
+.allModelsMultiHeadSearchMeta{color:#64748b;font-size:10.5px;font-weight:800;white-space:nowrap}
 .allModelsMultiRowActions{display:flex;align-items:end;gap:8px}
 .allModelsMultiQty{display:grid;grid-template-columns:34px 38px 34px;align-items:center}
 .allModelsMultiQty button{min-height:36px;padding:0;border-radius:7px}
@@ -2819,6 +2822,8 @@ body.guidanceModalOpen{overflow:hidden}
   .allModelsMultiBuilderHead{align-items:stretch;flex-direction:column}
   .allModelsMultiBuilderHead button{width:100%}
   .allModelsMultiRow{grid-template-columns:1fr;align-items:stretch}
+  .allModelsMultiHeadSearchWrap{grid-template-columns:1fr}
+  .allModelsMultiHeadSearchMeta{white-space:normal}
   .allModelsMultiRowActions{justify-content:space-between}
   .allModelsSearchResults{max-height:45vh}
   .allModelsSelectedHead{display:grid}
@@ -5014,6 +5019,14 @@ MULTI_SPLIT_INDOORS.forEach(row=>{
     row.ratedHeatingCapacity=Number(rated[1]);
   }
 });
+const ALL_MODELS_MULTI_EXTRA_INDOORS=[
+  multiIndoor('Haier','Super Match High Wall',2.0,'AS20PBDHRA',null,'','',{family:'haier-super-match',ratedCoolingCapacity:2.0,ratedHeatingCapacity:2.3,note:'Wi-Fi compatible; rebate lookup only'}),
+  multiIndoor('Haier','Super Match High Wall',2.5,'AS26PBDHRA',null,'','',{family:'haier-super-match',ratedCoolingCapacity:2.5,ratedHeatingCapacity:3.0,note:'Wi-Fi compatible; rebate lookup only'}),
+  multiIndoor('Haier','Super Match High Wall',3.5,'AS35PBDHRA',null,'','',{family:'haier-super-match',ratedCoolingCapacity:3.5,ratedHeatingCapacity:3.7,note:'Wi-Fi compatible; rebate lookup only'}),
+  multiIndoor('Haier','Super Match High Wall',5.0,'AS53PDDHRA',null,'','',{family:'haier-super-match',ratedCoolingCapacity:5.0,ratedHeatingCapacity:5.5,note:'Wi-Fi compatible; rebate lookup only'}),
+  multiIndoor('Haier','Super Match High Wall',7.0,'AS71PDDHRA',null,'','',{family:'haier-super-match',ratedCoolingCapacity:7.0,ratedHeatingCapacity:7.6,note:'Wi-Fi compatible; rebate lookup only'})
+];
+const ALL_MODELS_MULTI_INDOORS=[...MULTI_SPLIT_INDOORS,...ALL_MODELS_MULTI_EXTRA_INDOORS];
 function normaliseBrandName(b){return BRAND_ALIASES[b]||b||'';}
 function normaliseModelName(m){return PRODUCT_MODEL_DISPLAY_ALIASES[m]||MODEL_ALIASES[m]||m||'';}
 function productDisplayBrandName(b){return b==='Actron'?'Actron Air':(b||'');}
@@ -7543,7 +7556,7 @@ function allModelsMultiHeadLimit(outdoor){
   return Number.isFinite(limit)&&limit>0?limit:Infinity;
 }
 function allModelsMultiAvailableIndoorIndexes(outdoor){
-  return MULTI_SPLIT_INDOORS
+  return ALL_MODELS_MULTI_INDOORS
     .map((row,index)=>({row,index}))
     .sort((a,b)=>{
       const brandOrder=Number(!(outdoor&&brandsEquivalent(a.row.brand,outdoor.brand)))-Number(!(outdoor&&brandsEquivalent(b.row.brand,outdoor.brand)));
@@ -7552,9 +7565,23 @@ function allModelsMultiAvailableIndoorIndexes(outdoor){
     })
     .map(item=>item.index);
 }
+function allModelsMultiIndoorSearchText(row){
+  return normalizeLookup(`${row&&row.model||''} ${row&&row.brand||''} ${row&&row.series||''} ${row&&row.capacity||''}`);
+}
+function allModelsMultiMatchingIndoorIndexes(outdoor,query){
+  const available=allModelsMultiAvailableIndoorIndexes(outdoor);
+  const normalized=normalizeLookup(query||'');
+  return normalized?available.filter(index=>allModelsMultiIndoorSearchText(ALL_MODELS_MULTI_INDOORS[index]).includes(normalized)):available;
+}
+function allModelsMultiSelectedIndoorIndex(selection){
+  const raw=selection&&selection.indoorIndex;
+  if(raw===null||raw===''||typeof raw==='undefined') return -1;
+  const index=Number(raw);
+  return Number.isInteger(index)?index:-1;
+}
 function allModelsMultiIndoorItems(){
   return allModelsMultiIndoorSelections.map(selection=>{
-    const row=MULTI_SPLIT_INDOORS[Number(selection.indoorIndex)];
+    const row=ALL_MODELS_MULTI_INDOORS[allModelsMultiSelectedIndoorIndex(selection)];
     const qty=Math.max(1,Math.floor(Number(selection.qty)||1));
     return row?{row,qty}:null;
   }).filter(Boolean);
@@ -7650,9 +7677,9 @@ function onAllModelsMultiOutdoorChange(){
   if(!available.length){
     allModelsMultiIndoorSelections=[];
   }else if(!allModelsMultiIndoorSelections.length){
-    allModelsMultiIndoorSelections=[{indoorIndex:available[0],qty:1}];
+    allModelsMultiIndoorSelections=[{indoorIndex:available[0],qty:1,query:''}];
   }else{
-    allModelsMultiIndoorSelections=allModelsMultiIndoorSelections.map(selection=>available.includes(Number(selection.indoorIndex))?selection:{...selection,indoorIndex:available[0]});
+    allModelsMultiIndoorSelections=allModelsMultiIndoorSelections.map(selection=>available.includes(allModelsMultiSelectedIndoorIndex(selection))?selection:{...selection,indoorIndex:available[0]});
   }
   allModelsMultiSelectionChanged('Outdoor unit changed. Calculate the rebate again.');
 }
@@ -7665,8 +7692,8 @@ function addAllModelsMultiHead(){
   const effectiveLimit=Number.isFinite(headLimit)?headLimit:ALL_MODELS_MULTI_TECHNICAL_HEAD_CAP;
   if(totals.headCount>=effectiveLimit) return;
   const previous=allModelsMultiIndoorSelections[allModelsMultiIndoorSelections.length-1];
-  const previousIndex=Number(previous&&previous.indoorIndex);
-  allModelsMultiIndoorSelections.push({indoorIndex:available.includes(previousIndex)?previousIndex:available[0],qty:1});
+  const previousIndex=allModelsMultiSelectedIndoorIndex(previous);
+  allModelsMultiIndoorSelections.push({indoorIndex:available.includes(previousIndex)?previousIndex:available[0],qty:1,query:''});
   allModelsMultiSelectionChanged('Indoor head added. Calculate the rebate again.');
 }
 function removeAllModelsMultiHead(index){
@@ -7694,10 +7721,35 @@ function updateAllModelsMultiHead(index,field,value){
     const maxHeads=Number.isFinite(headLimit)?headLimit:ALL_MODELS_MULTI_TECHNICAL_HEAD_CAP;
     const otherHeads=totals.headCount-current;
     selection.qty=Math.max(1,Math.min(Math.max(1,maxHeads-otherHeads),Math.floor(Number(value)||1)));
-  }else{
+  }else if(value!==''){
     selection.indoorIndex=Number(value);
   }
   allModelsMultiSelectionChanged('Indoor head selection changed. Calculate the rebate again.');
+}
+function filterAllModelsMultiHeadOptions(index,value){
+  const selection=allModelsMultiIndoorSelections[Number(index)];
+  const select=$(`allModelsMultiHead${index}`);
+  const meta=$(`allModelsMultiHeadSearchMeta${index}`);
+  if(!selection||!select) return;
+  selection.query=String(value||'');
+  const matches=allModelsMultiMatchingIndoorIndexes(selectedAllModelsMultiOutdoor(),selection.query);
+  const current=allModelsMultiSelectedIndoorIndex(selection);
+  const currentVisible=matches.includes(current);
+  const options=matches.map(indoorIndex=>{
+    const row=ALL_MODELS_MULTI_INDOORS[indoorIndex];
+    return `<option value="${indoorIndex}"${indoorIndex===current?' selected':''}>${htmlEscape(`${row.model} - ${row.capacity} - ${row.brand} - ${row.series}`)}</option>`;
+  }).join('');
+  const placeholder=currentVisible?'':`<option value="" selected disabled>${matches.length?`${matches.length} matching heads - select one`:'No matching indoor heads'}</option>`;
+  select.innerHTML=placeholder+options;
+  if(currentVisible) select.value=String(current);
+  else{
+    selection.indoorIndex=null;
+    resetAllModelsResult(matches.length?'Select one of the matching indoor heads.':'No indoor heads match that search.');
+    const totals=allModelsMultiTotals();
+    if($('allModelsMultiConnectedCapacity')) $('allModelsMultiConnectedCapacity').textContent=`${totals.connectedCoolingCapacity.toFixed(1)}kW`;
+    if($('allModelsMultiHeadCount')) $('allModelsMultiHeadCount').textContent=`${totals.headCount} ${totals.headCount===1?'head':'heads'} connected`;
+  }
+  if(meta) meta.textContent=`${matches.length} ${matches.length===1?'match':'matches'}`;
 }
 function renderAllModelsMultiBuilder(){
   const outdoor=selectedAllModelsMultiOutdoor();
@@ -7714,13 +7766,17 @@ function renderAllModelsMultiBuilder(){
   const rows=$('allModelsMultiRows');
   if(rows){
     rows.innerHTML=allModelsMultiIndoorSelections.map((selection,index)=>{
-      const current=Number(selection.indoorIndex);
+      const current=allModelsMultiSelectedIndoorIndex(selection);
       const qty=Math.max(1,Math.floor(Number(selection.qty)||1));
-      const options=available.map(indoorIndex=>{
-        const row=MULTI_SPLIT_INDOORS[indoorIndex];
+      const query=String(selection.query||'');
+      const matches=allModelsMultiMatchingIndoorIndexes(outdoor,query);
+      const currentVisible=matches.includes(current);
+      const options=matches.map(indoorIndex=>{
+        const row=ALL_MODELS_MULTI_INDOORS[indoorIndex];
         return `<option value="${indoorIndex}"${indoorIndex===current?' selected':''}>${htmlEscape(`${row.model} - ${row.capacity} - ${row.brand} - ${row.series}`)}</option>`;
       }).join('');
-      return `<div class="allModelsMultiRow"><div class="allModelsMultiRowMeta"><label for="allModelsMultiHead${index}">Indoor head ${index+1}</label><select id="allModelsMultiHead${index}" onchange="updateAllModelsMultiHead(${index},'indoorIndex',this.value)">${options}</select></div><div class="allModelsMultiRowActions"><div class="allModelsMultiQty" role="group" aria-label="Indoor head ${index+1} quantity"><button type="button" aria-label="Reduce quantity" onclick="adjustAllModelsMultiHeadQty(${index},-1)"${qty<=1?' disabled':''}>-</button><input type="number" min="1" max="${effectiveLimit}" value="${qty}" aria-label="Quantity" onchange="updateAllModelsMultiHead(${index},'qty',this.value)"><button type="button" aria-label="Increase quantity" onclick="adjustAllModelsMultiHeadQty(${index},1)"${totals.headCount>=effectiveLimit?' disabled':''}>+</button></div><button class="allModelsMultiRemove" type="button" title="Remove indoor head" aria-label="Remove indoor head ${index+1}" onclick="removeAllModelsMultiHead(${index})">&times;</button></div></div>`;
+      const placeholder=currentVisible?'':`<option value="" selected disabled>${matches.length?`${matches.length} matching heads - select one`:'No matching indoor heads'}</option>`;
+      return `<div class="allModelsMultiRow"><div class="allModelsMultiRowMeta"><label for="allModelsMultiHeadSearch${index}">Indoor head ${index+1}</label><div class="allModelsMultiHeadSearchWrap"><input class="allModelsMultiHeadSearch" id="allModelsMultiHeadSearch${index}" type="search" autocomplete="off" placeholder="Search model code, brand or size" value="${htmlEscape(query)}" oninput="filterAllModelsMultiHeadOptions(${index},this.value)"><span class="allModelsMultiHeadSearchMeta" id="allModelsMultiHeadSearchMeta${index}">${matches.length} ${matches.length===1?'match':'matches'}</span></div><select id="allModelsMultiHead${index}" aria-label="Select indoor head ${index+1}" onchange="updateAllModelsMultiHead(${index},'indoorIndex',this.value)">${placeholder}${options}</select></div><div class="allModelsMultiRowActions"><div class="allModelsMultiQty" role="group" aria-label="Indoor head ${index+1} quantity"><button type="button" aria-label="Reduce quantity" onclick="adjustAllModelsMultiHeadQty(${index},-1)"${qty<=1?' disabled':''}>-</button><input type="number" min="1" max="${effectiveLimit}" value="${qty}" aria-label="Quantity" onchange="updateAllModelsMultiHead(${index},'qty',this.value)"><button type="button" aria-label="Increase quantity" onclick="adjustAllModelsMultiHeadQty(${index},1)"${totals.headCount>=effectiveLimit?' disabled':''}>+</button></div><button class="allModelsMultiRemove" type="button" title="Remove indoor head" aria-label="Remove indoor head ${index+1}" onclick="removeAllModelsMultiHead(${index})">&times;</button></div></div>`;
     }).join('')||'<div class="allModelsSearchMessage">Add at least one indoor head.</div>';
   }
   const feedback=$('allModelsMultiCompatibility');
