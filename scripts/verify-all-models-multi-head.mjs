@@ -15,14 +15,16 @@ assert.match(html, /id="allModelsMultiCompatibility"/);
 
 assert.match(
   html,
-  /multiSplitCompatibleIndoorIndexes\(outdoor,\{includeUnpriced:true\}\)/,
-  "The rebate-only lookup must include verified catalogue models even when no quote price exists.",
+  /function allModelsMultiAvailableIndoorIndexes\(outdoor\)[\s\S]*MULTI_SPLIT_INDOORS[\s\S]*a\.row\.brand===outdoor\.brand/,
+  "The rebate-only lookup must include the complete indoor catalogue with the outdoor brand listed first.",
 );
 assert.match(
   html,
-  /compatible\.includes\(previousIndex\)\?previousIndex:compatible\[0\]/,
-  "Adding another head must reuse the previous compatible indoor model.",
+  /available\.includes\(previousIndex\)\?previousIndex:available\[0\]/,
+  "Adding another head must reuse the previously selected indoor model.",
 );
+assert.match(html, /Compatibility is not verified/);
+assert.match(html, /A rebate result does not confirm equipment compatibility/);
 assert.match(html, /totals\.headCount>=maxHeads/);
 assert.match(html, /totals\.headCount>maxHeads/);
 assert.match(html, /The rebate calculation will use the outdoor unit limit/);

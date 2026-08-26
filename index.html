@@ -1895,6 +1895,7 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
 .allModelsMultiQty input{height:36px;padding:0 3px;border-radius:7px;text-align:center;font-weight:900;font-variant-numeric:tabular-nums}
 .allModelsMultiRemove{width:38px;min-width:38px;min-height:36px;padding:0;background:#fff1f2;color:#b42318;font-size:19px;line-height:1}
 .allModelsCompatibility{margin-top:12px;padding:10px 12px;border:1px solid #b8ddd4;border-radius:8px;background:#f3fbf8;color:#16634f;font-size:11.5px;line-height:1.45}
+.allModelsCompatibility.unverified{border-color:#f4c56d;background:#fff9e8;color:#7a4b00}
 .allModelsCompatibility.invalid{border-color:#f6b6ba;background:#fff1f2;color:#b42318}
 .allModelsCompatibility.capped{border-color:#f4c56d;background:#fff9e8;color:#8a4b00}
 .allModelsControls{
@@ -3615,7 +3616,7 @@ body.guidanceModalOpen{overflow:hidden}
           </div>
           <div id="allModelsMultiLookup" class="hidden">
             <h2 class="sectionTitle">Build a registered multi-head combination</h2>
-            <div class="sub">Select the outdoor unit first. Only manufacturer-compatible indoor heads from the controlled compatibility register will be available.</div>
+            <div class="sub">Select the outdoor unit first, then choose indoor heads from the full registered indoor catalogue. Models from the same brand are listed first.</div>
             <div class="allModelsLookupGrid" style="margin-top:14px">
               <div><label for="allModelsMultiBrand">Brand</label><select id="allModelsMultiBrand" onchange="populateAllModelsMultiOutdoors()"></select></div>
               <div><label for="allModelsMultiOutdoor">Outdoor unit</label><select id="allModelsMultiOutdoor" onchange="onAllModelsMultiOutdoorChange()"></select></div>
@@ -3628,7 +3629,7 @@ body.guidanceModalOpen{overflow:hidden}
             <div class="allModelsMultiBuilder">
               <div class="allModelsMultiBuilderHead"><div><h3>Indoor heads</h3><div class="sub" id="allModelsMultiHeadCount">0 heads connected</div></div><button id="allModelsMultiAddHeadBtn" class="secondary" type="button" onclick="addAllModelsMultiHead()">+ Add indoor head</button></div>
               <div id="allModelsMultiRows" class="allModelsMultiRows"></div>
-              <div id="allModelsMultiCompatibility" class="allModelsCompatibility">Choose an outdoor unit to see its compatible indoor heads.</div>
+              <div id="allModelsMultiCompatibility" class="allModelsCompatibility unverified">Compatibility is not verified. Confirm the indoor and outdoor combination with the manufacturer before quoting.</div>
             </div>
           </div>
           <div class="installTabs" role="group" aria-label="All-model installation type">
@@ -7535,8 +7536,15 @@ function selectedAllModelsMultiOutdoor(){
   const index=Number(($('allModelsMultiOutdoor')&&$('allModelsMultiOutdoor').value)||allModelsMultiOutdoorIndex);
   return Number.isInteger(index)&&MULTI_SPLIT_OUTDOORS[index]?MULTI_SPLIT_OUTDOORS[index]:null;
 }
-function allModelsMultiCompatibleIndexes(outdoor){
-  return multiSplitCompatibleIndoorIndexes(outdoor,{includeUnpriced:true});
+function allModelsMultiAvailableIndoorIndexes(outdoor){
+  return MULTI_SPLIT_INDOORS
+    .map((row,index)=>({row,index}))
+    .sort((a,b)=>{
+      const brandOrder=Number(!(outdoor&&a.row.brand===outdoor.brand))-Number(!(outdoor&&b.row.brand===outdoor.brand));
+      if(brandOrder) return brandOrder;
+      return a.row.brand.localeCompare(b.row.brand)||a.row.series.localeCompare(b.row.series)||(Number(a.row.capacityNum)||0)-(Number(b.row.capacityNum)||0)||a.row.model.localeCompare(b.row.model);
+    })
+    .map(item=>item.index);
 }
 function allModelsMultiIndoorItems(){
   return allModelsMultiIndoorSelections.map(selection=>{
@@ -7581,26 +7589,26 @@ function onAllModelsMultiOutdoorChange(){
   const select=$('allModelsMultiOutdoor');
   allModelsMultiOutdoorIndex=Number(select&&select.value);
   const outdoor=selectedAllModelsMultiOutdoor();
-  const compatible=allModelsMultiCompatibleIndexes(outdoor);
-  if(!compatible.length){
+  const available=allModelsMultiAvailableIndoorIndexes(outdoor);
+  if(!available.length){
     allModelsMultiIndoorSelections=[];
   }else if(!allModelsMultiIndoorSelections.length){
-    allModelsMultiIndoorSelections=[{indoorIndex:compatible[0],qty:1}];
+    allModelsMultiIndoorSelections=[{indoorIndex:available[0],qty:1}];
   }else{
-    allModelsMultiIndoorSelections=allModelsMultiIndoorSelections.map(selection=>compatible.includes(Number(selection.indoorIndex))?selection:{...selection,indoorIndex:compatible[0]});
+    allModelsMultiIndoorSelections=allModelsMultiIndoorSelections.map(selection=>available.includes(Number(selection.indoorIndex))?selection:{...selection,indoorIndex:available[0]});
   }
   allModelsMultiSelectionChanged('Outdoor unit changed. Calculate the rebate again.');
 }
 function addAllModelsMultiHead(){
   const outdoor=selectedAllModelsMultiOutdoor();
-  const compatible=allModelsMultiCompatibleIndexes(outdoor);
-  if(!compatible.length) return;
+  const available=allModelsMultiAvailableIndoorIndexes(outdoor);
+  if(!available.length) return;
   const totals=allModelsMultiTotals();
   const maxHeads=Number(outdoor&&outdoor.maxHeads)||12;
   if(totals.headCount>=maxHeads) return;
   const previous=allModelsMultiIndoorSelections[allModelsMultiIndoorSelections.length-1];
   const previousIndex=Number(previous&&previous.indoorIndex);
-  allModelsMultiIndoorSelections.push({indoorIndex:compatible.includes(previousIndex)?previousIndex:compatible[0],qty:1});
+  allModelsMultiIndoorSelections.push({indoorIndex:available.includes(previousIndex)?previousIndex:available[0],qty:1});
   allModelsMultiSelectionChanged('Indoor head added. Calculate the rebate again.');
 }
 function removeAllModelsMultiHead(index){
@@ -7633,35 +7641,35 @@ function updateAllModelsMultiHead(index,field,value){
 }
 function renderAllModelsMultiBuilder(){
   const outdoor=selectedAllModelsMultiOutdoor();
-  const compatible=allModelsMultiCompatibleIndexes(outdoor);
+  const available=allModelsMultiAvailableIndoorIndexes(outdoor);
   const totals=allModelsMultiTotals();
   const maxHeads=Number(outdoor&&outdoor.maxHeads)||0;
   if($('allModelsMultiOutdoorCapacity')) $('allModelsMultiOutdoorCapacity').textContent=outdoor?outdoor.capacity:'Select outdoor';
   if($('allModelsMultiMaxHeads')) $('allModelsMultiMaxHeads').textContent=outdoor?String(maxHeads):'-';
   if($('allModelsMultiConnectedCapacity')) $('allModelsMultiConnectedCapacity').textContent=`${totals.connectedCoolingCapacity.toFixed(1)}kW`;
   if($('allModelsMultiHeadCount')) $('allModelsMultiHeadCount').textContent=`${totals.headCount} ${totals.headCount===1?'head':'heads'} connected`;
-  if($('allModelsMultiAddHeadBtn')) $('allModelsMultiAddHeadBtn').disabled=!compatible.length||totals.headCount>=maxHeads;
+  if($('allModelsMultiAddHeadBtn')) $('allModelsMultiAddHeadBtn').disabled=!available.length||totals.headCount>=maxHeads;
   const rows=$('allModelsMultiRows');
   if(rows){
     rows.innerHTML=allModelsMultiIndoorSelections.map((selection,index)=>{
       const current=Number(selection.indoorIndex);
       const qty=Math.max(1,Math.floor(Number(selection.qty)||1));
-      const options=compatible.map(indoorIndex=>{
+      const options=available.map(indoorIndex=>{
         const row=MULTI_SPLIT_INDOORS[indoorIndex];
-        return `<option value="${indoorIndex}"${indoorIndex===current?' selected':''}>${htmlEscape(`${row.capacity} - ${row.series} - ${row.model}`)}</option>`;
+        return `<option value="${indoorIndex}"${indoorIndex===current?' selected':''}>${htmlEscape(`${row.model} - ${row.capacity} - ${row.brand} - ${row.series}`)}</option>`;
       }).join('');
       return `<div class="allModelsMultiRow"><div class="allModelsMultiRowMeta"><label for="allModelsMultiHead${index}">Indoor head ${index+1}</label><select id="allModelsMultiHead${index}" onchange="updateAllModelsMultiHead(${index},'indoorIndex',this.value)">${options}</select></div><div class="allModelsMultiRowActions"><div class="allModelsMultiQty" role="group" aria-label="Indoor head ${index+1} quantity"><button type="button" aria-label="Reduce quantity" onclick="adjustAllModelsMultiHeadQty(${index},-1)"${qty<=1?' disabled':''}>-</button><input type="number" min="1" max="${maxHeads}" value="${qty}" aria-label="Quantity" onchange="updateAllModelsMultiHead(${index},'qty',this.value)"><button type="button" aria-label="Increase quantity" onclick="adjustAllModelsMultiHeadQty(${index},1)"${totals.headCount>=maxHeads?' disabled':''}>+</button></div><button class="allModelsMultiRemove" type="button" title="Remove indoor head" aria-label="Remove indoor head ${index+1}" onclick="removeAllModelsMultiHead(${index})">&times;</button></div></div>`;
-    }).join('')||'<div class="allModelsSearchMessage">Add at least one compatible indoor head.</div>';
+    }).join('')||'<div class="allModelsSearchMessage">Add at least one indoor head.</div>';
   }
   const feedback=$('allModelsMultiCompatibility');
   if(feedback){
-    feedback.className='allModelsCompatibility';
+    feedback.className='allModelsCompatibility unverified';
     const unrated=totals.indoorItems.filter(item=>!(Number(item.row.ratedCoolingCapacity)>0)||!(Number(item.row.ratedHeatingCapacity)>0));
     if(!outdoor){
-      feedback.textContent='Choose an outdoor unit to see its compatible indoor heads.';
-    }else if(!compatible.length){
+      feedback.textContent='Select an outdoor unit, then confirm the final indoor and outdoor combination with the manufacturer before quoting.';
+    }else if(!available.length){
       feedback.classList.add('invalid');
-      feedback.textContent='No verified compatible indoor heads are registered for this outdoor unit.';
+      feedback.textContent='No registered indoor heads are currently available.';
     }else if(totals.headCount>maxHeads){
       feedback.classList.add('invalid');
       feedback.textContent=`This outdoor unit allows a maximum of ${maxHeads} indoor heads.`;
@@ -7670,9 +7678,9 @@ function renderAllModelsMultiBuilder(){
       feedback.textContent='Rated cooling and heating data is missing for one or more selected indoor heads.';
     }else if(totals.connectedCoolingCapacity>Number(outdoor.capacityNum)){
       feedback.classList.add('capped');
-      feedback.textContent=`Connected indoor capacity is ${totals.connectedCoolingCapacity.toFixed(1)}kW. The rebate calculation will use the outdoor unit limit of ${Number(outdoor.capacityNum).toFixed(1)}kW.`;
+      feedback.textContent=`Connected indoor capacity is ${totals.connectedCoolingCapacity.toFixed(1)}kW. The rebate calculation will use the outdoor unit limit of ${Number(outdoor.capacityNum).toFixed(1)}kW. Compatibility is not verified; confirm the combination with the manufacturer.`;
     }else{
-      feedback.textContent=`Compatible combination. The rebate calculation will use the connected indoor capacity of ${totals.connectedCoolingCapacity.toFixed(1)}kW.`;
+      feedback.textContent=`The rebate calculation will use the connected indoor capacity of ${totals.connectedCoolingCapacity.toFixed(1)}kW. Compatibility is not verified; confirm the combination with the manufacturer. A rebate result does not confirm equipment compatibility.`;
     }
   }
   updateAllModelsCalculateState();
@@ -7712,9 +7720,9 @@ function updateAllModelsCalculateState(){
   if(!rebatesEnabled()){
     notice.textContent='The active business does not have a NSW rebate scheme, so this lookup cannot calculate a rebate.';
   }else if(blocked){
-    notice.textContent='This is a multi-head outdoor model. Switch to Multi-head system above and select its compatible indoor heads.';
+    notice.textContent='This is a multi-head outdoor model. Switch to Multi-head system above and select the indoor heads being installed.';
   }else if(allModelsMode==='multi'){
-    notice.textContent='This rebate-only builder uses the controlled manufacturer compatibility register. It does not include prices, costs or add systems to a customer quote.';
+    notice.textContent='This rebate-only builder does not verify equipment compatibility and does not include prices, costs or add systems to a customer quote.';
   }else{
     notice.textContent='This lookup checks registered equipment and rebates only. It does not add models, prices or costs to a customer quote.';
   }
