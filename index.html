@@ -289,8 +289,8 @@ button.green{background:#16a34a;color:#fff}
 button.green:hover{background:#15803d}
 button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
 
-.systemTabs{display:flex;gap:10px;margin-top:16px}
-.systemTabs button{flex:1;background:#eaf1f6;color:#0f172a}
+.systemTabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:16px}
+.systemTabs button{min-width:0;background:#eaf1f6;color:#0f172a}
 .systemTabs button.active{
   background:linear-gradient(180deg,var(--primary) 0%,var(--primary-strong) 100%);
   color:#fff;
@@ -1762,6 +1762,175 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
   color:#8a4b00;
 }
 .multiSplitHeadItem.priceIncomplete small{color:#9a4d00}
+.allModelsCard{display:none;margin-top:18px}
+.allModelsCard.visible{display:block}
+.allModelsIntro{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:18px;
+}
+.allModelsIntroCopy{max-width:760px}
+.allModelsRegistryBadge{
+  display:inline-flex;
+  align-items:center;
+  min-height:32px;
+  padding:7px 11px;
+  border:1px solid #b8ddd4;
+  border-radius:999px;
+  background:#f2fbf8;
+  color:#0f766e;
+  font-size:11px;
+  font-weight:900;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+  white-space:nowrap;
+}
+.allModelsPageGrid{
+  display:grid;
+  grid-template-columns:minmax(0,1.15fr) minmax(340px,.85fr);
+  gap:18px;
+  align-items:start;
+}
+.allModelsMainStack{display:grid;gap:18px}
+.allModelsResultCard{position:sticky;top:18px}
+.allModelsLookupGrid{
+  display:grid;
+  grid-template-columns:minmax(180px,.7fr) minmax(0,1.3fr);
+  gap:12px;
+}
+.allModelsSearchField{position:relative;min-width:0}
+.allModelsSearchInputWrap{position:relative}
+.allModelsSearchInputWrap input{padding-right:42px}
+.allModelsSearchSpinner{
+  position:absolute;
+  right:14px;
+  top:50%;
+  width:16px;
+  height:16px;
+  margin-top:-8px;
+  border:2px solid #d5e1ea;
+  border-top-color:#0f766e;
+  border-radius:50%;
+  animation:sectionLoadingSpin .8s linear infinite;
+}
+.allModelsSearchResults{
+  display:none;
+  position:absolute;
+  z-index:30;
+  top:calc(100% + 6px);
+  left:0;
+  right:0;
+  max-height:330px;
+  overflow:auto;
+  border:1px solid #cbd9e6;
+  border-radius:12px;
+  background:#fff;
+  box-shadow:0 18px 40px rgba(15,23,42,.16);
+  padding:6px;
+}
+.allModelsSearchResults.open{display:grid;gap:4px}
+.allModelsSearchOption{
+  width:100%;
+  display:grid;
+  gap:3px;
+  padding:10px 11px;
+  border-radius:9px;
+  background:#fff;
+  color:#0f172a;
+  text-align:left;
+}
+.allModelsSearchOption:hover,
+.allModelsSearchOption.active{background:#edf8f5;box-shadow:none;transform:none}
+.allModelsSearchOption strong{font-size:13px;overflow-wrap:anywhere}
+.allModelsSearchOption span{color:#64748b;font-size:11.5px;line-height:1.35}
+.allModelsSearchMessage{padding:12px;color:#64748b;font-size:12px;line-height:1.45}
+.allModelsSelected{
+  margin-top:14px;
+  border:1px solid #dbe5ef;
+  border-radius:14px;
+  background:#f8fbfd;
+  padding:14px;
+}
+.allModelsSelected.has-selection{border-color:#b8ddd4;background:#f3fbf8}
+.allModelsSelectedHead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.allModelsSelectedHead strong{color:#0f172a;font-size:16px;overflow-wrap:anywhere}
+.allModelsSelectedMeta{margin-top:5px;color:#526273;font-size:12px;line-height:1.5}
+.allModelsSelectedTag{
+  flex:0 0 auto;
+  padding:5px 8px;
+  border-radius:999px;
+  background:#e8f5f1;
+  color:#0f766e;
+  font-size:10px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
+.allModelsControls{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(190px,.55fr);
+  gap:12px;
+  align-items:end;
+  margin-top:12px;
+}
+.allModelsCalculateBtn{width:100%;min-height:46px}
+.allModelsNotice{
+  margin-top:14px;
+  padding:12px 13px;
+  border:1px solid #dbe5ef;
+  border-radius:12px;
+  background:#f8fafc;
+  color:#526273;
+  font-size:12px;
+  line-height:1.45;
+}
+.allModelsNotice.multi{border-color:#f4c56d;background:#fff9e8;color:#8a4b00}
+.allModelsResultHero{
+  border-radius:16px;
+  background:#18304f;
+  color:#fff;
+  padding:18px;
+}
+.allModelsResultHero span{display:block;color:#cbd9e9;font-size:10px;font-weight:900;letter-spacing:.07em;text-transform:uppercase}
+.allModelsResultHero strong{display:block;margin-top:5px;font-size:31px;line-height:1.05;font-variant-numeric:tabular-nums}
+.allModelsResultHero small{display:block;margin-top:7px;color:#dce7f3;font-size:11.5px;line-height:1.4}
+.allModelsResultGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.allModelsResultMetric{
+  border:1px solid #dbe5ef;
+  border-radius:12px;
+  background:#f8fbfd;
+  padding:12px;
+}
+.allModelsResultMetric span{display:block;color:#64748b;font-size:10px;font-weight:900;letter-spacing:.06em;text-transform:uppercase}
+.allModelsResultMetric strong{display:block;margin-top:5px;color:#0f172a;font-size:20px;font-variant-numeric:tabular-nums}
+.allModelsResultMetric small{display:block;margin-top:4px;color:#64748b;font-size:10.5px;line-height:1.35}
+.allModelsResultRates{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.allModelsResultRates span{padding:7px 9px;border-radius:9px;background:#eef3f7;color:#526273;font-size:11px}
+.allModelsResultRates strong{color:#0f172a}
+.allModelsDcceew{
+  margin-top:12px;
+  padding:12px;
+  border:1px solid #e8b339;
+  border-radius:12px;
+  background:#fff5c9;
+  color:#7c3f00;
+}
+.allModelsDcceew strong{display:block;font-size:13px}
+.allModelsDcceew span{display:block;margin-top:4px;font-size:11.5px;line-height:1.4}
+.allModelsResultStatus{
+  margin-top:12px;
+  padding:12px;
+  border-radius:12px;
+  background:#f1f5f9;
+  color:#526273;
+  font-size:12px;
+  line-height:1.5;
+}
+.allModelsResultStatus.success{background:#ecfdf5;color:#166534}
+.allModelsResultStatus.warning{background:#fff7e6;color:#8a4b00}
+.allModelsResultStatus.error{background:#fff1f2;color:#b42318}
+.allModelsResultCard.is-contract .allModelsResultHero{background:#8a4b00}
 .energySavingsCard{
   padding:0;
   overflow:hidden;
@@ -2568,7 +2737,8 @@ body.guidanceModalOpen{overflow:hidden}
   .sectionTitle{font-size:17px}
   input,select,textarea{font-size:16px}
   button{padding:11px 13px}
-  .systemTabs,.installTabs{gap:6px}
+  .systemTabs{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+  .installTabs{gap:6px}
   .systemTabs button,.installTabs button{
     min-height:42px;
     padding:10px 8px;
@@ -2609,6 +2779,14 @@ body.guidanceModalOpen{overflow:hidden}
   .multiSplitPrimaryActions{display:none}
   .multiSplitTools .actions{display:grid;grid-template-columns:1fr}
   .multiSplitTools .actions button{width:100%}
+  .allModelsIntro{display:grid;gap:10px}
+  .allModelsRegistryBadge{justify-self:start}
+  .allModelsPageGrid{grid-template-columns:1fr;gap:12px}
+  .allModelsResultCard{position:static}
+  .allModelsLookupGrid,.allModelsControls{grid-template-columns:1fr}
+  .allModelsSearchResults{max-height:45vh}
+  .allModelsSelectedHead{display:grid}
+  .allModelsSelectedTag{justify-self:start}
   .energySavingsToggle{
     min-height:66px;
     padding:14px;
@@ -3086,7 +3264,7 @@ body.guidanceModalOpen{overflow:hidden}
 <body>
 <div class="wrap">
   <div class="header">
-  <div class="brand"><div class="kicker">Installer quote tool</div><h1>Master Quote Calculator</h1><div class="sub">Split system, ducted and multi-head internal quoting calculator with commission, GST and quote comparison.</div><div id="pricedCatalogueNotice" class="pricedCatalogueNotice hidden" role="note"><strong>Priced catalogue only:</strong> Units without a saved price are hidden from this account.</div><div class="systemTabs"><button id="splitTab" class="active" onclick="setSystem('split')">Split System</button><button id="ductedTab" onclick="setSystem('ducted')">Ducted System</button><button id="multiSplitTab" onclick="setMultiSplitSection()">Multi-head Split System</button></div></div>
+  <div class="brand"><div class="kicker">Installer quote tool</div><h1>Master Quote Calculator</h1><div class="sub">Split system, ducted and multi-head quoting, plus a complete registered-model rebate lookup.</div><div id="pricedCatalogueNotice" class="pricedCatalogueNotice hidden" role="note"><strong>Priced catalogue only:</strong> Units without a saved price are hidden from this account.</div><div class="systemTabs"><button id="splitTab" class="active" onclick="setSystem('split')">Split System</button><button id="ductedTab" onclick="setSystem('ducted')">Ducted System</button><button id="multiSplitTab" onclick="setMultiSplitSection()">Multi-head Split System</button><button id="allModelsTab" onclick="setAllModelsSection()">All Models</button></div></div>
     <div style="display:none"><input id="customer" type="hidden"><input id="date" type="hidden"><input id="address" type="hidden"></div>
   </div>
   <div class="grid" id="standardCalculatorSection">
@@ -3364,6 +3542,56 @@ body.guidanceModalOpen{overflow:hidden}
         <div class="quoteTargetControl"><label for="multiAddOptionSelectSearchInput">Add current unit to quote</label><div class="row2"><select id="multiAddOptionSelect" onchange="onOptionSelectionChange(this.value)"></select><button class="secondary" type="button" onclick="createNewOption(true)">+ New Quote</button></div><div class="selectedQuoteNameBar"><div class="selectedQuoteNameCopy"><span>Selected quote</span><strong id="multiMainOptionName">Quote 1</strong></div><button id="multiMainOptionRenameButton" class="secondary smallBtn" type="button" onclick="openRenameQuoteModal()">Rename</button></div></div>
         <div class="multiSplitPrimaryActions"><button id="multiSplitAddToQuoteBtn" class="orange" onclick="addToQuote()">Add to Quote</button><button class="secondary" onclick="openDrawer()">View Quotes (<span id="multiQuoteCount">0</span>)</button></div>
         <details class="multiSplitTools"><summary>Tools</summary><div class="actions"><button class="green" onclick="openWonJobsDrawer()">Won Jobs (<span data-won-jobs-count>0</span>)</button><button class="secondary" onclick="openPriceDrawer()">Price Manager</button><button id="multiCertValuesActionBtn" class="secondary" onclick="openCertDrawer()">Certificate Values</button></div></details>
+      </aside>
+    </div>
+  </div>
+  <div class="allModelsCard" id="allModelsCard">
+    <div class="card">
+      <div class="allModelsIntro">
+        <div class="allModelsIntroCopy">
+          <div class="kicker">Full rebate lookup</div>
+          <h2 class="sectionTitle">All registered air-conditioning models</h2>
+          <div class="sub">Search the Australian GEMS register and calculate the NSW ESC and PERC rebate using the same rules and business payout rates as the quote calculator.</div>
+        </div>
+        <span class="allModelsRegistryBadge">Live GEMS register</span>
+      </div>
+    </div>
+    <div class="allModelsPageGrid">
+      <main class="allModelsMainStack">
+        <div class="card" id="allModelsLookupPanel">
+          <h2 class="sectionTitle">Find a model</h2>
+          <div class="allModelsLookupGrid">
+            <div><label for="allModelsBrand">Brand</label><select id="allModelsBrand" onchange="onAllModelsBrandChange()"><option value="">Loading brands...</option></select></div>
+            <div class="allModelsSearchField">
+              <label for="allModelsSearch">Model number</label>
+              <div class="allModelsSearchInputWrap"><input id="allModelsSearch" type="search" autocomplete="off" placeholder="Start typing a model number" aria-autocomplete="list" aria-controls="allModelsSearchResults" aria-expanded="false"><span id="allModelsSearchSpinner" class="allModelsSearchSpinner hidden" aria-hidden="true"></span></div>
+              <div id="allModelsSearchResults" class="allModelsSearchResults" role="listbox" aria-label="Matching registered models"></div>
+            </div>
+          </div>
+          <div id="allModelsSelected" class="allModelsSelected" aria-live="polite">
+            <div class="allModelsSelectedHead"><strong id="allModelsSelectedModel">Select a registered model</strong><span id="allModelsSelectedTag" class="allModelsSelectedTag hidden">GEMS registered</span></div>
+            <div id="allModelsSelectedMeta" class="allModelsSelectedMeta">Choose a brand, then type at least two characters from the model number.</div>
+          </div>
+          <div class="installTabs" role="group" aria-label="All-model installation type">
+            <button id="allModelsNewBtn" class="active" type="button" onclick="setAllModelsInstall('new')">New install</button>
+            <button id="allModelsReplacementBtn" type="button" onclick="setAllModelsInstall('replacement')">Replacement</button>
+          </div>
+          <div class="allModelsControls">
+            <div class="postcodeField" id="allModelsPostcodeField"><div class="fieldLabelRow"><label for="allModelsPostcode">Customer postcode</label><span class="fieldPill" id="allModelsPostcodePill">Required for rebate</span></div><input id="allModelsPostcode" type="text" inputmode="numeric" maxlength="4" value="2000" aria-describedby="allModelsPostcodePill"></div>
+            <button id="allModelsCalculateBtn" class="green allModelsCalculateBtn" type="button" onclick="calculateAllModelsRebate()" disabled>Calculate rebate</button>
+          </div>
+          <div id="allModelsLookupNotice" class="allModelsNotice">This lookup checks registered equipment and rebates only. It does not add models, prices or costs to a customer quote.</div>
+        </div>
+      </main>
+      <aside class="card allModelsResultCard" id="allModelsResultCard" aria-live="polite">
+        <div class="allModelsResultHero"><span>Calculated rebate</span><strong id="allModelsRebateTotal">-</strong><small id="allModelsRebateSummary">Select a model and calculate its rebate.</small></div>
+        <div class="allModelsResultGrid">
+          <div class="allModelsResultMetric"><span>ESC generated</span><strong id="allModelsEscCount">-</strong><small id="allModelsEscValue">Waiting for calculation</small></div>
+          <div class="allModelsResultMetric"><span>PERC generated</span><strong id="allModelsPrcCount">-</strong><small id="allModelsPrcValue">Waiting for calculation</small></div>
+        </div>
+        <div class="allModelsResultRates"><span>ESC payout <strong id="allModelsEscRate">-</strong></span><span>PERC payout <strong id="allModelsPrcRate">-</strong></span></div>
+        <div id="allModelsDcceew" class="allModelsDcceew hidden"><strong>DCCEEW $30 ESC contract match</strong><span id="allModelsDcceewMeta">The contract rate has been included. Complete every required compliance step.</span></div>
+        <div id="allModelsResultStatus" class="allModelsResultStatus">The result will show eligibility, certificate counts and the calculation source.</div>
       </aside>
     </div>
   </div>
@@ -4266,6 +4494,14 @@ let multiSplitIndoorSelections=[];
 let multiSplitTrialRequestSeq=0;
 let multiSplitRebateFresh=false;
 let multiSplitHasCalculated=false;
+let allModelsBrandsLoaded=false;
+let allModelsSelected=null;
+let allModelsSearchRows=[];
+let allModelsSearchTimer=null;
+let allModelsSearchRequestSeq=0;
+let allModelsActiveResultIndex=-1;
+let allModelsInstallType='new';
+let allModelsCalculationRequestSeq=0;
 const INSTALL_ADDONS=[
   {id:'addonExtraPipeRun',qtyId:'addonExtraPipeRunQty',type:'quantity',label:'Extra 5m pipe run',labour:200,materialsInc:100},
   {id:'addonCondensatePump',label:'Condensate pump',labour:200,materialsInc:200},
@@ -5735,10 +5971,26 @@ function syncSharedEssPostcode(value,source,persist){
   const postcode=String(value||'').trim();
   if(source!=='standard' && $('essPostcode')) $('essPostcode').value=postcode;
   if(source!=='multi' && $('multiSplitPostcode')) $('multiSplitPostcode').value=postcode;
+  if(source!=='allModels' && $('allModelsPostcode')) $('allModelsPostcode').value=postcode;
   updatePostcodeFieldState();
   updateMultiSplitPostcodeFieldState();
+  updateAllModelsPostcodeFieldState();
   if(persist) saveEssSettings();
   return postcode;
+}
+function updateAllModelsPostcodeFieldState(){
+  const field=$('allModelsPostcodeField');
+  const input=$('allModelsPostcode');
+  const pill=$('allModelsPostcodePill');
+  if(!field || !input) return;
+  const valid=/^\d{4}$/.test(String(input.value||'').trim());
+  field.classList.toggle('valid',valid);
+  input.setAttribute('aria-invalid',valid?'false':'true');
+  if(pill){
+    pill.classList.toggle('confirmed',valid);
+    pill.textContent='Required for rebate';
+  }
+  updateAllModelsCalculateState();
 }
 function updatePostcodeFieldState(){
   const field=$('postcodeField');
@@ -5826,7 +6078,10 @@ window.applyAuthoritativeCertificateValues=function(raw){
     certValues=next;
     persistCertValues();
     applyLockedCertValuesToMain();
-    if(activeCalculatorView==='multiSplit'){
+    if(activeCalculatorView==='allModels'){
+      resetAllModelsResult('Certificate payout rates changed. Calculate the rebate again.');
+      updateAllModelsRates();
+    }else if(activeCalculatorView==='multiSplit'){
       resetMultiSplitRebateMetrics('Certificate spot prices updated. Recalculating the rebate...');
       if(multiSplitHasCalculated) calculateMultiSplitTrialRebate();
     }else{
@@ -7120,18 +7375,24 @@ function multiSplitTrialEnabled(){
   return true;
 }
 function multiSplitViewActive(){return multiSplitTrialEnabled()&&activeCalculatorView==='multiSplit';}
+function allModelsViewActive(){return activeCalculatorView==='allModels';}
 function updateCalculatorSectionVisibility(){
   const enabled=multiSplitTrialEnabled();
   if(!enabled && activeCalculatorView==='multiSplit') activeCalculatorView='standard';
   const multiActive=enabled&&activeCalculatorView==='multiSplit';
+  const allModelsActive=allModelsViewActive();
   if($('multiSplitTab')){
     $('multiSplitTab').classList.toggle('hidden',!enabled);
     $('multiSplitTab').classList.toggle('active',multiActive);
   }
-  if($('splitTab')) $('splitTab').classList.toggle('active',!multiActive&&systemType==='split');
-  if($('ductedTab')) $('ductedTab').classList.toggle('active',!multiActive&&systemType==='ducted');
-  if($('standardCalculatorSection')) $('standardCalculatorSection').classList.toggle('hidden',multiActive);
+  if($('allModelsTab')) $('allModelsTab').classList.toggle('active',allModelsActive);
+  if($('splitTab')) $('splitTab').classList.toggle('active',!multiActive&&!allModelsActive&&systemType==='split');
+  if($('ductedTab')) $('ductedTab').classList.toggle('active',!multiActive&&!allModelsActive&&systemType==='ducted');
+  if($('standardCalculatorSection')) $('standardCalculatorSection').classList.toggle('hidden',multiActive||allModelsActive);
   if($('multiSplitTrialCard')) $('multiSplitTrialCard').classList.toggle('visible',multiActive);
+  if($('allModelsCard')) $('allModelsCard').classList.toggle('visible',allModelsActive);
+  if($('standardCurrentOptionSection')) $('standardCurrentOptionSection').classList.toggle('hidden',allModelsActive);
+  if($('standardFloatingActionBar')) $('standardFloatingActionBar').classList.toggle('hidden',allModelsActive);
 }
 function setMultiSplitSection(){
   if(!multiSplitTrialEnabled()) return;
@@ -7141,6 +7402,312 @@ function setMultiSplitSection(){
   if($('multiSplitBrand')&&!$('multiSplitBrand').options.length) populateMultiSplitBrands();
   renderMultiSplitTrial();
   renderCurrentOptionPanel();
+}
+function setAllModelsSection(){
+  activeCalculatorView='allModels';
+  syncSharedEssPostcode(getEssPostcode(),'standard',false);
+  updateCalculatorSectionVisibility();
+  updateAllModelsPostcodeFieldState();
+  updateAllModelsRates();
+  if(!allModelsBrandsLoaded) loadAllModelsBrands();
+}
+function updateAllModelsRates(){
+  if($('allModelsEscRate')) $('allModelsEscRate').textContent=getEssEscRate()>0?money(getEssEscRate()):'-';
+  if($('allModelsPrcRate')) $('allModelsPrcRate').textContent=getEssPrcRate()>0?money(getEssPrcRate()):'-';
+}
+function allModelsSearchOpen(open){
+  const list=$('allModelsSearchResults');
+  const input=$('allModelsSearch');
+  if(list) list.classList.toggle('open',!!open);
+  if(input) input.setAttribute('aria-expanded',open?'true':'false');
+}
+function allModelsSearchMeta(item){
+  const parts=[];
+  if(Number.isFinite(Number(item&&item.capacityKw))) parts.push(`${Number(item.capacityKw).toFixed(1)}kW`);
+  if(item&&item.family) parts.push(item.family);
+  else if(item&&item.productType) parts.push(item.productType);
+  if(item&&item.productClass) parts.push(item.productClass);
+  if(item&&item.multiHead) parts.push('Multi-head setup');
+  return parts.join(' | ')||'Registered air-conditioning model';
+}
+function renderAllModelsSearchResults(message){
+  const list=$('allModelsSearchResults');
+  if(!list) return;
+  if(message){
+    list.innerHTML=`<div class="allModelsSearchMessage">${htmlEscape(message)}</div>`;
+    allModelsSearchOpen(true);
+    return;
+  }
+  if(!allModelsSearchRows.length){
+    list.innerHTML='<div class="allModelsSearchMessage">No matching available Australian models were found.</div>';
+    allModelsSearchOpen(true);
+    return;
+  }
+  allModelsActiveResultIndex=Math.min(Math.max(allModelsActiveResultIndex,0),allModelsSearchRows.length-1);
+  list.innerHTML=allModelsSearchRows.map((item,index)=>`<button type="button" class="allModelsSearchOption${index===allModelsActiveResultIndex?' active':''}" role="option" aria-selected="${index===allModelsActiveResultIndex?'true':'false'}" data-all-model-index="${index}"><strong>${htmlEscape(item.model)}</strong><span>${htmlEscape(allModelsSearchMeta(item))}</span></button>`).join('');
+  allModelsSearchOpen(true);
+}
+function setAllModelsSearchBusy(busy){
+  if($('allModelsSearchSpinner')) $('allModelsSearchSpinner').classList.toggle('hidden',!busy);
+  if($('allModelsSearch')) $('allModelsSearch').setAttribute('aria-busy',busy?'true':'false');
+}
+function resetAllModelsResult(message){
+  allModelsCalculationRequestSeq++;
+  if($('allModelsRebateTotal')) $('allModelsRebateTotal').textContent='-';
+  if($('allModelsRebateSummary')) $('allModelsRebateSummary').textContent=message||'Select a model and calculate its rebate.';
+  if($('allModelsEscCount')) $('allModelsEscCount').textContent='-';
+  if($('allModelsPrcCount')) $('allModelsPrcCount').textContent='-';
+  if($('allModelsEscValue')) $('allModelsEscValue').textContent='Waiting for calculation';
+  if($('allModelsPrcValue')) $('allModelsPrcValue').textContent='Waiting for calculation';
+  if($('allModelsDcceew')) $('allModelsDcceew').classList.add('hidden');
+  if($('allModelsResultCard')) $('allModelsResultCard').classList.remove('is-contract');
+  const status=$('allModelsResultStatus');
+  if(status){status.className='allModelsResultStatus';status.textContent=message||'The result will show eligibility, certificate counts and the calculation source.';}
+  updateAllModelsRates();
+  setSectionLoading('allModelsResultCard',false);
+}
+function updateAllModelsCalculateState(){
+  const button=$('allModelsCalculateBtn');
+  if(!button) return;
+  const postcode=String(($('allModelsPostcode')&&$('allModelsPostcode').value)||'').trim();
+  const blocked=!!(allModelsSelected&&allModelsSelected.multiHead);
+  button.disabled=!allModelsSelected||blocked||!/^\d{4}$/.test(postcode)||!rebatesEnabled();
+  const notice=$('allModelsLookupNotice');
+  if(!notice) return;
+  notice.classList.toggle('multi',blocked||!rebatesEnabled());
+  if(!rebatesEnabled()){
+    notice.textContent='The active business does not have a NSW rebate scheme, so this lookup cannot calculate a rebate.';
+  }else if(blocked){
+    notice.textContent='This is a multi-head or outdoor-only model. Select its indoor head combination in the Multi-head Split System calculator for a valid rebate calculation.';
+  }else{
+    notice.textContent='This lookup checks registered equipment and rebates only. It does not add models, prices or costs to a customer quote.';
+  }
+}
+function renderAllModelsSelected(){
+  const box=$('allModelsSelected');
+  const title=$('allModelsSelectedModel');
+  const meta=$('allModelsSelectedMeta');
+  const tag=$('allModelsSelectedTag');
+  if(!box||!title||!meta) return;
+  box.classList.toggle('has-selection',!!allModelsSelected);
+  if(tag) tag.classList.toggle('hidden',!allModelsSelected);
+  if(!allModelsSelected){
+    title.textContent='Select a registered model';
+    meta.textContent='Choose a brand, then type at least two characters from the model number.';
+  }else{
+    title.textContent=`${allModelsSelected.brand} ${allModelsSelected.model}`;
+    meta.textContent=allModelsSearchMeta(allModelsSelected);
+  }
+  updateAllModelsCalculateState();
+}
+function selectAllModelsResult(index){
+  const selected=allModelsSearchRows[Number(index)];
+  if(!selected) return;
+  allModelsSelected=selected;
+  if($('allModelsSearch')) $('allModelsSearch').value=selected.model;
+  allModelsSearchOpen(false);
+  renderAllModelsSelected();
+  resetAllModelsResult(selected.multiHead?'Use the Multi-head Split System calculator for this model.':'Ready to calculate this model.');
+}
+async function loadAllModelsBrands(){
+  const select=$('allModelsBrand');
+  if(!select||allModelsBrandsLoaded) return;
+  select.disabled=true;
+  select.innerHTML='<option value="">Loading brands...</option>';
+  try{
+    const payload=await fetchJson('/api/gems-model-search?mode=brands');
+    const rows=Array.isArray(payload&&payload.brands)?payload.brands:[];
+    if(!rows.length) throw new Error('No GEMS brands were returned');
+    select.innerHTML='<option value="">Select brand</option>'+rows.map(brand=>`<option value="${htmlEscape(brand)}">${htmlEscape(brand)}</option>`).join('');
+    select.disabled=false;
+    allModelsBrandsLoaded=true;
+  }catch(error){
+    select.innerHTML='<option value="">Brand list unavailable</option>';
+    const status=$('allModelsResultStatus');
+    if(status){status.className='allModelsResultStatus error';status.textContent=`Unable to load the GEMS brand list. ${String(error&&error.message||'Please try again.')}`;}
+  }
+}
+function onAllModelsBrandChange(){
+  allModelsSearchRequestSeq++;
+  clearTimeout(allModelsSearchTimer);
+  allModelsSelected=null;
+  allModelsSearchRows=[];
+  allModelsActiveResultIndex=-1;
+  if($('allModelsSearch')){
+    $('allModelsSearch').value='';
+    $('allModelsSearch').focus();
+  }
+  allModelsSearchOpen(false);
+  renderAllModelsSelected();
+  resetAllModelsResult('Type a model number to begin.');
+}
+async function searchAllModelsNow(){
+  const brand=String(($('allModelsBrand')&&$('allModelsBrand').value)||'').trim();
+  const rawQuery=String(($('allModelsSearch')&&$('allModelsSearch').value)||'').trim();
+  const query=normalizeLookup(rawQuery);
+  const requestId=++allModelsSearchRequestSeq;
+  if(!brand){renderAllModelsSearchResults('Select a brand first.');return;}
+  if(query.length<2){
+    if(query.length) renderAllModelsSearchResults('Enter at least two model characters.');
+    else allModelsSearchOpen(false);
+    return;
+  }
+  setAllModelsSearchBusy(true);
+  renderAllModelsSearchResults('Searching the GEMS register...');
+  try{
+    const payload=await fetchJson(`/api/gems-model-search?brand=${encodeURIComponent(brand)}&q=${encodeURIComponent(rawQuery)}`);
+    if(requestId!==allModelsSearchRequestSeq) return;
+    allModelsSearchRows=Array.isArray(payload&&payload.models)?payload.models:[];
+    allModelsActiveResultIndex=allModelsSearchRows.length?0:-1;
+    renderAllModelsSearchResults();
+  }catch(error){
+    if(requestId!==allModelsSearchRequestSeq) return;
+    allModelsSearchRows=[];
+    renderAllModelsSearchResults(`Search unavailable. ${String(error&&error.message||'Please try again.')}`);
+  }finally{
+    if(requestId===allModelsSearchRequestSeq) setAllModelsSearchBusy(false);
+  }
+}
+function scheduleAllModelsSearch(){
+  clearTimeout(allModelsSearchTimer);
+  if(allModelsSelected&&$('allModelsSearch')&&$('allModelsSearch').value!==allModelsSelected.model){
+    allModelsSelected=null;
+    renderAllModelsSelected();
+    resetAllModelsResult('Select a matching registered model before calculating.');
+  }
+  allModelsSearchTimer=setTimeout(searchAllModelsNow,250);
+}
+function moveAllModelsSearchHighlight(step){
+  if(!allModelsSearchRows.length) return;
+  allModelsActiveResultIndex=(allModelsActiveResultIndex+step+allModelsSearchRows.length)%allModelsSearchRows.length;
+  renderAllModelsSearchResults();
+  const active=$('allModelsSearchResults')?.querySelector('.allModelsSearchOption.active');
+  if(active) active.scrollIntoView({block:'nearest'});
+}
+function onAllModelsSearchKeydown(event){
+  if(event.key==='ArrowDown'){event.preventDefault();moveAllModelsSearchHighlight(1);return;}
+  if(event.key==='ArrowUp'){event.preventDefault();moveAllModelsSearchHighlight(-1);return;}
+  if(event.key==='Enter'&&allModelsSearchRows.length){event.preventDefault();selectAllModelsResult(allModelsActiveResultIndex);return;}
+  if(event.key==='Escape') allModelsSearchOpen(false);
+}
+function setAllModelsInstall(type){
+  allModelsInstallType=type==='replacement'?'replacement':'new';
+  if($('allModelsNewBtn')) $('allModelsNewBtn').classList.toggle('active',allModelsInstallType==='new');
+  if($('allModelsReplacementBtn')) $('allModelsReplacementBtn').classList.toggle('active',allModelsInstallType==='replacement');
+  resetAllModelsResult('Installation type changed. Calculate the rebate again.');
+}
+function allModelsAirConditionerType(item,meta){
+  const source=`${item&&item.productType||''} ${meta&&meta['Product Type']||''} ${meta&&meta.Configuration2||''}`.toLowerCase();
+  const productClass=hvacProductClassNumber(meta&&meta['Product Class']);
+  if(item&&item.multiHead || /multi[ -]?(split|head)/i.test(source)) return '';
+  if(source.includes('unitary')) return source.includes('ducted')?'ducted_unitary_system':'non_ducted_unitary_system';
+  if(source.includes('non')&&source.includes('ducted')) return 'non_ducted_single_split_system';
+  if(source.includes('ducted')) return 'ducted_single_split_system';
+  if([8,9].includes(productClass)) return 'non_ducted_single_split_system';
+  if([10,11,12].includes(productClass)) return 'ducted_single_split_system';
+  if([18,19,20,21].includes(productClass)) return 'non_ducted_unitary_system';
+  return '';
+}
+function renderAllModelsCalculation(result,effective,match,climate,lookupSource){
+  const escRate=match?Number(match.rate)||30:Number(result.escRate)||0;
+  const escValue=match?Number(effective.contractEscValue)||0:Number(result.escValue)||0;
+  const prcValue=Number(result.prcValue)||0;
+  if($('allModelsRebateTotal')) $('allModelsRebateTotal').textContent=money(effective.rebate);
+  if($('allModelsRebateSummary')) $('allModelsRebateSummary').textContent=match?`Includes ${money(effective.contractUplift)} additional DCCEEW contract value.`:`${allModelsInstallType==='replacement'?'Replacement':'New install'} at postcode ${climate.postcode}.`;
+  if($('allModelsEscCount')) $('allModelsEscCount').textContent=certCountText(result.esc);
+  if($('allModelsPrcCount')) $('allModelsPrcCount').textContent=certCountText(result.prc);
+  if($('allModelsEscValue')) $('allModelsEscValue').textContent=`${certCountText(result.esc)} x ${money(escRate)} = ${money(escValue)}`;
+  if($('allModelsPrcValue')) $('allModelsPrcValue').textContent=`${certCountText(result.prc)} x ${money(result.prcRate)} = ${money(prcValue)}`;
+  if($('allModelsEscRate')) $('allModelsEscRate').textContent=money(escRate);
+  if($('allModelsPrcRate')) $('allModelsPrcRate').textContent=money(result.prcRate);
+  const contractBox=$('allModelsDcceew');
+  if(contractBox) contractBox.classList.toggle('hidden',!match);
+  if($('allModelsDcceewMeta')&&match) $('allModelsDcceewMeta').textContent=`Standard rebate ${money(effective.rebate-effective.contractUplift)} + ${money(effective.contractUplift)} contract uplift. Complete every required compliance step.`;
+  if($('allModelsResultCard')) $('allModelsResultCard').classList.toggle('is-contract',!!match);
+  const eligibility=result.eligibility||{};
+  const fullyEligible=eligibility.essEligible&&eligibility.prcEligible;
+  const status=$('allModelsResultStatus');
+  if(status){
+    status.className=`allModelsResultStatus ${fullyEligible?'success':'warning'}`;
+    const eligibilityText=fullyEligible?'Eligible under the current NSW HVAC efficiency rules.':(eligibility.message||'Only part of this model calculation is eligible under the current NSW rules.');
+    status.textContent=`${eligibilityText} ${lookupSource}. ${climate.climateZone} climate, ${climate.bcaZone}.`;
+  }
+}
+function renderAllModelsCalculationError(error){
+  const message=String(error&&error.message||error||'Live rebate data is unavailable.');
+  if($('allModelsRebateTotal')) $('allModelsRebateTotal').textContent=money(0);
+  if($('allModelsRebateSummary')) $('allModelsRebateSummary').textContent='Rebate set to $0.00 because the calculation could not be completed.';
+  if($('allModelsEscCount')) $('allModelsEscCount').textContent='-';
+  if($('allModelsPrcCount')) $('allModelsPrcCount').textContent='-';
+  if($('allModelsEscValue')) $('allModelsEscValue').textContent='Unable to calculate';
+  if($('allModelsPrcValue')) $('allModelsPrcValue').textContent='Unable to calculate';
+  if($('allModelsDcceew')) $('allModelsDcceew').classList.add('hidden');
+  if($('allModelsResultCard')) $('allModelsResultCard').classList.remove('is-contract');
+  const status=$('allModelsResultStatus');
+  if(status){status.className='allModelsResultStatus error';status.textContent=message;}
+}
+async function calculateAllModelsRebate(){
+  const selected=allModelsSelected;
+  const postcode=String(($('allModelsPostcode')&&$('allModelsPostcode').value)||'').trim();
+  if(!selected||!/^\d{4}$/.test(postcode)||selected.multiHead) return;
+  const requestId=++allModelsCalculationRequestSeq;
+  const button=$('allModelsCalculateBtn');
+  if(button){button.disabled=true;button.textContent='Calculating...';button.setAttribute('aria-busy','true');}
+  setSectionLoading('allModelsResultCard',true,'Calculating live rebate...');
+  try{
+    let meta=selected.metadata;
+    let lookupSource='GEMS registry + NSW formula';
+    if(!selected.completeEnergyData||!isUsableModelMeta(meta)){
+      const resolved=await resolveModelMetadataForRebate(selected.brand,selected.model);
+      meta=resolved.meta;
+      lookupSource=resolved.source;
+    }
+    const airConditionerType=allModelsAirConditionerType(selected,meta);
+    if(!airConditionerType) throw new Error('This model needs an indoor-head combination. Use the Multi-head Split System calculator.');
+    const climate=await getClimateContext(postcode);
+    const certs=await withTimeout(calculateCertificatesForModel(meta,climate,{airConditionerType,installType:allModelsInstallType}),LIVE_REBATE_TIMEOUT_MS,'Live rebate calculation timed out. Please try again.');
+    const escRate=getEssEscRate(),prcRate=getEssPrcRate();
+    if(!(escRate>0)||!(prcRate>0)) throw new Error('The current business certificate payout rates are unavailable.');
+    const result={apiBrand:selected.brand,apiModel:selected.model,lookupSource,esc:certs.esc,prc:certs.prc,officialEsc:certs.officialEsc,officialPrc:certs.officialPrc,eligibility:certs.eligibility,zone:climate.climateZone,bcaZone:climate.bcaZone,escRate,prcRate,escValue:certs.esc*escRate,prcValue:certs.prc*prcRate,rebate:(certs.esc*escRate)+(certs.prc*prcRate)};
+    const match=getDcceewContractMatch({brand:selected.brand,model:selected.model},postcode);
+    const effective=applyDcceewContractRebate(match,result);
+    if(requestId!==allModelsCalculationRequestSeq||allModelsSelected!==selected) return;
+    renderAllModelsCalculation(result,effective,match,climate,lookupSource);
+  }catch(error){
+    if(requestId!==allModelsCalculationRequestSeq) return;
+    renderAllModelsCalculationError(error);
+  }finally{
+    if(requestId===allModelsCalculationRequestSeq){
+      setSectionLoading('allModelsResultCard',false);
+      if(button){button.textContent='Calculate rebate';button.removeAttribute('aria-busy');}
+      updateAllModelsCalculateState();
+    }
+  }
+}
+function initAllModelsLookup(){
+  const input=$('allModelsSearch');
+  const list=$('allModelsSearchResults');
+  const postcode=$('allModelsPostcode');
+  if($('essPostcode')&&postcode) syncSharedEssPostcode($('essPostcode').value||postcode.value||'2000','standard',false);
+  if(input){
+    input.addEventListener('input',scheduleAllModelsSearch);
+    input.addEventListener('keydown',onAllModelsSearchKeydown);
+    input.addEventListener('focus',()=>{if(allModelsSearchRows.length) allModelsSearchOpen(true);});
+  }
+  if(list) list.addEventListener('click',event=>{
+    const option=event.target.closest('[data-all-model-index]');
+    if(option) selectAllModelsResult(option.dataset.allModelIndex);
+  });
+  if(postcode){
+    postcode.addEventListener('input',()=>{syncSharedEssPostcode(postcode.value,'allModels',false);resetAllModelsResult('Postcode changed. Calculate the rebate again.');});
+    postcode.addEventListener('change',()=>syncSharedEssPostcode(postcode.value,'allModels',true));
+  }
+  document.addEventListener('click',event=>{
+    if(!event.target.closest('.allModelsSearchField')) allModelsSearchOpen(false);
+  });
+  setAllModelsInstall('new');
+  renderAllModelsSelected();
+  updateAllModelsPostcodeFieldState();
 }
 function applyMultiSplitTrialVisibility(){
   updateCalculatorSectionVisibility();
@@ -11006,6 +11573,7 @@ loadManagedPrices();
 applyBusinessDaikinSplitPriceOverrides();
 initEssControls();
 initMultiSplitTrial();
+initAllModelsLookup();
 const defaultCostRowsEl=$('defaultCostRows');
 if(defaultCostRowsEl){
   defaultCostRowsEl.addEventListener('input', function(e){
