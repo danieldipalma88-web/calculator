@@ -43,13 +43,15 @@ assert.match(functionSource("productVisibleToCurrentUser"), /productHasConfigure
 assert.match(functionSource("brands"), /selectableProductOptions\(options\)/);
 assert.match(functionSource("populateProducts"), /selectableProductOptions\(options\)/);
 assert.match(functionSource("refreshBestValueIndicator"), /productVisibleToCurrentUser\(item\.p\)/);
-assert.match(functionSource("multiSplitBrands"), /filter\(productVisibleToCurrentUser\)/);
-assert.match(functionSource("populateMultiSplitOutdoors"), /productVisibleToCurrentUser\(item\.row\)/);
-assert.match(functionSource("multiSplitCompatibleIndoorIndexes"), /productVisibleToCurrentUser\(item\.row\)/);
+assert.match(functionSource("multiSplitBrands"), /verifiedMultiSplitBrandRegistry/);
+assert.match(functionSource("populateMultiSplitOutdoors"), /fetchVerifiedMultiSplitOutdoors\(brand\)/);
+assert.match(functionSource("multiSplitCompatibleIndoorIndexes"), /ALL_MODELS_MULTI_INDOORS/);
+assert.doesNotMatch(functionSource("multiSplitCompatibleIndoorIndexes"), /productVisibleToCurrentUser/);
 assert.match(functionSource("loadQuote"), /includeProductIndex:idx/);
 assert.match(functionSource("loadMultiSplitQuote"), /includeOutdoorIndex:outdoorIdx/);
+assert.match(functionSource("loadMultiSplitQuote"), /await populateMultiSplitBrands/, "Saved multi-head selections must wait for the live outdoor catalogue before restoration.");
 assert.match(calculator, /id="pricedCatalogueNotice" class="pricedCatalogueNotice hidden"/);
-assert.match(calculator, /Priced catalogue only:<\/strong> Units without a saved price are hidden from this account\./);
+assert.match(calculator, /Priced catalogue only:<\/strong> Unpriced standard units are hidden\. Multi-head equipment can be checked for rebates but cannot be quoted until priced\./);
 assert.match(functionSource("applyOwnerVisibility"), /pricedCatalogueNotice[\s\S]*roleUsesPricedCatalogueOnly\(\)/);
 
 const context = {};

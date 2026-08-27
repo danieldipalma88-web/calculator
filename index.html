@@ -3305,7 +3305,7 @@ body.guidanceModalOpen{overflow:hidden}
 <body>
 <div class="wrap">
   <div class="header">
-  <div class="brand"><div class="kicker">Installer quote tool</div><h1>Master Quote Calculator</h1><div class="sub">Split system, ducted and multi-head quoting, plus a complete registered-model rebate lookup.</div><div id="pricedCatalogueNotice" class="pricedCatalogueNotice hidden" role="note"><strong>Priced catalogue only:</strong> Units without a saved price are hidden from this account.</div><div class="systemTabs"><button id="splitTab" class="active" onclick="setSystem('split')">Split System</button><button id="ductedTab" onclick="setSystem('ducted')">Ducted System</button><button id="multiSplitTab" onclick="setMultiSplitSection()">Multi-head Split System</button><button id="allModelsTab" onclick="setAllModelsSection()">All Models</button></div></div>
+  <div class="brand"><div class="kicker">Installer quote tool</div><h1>Master Quote Calculator</h1><div class="sub">Split system, ducted and multi-head quoting, plus a complete registered-model rebate lookup.</div><div id="pricedCatalogueNotice" class="pricedCatalogueNotice hidden" role="note"><strong>Priced catalogue only:</strong> Unpriced standard units are hidden. Multi-head equipment can be checked for rebates but cannot be quoted until priced.</div><div class="systemTabs"><button id="splitTab" class="active" onclick="setSystem('split')">Split System</button><button id="ductedTab" onclick="setSystem('ducted')">Ducted System</button><button id="multiSplitTab" onclick="setMultiSplitSection()">Multi-head Split System</button><button id="allModelsTab" onclick="setAllModelsSection()">All Models</button></div></div>
     <div style="display:none"><input id="customer" type="hidden"><input id="date" type="hidden"><input id="address" type="hidden"></div>
   </div>
   <div class="grid" id="standardCalculatorSection">
@@ -4574,6 +4574,11 @@ let allModelsMultiOutdoors=[];
 let allModelsMultiBrandsLoaded=false;
 let allModelsMultiBrandRequestSeq=0;
 let allModelsMultiOutdoorRequestSeq=0;
+let verifiedMultiSplitBrandRegistry=[];
+let verifiedMultiSplitBrandRegistryPromise=null;
+let verifiedMultiSplitOutdoorCache={};
+let multiSplitBrandLoadRequestSeq=0;
+let multiSplitOutdoorLoadRequestSeq=0;
 const ALL_MODELS_MULTI_TECHNICAL_HEAD_CAP=64;
 const INSTALL_ADDONS=[
   {id:'addonExtraPipeRun',qtyId:'addonExtraPipeRunQty',type:'quantity',label:'Extra 5m pipe run',labour:200,materialsInc:100},
@@ -5226,6 +5231,11 @@ const ALL_MODELS_MULTI_EXTRA_INDOORS=[
   multiIndoor('Teco','Multi Slim Duct',7.0,'TDSM70HVAG',null,'','',{family:'teco-multi',ratedCoolingCapacity:7.0,ratedHeatingCapacity:8.0,note:'Manufacturer indoor code; rebate lookup only'})
 ];
 const ALL_MODELS_MULTI_INDOORS=[...MULTI_SPLIT_INDOORS,...ALL_MODELS_MULTI_EXTRA_INDOORS];
+function clearMultiSplitCataloguePrices(){
+  MULTI_SPLIT_OUTDOORS.forEach(row=>{row.unitPriceInc=0;row.priceIncGst=0;});
+  ALL_MODELS_MULTI_INDOORS.forEach(row=>{row.unitPriceInc=0;row.priceIncGst=0;});
+}
+clearMultiSplitCataloguePrices();
 function normaliseBrandName(b){return BRAND_ALIASES[b]||b||'';}
 function normaliseModelName(m){return PRODUCT_MODEL_DISPLAY_ALIASES[m]||MODEL_ALIASES[m]||m||'';}
 function productDisplayBrandName(b){return b==='Actron'?'Actron Air':(b||'');}
@@ -5240,6 +5250,94 @@ function brandsEquivalent(a,b){
   if(!a || !b) return true;
   const aSet=new Set(rebateLookupBrandCandidates(a).map(v=>normalizeLookup(v)));
   return rebateLookupBrandCandidates(b).some(v=>aSet.has(normalizeLookup(v)));
+}
+function multiSplitHeadCatalogueBrands(){
+  return [...new Set(ALL_MODELS_MULTI_INDOORS.map(row=>normaliseBrandName(row.brand)).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+}
+function canonicalMultiSplitHeadBrand(value){
+  return multiSplitHeadCatalogueBrands().find(brand=>brandsEquivalent(brand,value))||'';
+}
+async function loadVerifiedMultiSplitBrandRegistry(){
+  if(verifiedMultiSplitBrandRegistry.length) return verifiedMultiSplitBrandRegistry;
+  if(verifiedMultiSplitBrandRegistryPromise) return verifiedMultiSplitBrandRegistryPromise;
+  verifiedMultiSplitBrandRegistryPromise=(async()=>{
+    const payload=await fetchJson('/api/gems-model-search?mode=multi-brands');
+    const rawBrands=Array.isArray(payload&&payload.brands)?payload.brands:[];
+    const grouped=new Map();
+    rawBrands.forEach(rawBrand=>{
+      const brand=canonicalMultiSplitHeadBrand(rawBrand);
+      if(!brand) return;
+      if(!grouped.has(brand)) grouped.set(brand,new Set());
+      grouped.get(brand).add(rawBrand);
+    });
+    verifiedMultiSplitBrandRegistry=[...grouped.entries()]
+      .map(([brand,rawSet])=>({brand,queryBrands:[...rawSet]}))
+      .sort((a,b)=>a.brand.localeCompare(b.brand));
+    if(!verifiedMultiSplitBrandRegistry.length) throw new Error('No registered multi-split brands with verified indoor heads were returned');
+    return verifiedMultiSplitBrandRegistry;
+  })();
+  try{
+    return await verifiedMultiSplitBrandRegistryPromise;
+  }catch(error){
+    verifiedMultiSplitBrandRegistryPromise=null;
+    throw error;
+  }
+}
+async function fetchVerifiedMultiSplitOutdoors(brand){
+  const canonical=canonicalMultiSplitHeadBrand(brand);
+  if(!canonical) return [];
+  if(verifiedMultiSplitOutdoorCache[canonical]) return verifiedMultiSplitOutdoorCache[canonical];
+  const request=(async()=>{
+    const registry=await loadVerifiedMultiSplitBrandRegistry();
+    const entry=registry.find(item=>item.brand===canonical);
+    if(!entry) return [];
+    const payloads=await Promise.all(entry.queryBrands.map(queryBrand=>fetchJson(`/api/gems-model-search?mode=multi-outdoors&brand=${encodeURIComponent(queryBrand)}`)));
+    const seen=new Set();
+    return payloads.flatMap(payload=>Array.isArray(payload&&payload.models)?payload.models:[]).filter(row=>{
+      const key=normalizeLookup(row&&row.model);
+      if(!key||seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).map(row=>({...row,brand:canonical})).sort((a,b)=>(Number(a.capacityKw)||0)-(Number(b.capacityKw)||0)||String(a.model||'').localeCompare(String(b.model||'')));
+  })();
+  verifiedMultiSplitOutdoorCache[canonical]=request;
+  try{
+    const rows=await request;
+    verifiedMultiSplitOutdoorCache[canonical]=rows;
+    return rows;
+  }catch(error){
+    delete verifiedMultiSplitOutdoorCache[canonical];
+    throw error;
+  }
+}
+function mergeVerifiedMultiSplitOutdoors(brand,rows){
+  return rows.map(row=>{
+    const modelKey=normalizeLookup(row.model);
+    let index=MULTI_SPLIT_OUTDOORS.findIndex(item=>brandsEquivalent(item.brand,brand)&&[item.model,item.rebateModel].filter(Boolean).some(model=>normalizeLookup(model)===modelKey));
+    const known=index>=0?MULTI_SPLIT_OUTDOORS[index]:null;
+    const capacityNum=Number(row.capacityKw)||Number(known&&known.capacityNum)||0;
+    const merged=Object.assign(known||{}, {
+      brand,
+      series:row.family||row.productType||(known&&known.series)||'GEMS registered multi-split',
+      capacityNum,
+      capacity:capacityNum>0?`${capacityNum.toFixed(1)}kW`:'Capacity unavailable',
+      model:row.model,
+      rebateModel:row.model,
+      unitPriceInc:0,
+      priceIncGst:0,
+      phase:row.phase||(known&&known.phase)||'',
+      maxHeads:known&&Number(known.maxHeads)>0?Number(known.maxHeads):null,
+      metadata:row.metadata||null,
+      completeEnergyData:!!row.completeEnergyData,
+      configuration:row.metadata&&row.metadata.Configuration2||'',
+      liveRegistry:true
+    });
+    if(index<0){
+      MULTI_SPLIT_OUTDOORS.push(merged);
+      index=MULTI_SPLIT_OUTDOORS.length-1;
+    }
+    return index;
+  });
 }
 function rebateLookupModelCandidates(m){
   const displayModel=normaliseModelName(m);
@@ -7800,11 +7898,11 @@ async function populateAllModelsMultiBrands(){
   const requestId=++allModelsMultiBrandRequestSeq;
   const current=String(select.value||'');
   select.disabled=true;
-  select.innerHTML='<option value="">Loading GEMS multi-split brands...</option>';
+  select.innerHTML='<option value="">Loading verified multi-split brands...</option>';
   try{
-    const payload=await fetchJson('/api/gems-model-search?mode=multi-brands');
+    const registry=await loadVerifiedMultiSplitBrandRegistry();
     if(requestId!==allModelsMultiBrandRequestSeq) return;
-    const rows=Array.isArray(payload&&payload.brands)?payload.brands:[];
+    const rows=registry.map(entry=>entry.brand);
     if(!rows.length) throw new Error('No registered multi-split brands were returned');
     select.innerHTML=rows.map(brand=>`<option value="${htmlEscape(brand)}">${htmlEscape(brand)}</option>`).join('');
     if(current&&rows.includes(current)) select.value=current;
@@ -7838,9 +7936,8 @@ async function populateAllModelsMultiOutdoors(){
   renderAllModelsMultiBuilder();
   if(!brand){select.disabled=false;return;}
   try{
-    const payload=await fetchJson(`/api/gems-model-search?mode=multi-outdoors&brand=${encodeURIComponent(brand)}`);
+    const rows=await fetchVerifiedMultiSplitOutdoors(brand);
     if(requestId!==allModelsMultiOutdoorRequestSeq) return;
-    const rows=Array.isArray(payload&&payload.models)?payload.models:[];
     allModelsMultiOutdoors=rows.map(row=>{
       const known=MULTI_SPLIT_OUTDOORS.find(item=>brandsEquivalent(item.brand,row.brand)&&[item.model,item.rebateModel].filter(Boolean).some(model=>normalizeLookup(model)===normalizeLookup(row.model)));
       const capacityNum=Number(row.capacityKw)||0;
@@ -8317,23 +8414,26 @@ function applyMultiSplitTrialVisibility(){
   updateCalculatorSectionVisibility();
 }
 function multiSplitBrands(){
-  return [...new Set(MULTI_SPLIT_OUTDOORS.filter(productVisibleToCurrentUser).map(row=>row.brand))].sort((a,b)=>a.localeCompare(b));
+  return verifiedMultiSplitBrandRegistry.length
+    ? verifiedMultiSplitBrandRegistry.map(entry=>entry.brand)
+    : multiSplitHeadCatalogueBrands();
 }
 function selectedMultiSplitOutdoor(){
   const select=$('multiSplitOutdoor');
-  const idx=Number((select&&select.value)||0);
+  const rawValue=select&&select.value;
+  if(rawValue===null||rawValue===''||typeof rawValue==='undefined') return null;
+  const idx=Number(rawValue);
   const selected=MULTI_SPLIT_OUTDOORS[idx];
   const selectedIsAvailable=!!(select&&Array.from(select.options||[]).some(option=>Number(option.value)===idx));
-  if(selected&&(productVisibleToCurrentUser(selected)||selectedIsAvailable)) return selected;
-  return MULTI_SPLIT_OUTDOORS.find(productVisibleToCurrentUser)||null;
+  if(selected&&selectedIsAvailable) return selected;
+  return null;
 }
 function multiSplitCompatibleIndoorIndexes(outdoor,options){
   if(!outdoor) return [];
-  const includeUnpriced=!!(options&&options.includeUnpriced);
-  const includeIndexes=new Set((options&&options.includeIndexes)||[]);
-  return MULTI_SPLIT_INDOORS
+  return ALL_MODELS_MULTI_INDOORS
     .map((row,index)=>({row,index}))
-    .filter(item=>item.row.brand===outdoor.brand && (!outdoor.family || item.row.family===outdoor.family) && (includeUnpriced||includeIndexes.has(item.index)||productVisibleToCurrentUser(item.row)))
+    .filter(item=>brandsEquivalent(item.row.brand,outdoor.brand))
+    .sort((a,b)=>a.row.series.localeCompare(b.row.series)||(Number(a.row.capacityNum)||0)-(Number(b.row.capacityNum)||0)||a.row.model.localeCompare(b.row.model))
     .map(item=>item.index);
 }
 function multiSplitPriceLabel(value){
@@ -8346,7 +8446,7 @@ function multiSplitIndoorLabel(row){
 }
 function selectedMultiSplitIndoorItems(){
   return multiSplitIndoorSelections.map(selection=>{
-    const row=MULTI_SPLIT_INDOORS[Number(selection.indoorIndex)];
+    const row=ALL_MODELS_MULTI_INDOORS[Number(selection.indoorIndex)];
     const qty=Math.max(1,Math.floor(Number(selection.qty)||1));
     return row?{row,qty}:null;
   }).filter(Boolean);
@@ -8432,7 +8532,7 @@ function updateQuotePriceValidationUi(){
   if(outdoorChip) outdoorChip.classList.toggle('priceMissing',!!(totals.outdoor&&!hasPositiveUnitPrice(totals.outdoor.unitPriceInc)));
   if(equipmentMetric) equipmentMetric.classList.toggle('priceMissing',multiPriceMissing);
   const multiMessage=$('multiUnitPriceMissingMessage');
-  if(multiMessage && multiPriceMissing) multiMessage.textContent=`Price missing for ${formatPriceModelList(multiMissing)}. Add the missing price in Price Manager before quoting this system.`;
+  if(multiMessage && multiPriceMissing) multiMessage.textContent=`Price missing for ${formatPriceModelList(multiMissing)}. Equipment prices must be added before this system can be quoted.`;
   if(multiSplitViewActive()){
     document.querySelectorAll('button[onclick="addToQuote()"]:not(#multiSplitAddToQuoteBtn)').forEach(button=>{
       button.disabled=multiPriceMissing;
@@ -8734,12 +8834,12 @@ function renderMultiSplitTrial(){
   if(rows){
     rows.innerHTML=multiSplitIndoorSelections.map((selection,rowIndex)=>{
       const options=compatible.map(index=>{
-        const row=MULTI_SPLIT_INDOORS[index];
+        const row=ALL_MODELS_MULTI_INDOORS[index];
         const selected=Number(selection.indoorIndex)===index?' selected':'';
         return `<option value="${index}"${selected}>${htmlEscape(multiSplitIndoorLabel(row))}</option>`;
       }).join('');
       const qty=Math.max(1,Math.floor(Number(selection.qty)||1));
-      const row=MULTI_SPLIT_INDOORS[Number(selection.indoorIndex)]||MULTI_SPLIT_INDOORS[compatible[0]];
+      const row=ALL_MODELS_MULTI_INDOORS[Number(selection.indoorIndex)]||ALL_MODELS_MULTI_INDOORS[compatible[0]];
       const ratedCooling=Number(row&&row.ratedCoolingCapacity)||Number(row&&row.capacityNum)||0;
       const ratedHeating=Number(row&&row.ratedHeatingCapacity)||0;
       const canIncrease=!maxHeads||headCount<maxHeads;
@@ -8782,24 +8882,73 @@ function renderMultiSplitTrial(){
   }
   if(missingPrices.length) updateQuotePriceValidationUi();
 }
-function populateMultiSplitBrands(options){
+async function populateMultiSplitBrands(options){
   const brandEl=$('multiSplitBrand');
   if(!brandEl || !multiSplitTrialEnabled()) return;
+  const requestId=++multiSplitBrandLoadRequestSeq;
   const includeIndex=Number(options&&options.includeOutdoorIndex);
   const included=MULTI_SPLIT_OUTDOORS[includeIndex];
-  const available=multiSplitBrands();
-  const brandList=included&&!available.includes(included.brand)?[...available,included.brand]:available;
-  brandEl.innerHTML=brandList.map(brand=>`<option>${htmlEscape(brand)}</option>`).join('');
-  populateMultiSplitOutdoors(options);
+  const current=String((included&&included.brand)||brandEl.value||'');
+  const initial=multiSplitHeadCatalogueBrands();
+  brandEl.innerHTML=initial.map(brand=>`<option value="${htmlEscape(brand)}">${htmlEscape(brand)}</option>`).join('');
+  if(current&&initial.some(brand=>brandsEquivalent(brand,current))) brandEl.value=canonicalMultiSplitHeadBrand(current);
+  brandEl.disabled=true;
+  const outdoorEl=$('multiSplitOutdoor');
+  if(outdoorEl){outdoorEl.disabled=true;outdoorEl.innerHTML='<option value="">Loading registered outdoor models...</option>';}
+  try{
+    const registry=await loadVerifiedMultiSplitBrandRegistry();
+    if(requestId!==multiSplitBrandLoadRequestSeq) return;
+    const brandList=registry.map(entry=>entry.brand);
+    brandEl.innerHTML=brandList.map(brand=>`<option value="${htmlEscape(brand)}">${htmlEscape(brand)}</option>`).join('');
+    const preferred=canonicalMultiSplitHeadBrand(current);
+    if(preferred&&brandList.includes(preferred)) brandEl.value=preferred;
+    brandEl.disabled=false;
+    await populateMultiSplitOutdoors(options);
+  }catch(error){
+    if(requestId!==multiSplitBrandLoadRequestSeq) return;
+    brandEl.disabled=false;
+    if(outdoorEl){outdoorEl.disabled=false;outdoorEl.innerHTML='<option value="">Outdoor models unavailable</option>';}
+    multiSplitIndoorSelections=[];
+    renderMultiSplitTrial();
+    setMultiSplitStatus(String(error&&error.message||error||'The GEMS multi-split register is unavailable.'),'error');
+  }
 }
-function populateMultiSplitOutdoors(options){
+async function populateMultiSplitOutdoors(options){
   const brand=String(($('multiSplitBrand')&&$('multiSplitBrand').value)||'');
   const outdoorEl=$('multiSplitOutdoor');
   if(!outdoorEl) return;
+  const requestId=++multiSplitOutdoorLoadRequestSeq;
   const includeIndex=Number(options&&options.includeOutdoorIndex);
-  const rows=MULTI_SPLIT_OUTDOORS.map((row,index)=>({row,index})).filter(item=>item.row.brand===brand&&(item.index===includeIndex||productVisibleToCurrentUser(item.row)));
-  outdoorEl.innerHTML=rows.map(item=>`<option value="${item.index}">${htmlEscape(`${item.row.capacity} - ${item.row.series} - ${item.row.model} - ${multiSplitPriceLabel(item.row.unitPriceInc)}${item.row.phase?` - ${item.row.phase}`:''}`)}</option>`).join('');
-  onMultiSplitOutdoorChange();
+  const included=MULTI_SPLIT_OUTDOORS[includeIndex];
+  const previousModel=(included&&brandsEquivalent(included.brand,brand)&&included.model)||(selectedMultiSplitOutdoor()&&selectedMultiSplitOutdoor().model)||'';
+  outdoorEl.disabled=true;
+  outdoorEl.innerHTML='<option value="">Loading registered outdoor models...</option>';
+  multiSplitIndoorSelections=[];
+  renderMultiSplitTrial();
+  if(!brand){outdoorEl.disabled=false;return;}
+  try{
+    const registered=await fetchVerifiedMultiSplitOutdoors(brand);
+    if(requestId!==multiSplitOutdoorLoadRequestSeq) return;
+    let indexes=mergeVerifiedMultiSplitOutdoors(brand,registered);
+    if(included&&brandsEquivalent(included.brand,brand)&&!indexes.includes(includeIndex)) indexes=[includeIndex,...indexes];
+    indexes=[...new Set(indexes)];
+    if(!indexes.length) throw new Error(`No available Australian GEMS multi-split outdoor models were returned for ${brand}`);
+    outdoorEl.innerHTML=indexes.map(index=>{
+      const row=MULTI_SPLIT_OUTDOORS[index];
+      return `<option value="${index}">${htmlEscape(`${row.capacity} - ${row.series} - ${row.model} - ${multiSplitPriceLabel(row.unitPriceInc)}${row.phase?` - ${row.phase}`:''}`)}</option>`;
+    }).join('');
+    const preferred=indexes.find(index=>normalizeLookup(MULTI_SPLIT_OUTDOORS[index].model)===normalizeLookup(previousModel));
+    outdoorEl.value=String(Number.isInteger(preferred)?preferred:indexes[0]);
+    outdoorEl.disabled=false;
+    onMultiSplitOutdoorChange();
+  }catch(error){
+    if(requestId!==multiSplitOutdoorLoadRequestSeq) return;
+    outdoorEl.disabled=false;
+    outdoorEl.innerHTML='<option value="">Outdoor models unavailable</option>';
+    multiSplitIndoorSelections=[];
+    renderMultiSplitTrial();
+    setMultiSplitStatus(String(error&&error.message||error||'The GEMS outdoor model register is unavailable.'),'error');
+  }
 }
 function onMultiSplitOutdoorChange(){
   const outdoor=selectedMultiSplitOutdoor();
@@ -9732,7 +9881,7 @@ function normaliseMultiSplitIndoorSelections(s,outdoor){
     let indoorIndex=Number.isInteger(direct)&&compatible.includes(direct)?direct:-1;
     const modelNorm=normalizeLookup(item && (item.model || item.indoorModel || item.rebateModel || ''));
     if(indoorIndex<0 && modelNorm){
-      indoorIndex=compatible.find(index=>normalizeLookup(MULTI_SPLIT_INDOORS[index].model)===modelNorm);
+      indoorIndex=compatible.find(index=>normalizeLookup(ALL_MODELS_MULTI_INDOORS[index].model)===modelNorm);
     }
     if(indoorIndex<0) return null;
     return {indoorIndex,qty:Math.max(1,Math.floor(Number(item.qty)||1))};
@@ -9742,16 +9891,16 @@ function normaliseMultiSplitIndoorSelections(s,outdoor){
   const fromHeads=heads.map(item=>{
     const modelNorm=normalizeLookup(item && item.model || '');
     const capacity=Number(item && item.capacityNum)||Number(String(item && item.capacity || '').replace(/[^0-9.]/g,''));
-    let indoorIndex=modelNorm?compatible.find(index=>normalizeLookup(MULTI_SPLIT_INDOORS[index].model)===modelNorm):-1;
+    let indoorIndex=modelNorm?compatible.find(index=>normalizeLookup(ALL_MODELS_MULTI_INDOORS[index].model)===modelNorm):-1;
     if(indoorIndex<0 && Number.isFinite(capacity) && capacity>0){
-      indoorIndex=compatible.find(index=>Math.abs((Number(MULTI_SPLIT_INDOORS[index].capacityNum)||0)-capacity)<0.05);
+      indoorIndex=compatible.find(index=>Math.abs((Number(ALL_MODELS_MULTI_INDOORS[index].capacityNum)||0)-capacity)<0.05);
     }
     if(indoorIndex<0) return null;
     return {indoorIndex,qty:Math.max(1,Math.floor(Number(item.qty)||1))};
   }).filter(Boolean);
   return fromHeads.length?fromHeads:[{indoorIndex:compatible[0],qty:1}];
 }
-function loadMultiSplitQuote(q,s){
+async function loadMultiSplitQuote(q,s){
   if(!multiSplitTrialEnabled()){
     setRebateCalcMeta('Multi-head split quotes are not available in this calculator.',true);
     return;
@@ -9766,10 +9915,9 @@ function loadMultiSplitQuote(q,s){
     return;
   }
   const outdoor=MULTI_SPLIT_OUTDOORS[outdoorIdx];
-  populateMultiSplitBrands({includeOutdoorIndex:outdoorIdx});
-  if($('multiSplitBrand')) $('multiSplitBrand').value=outdoor.brand;
-  populateMultiSplitOutdoors({includeOutdoorIndex:outdoorIdx});
-  if($('multiSplitOutdoor')) $('multiSplitOutdoor').value=String(outdoorIdx);
+  await populateMultiSplitBrands({includeOutdoorIndex:outdoorIdx});
+  if($('multiSplitBrand')) $('multiSplitBrand').value=canonicalMultiSplitHeadBrand(outdoor.brand)||outdoor.brand;
+  if($('multiSplitOutdoor')&&Array.from($('multiSplitOutdoor').options||[]).some(option=>Number(option.value)===outdoorIdx)) $('multiSplitOutdoor').value=String(outdoorIdx);
   multiSplitIndoorSelections=normaliseMultiSplitIndoorSelections(s,outdoor);
   syncSharedEssPostcode(String(s.postcode || (s.ess&&s.ess.postcode) || q.postcode || '').trim(),'state',true);
   if($('multiSplitInstallType')) $('multiSplitInstallType').value=s.installType==='new'?'new':'replacement';

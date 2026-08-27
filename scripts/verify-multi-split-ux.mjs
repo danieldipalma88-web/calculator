@@ -42,55 +42,18 @@ assert.match(html, /The rebate calculation will use the connected indoor capacit
 assert.doesNotMatch(html, /daikin-cooling-only|CTKM\d+RVMA|[345]MKM\d+R[2Z]VMA/, "Daikin cooling-only products must not appear in the live catalogue.");
 assert.match(html, /multiOutdoor\('Daikin','Reverse Cycle Lite'/, "Daikin reverse-cycle outdoor products must remain available.");
 assert.match(html, /multiIndoor\('Daikin','Reverse Cycle Cora'/, "Daikin reverse-cycle indoor products must remain available.");
-const expectedDaikinPrices = new Map([
-  ["2MXF70T2VMA", 1380],
-  ["3MXM52R2VMA", 1750],
-  ["4MXM68R2VMA", 2165],
-  ["4MXM80R2VMA", 2500],
-  ["5MXM100R2VMA", 3180],
-  ["CTXF20TVMA", 230],
-  ["CTXF25TVMA", 240],
-  ["CTXF35TVMA", 270],
-  ["CTXF50TVMA", 350],
-  ["CTXM20RVMA", 250],
-  ["CTXM25RVMA", 265],
-  ["CTXM35RVMA", 300],
-  ["CTXM46RVMA", 315],
-  ["CTXM50RVMA", 340],
-  ["CTXM60RVMA", 390],
-  ["CTXM71RVMA", 400],
-]);
-for (const [model, price] of expectedDaikinPrices) {
-  assert.match(
-    html,
-    new RegExp(`'${model}',${price},`),
-    `${model} must retain the approved GST-inclusive price of $${price}.`,
-  );
-}
-const expectedRinnaiPrices = new Map([
-  ["MON2H05B1LA", 1183.52],
-  ["MON3H07B1LA", 1419.33],
-  ["MON4H09B1LA", 1901.79],
-  ["MON5H11B1LA", 2462.79],
-  ["MON5H14B1LA", 2709.63],
-  ["MON6H19B1TA", 3240.34],
-  ["HINRPX20M", 155.39],
-  ["HINRPX25M", 159.82],
-  ["HINRPX35M", 193.85],
-  ["HINRPX50M", 258.24],
-  ["HINRPX60M", 281.14],
-  ["HINRPX70M", 323.55],
-  ["HINRPX80M", 350.48],
-]);
-for (const [model, price] of expectedRinnaiPrices) {
-  assert.match(
-    html,
-    new RegExp(`'${model}',${String(price).replace(".", "\\.")},`),
-    `${model} must retain the GST-inclusive price of $${price.toFixed(2)}.`,
-  );
-}
+assert.match(html, /function clearMultiSplitCataloguePrices\(\)/, "Multi-head pricing must have one explicit reset path.");
+assert.match(html, /clearMultiSplitCataloguePrices\(\);/, "The zero-price reset must run when the calculator catalogue loads.");
+assert.match(html, /MULTI_SPLIT_OUTDOORS\.forEach\(row=>\{row\.unitPriceInc=0;row\.priceIncGst=0;\}\)/, "Every outdoor price must be reset to zero.");
+assert.match(html, /ALL_MODELS_MULTI_INDOORS\.forEach\(row=>\{row\.unitPriceInc=0;row\.priceIncGst=0;\}\)/, "Every indoor-head price must be reset to zero.");
+assert.match(html, /function loadVerifiedMultiSplitBrandRegistry\(\)/, "Available brands must be intersected with the verified head catalogue.");
+assert.match(html, /const brand=canonicalMultiSplitHeadBrand\(rawBrand\)/, "Raw GEMS brand aliases must resolve to the verified catalogue brand.");
+assert.match(html, /function fetchVerifiedMultiSplitOutdoors\(brand\)/, "The quote builder must load current GEMS outdoor models.");
+assert.match(html, /function mergeVerifiedMultiSplitOutdoors\(brand,rows\)/, "Live outdoor models must be available to the quote builder.");
+assert.match(html, /function multiSplitCompatibleIndoorIndexes\(outdoor,options\)[\s\S]*ALL_MODELS_MULTI_INDOORS/, "The quote builder must use the complete verified head catalogue.");
+assert.match(html, /Equipment prices must be added before this system can be quoted/, "Zero-priced multi-head equipment must explain why quoting is blocked.");
 assert.match(html, /HINRPX25M:\[2\.6,3\.25\]/, "Rinnai PX rebate capacity must use manufacturer-rated cooling and heating values.");
-assert.match(html, /MON6H19B1TA',3240\.34,6/, "The 19kW Rinnai outdoor must support six indoor heads.");
+assert.match(html, /MON6H19B1TA',[0-9.]+,6/, "The 19kW Rinnai outdoor must support six indoor heads.");
 
 const normalizeBrand = (value) => {
   const compact = String(value || "").toUpperCase().replace(/[^A-Z0-9]/g, "");

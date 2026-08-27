@@ -29,12 +29,17 @@ assert.match(html, /will not substitute heads from another brand/);
 for (const model of ["AS20PBDHRA", "AS26PBDHRA", "AS35PBDHRA", "AS53PDDHRA", "AS71QEFHRA"]) {
   assert.match(html, new RegExp(`multiIndoor\\('Haier',[^\\n]+${model}`), `${model} must be available in the rebate-only Haier indoor register.`);
 }
-const pricedIndoorCatalogue = html.slice(
-  html.indexOf("const MULTI_SPLIT_INDOORS="),
-  html.indexOf("const ALL_MODELS_MULTI_EXTRA_INDOORS="),
-);
-assert.doesNotMatch(pricedIndoorCatalogue, /multiIndoor\('Haier'/, "Unpriced Haier heads must not leak into the normal quote catalogue.");
 assert.match(html, /const ALL_MODELS_MULTI_INDOORS=\[\.\.\.MULTI_SPLIT_INDOORS,\.\.\.ALL_MODELS_MULTI_EXTRA_INDOORS\]/);
+assert.match(html, /function multiSplitCompatibleIndoorIndexes\(outdoor,options\)[\s\S]*ALL_MODELS_MULTI_INDOORS/);
+assert.match(html, /\.filter\(item=>brandsEquivalent\(item\.row\.brand,outdoor\.brand\)\)/);
+assert.match(html, /function clearMultiSplitCataloguePrices\(\)/);
+assert.match(html, /MULTI_SPLIT_OUTDOORS\.forEach\(row=>\{row\.unitPriceInc=0;row\.priceIncGst=0;\}\)/);
+assert.match(html, /ALL_MODELS_MULTI_INDOORS\.forEach\(row=>\{row\.unitPriceInc=0;row\.priceIncGst=0;\}\)/);
+assert.match(html, /function loadVerifiedMultiSplitBrandRegistry\(\)/);
+assert.match(html, /const brand=canonicalMultiSplitHeadBrand\(rawBrand\)/);
+assert.match(html, /function fetchVerifiedMultiSplitOutdoors\(brand\)/);
+assert.match(html, /function mergeVerifiedMultiSplitOutdoors\(brand,rows\)/);
+assert.match(html, /const registered=await fetchVerifiedMultiSplitOutdoors\(brand\)/);
 
 const combinedIndoorCatalogue = html.slice(
   html.indexOf("const MULTI_SPLIT_INDOORS="),
@@ -47,6 +52,7 @@ const brandCounts = indoorRows.reduce((counts, row) => {
   counts[row.brand] = (counts[row.brand] || 0) + 1;
   return counts;
 }, {});
+assert.equal(Object.keys(brandCounts).length, 18, "The verified indoor-head catalogue must expose exactly the 18 supported brands.");
 for (const [brand, minimum] of Object.entries({
   "Actron Air": 13,
   Carrier: 13,
@@ -71,6 +77,11 @@ for (const [brand, minimum] of Object.entries({
 }
 const indoorKeys = indoorRows.map(row => `${row.brand}|${row.model}`.toLowerCase());
 assert.equal(new Set(indoorKeys).size, indoorKeys.length, "The indoor register must not contain duplicate brand/model pairs.");
+assert.doesNotMatch(
+  html.match(/function multiSplitCompatibleIndoorIndexes\(outdoor,options\)[\s\S]*?\n\}/)?.[0] || "",
+  /item\.row\.family===outdoor\.family/,
+  "The quote builder must show every verified head for the selected brand rather than reverting to a small family list.",
+);
 
 const extraIndoorCatalogue = html.slice(
   html.indexOf("const ALL_MODELS_MULTI_EXTRA_INDOORS="),
