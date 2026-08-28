@@ -10,7 +10,7 @@
     "verify:loading": "node scripts/verify-loading-states.mjs && node scripts/verify-cloud-save-status.mjs && node scripts/verify-calculator-startup.mjs",
     "verify:power-circuit": "node scripts/verify-power-circuit-toggle.mjs && node scripts/verify-power-electrician-display.mjs",
     "verify:user-view": "node scripts/verify-user-view-default.mjs",
-    "verify:admin": "node scripts/verify-admin-workflows.mjs && node scripts/verify-agency-profit-visibility.mjs && node scripts/verify-certificate-price-history.mjs",
+    "verify:admin": "node scripts/verify-admin-workflows.mjs && node scripts/verify-agency-profit-visibility.mjs && node scripts/verify-certificate-price-history.mjs && node scripts/verify-won-rebate-refresh.mjs",
     "verify:auth": "node scripts/verify-email-code-login.mjs",
     "verify:guidance": "node scripts/verify-calculator-guidance-and-model-requests.mjs",
     "verify:price-updates": "node scripts/verify-business-price-update-tool.mjs",

@@ -9476,6 +9476,7 @@ function currentState(){
   const includeCommission=canSeeCommissionDetails();
   return {
     systemType, installType,
+    businessId:String(calculatorUserContext().businessId||''), businessName:activeBusinessName(),
     businessOperatingState:activeBusinessState(), rebateScheme:activeRebateScheme(), rebatesEnabled:rebatesEnabled(),
     customer:$('customer').value, address:$('address').value, date:$('date').value,
     ess:currentEssState(), postcode:getEssPostcode(), essClimateZone:getEssZoneSelection(),
@@ -11329,6 +11330,7 @@ function currentMultiSplitState(x){
   const install=selectedMultiSplitInstallType();
   return {
     systemType:'multi_split',
+    businessId:String(calculatorUserContext().businessId||''), businessName:activeBusinessName(),
     businessOperatingState:activeBusinessState(), rebateScheme:activeRebateScheme(), rebatesEnabled:rebatesEnabled(),
     customer:$('customer').value, address:$('address').value, date:$('date').value,
     ess:{postcode:String(($('multiSplitPostcode')&&$('multiSplitPostcode').value)||'').trim(), climateZone:'auto'},
@@ -11344,7 +11346,7 @@ function currentMultiSplitState(x){
     outdoorUnitPriceInc:outdoor?outdoor.unitPriceInc:0,
     outdoorIndex:Math.max(0,MULTI_SPLIT_OUTDOORS.indexOf(outdoor)),
     indoorSelections:multiSplitIndoorSelections.map(item=>({indoorIndex:Number(item.indoorIndex),qty:Math.max(1,Math.floor(Number(item.qty)||1))})),
-    indoorHeads:indoorItems.map(item=>({brand:item.row.brand,series:item.row.series,capacity:item.row.capacity,model:item.row.model,qty:item.qty,unitPriceInc:item.row.unitPriceInc})),
+    indoorHeads:indoorItems.map(item=>({brand:item.row.brand,series:item.row.series,capacity:item.row.capacity,model:item.row.model,qty:item.qty,unitPriceInc:item.row.unitPriceInc,ratedCoolingCapacity:item.row.ratedCoolingCapacity,ratedHeatingCapacity:item.row.ratedHeatingCapacity})),
     connectedCapacity:x?x.connectedCapacity:multiSplitEquipmentTotals().connectedCapacity,
     multiSplitRebateFresh,
     multiSplitRebateChecked:multiSplitHasCalculated,

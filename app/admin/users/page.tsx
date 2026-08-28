@@ -17,16 +17,23 @@ import {
 } from "../../../lib/certificate-values";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
 import { sendApprovedUserInvitation } from "../../../lib/supabase/approved-user-invitation";
+import {
+  calculateCurrentNswRebate,
+  type CurrentRebateInput,
+  type SavedMultiHeadRating,
+} from "../../../lib/nsw-hvac-rebate";
 import PageLoadingOverlay from "../../page-loading-overlay";
 import BusinessMultiSelect from "./business-multi-select";
 import CertificateHistoryRangeSelect from "./certificate-history-range";
+
+export const maxDuration = 60;
 
 type UserRole = "admin" | "business_owner" | "agency" | "salesperson" | "user";
 type CommissionType = "none" | "standard" | "agency";
 type CommissionOverride = CommissionType | "business_default";
 type OperatingState = "NSW" | "VIC" | "QLD" | "SA" | "WA" | "TAS" | "ACT" | "NT";
 type WonPaymentStatus = "payment_open" | "payment_requested" | "payment_partial" | "payment_complete";
-type WonOptionUpdateMode = "unlock" | "delete" | "payment_requested" | "paid_in" | "paid_out" | "reset_payment";
+type WonOptionUpdateMode = "unlock" | "delete" | "payment_requested" | "paid_in" | "paid_out" | "reset_payment" | "update_rebate";
 type CertificateHistoryRange = "4w" | "3m" | "6m" | "1y" | "all";
 
 type CertificateValueHistory = {
@@ -3744,6 +3751,7 @@ async function updateWonPaymentStatus(formData: FormData) {
 
 type WonOptionSelection = {
   userEmail: string;
+  businessName: string;
   dataUserId: string;
   dataOwnerEmail: string;
   sourceId: string;
@@ -3770,6 +3778,7 @@ function parseWonOptionSelections(value: FormDataEntryValue | null) {
     const record = item as Record<string, unknown>;
     const selection = {
       userEmail: String(record.userEmail || "").trim().toLowerCase(),
+      businessName: String(record.businessName || "").trim(),
       dataUserId: String(record.dataUserId || "").trim(),
       dataOwnerEmail: String(record.dataOwnerEmail || "").trim().toLowerCase(),
       sourceId: String(record.sourceId || CURRENT_WON_SOURCE_ID).trim() || CURRENT_WON_SOURCE_ID,
@@ -3792,6 +3801,434 @@ function parseWonOptionSelections(value: FormDataEntryValue | null) {
   return selections;
 }
 
+type RebateRefreshEnvironment = {
+  businesses: Business[];
+  businessValuesById: Record<string, CertificateValues>;
+  usersByEmail: Map<string, ApprovedUser>;
+};
+
+type RebateRefreshResult = {
+  errorMessage: string;
+  systemCount: number;
+  previousTotal: number;
+  nextTotal: number;
+};
+
+function quoteState(row: Record<string, unknown>) {
+  return row.state && typeof row.state === "object" && !Array.isArray(row.state)
+    ? row.state as Record<string, unknown>
+    : {};
+}
+
+function quoteEssState(state: Record<string, unknown>) {
+  return state.ess && typeof state.ess === "object" && !Array.isArray(state.ess)
+    ? state.ess as Record<string, unknown>
+    : {};
+}
+
+function savedQuoteSystemType(row: Record<string, unknown>): CurrentRebateInput["systemType"] {
+  const state = quoteState(row);
+  const value = String(state.systemType || row.type || "").toLowerCase();
+  if (value.includes("multi")) return "multi_split";
+  if (value.includes("ducted")) return "ducted";
+  return "split";
+}
+
+function savedQuotePostcode(row: Record<string, unknown>) {
+  const state = quoteState(row);
+  const ess = quoteEssState(state);
+  return String(row.postcode || state.postcode || ess.postcode || "").trim();
+}
+
+function savedQuoteInstallType(row: Record<string, unknown>): CurrentRebateInput["installType"] {
+  const state = quoteState(row);
+  const value = String(state.installType || row.install || "").toLowerCase();
+  return value.startsWith("rep") ? "replacement" : "new";
+}
+
+function savedQuoteBrand(row: Record<string, unknown>) {
+  const state = quoteState(row);
+  return String(state.brand || row.brand || "").trim();
+}
+
+function savedQuoteModel(row: Record<string, unknown>) {
+  const state = quoteState(row);
+  return String(
+    savedQuoteSystemType(row) === "multi_split"
+      ? state.outdoorModel || state.model || ""
+      : state.model || row.model || "",
+  ).trim();
+}
+
+function savedMultiHeadRatings(row: Record<string, unknown>): SavedMultiHeadRating[] {
+  const heads = quoteState(row).indoorHeads;
+  if (!Array.isArray(heads)) return [];
+  return heads.flatMap((head) => {
+    if (!head || typeof head !== "object" || Array.isArray(head)) return [];
+    const record = head as Record<string, unknown>;
+    return [{
+      model: String(record.model || "indoor head"),
+      qty: Math.max(1, Math.floor(moneyValue(record.qty) || 1)),
+      ratedCoolingCapacity: moneyValue(record.ratedCoolingCapacity),
+      ratedHeatingCapacity: moneyValue(record.ratedHeatingCapacity),
+    }];
+  });
+}
+
+function savedQuoteOperatingState(row: Record<string, unknown>) {
+  return String(quoteState(row).businessOperatingState || "NSW").trim().toUpperCase();
+}
+
+function savedQuoteBusinessId(row: Record<string, unknown>) {
+  const state = quoteState(row);
+  return String(state.businessId || row.businessId || "").trim();
+}
+
+function savedQuoteBusinessName(row: Record<string, unknown>) {
+  const state = quoteState(row);
+  return String(state.businessName || row.businessName || "").trim();
+}
+
+function sameCertificateRates(values: CertificateValues[]) {
+  const keys = new Set(values.map((value) => `${value.escRate.toFixed(2)}|${value.prcRate.toFixed(2)}`));
+  return keys.size <= 1;
+}
+
+function certificateValuesForSavedQuote(
+  selection: WonOptionSelection,
+  row: Record<string, unknown>,
+  environment: RebateRefreshEnvironment,
+) {
+  const explicitBusinessId = savedQuoteBusinessId(row);
+  if (explicitBusinessId && environment.businessValuesById[explicitBusinessId]) {
+    return environment.businessValuesById[explicitBusinessId];
+  }
+
+  const user = environment.usersByEmail.get(selection.userEmail);
+  let candidates = environment.businesses.filter((business) => user?.business_ids.includes(business.id));
+  const exactName = savedQuoteBusinessName(row);
+  if (exactName) {
+    const named = candidates.filter((business) => business.name.toLowerCase() === exactName.toLowerCase());
+    if (named.length) candidates = named;
+  }
+  const operatingState = savedQuoteOperatingState(row);
+  const stateMatches = candidates.filter((business) => business.operating_state === operatingState);
+  if (stateMatches.length) candidates = stateMatches;
+
+  if (!candidates.length && selection.businessName) {
+    const selectionNames = selection.businessName.split(",").map((name) => name.trim().toLowerCase()).filter(Boolean);
+    candidates = environment.businesses.filter((business) => (
+      selectionNames.includes(business.name.toLowerCase()) && business.operating_state === operatingState
+    ));
+  }
+
+  const values = candidates
+    .map((business) => environment.businessValuesById[business.id])
+    .filter((value): value is CertificateValues => Boolean(value));
+  if (!values.length) {
+    throw new Error(`Could not identify the ${operatingState} business certificate agreement for this quote`);
+  }
+  if (!sameCertificateRates(values)) {
+    throw new Error("This user belongs to multiple businesses with different certificate agreements, and the saved quote does not identify which one applies");
+  }
+  return values[0];
+}
+
+function boundedCommissionRate(value: unknown, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.max(0, Math.min(100, parsed)) : fallback;
+}
+
+function savedQuoteCommissionTypeForRefresh(row: Record<string, unknown>) {
+  const state = quoteState(row);
+  const value = String(state.commissionType || row.commissionType || "").toLowerCase();
+  if (value === "none" || value === "standard" || value === "agency") return value;
+  if (moneyValue(row.agencyCommission ?? row.commission) > 0) return "agency";
+  if (moneyValue(row.salespersonCommission) > 0) return "standard";
+  return "none";
+}
+
+function savedAgencyCommissionRate(row: Record<string, unknown>) {
+  const state = quoteState(row);
+  const explicit = state.agencyCommissionRate ?? state.commissionRate ?? row.agencyCommissionRate ?? row.commissionRate;
+  if (explicit !== undefined && explicit !== null && explicit !== "") return boundedCommissionRate(explicit);
+  const oldCashProfit = moneyValue(row.cashProfit);
+  const oldCommission = moneyValue(row.agencyCommission ?? row.commission);
+  const oldSalespersonCommission = moneyValue(row.salespersonCommission);
+  const type = savedQuoteCommissionTypeForRefresh(row);
+  if (oldCashProfit > 0 && type === "agency") return boundedCommissionRate((oldCommission / oldCashProfit) * 100);
+  if (oldCashProfit > 0 && type === "standard") return boundedCommissionRate((oldSalespersonCommission / oldCashProfit) * 100);
+  return 0;
+}
+
+function savedSalespersonCommissionRate(row: Record<string, unknown>) {
+  const state = quoteState(row);
+  const explicit = state.salespersonCommissionRate ?? row.salespersonCommissionRate;
+  if (explicit !== undefined && explicit !== null && explicit !== "") return boundedCommissionRate(explicit);
+  const oldAgencyCommission = moneyValue(row.agencyCommission ?? row.commission);
+  const oldSalespersonCommission = moneyValue(row.salespersonCommission);
+  return oldAgencyCommission > 0
+    ? boundedCommissionRate((oldSalespersonCommission / oldAgencyCommission) * 100)
+    : 0;
+}
+
+function recomputeSavedQuoteAfterRebate(row: Record<string, unknown>, rebate: number) {
+  const next = { ...row };
+  const state: Record<string, unknown> = { ...quoteState(row), rebate: rebate.toFixed(2) };
+  const unitInc = moneyValue(next.unitInc);
+  const labour = moneyValue(next.labour);
+  const materialsInc = quoteMaterialsInc(next);
+  const miscInc = next.miscInc !== undefined ? moneyValue(next.miscInc) : moneyValue(state.misc);
+  const service = quotePowerOrElectricianEx(next);
+  const powerCostType = savedQuoteSystemType(next) !== "ducted";
+  const addOns = !powerCostType && String(state.airtouch || "") === "yes"
+    ? 1100 + (moneyValue(state.sensors) * 82) + (moneyValue(state.zones) * 65)
+    : 0;
+  const finalInc = moneyValue(next.finalInc);
+  const sellEx = finalInc / 1.1;
+  const trueCost = (unitInc / 1.1) + labour + (materialsInc / 1.1) + (miscInc / 1.1) + service + addOns;
+  const dealProfit = sellEx - trueCost + rebate;
+  const labourTreatment = String(next.labourTreatment || (powerCostType ? "Retained" : "Expense"));
+  const cashProfit = dealProfit + (labourTreatment === "Retained" ? labour : 0);
+  const commissionType = savedQuoteCommissionTypeForRefresh(next);
+  const commissionModelOn = commissionType !== "none" && state.commissionModelOn !== false;
+  const agencyCommissionRate = commissionModelOn ? savedAgencyCommissionRate(next) : 0;
+  const salespersonCommissionRate = commissionModelOn ? savedSalespersonCommissionRate(next) : 0;
+  let agencyCommission = 0;
+  let salespersonCommission = 0;
+  if (commissionModelOn && commissionType === "agency") {
+    agencyCommission = cashProfit * (agencyCommissionRate / 100);
+    salespersonCommission = agencyCommission * (salespersonCommissionRate / 100);
+  } else if (commissionModelOn && commissionType === "standard") {
+    salespersonCommission = cashProfit * (agencyCommissionRate / 100);
+  }
+  const agencyCommissionGst = commissionModelOn ? agencyCommission * 0.1 : 0;
+  const salespersonCommissionGst = commissionModelOn ? salespersonCommission * 0.1 : 0;
+  const netProfit = cashProfit - (commissionType === "standard" ? salespersonCommission : agencyCommission);
+
+  return {
+    ...next,
+    state,
+    rebate,
+    materialsInc,
+    matsEx: materialsInc / 1.1,
+    miscInc,
+    otherEx: (miscInc / 1.1) + service + addOns,
+    trueCost,
+    cashProfit,
+    commissionType,
+    commissionModelOn,
+    commissionRate: agencyCommissionRate,
+    agencyCommissionRate,
+    agencyCommission,
+    agencyCommissionGst,
+    agencyCommissionInc: agencyCommission + agencyCommissionGst,
+    salespersonCommissionRate,
+    salespersonCommission,
+    salespersonCommissionGst,
+    salespersonCommissionInc: salespersonCommission + salespersonCommissionGst,
+    commission: agencyCommission,
+    commissionGst: agencyCommissionGst,
+    commissionInc: agencyCommission + agencyCommissionGst,
+    netProfit,
+    margin: sellEx ? cashProfit / sellEx : 0,
+    netMargin: sellEx ? netProfit / sellEx : 0,
+    syncUpdatedAt: Date.now(),
+  };
+}
+
+function optionTargetIds(
+  optionDefs: Record<string, unknown>[],
+  quotes: Record<string, unknown>[],
+  selection: WonOptionSelection,
+) {
+  const ids = new Set<string>();
+  optionDefs.forEach((option) => {
+    if (wonOptionId(option) !== selection.optionId) return;
+    if (selection.wonAt && String(option.wonAt || "") !== selection.wonAt) return;
+    ids.add(wonOptionId(option));
+  });
+  quotes.forEach((quote) => {
+    const id = String(quote.optionId || "option_1");
+    if (id !== selection.optionId) return;
+    if (selection.wonAt && quote.wonAt && String(quote.wonAt) !== selection.wonAt) return;
+    ids.add(id);
+  });
+  return ids;
+}
+
+async function refreshQuoteRows(
+  quotes: Record<string, unknown>[],
+  optionDefs: Record<string, unknown>[],
+  selection: WonOptionSelection,
+  environment: RebateRefreshEnvironment,
+) {
+  const targetIds = optionTargetIds(optionDefs, quotes, selection);
+  if (!targetIds.size) throw new Error("Could not find that won quote in the saved calculator data");
+  const targetIndexes = quotes.flatMap((quote, index) => (
+    targetIds.has(String(quote.optionId || "option_1")) ? [index] : []
+  ));
+  if (!targetIndexes.length) throw new Error("The won quote does not contain any saved systems");
+  const previousTotal = targetIndexes.reduce((sum, index) => sum + quoteRebateValue(quotes[index]), 0);
+  const calculated = await Promise.all(targetIndexes.map(async (index) => {
+    const row = quotes[index];
+    if (quoteStateDisablesRebates(row)) return { index, rebate: 0 };
+    const values = certificateValuesForSavedQuote(selection, row, environment);
+    const systemType = savedQuoteSystemType(row);
+    const result = await calculateCurrentNswRebate({
+      brand: savedQuoteBrand(row),
+      model: savedQuoteModel(row),
+      postcode: savedQuotePostcode(row),
+      installType: savedQuoteInstallType(row),
+      systemType,
+      escRate: values.escRate,
+      prcRate: values.prcRate,
+      ...(systemType === "multi_split" ? { indoorHeads: savedMultiHeadRatings(row) } : {}),
+    });
+    return { index, rebate: result.rebate };
+  }));
+  const nextQuotes = quotes.slice();
+  calculated.forEach(({ index, rebate }) => {
+    nextQuotes[index] = recomputeSavedQuoteAfterRebate(quotes[index], rebate);
+  });
+  return {
+    quotes: nextQuotes,
+    systemCount: calculated.length,
+    previousTotal,
+    nextTotal: calculated.reduce((sum, item) => sum + item.rebate, 0),
+  };
+}
+
+function savedWonRebateSummary(data: Record<string, unknown>, selection: WonOptionSelection) {
+  let optionDefs: Record<string, unknown>[] = [];
+  let quotes: Record<string, unknown>[] = [];
+  if (selection.sourceId === CURRENT_WON_SOURCE_ID) {
+    optionDefs = parseStoredJson<Record<string, unknown>[]>(
+      data[storedJsonKey(data, OPTION_DEF_STORAGE_KEYS)],
+      [],
+    );
+    quotes = parseStoredJson<Record<string, unknown>[]>(
+      data[storedJsonKey(data, QUOTE_STORAGE_KEYS)],
+      [],
+    );
+  } else {
+    const savedSets = parseStoredJson<Record<string, unknown>[]>(
+      data[storedJsonKey(data, SAVED_QUOTE_SET_STORAGE_KEYS)],
+      [],
+    );
+    const savedSet = savedSets.find((set, index) => savedQuoteSetSourceId(set, index) === selection.sourceId);
+    if (savedSet) {
+      optionDefs = Array.isArray(savedSet.optionDefs) ? savedSet.optionDefs as Record<string, unknown>[] : [];
+      quotes = Array.isArray(savedSet.quotes) ? savedSet.quotes as Record<string, unknown>[] : [];
+    }
+  }
+  const targetIds = optionTargetIds(optionDefs, quotes, selection);
+  const rows = quotes.filter((quote) => targetIds.has(String(quote.optionId || "option_1")));
+  return {
+    systemCount: rows.length,
+    rebateTotal: rows.reduce((sum, row) => sum + quoteRebateValue(row), 0),
+  };
+}
+
+async function refreshWonOptionRebate(
+  supabase: SupabaseServer,
+  selection: WonOptionSelection,
+  environment: RebateRefreshEnvironment,
+): Promise<RebateRefreshResult> {
+  if (backupSourceParts(selection.sourceId)) {
+    return { errorMessage: "Recovered backup quotes cannot be repriced; restore the quote first", systemCount: 0, previousTotal: 0, nextTotal: 0 };
+  }
+  const ownerEmail = (selection.dataOwnerEmail || selection.userEmail).toLowerCase();
+  const ownerColumn = selection.dataUserId ? "user_id" : "email";
+  const ownerValue = selection.dataUserId || ownerEmail;
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    let dataQuery = supabase.from("user_calculator_data").select("user_id, data, updated_at");
+    dataQuery = dataQuery.eq(ownerColumn, ownerValue);
+    const dataResult = await dataQuery.maybeSingle();
+    if (dataResult.error) return { errorMessage: dbMessage(dataResult.error), systemCount: 0, previousTotal: 0, nextTotal: 0 };
+    if (!dataResult.data?.data) return { errorMessage: "Could not find saved calculator data for this user", systemCount: 0, previousTotal: 0, nextTotal: 0 };
+
+    const originalData = dataResult.data.data as Record<string, unknown>;
+    const nextData = { ...originalData };
+    let refreshed: Awaited<ReturnType<typeof refreshQuoteRows>> | null = null;
+    try {
+      if (selection.sourceId === CURRENT_WON_SOURCE_ID) {
+        const optionDefsKey = storedJsonKey(nextData, OPTION_DEF_STORAGE_KEYS);
+        const quotesKey = storedJsonKey(nextData, QUOTE_STORAGE_KEYS);
+        const optionDefs = parseStoredJson<Record<string, unknown>[]>(nextData[optionDefsKey], []);
+        const quotes = parseStoredJson<Record<string, unknown>[]>(nextData[quotesKey], []);
+        refreshed = await refreshQuoteRows(quotes, optionDefs, selection, environment);
+        nextData[quotesKey] = serializeLikeStoredValue(nextData[quotesKey], refreshed.quotes);
+      } else {
+        const savedSetsKey = storedJsonKey(nextData, SAVED_QUOTE_SET_STORAGE_KEYS);
+        const savedSets = parseStoredJson<Record<string, unknown>[]>(nextData[savedSetsKey], []);
+        let matched = false;
+        const nextSets: Record<string, unknown>[] = [];
+        for (let index = 0; index < savedSets.length; index += 1) {
+          const set = savedSets[index];
+          if (savedQuoteSetSourceId(set, index) !== selection.sourceId) {
+            nextSets.push(set);
+            continue;
+          }
+          const optionDefs = Array.isArray(set.optionDefs) ? set.optionDefs as Record<string, unknown>[] : [];
+          const quotes = Array.isArray(set.quotes) ? set.quotes as Record<string, unknown>[] : [];
+          refreshed = await refreshQuoteRows(quotes, optionDefs, selection, environment);
+          nextSets.push({ ...set, quotes: refreshed.quotes });
+          matched = true;
+        }
+        if (!matched || !refreshed) throw new Error("Could not find that saved quote set");
+        nextData[savedSetsKey] = serializeLikeStoredValue(nextData[savedSetsKey], nextSets);
+      }
+    } catch (error) {
+      return { errorMessage: error instanceof Error ? error.message : String(error), systemCount: 0, previousTotal: 0, nextTotal: 0 };
+    }
+
+    const updatedAt = new Date().toISOString();
+    let updateQuery = supabase
+      .from("user_calculator_data")
+      .update({ data: nextData, updated_at: updatedAt })
+      .eq(ownerColumn, ownerValue);
+    updateQuery = dataResult.data.updated_at
+      ? updateQuery.eq("updated_at", dataResult.data.updated_at)
+      : updateQuery.is("updated_at", null);
+    const updateResult = await updateQuery.select("updated_at");
+    if (updateResult.error) return { errorMessage: dbMessage(updateResult.error), systemCount: 0, previousTotal: 0, nextTotal: 0 };
+    if (updateResult.data?.length && refreshed) {
+      let verifyQuery = supabase.from("user_calculator_data").select("data");
+      verifyQuery = verifyQuery.eq(ownerColumn, ownerValue);
+      const verifyResult = await verifyQuery.maybeSingle();
+      if (verifyResult.error || !verifyResult.data?.data) {
+        return {
+          errorMessage: `The rebate was saved but could not be verified. ${verifyResult.error ? dbMessage(verifyResult.error) : "Please reload and check the quote."}`,
+          systemCount: 0,
+          previousTotal: 0,
+          nextTotal: 0,
+        };
+      }
+      const verified = savedWonRebateSummary(verifyResult.data.data as Record<string, unknown>, selection);
+      if (
+        verified.systemCount !== refreshed.systemCount
+        || Math.abs(verified.rebateTotal - refreshed.nextTotal) > 0.01
+      ) {
+        return {
+          errorMessage: "The saved rebate did not pass verification; reload the quote before requesting payment",
+          systemCount: 0,
+          previousTotal: 0,
+          nextTotal: 0,
+        };
+      }
+      return {
+        errorMessage: "",
+        systemCount: refreshed.systemCount,
+        previousTotal: refreshed.previousTotal,
+        nextTotal: refreshed.nextTotal,
+      };
+    }
+  }
+  return { errorMessage: "Calculator data changed while the rebate was updating; please retry", systemCount: 0, previousTotal: 0, nextTotal: 0 };
+}
+
 async function bulkUpdateWonOptions(formData: FormData) {
   "use server";
 
@@ -3803,8 +4240,54 @@ async function bulkUpdateWonOptions(formData: FormData) {
     redirect("/admin/users?error=Select at least one won option first.");
   }
 
-  if (!["payment_requested", "paid_in", "paid_out", "reset_payment", "unlock", "delete"].includes(mode)) {
+  if (!["payment_requested", "paid_in", "paid_out", "reset_payment", "unlock", "delete", "update_rebate"].includes(mode)) {
     redirect("/admin/users?error=Choose a valid bulk action.");
+  }
+
+  if (mode === "update_rebate") {
+    const businessResult = await listBusinesses(supabase);
+    const [usersResult, membershipsResult, certificateResult] = await Promise.all([
+      listApprovedUsers(supabase, businessResult.data),
+      listUserBusinessMemberships(supabase, businessResult.data),
+      getPlatformCertificateValues(supabase, businessResult.data),
+    ]);
+    const setupErrors = [
+      businessResult.errorMessage,
+      usersResult.errorMessage,
+      membershipsResult.errorMessage,
+      certificateResult.errorMessage,
+    ].filter(Boolean);
+    if (setupErrors.length) {
+      redirect(`/admin/users?error=${encodeURIComponent(`Rebate update setup failed. ${setupErrors.join(" ")}`)}`);
+    }
+    const users = applyMembershipsToUsers(usersResult.data, membershipsResult.data);
+    const environment: RebateRefreshEnvironment = {
+      businesses: businessResult.data,
+      businessValuesById: certificateResult.businessValuesById,
+      usersByEmail: new Map(users.map((user) => [user.email.toLowerCase(), user])),
+    };
+    const errors: string[] = [];
+    let updatedCount = 0;
+    let systemCount = 0;
+    let previousTotal = 0;
+    let nextTotal = 0;
+    for (const selection of selections) {
+      const result = await refreshWonOptionRebate(supabase, selection, environment);
+      if (result.errorMessage) {
+        errors.push(`${selection.userEmail}: ${result.errorMessage}`);
+      } else {
+        updatedCount += 1;
+        systemCount += result.systemCount;
+        previousTotal += result.previousTotal;
+        nextTotal += result.nextTotal;
+      }
+    }
+    revalidatePath("/admin/users");
+    const summary = `${updatedCount} won quote${updatedCount === 1 ? "" : "s"} updated across ${systemCount} system${systemCount === 1 ? "" : "s"}. Rebate total changed from ${formatMoney(previousTotal)} to ${formatMoney(nextTotal)}.`;
+    if (errors.length) {
+      redirect(`/admin/users?error=${encodeURIComponent(`${summary} ${errors.length} failed. ${errors.slice(0, 3).join(" ")}`)}`);
+    }
+    redirect(`/admin/users?message=${encodeURIComponent(summary)}`);
   }
 
   const errors: string[] = [];
@@ -3861,6 +4344,9 @@ function WonBulkActionControls({ mobile = false }: { mobile?: boolean }) {
     <>
       <form action={bulkUpdateWonOptions} className={className} data-bulk-won-form>
         <input type="hidden" name="selectedWonOptions" data-selected-won-input />
+        <button className="secondary" type="submit" name="bulkMode" value="update_rebate">
+          Update rebate
+        </button>
         <button className="secondary" type="submit" name="bulkMode" value="payment_requested">
           Mark payment requested
         </button>
@@ -4996,6 +5482,7 @@ export default async function AdminUsersPage({
                 data-export-row={JSON.stringify(wonExportRow(option))}
                 data-won-selection={JSON.stringify({
                   userEmail: option.userEmail,
+                  businessName: option.businessName,
                   dataUserId: option.dataUserId,
                   dataOwnerEmail: option.dataOwnerEmail,
                   sourceId: option.sourceId,
