@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   cleanGemsBrand,
+  gemsDatastoreSearchQuery,
   isEligibleAustralianGemsRecord,
   isGemsMultiSplitOutdoorRecord,
   mapGemsModelSearchItem,
@@ -43,6 +44,11 @@ assert.match(route, /query\.length < 2/);
 assert.match(route, /slice\(0, 30\)/);
 
 assert.equal(normalizeGemsModelQuery("  RXM-25 / FTXM-25  "), "RXM25FTXM25");
+assert.equal(
+  gemsDatastoreSearchQuery("  AOTG09KMTC/ASTG09KMTC  "),
+  "AOTG09KMTC/ASTG09KMTC",
+  "The remote GEMS query must preserve paired-model separators",
+);
 assert.equal(cleanGemsBrand(" Daikin\u0000 "), "Daikin");
 
 assert.equal(

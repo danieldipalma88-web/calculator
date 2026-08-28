@@ -64,6 +64,13 @@ export function normalizeGemsModelQuery(value: string) {
     .slice(0, 80);
 }
 
+export function gemsDatastoreSearchQuery(value: string) {
+  return String(value || "")
+    .replace(/[\u0000-\u001f\u007f]/g, "")
+    .trim()
+    .slice(0, 160);
+}
+
 export function cleanGemsBrand(value: string) {
   return String(value || "")
     .replace(/[\u0000-\u001f\u007f]/g, "")
@@ -263,7 +270,9 @@ export async function fetchGemsDatastoreRecords(options: {
         limit: String(Math.min(Math.max(Math.floor(options.limit || 1000), 1), 10_000)),
       });
       const brand = cleanGemsBrand(options.brand || "");
-      const query = normalizeGemsModelQuery(options.query || "");
+      // CKAN searches registered paired models by their original punctuation.
+      // Compact normalization is only appropriate when comparing returned rows.
+      const query = gemsDatastoreSearchQuery(options.query || "");
       if (brand) {
         params.set(
           "filters",
