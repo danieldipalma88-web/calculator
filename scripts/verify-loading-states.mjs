@@ -26,7 +26,6 @@ const checks = [
   [files.ui, "const result=await withTimeout(", "live rebate hard timeout"],
   [files.ui, "standardMissing||liveRebateLoading", "Add to Quote rebate protection"],
   [files.ui, "setSectionLoading('bestValueComparison',true", "best value comparison loader"],
-  [files.ui, "setSectionLoading('energySavingsBody',true", "energy savings loader"],
   [files.ui, "setSectionLoading('multiSplitRebatePanel',true", "multi-head rebate loader"],
   [files.ui, "setWonAddressBusy(true)", "Google address verification loader"],
 ];

@@ -150,10 +150,10 @@ assert.match(
   /function openWonJobsDrawer\(\)\{ensureSecondaryStartup\(\);/,
   "Opening won jobs must initialize deferred quote history immediately.",
 );
-assert.match(
+assert.doesNotMatch(
   calculatorUi,
-  /function toggleEnergySavingsPanel\(forceOpen\)\{\s*ensureSecondaryStartup\(\);/,
-  "Opening energy savings must initialize its deferred controls immediately.",
+  /energySavings|\bENERGY_(?:SAVINGS|HEATING|COOLING|DEFAULT_ELECTRICITY|EXISTING)|energyPanelOpen|firstFiniteEnergyValue|energyBasisLabel|Estimated annual saving/i,
+  "The removed annual energy savings estimator must not retain UI, settings, helpers or background requests.",
 );
 
 const startupBlock =
@@ -163,7 +163,7 @@ const startupBlock =
 assert.ok(startupBlock, "The primary calculator startup block must be present.");
 assert.doesNotMatch(
   startupBlock,
-  /loadSavedQuoteSets\(\)|loadQuoteExportName\(\)|initEnergySavingsControls\(\)/,
+  /loadSavedQuoteSets\(\)|loadQuoteExportName\(\)/,
   "Secondary tools must not block the primary calculator startup.",
 );
 
