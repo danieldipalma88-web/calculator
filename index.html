@@ -6499,10 +6499,18 @@ function normalizeEssClimateZone(zone){
 }
 function isEssClimateZoneFallbackPostcode(postcode){
   const n=Number(postcode);
-  return Number.isInteger(n) && ((n>=2555 && n<=2560) || (n>=2563 && n<=2574));
+  return Number.isInteger(n) && (
+    (n>=2545 && n<=2546) ||
+    (n>=2548 && n<=2551) ||
+    (n>=2555 && n<=2560) ||
+    (n>=2563 && n<=2574)
+  );
 }
 function fallbackEssClimateZoneFromPostcode(postcode){
-  if(isEssClimateZoneFallbackPostcode(postcode)) return 'mixed';
+  const n=Number(postcode);
+  if(!Number.isInteger(n)) return '';
+  if((n>=2545 && n<=2546) || (n>=2548 && n<=2551)) return 'cold';
+  if((n>=2555 && n<=2560) || (n>=2563 && n<=2574)) return 'mixed';
   return '';
 }
 function electricFutureBcaClimateZoneOverride(postcode){

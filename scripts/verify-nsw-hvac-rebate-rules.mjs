@@ -17,7 +17,7 @@ function extractConstArray(name) {
   return vm.runInNewContext(`(${indexHtml.slice(arrayStart, arrayEnd + 1)})`);
 }
 
-function extractFunction(name) {
+function extractFunction(name, context = {}) {
   const marker = `function ${name}`;
   const start = indexHtml.indexOf(marker);
   assert.notEqual(start, -1, `${name} must exist in index.html`);
@@ -26,7 +26,7 @@ function extractFunction(name) {
   for (let index = bodyStart; index < indexHtml.length; index += 1) {
     if (indexHtml[index] === "{") depth += 1;
     if (indexHtml[index] === "}") depth -= 1;
-    if (depth === 0) return vm.runInNewContext(`(${indexHtml.slice(start, index + 1)})`);
+    if (depth === 0) return vm.runInNewContext(`(${indexHtml.slice(start, index + 1)})`, context);
   }
   assert.fail(`${name} must have a complete function body`);
 }
@@ -34,6 +34,8 @@ function extractFunction(name) {
 const eligibleClasses = extractConstArray("NSW_HVAC_ELIGIBLE_PRODUCT_CLASS_NUMBERS");
 const requirements = extractConstArray("NSW_HVAC_EFFICIENCY_REQUIREMENTS");
 const bcaZoneOverride = extractFunction("electricFutureBcaClimateZoneOverride");
+const fallbackPostcode = extractFunction("isEssClimateZoneFallbackPostcode");
+const fallbackClimateZone = extractFunction("fallbackEssClimateZoneFromPostcode");
 
 function requirementForClass(productClass) {
   return requirements.find((req) => req.classes.includes(productClass));
@@ -102,6 +104,16 @@ for (const postcode of ["2160", "2161", "2162"]) {
   assert.equal(bcaZoneOverride(postcode), null, `Postcode ${postcode} must continue using the NSW service's BCA zone.`);
 }
 assert.equal(bcaZoneOverride("2170"), null, "Postcode 2170 must continue using the NSW service's BCA zone.");
+for (const postcode of ["2545", "2546", "2548", "2549", "2550", "2551"]) {
+  assert.equal(fallbackPostcode(postcode), true, `Postcode ${postcode} must use the NSW-service fallback path.`);
+  assert.equal(fallbackClimateZone(postcode), "cold", `Postcode ${postcode} must follow the official cold-zone classification.`);
+}
+for (const postcode of ["2555", "2560", "2563", "2574"]) {
+  assert.equal(fallbackPostcode(postcode), true, `Postcode ${postcode} must retain the NSW-service fallback path.`);
+  assert.equal(fallbackClimateZone(postcode), "mixed", `Postcode ${postcode} must retain its average/mixed classification.`);
+}
+assert.equal(fallbackPostcode("2500"), false, "Postcode 2500 must continue using the valid NSW service response.");
+assert.equal(fallbackClimateZone("2500"), "", "Postcode 2500 must not be overridden.");
 const fujitsu2163Prc = 4.364051 * 1.04 * 10;
 const fujitsu2170Prc = 8.252022 * 1.05 * 10;
 assert.equal(Number(fujitsu2163Prc.toFixed(2)), 45.39, "Postcode 2163 must reproduce Electric Future's PERC quantity.");

@@ -358,9 +358,10 @@ function normalizeClimateZone(value: unknown): ClimateZone | "" {
 
 function fallbackClimateZone(postcode: string): ClimateZone | "" {
   const number = Number(postcode);
-  return Number.isInteger(number) && ((number >= 2555 && number <= 2560) || (number >= 2563 && number <= 2574))
-    ? "mixed"
-    : "";
+  if (!Number.isInteger(number)) return "";
+  if ((number >= 2545 && number <= 2546) || (number >= 2548 && number <= 2551)) return "cold";
+  if ((number >= 2555 && number <= 2560) || (number >= 2563 && number <= 2574)) return "mixed";
+  return "";
 }
 
 async function resolveClimate(postcode: string) {
@@ -503,8 +504,7 @@ function decimalPrc(building: Record<string, unknown>) {
 }
 
 function isFallbackPostcode(postcode: string) {
-  const value = Number(postcode);
-  return Number.isInteger(value) && ((value >= 2555 && value <= 2560) || (value >= 2563 && value <= 2574));
+  return Boolean(fallbackClimateZone(postcode));
 }
 
 function proxyPostcode(climateZone: ClimateZone) {
