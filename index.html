@@ -1328,6 +1328,18 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
   text-transform:uppercase;
 }
 .productSupportChip strong{color:#0f172a;font-size:15px;line-height:1.25}
+.multiSplitSetupHeader{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.multiSplitSetupHeader .sectionTitle{margin:0}
+.multiSplitSetupHeader .modelRequestLink{display:inline-flex;align-items:center;justify-content:flex-end;min-height:44px;max-width:none;white-space:nowrap}
+.multiSplitProductMeta{display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,.82fr);gap:12px;align-items:start;margin-top:12px}
+.multiSplitFactStrip{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.multiSplitFact{min-width:0;padding:8px 10px;border-top:1px solid #d8e3ef;border-bottom:1px solid #d8e3ef}
+.multiSplitFact span{display:block;color:#64748b;font-size:10.5px;font-weight:900;letter-spacing:0;text-transform:uppercase}
+.multiSplitFact strong{display:block;margin-top:3px;color:#0f172a;font-size:14px;line-height:1.25;overflow-wrap:anywhere}
+.multiSplitPriceCell{min-width:0;padding:10px 12px;border:1px solid #d8e3ef;border-radius:8px;background:#f8fbfd}
+.multiSplitPriceCell.priceMissing{border-color:#f2b84b;background:#fff9e8}
+.multiSplitPriceCell.priceMissing span{color:#8a4b00}
+.multiSplitPriceCell .multiSplitPriceHint{margin-bottom:0}
 .productSupportChip.included{border-color:#b9e7cf;background:#f3fff8}
 .productSupportChip.optional{border-color:#dbe4f0;background:#f8fbfd}
 .productSupportChip.unknown{border-color:#fde68a;background:#fffbeb}
@@ -1414,7 +1426,9 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
   margin-bottom:12px;
 }
 .multiSplitPanelHead h3{margin:0;font-size:16px}
-.multiSplitSelected{margin-top:14px}
+.multiSplitSelected{margin-top:12px;padding:10px 0;border:0;border-top:1px solid #d8e3ef;border-radius:0;background:transparent}
+.multiSplitSelected .selectedHeader{display:block}
+.multiSplitSelected .tiny{margin-top:3px;line-height:1.35}
 .multiSplitRebateQuickRow{
   display:grid;
   grid-template-columns:minmax(220px,360px) minmax(180px,220px);
@@ -1847,6 +1861,10 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
   grid-template-columns:minmax(180px,.7fr) minmax(0,1.3fr);
   gap:12px;
 }
+.allModelsMultiOutdoorField{min-width:0}
+.allModelsMultiOutdoorSearchWrap{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;margin-bottom:7px}
+.allModelsMultiOutdoorSearch{min-width:0;height:44px;font-size:16px}
+.allModelsMultiOutdoorMatchCount{color:#64748b;font-size:10.5px;font-weight:800;white-space:nowrap}
 .allModelsSearchField{position:relative;min-width:0}
 .allModelsSearchInputWrap{position:relative}
 .allModelsSearchInputWrap input{padding-right:42px}
@@ -2726,6 +2744,13 @@ body.guidanceModalOpen{overflow:hidden}
     display:grid;
     gap:10px;
   }
+  .multiSplitSetupHeader{align-items:flex-start}
+  .multiSplitSetupHeader .modelRequestLink{padding:3px 0;font-size:11px;white-space:normal;text-align:right}
+  .multiSplitProductMeta{grid-template-columns:1fr;gap:10px}
+  .multiSplitFactStrip{gap:8px}
+  .multiSplitPriceCell{padding:10px}
+  .multiSplitPriceInput{height:44px;font-size:16px}
+  .multiSplitSelected{margin-top:10px;padding:10px 0}
   .trialBadge{
     justify-self:start;
   }
@@ -2756,6 +2781,8 @@ body.guidanceModalOpen{overflow:hidden}
   .allModelsPageGrid{grid-template-columns:1fr;gap:12px}
   .allModelsResultCard{position:static}
   .allModelsLookupGrid,.allModelsControls{grid-template-columns:1fr}
+  .allModelsMultiOutdoorSearchWrap{grid-template-columns:1fr;gap:4px}
+  .allModelsMultiOutdoorMatchCount{white-space:normal}
   .allModelsMultiSummary{grid-template-columns:1fr}
   .allModelsMultiBuilderHead{align-items:stretch;flex-direction:column}
   .allModelsMultiBuilderHead button{width:100%}
@@ -3480,15 +3507,14 @@ body.guidanceModalOpen{overflow:hidden}
     <div class="multiSplitPageGrid">
       <main class="multiSplitMainStack">
         <div class="card">
-          <h2 class="sectionTitle">Product and install setup</h2>
+          <div class="multiSplitSetupHeader"><h2 class="sectionTitle">Product and install setup</h2><button class="modelRequestLink" type="button" onclick="openModelRequestModal('multi')" aria-label="Can't find your system? Request a model" title="Can't find your system? Request a model">Request a model</button></div>
           <div class="row2">
             <div><label>Brand</label><select id="multiSplitBrand" onchange="populateMultiSplitOutdoors()"></select></div>
-            <div><div class="modelRequestSelectorHeader"><label>Outdoor unit</label><button class="modelRequestLink" type="button" onclick="openModelRequestModal('multi')">Can't find your system? Request a model</button></div><select id="multiSplitOutdoor" onchange="onMultiSplitOutdoorChange()"></select></div>
+            <div><label>Outdoor unit</label><select id="multiSplitOutdoor" onchange="onMultiSplitOutdoorChange()"></select></div>
           </div>
-          <div class="productSupportMeta">
-            <div class="productSupportChip optional"><span>Outdoor capacity</span><strong id="multiSplitOutdoorCapacity">Select outdoor</strong></div>
-            <div class="productSupportChip optional"><span>Max indoor heads</span><strong id="multiSplitMaxHeads">Select outdoor</strong></div>
-            <div id="multiSplitOutdoorPriceChip" class="productSupportChip optional"><span>Outdoor price inc GST</span><div class="multiSplitPriceEditor"><span aria-hidden="true">$</span><input id="multiSplitOutdoorPriceInput" class="multiSplitPriceInput" type="number" min="0" step="0.01" inputmode="decimal" aria-label="Outdoor unit price including GST" onchange="beginMultiSplitPriceEdit('outdoor',null,this.value)"></div><small class="multiSplitPriceHint">Enter a price to use it now, then choose whether to save it to this business.</small></div>
+          <div class="multiSplitProductMeta">
+            <div class="multiSplitFactStrip"><div class="multiSplitFact"><span>Outdoor capacity</span><strong id="multiSplitOutdoorCapacity">Select outdoor</strong></div><div class="multiSplitFact"><span>Max indoor heads</span><strong id="multiSplitMaxHeads">Select outdoor</strong></div></div>
+            <div id="multiSplitOutdoorPriceChip" class="multiSplitPriceCell"><span>Outdoor price inc GST</span><div class="multiSplitPriceEditor"><span aria-hidden="true">$</span><input id="multiSplitOutdoorPriceInput" class="multiSplitPriceInput" type="number" min="0" step="0.01" inputmode="decimal" aria-label="Outdoor unit price including GST" onchange="beginMultiSplitPriceEdit('outdoor',null,this.value)"></div><small class="multiSplitPriceHint">Enter a price to use it now, then choose whether to save it to this business.</small></div>
           </div>
           <div class="installTabs">
             <button id="multiSplitNewBtn" type="button" onclick="setMultiSplitInstall('new')">New install</button>
@@ -3656,7 +3682,7 @@ body.guidanceModalOpen{overflow:hidden}
             <div class="sub">Outdoor brands and models come from the live Australian GEMS multi-split register. GEMS does not register indoor heads, so choose from the indoor-head catalogue below and confirm compatibility with the manufacturer.</div>
             <div class="allModelsLookupGrid" style="margin-top:14px">
               <div><label for="allModelsMultiBrand">Brand</label><select id="allModelsMultiBrand" onchange="populateAllModelsMultiOutdoors()"></select></div>
-              <div><label for="allModelsMultiOutdoor">Outdoor unit</label><select id="allModelsMultiOutdoor" onchange="onAllModelsMultiOutdoorChange()"></select></div>
+              <div class="allModelsMultiOutdoorField"><label for="allModelsMultiOutdoorSearch">Outdoor unit</label><div class="allModelsMultiOutdoorSearchWrap"><input class="allModelsMultiOutdoorSearch" id="allModelsMultiOutdoorSearch" type="search" autocomplete="off" placeholder="Search model, capacity or phase" oninput="filterAllModelsMultiOutdoorOptions(this.value)" aria-controls="allModelsMultiOutdoor"><span id="allModelsMultiOutdoorMatchCount" class="allModelsMultiOutdoorMatchCount" aria-live="polite">0 matches</span></div><select id="allModelsMultiOutdoor" aria-label="Outdoor unit" onchange="onAllModelsMultiOutdoorChange()"></select></div>
             </div>
             <div class="allModelsMultiSummary">
               <div class="allModelsMultiMetric"><span>Outdoor capacity</span><strong id="allModelsMultiOutdoorCapacity">Select outdoor</strong></div>
@@ -4605,6 +4631,7 @@ let allModelsMode='single';
 let allModelsMultiOutdoorIndex=-1;
 let allModelsMultiIndoorSelections=[];
 let allModelsMultiOutdoors=[];
+let allModelsMultiOutdoorQuery='';
 let allModelsMultiBrandsLoaded=false;
 let allModelsMultiBrandRequestSeq=0;
 let allModelsMultiOutdoorRequestSeq=0;
@@ -7672,8 +7699,39 @@ function resetAllModelsResult(message){
   setSectionLoading('allModelsResultCard',false);
 }
 function selectedAllModelsMultiOutdoor(){
-  const index=Number(($('allModelsMultiOutdoor')&&$('allModelsMultiOutdoor').value)||allModelsMultiOutdoorIndex);
+  const select=$('allModelsMultiOutdoor');
+  const rawValue=select?select.value:allModelsMultiOutdoorIndex;
+  if(rawValue===null||rawValue===''||typeof rawValue==='undefined') return null;
+  const index=Number(rawValue);
   return Number.isInteger(index)&&allModelsMultiOutdoors[index]?allModelsMultiOutdoors[index]:null;
+}
+function allModelsMultiOutdoorSearchText(row){
+  return normalizeLookup(`${row&&row.model||''} ${row&&row.capacity||''} ${row&&row.capacityNum||''} ${row&&row.phase||''} ${row&&row.configuration||''}`);
+}
+function allModelsMultiMatchingOutdoorIndexes(query){
+  const normalized=normalizeLookup(query||'');
+  return allModelsMultiOutdoors.map((row,index)=>({row,index})).filter(item=>!normalized||allModelsMultiOutdoorSearchText(item.row).includes(normalized)).map(item=>item.index);
+}
+function allModelsMultiOutdoorOption(row,index){
+  return `<option value="${index}">${htmlEscape(`${row.model} - ${row.capacity}${row.phase?` - ${row.phase} phase`:''}${row.configuration?` - ${String(row.configuration).toUpperCase()}`:''}`)}</option>`;
+}
+function filterAllModelsMultiOutdoorOptions(value){
+  const select=$('allModelsMultiOutdoor');
+  const matchCount=$('allModelsMultiOutdoorMatchCount');
+  if(!select) return;
+  allModelsMultiOutdoorQuery=String(value||'');
+  const matches=allModelsMultiMatchingOutdoorIndexes(allModelsMultiOutdoorQuery);
+  const current=selectedAllModelsMultiOutdoor();
+  const currentIndex=Number(select.value);
+  const currentPinned=current&&!matches.includes(currentIndex);
+  const currentOptions=currentPinned?`<optgroup label="Current selection">${allModelsMultiOutdoorOption(current,currentIndex)}</optgroup>`:'';
+  const matchingOptions=matches.map(index=>allModelsMultiOutdoorOption(allModelsMultiOutdoors[index],index)).join('');
+  const optionBlocks=[];
+  if(currentOptions) optionBlocks.push(currentOptions);
+  if(matchingOptions) optionBlocks.push(`<optgroup label="${matches.length} matching models">${matchingOptions}</optgroup>`);
+  select.innerHTML=optionBlocks.join('')||'<option value="" disabled>No matching outdoor models</option>';
+  if(current) select.value=String(currentIndex);
+  if(matchCount) matchCount.textContent=`${matches.length} ${matches.length===1?'match':'matches'}${currentPinned?' + current selection':''}`;
 }
 function allModelsMultiHeadLimit(outdoor){
   const limit=Number(outdoor&&outdoor.maxHeads);
@@ -7742,6 +7800,11 @@ async function populateAllModelsMultiBrands(){
     allModelsMultiBrandsLoaded=false;
     allModelsMultiOutdoors=[];
     allModelsMultiOutdoorIndex=-1;
+    allModelsMultiIndoorSelections=[];
+    if($('allModelsMultiOutdoor')){$('allModelsMultiOutdoor').disabled=true;$('allModelsMultiOutdoor').innerHTML='<option value="">Outdoor models unavailable</option>';}
+    if($('allModelsMultiOutdoorSearch')){$('allModelsMultiOutdoorSearch').value='';$('allModelsMultiOutdoorSearch').disabled=true;}
+    if($('allModelsMultiOutdoorMatchCount')) $('allModelsMultiOutdoorMatchCount').textContent='0 matches';
+    resetAllModelsResult('Outdoor brands could not be loaded. Rebate set to $0.00 until a model is selected.');
     renderAllModelsMultiBuilder();
     const feedback=$('allModelsMultiCompatibility');
     if(feedback){feedback.className='allModelsCompatibility invalid';feedback.textContent=String(error&&error.message||error||'The GEMS multi-split register is unavailable.');}
@@ -7755,13 +7818,18 @@ async function populateAllModelsMultiOutdoors(){
   if(!select) return;
   const requestId=++allModelsMultiOutdoorRequestSeq;
   const previousModel=selectedAllModelsMultiOutdoor()&&selectedAllModelsMultiOutdoor().model;
+  const search=$('allModelsMultiOutdoorSearch');
   allModelsMultiOutdoors=[];
   allModelsMultiOutdoorIndex=-1;
   allModelsMultiIndoorSelections=[];
+  allModelsMultiOutdoorQuery='';
+  if(search){search.value='';search.disabled=true;}
+  if($('allModelsMultiOutdoorMatchCount')) $('allModelsMultiOutdoorMatchCount').textContent='Loading models...';
   select.disabled=true;
   select.innerHTML='<option value="">Loading registered outdoor models...</option>';
+  resetAllModelsResult('Outdoor models are loading. Calculate the rebate again once a model is selected.');
   renderAllModelsMultiBuilder();
-  if(!brand){select.disabled=false;return;}
+  if(!brand){if($('allModelsMultiOutdoorMatchCount')) $('allModelsMultiOutdoorMatchCount').textContent='0 matches';return;}
   try{
     const rows=await fetchVerifiedMultiSplitOutdoors(brand);
     if(requestId!==allModelsMultiOutdoorRequestSeq) return;
@@ -7771,27 +7839,34 @@ async function populateAllModelsMultiOutdoors(){
       return {brand:row.brand||brand,series:row.family||row.productType||'GEMS registered multi-split',capacityNum,capacity:capacityNum>0?`${capacityNum.toFixed(1)}kW`:'Capacity unavailable',model:row.model,rebateModel:row.model,phase:row.phase||'',maxHeads:known&&Number(known.maxHeads)>0?Number(known.maxHeads):null,metadata:row.metadata||null,completeEnergyData:!!row.completeEnergyData,configuration:row.metadata&&row.metadata.Configuration2||''};
     });
     if(!allModelsMultiOutdoors.length) throw new Error(`No available Australian GEMS multi-split outdoor models were returned for ${brand}`);
-    select.innerHTML=allModelsMultiOutdoors.map((row,index)=>`<option value="${index}">${htmlEscape(`${row.model} - ${row.capacity}${row.phase?` - ${row.phase} phase`:''}${row.configuration?` - ${String(row.configuration).toUpperCase()}`:''}`)}</option>`).join('');
     const previousIndex=allModelsMultiOutdoors.findIndex(row=>normalizeLookup(row.model)===normalizeLookup(previousModel));
-    select.value=String(previousIndex>=0?previousIndex:0);
-    allModelsMultiOutdoorIndex=Number(select.value);
+    allModelsMultiOutdoorIndex=previousIndex>=0?previousIndex:0;
+    filterAllModelsMultiOutdoorOptions('');
+    select.value=String(allModelsMultiOutdoorIndex);
     select.disabled=false;
+    if(search) search.disabled=false;
     onAllModelsMultiOutdoorChange();
   }catch(error){
     if(requestId!==allModelsMultiOutdoorRequestSeq) return;
     allModelsMultiOutdoors=[];
     allModelsMultiOutdoorIndex=-1;
     select.innerHTML='<option value="">Outdoor models unavailable</option>';
+    if($('allModelsMultiOutdoorMatchCount')) $('allModelsMultiOutdoorMatchCount').textContent='0 matches';
+    resetAllModelsResult('Outdoor models could not be loaded. Rebate set to $0.00 until a model is selected.');
     renderAllModelsMultiBuilder();
     const feedback=$('allModelsMultiCompatibility');
     if(feedback){feedback.className='allModelsCompatibility invalid';feedback.textContent=String(error&&error.message||error||'The GEMS outdoor model register is unavailable.');}
   }finally{
-    if(requestId===allModelsMultiOutdoorRequestSeq) select.disabled=false;
+    if(requestId===allModelsMultiOutdoorRequestSeq){
+      select.disabled=!allModelsMultiOutdoors.length;
+      if(search) search.disabled=!allModelsMultiOutdoors.length;
+    }
   }
 }
 function onAllModelsMultiOutdoorChange(){
   const select=$('allModelsMultiOutdoor');
-  allModelsMultiOutdoorIndex=Number(select&&select.value);
+  allModelsMultiOutdoorIndex=select&&select.value!==''?Number(select.value):-1;
+  filterAllModelsMultiOutdoorOptions(allModelsMultiOutdoorQuery);
   const outdoor=selectedAllModelsMultiOutdoor();
   const available=allModelsMultiAvailableIndoorIndexes(outdoor);
   if(!available.length){
@@ -8771,7 +8846,7 @@ function renderMultiSplitTrial(options){
   const maxHeads=Number(outdoor&&outdoor.maxHeads)||0;
   updateMultiSplitInstallTabs();
   if($('multiSplitOutdoorCapacity')) $('multiSplitOutdoorCapacity').textContent=outdoor?outdoor.capacity:'Select outdoor';
-  if($('multiSplitMaxHeads')) $('multiSplitMaxHeads').textContent=maxHeads?String(maxHeads):'Select outdoor';
+  if($('multiSplitMaxHeads')) $('multiSplitMaxHeads').textContent=outdoor?(maxHeads?String(maxHeads):'Not listed'):'Select outdoor';
   if($('multiSplitOutdoorPriceInput')) $('multiSplitOutdoorPriceInput').value=outdoor&&hasPositiveUnitPrice(outdoor.unitPriceInc)?Number(outdoor.unitPriceInc).toFixed(2):'';
   if($('multiSplitOutdoorPriceInput')) $('multiSplitOutdoorPriceInput').disabled=!outdoor;
   if($('multiSplitOutdoorPriceChip')) $('multiSplitOutdoorPriceChip').classList.toggle('priceMissing',!!outdoor&&!hasPositiveUnitPrice(outdoor.unitPriceInc));

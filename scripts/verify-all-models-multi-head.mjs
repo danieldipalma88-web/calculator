@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import vm from "node:vm";
 import path from "node:path";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -14,6 +15,59 @@ assert.match(html, /id="allModelsSingleModeBtn"[^>]+setAllModelsMode\('single'\)
 assert.match(html, /id="allModelsMultiModeBtn"[^>]+setAllModelsMode\('multi'\)/);
 assert.match(html, /id="allModelsMultiBrand"/);
 assert.match(html, /id="allModelsMultiOutdoor"/);
+assert.match(html, /id="allModelsMultiOutdoor"[^>]+aria-label="Outdoor unit"/, "The native outdoor selector must retain an accessible name.");
+assert.match(html, /id="allModelsMultiOutdoorSearch"[^>]+type="search"/, "Multi-head outdoor models need a local search field.");
+assert.match(html, /for="allModelsMultiOutdoorSearch"/, "The outdoor search must retain an accessible visible label.");
+assert.match(html, /id="allModelsMultiOutdoorMatchCount"[^>]+aria-live="polite"/, "Outdoor search feedback must announce match counts.");
+assert.match(html, /function allModelsMultiOutdoorSearchText\(row\)/);
+assert.match(html, /function allModelsMultiMatchingOutdoorIndexes\(query\)/);
+assert.match(html, /function filterAllModelsMultiOutdoorOptions\(value\)/);
+const outdoorSearchFunction = html.match(/function filterAllModelsMultiOutdoorOptions\(value\)[\s\S]*?\n\}/)?.[0] || "";
+assert.doesNotMatch(outdoorSearchFunction, /fetch|populateAllModelsMultiOutdoors/, "Typing in the outdoor search must not call the registry API or reload the brand.");
+assert.match(outdoorSearchFunction, /Current selection/, "Filtering must pin the selected outdoor model instead of silently changing it.");
+assert.match(outdoorSearchFunction, /allModelsMultiOutdoorOption\(allModelsMultiOutdoors\[index\],index\)/, "Filtered options must keep their authoritative full-list indexes.");
+assert.match(outdoorSearchFunction, /const optionBlocks=\[\]/, "Pinned and matching outdoor options must be composed as separate blocks.");
+const outdoorFilterSource = html.slice(html.indexOf("function selectedAllModelsMultiOutdoor()"), html.indexOf("function allModelsMultiHeadLimit(outdoor)"));
+const outdoorChangeSource = html.slice(html.indexOf("function onAllModelsMultiOutdoorChange()"), html.indexOf("function addAllModelsMultiHead()"));
+const runtime = {};
+vm.runInNewContext(`
+  const elements={allModelsMultiOutdoor:{value:'0',innerHTML:''},allModelsMultiOutdoorMatchCount:{textContent:''}};
+  function $(id){return elements[id]||null;}
+  function normalizeLookup(value){return String(value||'').toUpperCase().replace(/[^A-Z0-9]/g,'');}
+  function htmlEscape(value){return String(value);}
+  let allModelsMultiOutdoorIndex=0;
+  let allModelsMultiOutdoors=[];
+  let allModelsMultiOutdoorQuery='';
+  let allModelsMultiIndoorSelections=[];
+  function allModelsMultiAvailableIndoorIndexes(){return [0];}
+  function allModelsMultiSelectionChanged(){}
+  ${outdoorFilterSource}
+  ${outdoorChangeSource}
+  allModelsMultiOutdoors=[
+    {model:'3MXM52',capacity:'5.2kW',capacityNum:5.2,phase:'Single'},
+    {model:'4MXM80',capacity:'8.0kW',capacityNum:8,phase:'Single'}
+  ];
+  filterAllModelsMultiOutdoorOptions('4mxm-80');
+  const pinnedHtml=elements.allModelsMultiOutdoor.innerHTML;
+  const pinnedCount=elements.allModelsMultiOutdoorMatchCount.textContent;
+  elements.allModelsMultiOutdoor.value='1';
+  onAllModelsMultiOutdoorChange();
+  globalThis.result={pinnedHtml,pinnedCount,html:elements.allModelsMultiOutdoor.innerHTML,count:elements.allModelsMultiOutdoorMatchCount.textContent};
+`, runtime);
+assert.match(runtime.result.pinnedHtml, /Current selection[\s\S]*3MXM52/, "A filtered-out current outdoor must remain selectable.");
+assert.match(runtime.result.pinnedHtml, /4MXM80/, "A punctuation-normalized query must retain matching outdoor models beside the pinned selection.");
+assert.doesNotMatch(runtime.result.html, /Current selection|3MXM52/, "Selecting a filtered match must rebuild the list without the old pinned option.");
+assert.match(runtime.result.html, /4MXM80/, "The selected matching outdoor must remain in the active filtered list.");
+assert.equal(runtime.result.pinnedCount, "1 match + current selection");
+assert.equal(runtime.result.count, "1 match");
+const outdoorLoadFunction = html.match(/async function populateAllModelsMultiOutdoors\(\)[\s\S]*?\n\}/)?.[0] || "";
+assert.match(outdoorLoadFunction, /search\.disabled=true/, "Outdoor search must be disabled while a brand's models load.");
+assert.match(outdoorLoadFunction, /resetAllModelsResult\('Outdoor models are loading/, "Changing brand must invalidate an existing rebate before new models arrive.");
+assert.match(outdoorLoadFunction, /Outdoor models could not be loaded\. Rebate set to \$0\.00/, "A failed outdoor load must invalidate the old rebate result.");
+assert.match(outdoorLoadFunction, /search\.disabled=!allModelsMultiOutdoors\.length/, "Outdoor search must remain disabled after a failed load.");
+const brandLoadFunction = html.match(/async function populateAllModelsMultiBrands\(\)[\s\S]*?\n\}/)?.[0] || "";
+assert.match(brandLoadFunction, /Outdoor brands could not be loaded\. Rebate set to \$0\.00/, "A failed brand load must invalidate the old rebate result.");
+assert.match(brandLoadFunction, /allModelsMultiOutdoorSearch'\)\.disabled=true/, "A failed brand load must leave outdoor search unavailable.");
 assert.match(html, /id="allModelsMultiRows"/);
 assert.match(html, /id="allModelsMultiCompatibility"/);
 

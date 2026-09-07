@@ -35,6 +35,13 @@ assert.match(html, /syncSharedEssPostcode\(postcode\.value,'multi',true\)/, "Mul
 
 assert.match(html, /class="multiSplitIndoorFacts"/, "Indoor rows must expose capacity and price facts.");
 assert.match(html, /id="multiSplitOutdoorPriceInput"[^>]*onchange="beginMultiSplitPriceEdit\('outdoor'/, "The selected outdoor unit must have an editable price.");
+assert.match(html, /class="multiSplitSetupHeader"[\s\S]*Request a model/, "The model-request action must sit beside the multi-head setup title.");
+assert.match(html, /\.multiSplitSetupHeader \.modelRequestLink\{[^}]*min-height:44px/, "The compact model-request action must retain a touch-sized target.");
+assert.match(html, /class="multiSplitProductMeta"/, "Multi-head setup must use its own compact metadata layout.");
+assert.match(html, /class="multiSplitFactStrip"/, "Capacity and head-limit facts must be grouped in a compact strip.");
+assert.match(html, /class="multiSplitPriceCell"/, "The editable outdoor price must remain visible in its own compact cell.");
+assert.match(html, /\.multiSplitPriceInput\{height:44px;font-size:16px\}/, "The outdoor price input must stay touch-sized on mobile.");
+assert.match(html, /textContent=outdoor\?\(maxHeads\?String\(maxHeads\):'Not listed'\):'Select outdoor'/, "Unknown selected outdoor head limits must not be presented as an empty selection.");
 assert.match(html, /beginMultiSplitPriceEdit\('indoor',\$\{Number\(selection\.indoorIndex\)\}/, "Each selected indoor model must have an editable per-unit price.");
 assert.match(html, /id="multiSplitPriceSaveModal"/, "Entered multi-head prices must offer an explicit account-save choice.");
 assert.match(html, />Use for this quote only<\/button>/, "A temporary quote-only price option must be available.");
