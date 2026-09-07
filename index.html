@@ -1340,6 +1340,41 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
 .productSupportChip.priceMissing strong,
 .multiSplitMetric.priceMissing span,
 .multiSplitMetric.priceMissing strong{color:#8a4b00}
+.multiSplitPriceEditor{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  margin-top:2px;
+}
+.multiSplitPriceEditor>span{
+  color:#475569;
+  font-size:14px;
+  font-weight:900;
+}
+.multiSplitPriceInput{
+  flex:1;
+  width:100%;
+  min-width:0;
+  height:38px;
+  padding:7px 9px;
+  border:1px solid #cbd5e1;
+  border-radius:8px;
+  background:#fff;
+  color:#0f172a;
+  font-size:14px;
+  font-weight:800;
+}
+.multiSplitPriceInput:focus{outline:3px solid rgba(13,148,136,.14);border-color:#0f9488}
+.multiSplitPriceHint{display:block;margin-top:5px;color:#64748b;font-size:10.5px;line-height:1.35}
+.multiSplitPriceSaveSummary{
+  margin:14px 0;
+  padding:12px;
+  border:1px solid #cbd5e1;
+  border-radius:8px;
+  background:#f8fafc;
+}
+.multiSplitPriceSaveSummary strong{display:block;color:#0f172a;font-size:15px;overflow-wrap:anywhere}
+.multiSplitPriceSaveSummary span{display:block;margin-top:4px;color:#475569;font-size:13px}
 .multiSplitTrialCard{display:none;margin-top:18px}
 .multiSplitTrialCard.visible{display:block}
 .multiSplitTrialIntro{
@@ -1468,6 +1503,7 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
 }
 .multiSplitIndoorFact.priceMissing span,
 .multiSplitIndoorFact.priceMissing strong{color:#8a4b00}
+.multiSplitIndoorFact .multiSplitPriceEditor>span{display:inline;color:#475569;font-size:14px;letter-spacing:0;text-transform:none}
 .multiSplitIndoorControls{
   display:grid;
   grid-template-columns:1fr 38px;
@@ -2666,7 +2702,8 @@ body.guidanceModalOpen{overflow:hidden}
   .multiSplitIndoorRow{grid-template-columns:1fr;gap:12px;padding:14px 0}
   .multiSplitIndoorRowTop{align-items:flex-start}
   .multiSplitIndoorSeries{white-space:normal;overflow:visible;text-overflow:clip}
-  .multiSplitIndoorFacts{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .multiSplitIndoorFacts{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .multiSplitIndoorFact:last-child{grid-column:1 / -1}
   .multiSplitIndoorFact strong{font-size:12px;overflow-wrap:anywhere}
   .multiSplitIndoorControls{grid-template-columns:1fr 44px}
   .multiSplitQtyControl{grid-template-columns:44px minmax(48px,1fr) 44px}
@@ -3290,7 +3327,7 @@ body.guidanceModalOpen{overflow:hidden}
           <div class="productSupportMeta">
             <div class="productSupportChip optional"><span>Outdoor capacity</span><strong id="multiSplitOutdoorCapacity">Select outdoor</strong></div>
             <div class="productSupportChip optional"><span>Max indoor heads</span><strong id="multiSplitMaxHeads">Select outdoor</strong></div>
-            <div id="multiSplitOutdoorPriceChip" class="productSupportChip optional"><span>Outdoor price inc GST</span><strong id="multiSplitOutdoorPrice">$0.00</strong></div>
+            <div id="multiSplitOutdoorPriceChip" class="productSupportChip optional"><span>Outdoor price inc GST</span><div class="multiSplitPriceEditor"><span aria-hidden="true">$</span><input id="multiSplitOutdoorPriceInput" class="multiSplitPriceInput" type="number" min="0" step="0.01" inputmode="decimal" aria-label="Outdoor unit price including GST" onchange="beginMultiSplitPriceEdit('outdoor',null,this.value)"></div><small class="multiSplitPriceHint">Enter a price to use it now, then choose whether to save it to this business.</small></div>
           </div>
           <div class="installTabs">
             <button id="multiSplitNewBtn" type="button" onclick="setMultiSplitInstall('new')">New install</button>
@@ -3357,7 +3394,7 @@ body.guidanceModalOpen{overflow:hidden}
           <h2 class="sectionTitle">Costs</h2>
           <div class="finalPriceStrip"><div><div class="fieldLabelRow"><label for="multiFinalInc">Final customer price inc GST</label><span class="fieldPill confirmed">Customer pays</span></div><div class="fieldHint">Main quoted price shown to the customer.</div></div><input id="multiFinalInc" type="number" step="0.01"></div>
           <div class="row3">
-            <div id="multiUnitPriceCostField" class="priceRequiredField"><label>Equipment price inc GST</label><input id="multiUnitPriceInc" type="number" step="0.01" readonly><div id="multiUnitPriceMissingMessage" class="priceMissingMessage" role="alert">Price missing for selected equipment. Add the missing model price before adding this system to a quote.</div></div>
+            <div id="multiUnitPriceCostField" class="priceRequiredField"><label>Equipment price inc GST</label><input id="multiUnitPriceInc" type="number" step="0.01" readonly><div class="fieldHint">Total of the outdoor unit and indoor heads entered above.</div><div id="multiUnitPriceMissingMessage" class="priceMissingMessage" role="alert">Price missing for selected equipment. Add the missing model price before adding this system to a quote.</div></div>
             <div><label>Labour ex GST</label><input id="multiLabour" type="number" step="0.01" value="500"></div>
             <div id="multiRebateCostField"><label id="multiRebateCostLabel">Rebate</label><input id="multiRebate" type="number" step="0.01" value="0"><div id="multiRebateCostHint" class="rebateCostHint"></div></div>
           </div>
@@ -3511,6 +3548,7 @@ body.guidanceModalOpen{overflow:hidden}
 <div id="dcceewInfoModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="dcceewInfoModalTitle" aria-describedby="dcceewInfoModalDescription" onclick="if(event.target===this)closeDcceewInfoModal()"><div class="quoteNameModalCard dcceewInfoModalCard"><div class="kicker">DCCEEW $30 ESC contract rate</div><h2 id="dcceewInfoModalTitle">Complete every required step</h2><p id="dcceewInfoModalDescription">This job is potentially eligible because the selected postcode and product are on the approved lists.</p><div class="dcceewInfoModalIntro">The fixed $30 rate is not automatic. Complete all applicable requirements to receive it.</div><ol class="dcceewCriteria"><li>Select <strong>Yes</strong> for DCCEEW consent in Alitsy when setting up the job. This cannot be corrected after payment processing begins.</li><li>For replacement jobs, enter the existing unit's <strong>year of manufacture</strong> in the Compliance tab.</li><li>For replacement jobs, attach a clear photo of the existing indoor or outdoor unit's <strong>compliance plate</strong>.</li><li>Ensure the customer invoice clearly itemises the <strong>incentive or discount passed through to the customer</strong>.</li></ol><div class="dcceewFallbackNotice">If any required information is missing, the job will be paid at the standard market rate instead of the fixed $30 ESC rate.</div><div class="quoteNameModalActions"><button type="button" onclick="closeDcceewInfoModal()">Understood</button></div></div></div>
 <div id="calculatorGuidanceModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="calculatorGuidanceTitle" aria-describedby="calculatorGuidanceDescription"><div class="quoteNameModalCard calculatorGuidanceCard"><div class="kicker">Before you start quoting</div><h2 id="calculatorGuidanceTitle">A quick note about this calculator</h2><p id="calculatorGuidanceDescription">This quote calculator is built around the systems installers use most often.</p><div class="calculatorGuidanceIntro">Use it to check rebates, build customer quotes and understand likely profit margins. The figures below are practical starting points, not fixed guarantees.</div><div class="calculatorGuidancePoints"><div class="calculatorGuidancePoint"><span class="calculatorGuidancePointIcon" aria-hidden="true">1</span><div><strong>Products and costs</strong><span>We include a curated range of commonly installed systems, selected wholesaler pricing and common labour, materials and installation costs. Review these figures before issuing a quote.</span></div></div><div class="calculatorGuidancePoint"><span class="calculatorGuidancePointIcon" aria-hidden="true">2</span><div><strong>Missing models</strong><span>The catalogue is not exhaustive. Use <em>Request a model</em> near the product selector if a system you install is missing.</span></div></div><div class="calculatorGuidancePoint"><span class="calculatorGuidancePointIcon" aria-hidden="true">3</span><div><strong>Rebate movement</strong><span>Rebate values are indicative and can move up or down with certificate market prices and trading conditions before a claim is submitted or processed. Build enough margin into each quote to allow for movement.</span></div></div></div><label class="guidanceCheck" for="calculatorGuidanceAccepted"><input id="calculatorGuidanceAccepted" type="checkbox" onchange="updateCalculatorGuidanceState()"><span>I understand that rebate amounts and preloaded costs are estimates, may change, and should be verified before I issue a customer quote.</span></label><div id="calculatorGuidanceStatus" class="modelRequestStatus" role="status" aria-live="polite"></div><div class="quoteNameModalActions"><button id="calculatorGuidanceContinue" type="button" onclick="confirmCalculatorGuidance()" disabled>Continue to calculator</button></div></div></div>
 <div id="modelRequestModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="modelRequestTitle" aria-describedby="modelRequestDescription" onclick="if(event.target===this)closeModelRequestModal()"><div class="quoteNameModalCard modelRequestCard"><div class="kicker">Product catalogue</div><h2 id="modelRequestTitle">Request a missing model</h2><p id="modelRequestDescription">Send the product details for review. Your account, email and active business will be attached automatically.</p><div class="modelRequestGrid"><div class="modelRequestField"><label for="modelRequestSystemType">System type</label><input id="modelRequestSystemType" type="text" readonly></div><div class="modelRequestField"><label for="modelRequestBrand">Brand</label><input id="modelRequestBrand" type="text" maxlength="100" autocomplete="organization"></div><div class="modelRequestField wide"><label for="modelRequestModel">Model <span class="wonRequired">Required</span></label><input id="modelRequestModel" type="text" maxlength="180" autocomplete="off" placeholder="Outdoor / indoor model numbers"></div><div class="modelRequestField"><label for="modelRequestCapacity">Capacity</label><input id="modelRequestCapacity" type="text" maxlength="40" placeholder="Example: 7.1kW"></div><div id="modelRequestPhaseField" class="modelRequestField"><label for="modelRequestPhase">Phase</label><select id="modelRequestPhase"><option value="unknown">Not sure</option><option value="single">Single phase</option><option value="three">Three phase</option></select></div><div class="modelRequestField wide"><label for="modelRequestNotes">Notes</label><textarea id="modelRequestNotes" maxlength="600" placeholder="Series, pricing or any other useful details"></textarea></div></div><div id="modelRequestStatus" class="modelRequestStatus" role="status" aria-live="polite"></div><div class="quoteNameModalActions"><button class="secondary" type="button" onclick="closeModelRequestModal()">Cancel</button><button id="modelRequestSubmit" class="modelRequestSubmit" type="button" onclick="submitModelRequest()">Send request</button></div></div></div>
+<div id="multiSplitPriceSaveModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="multiSplitPriceSaveTitle" aria-describedby="multiSplitPriceSaveDescription" onclick="if(event.target===this)finishMultiSplitPriceEdit(false)"><div class="quoteNameModalCard"><div class="kicker">Multi-head equipment price</div><h2 id="multiSplitPriceSaveTitle">Save this price to the unit?</h2><p id="multiSplitPriceSaveDescription">The entered price is already being used for this quote. You can also save it as this business's price for the selected model.</p><div class="multiSplitPriceSaveSummary"><strong id="multiSplitPriceSaveModel">Selected model</strong><span id="multiSplitPriceSaveAmount">$0.00 inc GST</span></div><div id="multiSplitPriceSaveStatus" class="modelRequestStatus" role="status" aria-live="polite"></div><div class="quoteNameModalActions"><button id="multiSplitPriceUseOnce" class="secondary" type="button" onclick="finishMultiSplitPriceEdit(false)">Use for this quote only</button><button id="multiSplitPriceSaveAccount" class="green" type="button" onclick="finishMultiSplitPriceEdit(true)">Save to this business</button></div></div></div>
 <div class="portraitOnlyNotice" aria-live="polite"><div><strong>Use portrait view</strong><span>Rotate your phone upright to continue quoting.</span></div></div>
 <div id="overlay" class="drawerOverlay" onclick="closeAllDrawers()"></div>
 <div id="drawer" class="quoteDrawer quoteBuilderDrawer"><div class="drawerHead"><div><div class="kicker">Quote builder</div><h2 style="margin:4px 0">View quotes</h2><div class="sub drawerIntro">Compare split, ducted and multi-head quotes. Quotes save automatically to your calculator profile. Use Save Quote to keep a named snapshot.</div><div class="quoteExportField" style="margin-top:14px;max-width:420px"><label>Quote / customer export name</label><input id="quoteExportName" placeholder="Example: Ash Macquarie Links" oninput="saveQuoteExportName()"></div></div><div class="actions"><button class="orange" onclick="saveCurrentQuoteSet()">Save Quote</button><button class="secondary" onclick="downloadCsv()">Download CSV</button><button class="danger" onclick="clearQuotes()">Clear</button><button class="secondary" onclick="closeDrawer()">Close</button></div></div>
@@ -4393,6 +4431,7 @@ let multiSplitIndoorSelections=[];
 let multiSplitTrialRequestSeq=0;
 let multiSplitRebateFresh=false;
 let multiSplitHasCalculated=false;
+let pendingMultiSplitPriceSave=null;
 let allModelsBrandsLoaded=false;
 let allModelsSelected=null;
 let allModelsSearchRows=[];
@@ -5154,6 +5193,7 @@ function mergeVerifiedMultiSplitOutdoors(brand,rows){
       configuration:row.metadata&&row.metadata.Configuration2||'',
       liveRegistry:true
     });
+    applyManagedMultiSplitPrice('outdoor',merged);
     if(index<0){
       MULTI_SPLIT_OUTDOORS.push(merged);
       index=MULTI_SPLIT_OUTDOORS.length-1;
@@ -8066,6 +8106,141 @@ function multiSplitPriceLabel(value){
   const numeric=Number(value);
   return Number.isFinite(numeric)&&numeric>0?money(numeric):'Price not set';
 }
+function multiSplitManagedPriceKey(kind,row){
+  if(!row) return '';
+  const component=kind==='outdoor'?'outdoor':'indoor';
+  const brand=normalizeLookup(normaliseBrandName(row.brand));
+  const model=normalizeLookup(normaliseModelName(row.model));
+  return brand&&model?`multi-${component}|${brand}|${model}`:'';
+}
+function isMultiSplitManagedPriceKey(key){
+  return /^multi-(outdoor|indoor)\|[^|]+\|[^|]+$/.test(String(key||''));
+}
+function normalizedMultiSplitManagedPriceEntry(saved,key){
+  if(!isMultiSplitManagedPriceKey(key)||!saved||typeof saved!=='object'||Array.isArray(saved)) return null;
+  const unitPriceInc=Number(saved.unitPriceInc);
+  if(!Number.isFinite(unitPriceInc)||unitPriceInc<0) return null;
+  return {
+    locked:true,
+    unitPriceInc,
+    model:String(saved.model||''),
+    brand:String(saved.brand||''),
+    component:String(saved.component||'')
+  };
+}
+function applyManagedMultiSplitPrice(kind,row){
+  const key=multiSplitManagedPriceKey(kind,row);
+  const entry=key&&priceLocks[key];
+  if(!entry||typeof entry!=='object') return false;
+  const price=Number(entry.unitPriceInc);
+  if(!Number.isFinite(price)||price<0) return false;
+  row.unitPriceInc=price;
+  row.priceIncGst=price;
+  return true;
+}
+function applyAllManagedMultiSplitPrices(){
+  MULTI_SPLIT_OUTDOORS.forEach(row=>applyManagedMultiSplitPrice('outdoor',row));
+  ALL_MODELS_MULTI_INDOORS.forEach(row=>applyManagedMultiSplitPrice('indoor',row));
+}
+function multiSplitPriceRow(kind,index){
+  return kind==='outdoor'?selectedMultiSplitOutdoor():ALL_MODELS_MULTI_INDOORS[Number(index)];
+}
+function beginMultiSplitPriceEdit(kind,index,value){
+  const row=multiSplitPriceRow(kind,index);
+  const price=Number(value);
+  if(!row||!Number.isFinite(price)||price<0){
+    setMultiSplitStatus('Enter a valid equipment price including GST.','error');
+    renderMultiSplitTrial({preserveRebate:true});
+    return;
+  }
+  row.unitPriceInc=price;
+  row.priceIncGst=price;
+  const key=multiSplitManagedPriceKey(kind,row);
+  const previousEntry=key&&priceLocks[key]?JSON.parse(JSON.stringify(priceLocks[key])):null;
+  pendingMultiSplitPriceSave={kind:kind==='outdoor'?'outdoor':'indoor',index:Number(index),row,price,key,previousEntry,persistenceStarted:false,saving:false};
+  const modal=$('multiSplitPriceSaveModal');
+  if(!modal) return;
+  const businessName=activeBusinessName()||'this business';
+  if($('multiSplitPriceSaveModel')) $('multiSplitPriceSaveModel').textContent=row.model||'Selected model';
+  if($('multiSplitPriceSaveAmount')) $('multiSplitPriceSaveAmount').textContent=`${money(price)} inc GST for ${businessName}`;
+  if($('multiSplitPriceSaveStatus')) $('multiSplitPriceSaveStatus').textContent='';
+  const saveButton=$('multiSplitPriceSaveAccount');
+  if(saveButton){
+    saveButton.disabled=!String(calculatorUserContext().businessId||'');
+    saveButton.textContent='Save to this business';
+  }
+  if(!String(calculatorUserContext().businessId||'')&&$('multiSplitPriceSaveStatus')) $('multiSplitPriceSaveStatus').textContent='Select a business before saving an account price.';
+  modal.classList.add('open');
+  syncOverlayState();
+}
+async function finishMultiSplitPriceEdit(saveToBusiness){
+  const modal=$('multiSplitPriceSaveModal');
+  const pending=pendingMultiSplitPriceSave;
+  if(!pending){if(modal) modal.classList.remove('open');syncOverlayState();return;}
+  if(pending.saving) return;
+  if(!saveToBusiness){
+    if(pending.persistenceStarted){
+      const saveButton=$('multiSplitPriceSaveAccount');
+      const onceButton=$('multiSplitPriceUseOnce');
+      pending.saving=true;
+      if(saveButton) saveButton.disabled=true;
+      if(onceButton){onceButton.disabled=true;onceButton.textContent='Keeping for this quote...';}
+      if(pending.previousEntry) priceLocks[pending.key]=pending.previousEntry;
+      else delete priceLocks[pending.key];
+      persistManagedPrices();
+      try{
+        if(typeof window.__calculatorFlushCloudSave!=='function') throw new Error('Cloud save confirmation is unavailable. Refresh the calculator and try again.');
+        await window.__calculatorFlushCloudSave(20000);
+      }catch(error){
+        pending.saving=false;
+        if(saveButton) saveButton.disabled=false;
+        if(onceButton){onceButton.disabled=false;onceButton.textContent='Retry quote-only use';}
+        if($('multiSplitPriceSaveStatus')) $('multiSplitPriceSaveStatus').textContent=String(error&&error.message||error||'The account price rollback could not be confirmed.');
+        return;
+      }
+    }
+    pendingMultiSplitPriceSave=null;
+    if(modal) modal.classList.remove('open');
+    syncOverlayState();
+    renderMultiSplitTrial({preserveRebate:true});
+    showQuoteActionNotice(`${pending.row.model} price will be used for this quote only.`);
+    return;
+  }
+  const businessId=String(calculatorUserContext().businessId||'');
+  if(!businessId){
+    if($('multiSplitPriceSaveStatus')) $('multiSplitPriceSaveStatus').textContent='Select a business before saving an account price.';
+    return;
+  }
+  const saveButton=$('multiSplitPriceSaveAccount');
+  const onceButton=$('multiSplitPriceUseOnce');
+  if(saveButton){saveButton.disabled=true;saveButton.textContent='Saving...';}
+  if(onceButton) onceButton.disabled=true;
+  if($('multiSplitPriceSaveStatus')) $('multiSplitPriceSaveStatus').textContent='Saving this price to the active business...';
+  pending.saving=true;
+  pending.persistenceStarted=true;
+  priceLocks[pending.key]={
+    locked:true,
+    unitPriceInc:pending.price,
+    model:String(pending.row.model||''),
+    brand:String(pending.row.brand||''),
+    component:pending.kind
+  };
+  persistManagedPrices();
+  try{
+    if(typeof window.__calculatorFlushCloudSave!=='function') throw new Error('Cloud save confirmation is unavailable. Refresh the calculator and try again.');
+    await window.__calculatorFlushCloudSave(20000);
+    pendingMultiSplitPriceSave=null;
+    if(modal) modal.classList.remove('open');
+    syncOverlayState();
+    renderMultiSplitTrial({preserveRebate:true});
+    showQuoteActionNotice(`${pending.row.model} price saved to ${activeBusinessName()||'this business'} only.`);
+  }catch(error){
+    pending.saving=false;
+    if(saveButton){saveButton.disabled=false;saveButton.textContent='Retry save';}
+    if(onceButton) onceButton.disabled=false;
+    if($('multiSplitPriceSaveStatus')) $('multiSplitPriceSaveStatus').textContent=String(error&&error.message||error||'The account price could not be confirmed as saved.');
+  }
+}
 function multiSplitIndoorLabel(row){
   const note=row.note?` - ${row.note}`:'';
   return `${row.capacity} - ${row.series} - ${row.model} - ${multiSplitPriceLabel(row.unitPriceInc)}${note}`;
@@ -8427,15 +8602,20 @@ function setMultiSplitInstall(type){
   if($('multiSplitInstallType')) $('multiSplitInstallType').value=install;
   renderMultiSplitTrial();
 }
-function renderMultiSplitTrial(){
+function renderMultiSplitTrial(options){
   if(!multiSplitTrialEnabled()) return;
+  const preserveRebate=!!(options&&options.preserveRebate);
   const {outdoor,indoorItems,outdoorTotal,indoorTotal,total,headCount,connectedCapacity,connectedHeatingCapacity}=multiSplitEquipmentTotals();
   const missingPrices=multiSplitMissingPriceModels({outdoor,indoorItems});
   const maxHeads=Number(outdoor&&outdoor.maxHeads)||0;
   updateMultiSplitInstallTabs();
   if($('multiSplitOutdoorCapacity')) $('multiSplitOutdoorCapacity').textContent=outdoor?outdoor.capacity:'Select outdoor';
   if($('multiSplitMaxHeads')) $('multiSplitMaxHeads').textContent=maxHeads?String(maxHeads):'Select outdoor';
-  if($('multiSplitOutdoorPrice')) $('multiSplitOutdoorPrice').textContent=outdoor?multiSplitPriceLabel(outdoor.unitPriceInc):'Price not set';
+  if($('multiSplitOutdoorPriceInput')) $('multiSplitOutdoorPriceInput').value=outdoor&&hasPositiveUnitPrice(outdoor.unitPriceInc)?Number(outdoor.unitPriceInc).toFixed(2):'';
+  if($('multiSplitOutdoorPriceInput')) $('multiSplitOutdoorPriceInput').disabled=!outdoor;
+  if($('multiSplitOutdoorPriceChip')) $('multiSplitOutdoorPriceChip').classList.toggle('priceMissing',!!outdoor&&!hasPositiveUnitPrice(outdoor.unitPriceInc));
+  const outdoorSelect=$('multiSplitOutdoor');
+  if(outdoor&&outdoorSelect&&outdoorSelect.selectedOptions&&outdoorSelect.selectedOptions[0]) outdoorSelect.selectedOptions[0].textContent=`${outdoor.capacity} - ${outdoor.series} - ${outdoor.model} - ${multiSplitPriceLabel(outdoor.unitPriceInc)}${outdoor.phase?` - ${outdoor.phase}`:''}`;
   if($('multiSplitSelectedModel')) $('multiSplitSelectedModel').textContent=outdoor?outdoor.model:'Select an outdoor unit';
   if($('multiSplitSelectedMeta')) $('multiSplitSelectedMeta').textContent=outdoor?`${outdoor.brand} ${outdoor.series} - ${outdoor.capacity} outdoor - ${multiSplitPriceLabel(outdoor.unitPriceInc)}${outdoor.phase?` - ${outdoor.phase}`:''}`:'Choose a brand and outdoor unit, then add compatible indoor heads below.';
   if($('multiSplitConnectedCapacity')){
@@ -8477,7 +8657,7 @@ function renderMultiSplitTrial(){
           <div class="multiSplitIndoorFacts">
             <div class="multiSplitIndoorFact"><span>Cooling</span><strong>${ratedCooling.toFixed(1)}kW</strong></div>
             <div class="multiSplitIndoorFact"><span>Heating</span><strong>${ratedHeating?ratedHeating.toFixed(1)+'kW':'Not rated'}</strong></div>
-            <div class="multiSplitIndoorFact${hasPositiveUnitPrice(row&&row.unitPriceInc)?'':' priceMissing'}"><span>Price inc GST</span><strong>${multiSplitPriceLabel(row&&row.unitPriceInc)}</strong></div>
+            <div class="multiSplitIndoorFact${hasPositiveUnitPrice(row&&row.unitPriceInc)?'':' priceMissing'}"><span>Price inc GST</span><div class="multiSplitPriceEditor"><span aria-hidden="true">$</span><input class="multiSplitPriceInput" type="number" min="0" step="0.01" inputmode="decimal" aria-label="${htmlEscape(row&&row.model||`Indoor head ${rowIndex+1}`)} price including GST" value="${hasPositiveUnitPrice(row&&row.unitPriceInc)?Number(row.unitPriceInc).toFixed(2):''}" onchange="beginMultiSplitPriceEdit('indoor',${Number(selection.indoorIndex)},this.value)"></div></div>
           </div>
         </div>
         <div class="multiSplitIndoorControls">
@@ -8503,8 +8683,11 @@ function renderMultiSplitTrial(){
     multiSplitRebateFresh=false;
     updateMultiSplitRebateFreshness('error');
     renderMultiSplitFinancials();
-  }else{
+  }else if(!preserveRebate){
     resetMultiSplitRebateMetrics('Equipment or postcode changed. Calculate the rebate before adding this system to a quote.');
+  }else{
+    updateMultiSplitRebateFreshness();
+    renderMultiSplitFinancials();
   }
   if(missingPrices.length) updateQuotePriceValidationUi();
 }
@@ -8954,7 +9137,12 @@ function loadManagedPrices(){
     applyManagedEntryToProduct(item,normalized);
     migrated[stableKey]=normalized;
   });
+  Object.entries(stored).forEach(([key,saved])=>{
+    const normalized=normalizedMultiSplitManagedPriceEntry(saved,key);
+    if(normalized) migrated[key]=normalized;
+  });
   priceLocks=migrated;
+  applyAllManagedMultiSplitPrices();
   if(currentTrusted || legacyTrusted) markTrustedManagedPriceStorageKey(PRICE_STORAGE_KEY);
   persistManagedPrices();
 }

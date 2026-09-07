@@ -25,6 +25,7 @@ assert.match(html, /id="multiSplitTab" onclick="setMultiSplitSection\(\)"/, "The
 assert.match(html, /function multiSplitTrialEnabled\(\)\{\s*return true;\s*\}/, "Multi-head access must be enabled for every approved calculator user.");
 assert.doesNotMatch(html, /Admin trial|admin-only trial mode|Not live/, "The live calculator must not show trial-only messaging.");
 assert.match(html, /id="multiSplitRebateFreshness"/, "The page must show whether the rebate is current.");
+assert.match(html, /button\.disabled=state==='loading'\|\|!!invalid/, "Missing equipment prices must not disable multi-head rebate calculation.");
 assert.match(html, /multiSplitRebateFresh=false;/, "Equipment changes must invalidate the previous rebate.");
 assert.match(html, /multiSplitRebateFresh=true;/, "A completed or intentional manual rebate must become current.");
 assert.match(html, /if\(rebatesEnabled\(\)&&!multiSplitRebateFresh\)/, "A stale rebate must block adding the system to a quote.");
@@ -33,6 +34,15 @@ assert.match(html, /syncSharedEssPostcode\(postcodeEl\.value,'standard',true\)/,
 assert.match(html, /syncSharedEssPostcode\(postcode\.value,'multi',true\)/, "Multi-head postcode changes must update the shared value.");
 
 assert.match(html, /class="multiSplitIndoorFacts"/, "Indoor rows must expose capacity and price facts.");
+assert.match(html, /id="multiSplitOutdoorPriceInput"[^>]*onchange="beginMultiSplitPriceEdit\('outdoor'/, "The selected outdoor unit must have an editable price.");
+assert.match(html, /beginMultiSplitPriceEdit\('indoor',\$\{Number\(selection\.indoorIndex\)\}/, "Each selected indoor model must have an editable per-unit price.");
+assert.match(html, /id="multiSplitPriceSaveModal"/, "Entered multi-head prices must offer an explicit account-save choice.");
+assert.match(html, />Use for this quote only<\/button>/, "A temporary quote-only price option must be available.");
+assert.match(html, />Save to this business<\/button>/, "The account price action must state its business-only scope.");
+assert.match(html, /function multiSplitManagedPriceKey\(kind,row\)[\s\S]*multi-\$\{component\}\|\$\{brand\}\|\$\{model\}/, "Multi-head prices must use stable brand-and-model keys.");
+assert.match(html, /function finishMultiSplitPriceEdit\(saveToBusiness\)[\s\S]*priceLocks\[pending\.key\][\s\S]*persistManagedPrices\(\)[\s\S]*__calculatorFlushCloudSave/, "Account prices must be persisted and confirmed by cloud save.");
+assert.match(html, /function loadManagedPrices\(\)[\s\S]*normalizedMultiSplitManagedPriceEntry\(saved,key\)[\s\S]*applyAllManagedMultiSplitPrices\(\)/, "Saved business prices must be restored to the multi-head catalogue.");
+assert.match(html, /function mergeVerifiedMultiSplitOutdoors\(brand,rows\)[\s\S]*applyManagedMultiSplitPrice\('outdoor',merged\)/, "Live GEMS outdoor rows must receive the business-specific price override.");
 assert.match(html, /function adjustMultiSplitIndoorQty\(index,delta\)/, "Indoor quantity steppers must have a dedicated handler.");
 assert.match(html, /compatible\.includes\(previousIndex\)\?previousIndex:compatible\[0\]/, "A new indoor row must reuse the last selected compatible model.");
 assert.match(html, /id="multiSplitHeadProgress"/, "Head-count progress must be visible.");

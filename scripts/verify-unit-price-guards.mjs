@@ -95,6 +95,35 @@ assert.deepEqual(
   "A missing multi-head component price must be named exactly.",
 );
 
+const multiPriceContext = {
+  priceLocks: {},
+  normalizeLookup: (value) => String(value || "").toLowerCase().replace(/[^a-z0-9]/g, ""),
+  normaliseBrandName: (value) => value,
+  normaliseModelName: (value) => value,
+};
+vm.runInNewContext(
+  [
+    functionSource("multiSplitManagedPriceKey"),
+    functionSource("isMultiSplitManagedPriceKey"),
+    functionSource("normalizedMultiSplitManagedPriceEntry"),
+    functionSource("applyManagedMultiSplitPrice"),
+    "result = { multiSplitManagedPriceKey, normalizedMultiSplitManagedPriceEntry, applyManagedMultiSplitPrice };",
+  ].join("\n"),
+  multiPriceContext,
+);
+const pricedIndoor = { brand: "Daikin", model: "CTXM35RVMA", unitPriceInc: 0, priceIncGst: 0 };
+const stableMultiPriceKey = multiPriceContext.result.multiSplitManagedPriceKey("indoor", pricedIndoor);
+assert.equal(stableMultiPriceKey, "multi-indoor|daikin|ctxm35rvma", "Multi-head prices must be keyed by component, brand and model.");
+multiPriceContext.priceLocks[stableMultiPriceKey] = { unitPriceInc: 385 };
+assert.equal(multiPriceContext.result.applyManagedMultiSplitPrice("indoor", pricedIndoor), true);
+assert.equal(pricedIndoor.unitPriceInc, 385, "The account override must update the selected component price.");
+assert.equal(pricedIndoor.priceIncGst, 385, "The GST-inclusive price alias must stay synchronized.");
+assert.equal(
+  multiPriceContext.result.normalizedMultiSplitManagedPriceEntry({ unitPriceInc: -1 }, stableMultiPriceKey),
+  null,
+  "Negative stored prices must be rejected.",
+);
+
 const visibilityContext = {window: {CALCULATOR_USER: {role: "salesperson"}}};
 vm.runInNewContext(
   [
