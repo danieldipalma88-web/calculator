@@ -2549,6 +2549,39 @@ body.guidanceModalOpen{overflow:hidden}
 .priceInput:disabled{background:#f8fafc;color:#94a3b8}
 .pill{display:inline-flex;align-items:center;border-radius:999px;padding:4px 9px;font-size:11px;font-weight:800;background:#f1f5f9;color:#475569}
 
+/* Price Manager has dense desktop tables, with labelled records on phones. */
+#priceDrawer .priceManagerTable,
+#priceDrawer .defaultCostManagerTable{min-width:0;width:100%;table-layout:fixed}
+#priceDrawer .priceManagerTable .priceInput,
+#priceDrawer .defaultCostManagerTable .priceInput{min-width:0;width:100%}
+#priceDrawer .priceManagerTable td{overflow-wrap:anywhere;white-space:normal}
+#priceDrawer .defaultCostManagerTable th,
+#priceDrawer .defaultCostManagerTable td{overflow-wrap:anywhere;white-space:normal}
+#priceDrawer .priceManagerTable .priceInput:disabled{color:#334155;opacity:1;-webkit-text-fill-color:#334155}
+#priceDrawer .priceManagerTable th{font-size:10px;letter-spacing:0}
+#priceDrawer .priceManagerTable th:nth-child(1){width:8%}
+#priceDrawer .priceManagerTable th:nth-child(2){width:13%}
+#priceDrawer .priceManagerTable th:nth-child(3){width:7%}
+#priceDrawer .priceManagerTable th:nth-child(4){width:26%}
+#priceDrawer .priceManagerTable th:nth-child(5),
+#priceDrawer .priceManagerTable th:nth-child(6){width:13%}
+#priceDrawer .priceManagerTable th:nth-child(7){width:8%}
+#priceDrawer .priceManagerTable th:nth-child(8){width:12%}
+#priceDrawer .drawerHead h2{font-size:22px;line-height:1.25}
+#priceDrawer .priceManagerFilters{margin:16px 0 10px}
+#priceDrawer .priceManagerCount{margin:0 0 12px;font-size:12px;color:#526072}
+#priceDrawer input:focus-visible,
+#priceDrawer select:focus-visible,
+#priceDrawer button:focus-visible,
+#priceDrawer summary:focus-visible{outline:2px solid var(--primary);outline-offset:3px}
+#priceDrawer .priceManagerTable td[data-label]::before,
+#priceDrawer .defaultCostManagerTable td[data-label]::before{display:none}
+#priceDrawer .priceManagerTable .managedLockBtn{min-width:0;width:100%}
+#priceDrawer .priceDefaultCosts summary{cursor:pointer;color:#0f172a;font-size:14px;font-weight:800}
+#priceDrawer .managedModelValue{display:none}
+#priceDrawer .is-locked .modelInput{display:none}
+#priceDrawer .is-locked .managedModelValue{display:block;overflow-wrap:anywhere;line-height:1.4;font-weight:600}
+
 .totalsManager{border:1px solid #d1ece3;background:#f7fffc;border-radius:18px;padding:16px;margin:14px 0}
 .totalsGrid{display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:12px}
 .totalsManager .hint{font-size:12px;color:#64748b;margin-top:8px;line-height:1.45}
@@ -3186,6 +3219,133 @@ body.guidanceModalOpen{overflow:hidden}
   .modelRequestGrid{grid-template-columns:1fr;gap:11px}
   .modelRequestField.wide{grid-column:auto}
 }
+@media(max-width:980px){
+  #priceDrawer{width:100%;max-width:100%;padding:12px 10px calc(24px + env(safe-area-inset-bottom, 0px));height:100dvh;scroll-padding-top:90px}
+  #priceDrawer > .drawerHead:first-child{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto;
+    align-items:center;
+    position:sticky;
+    top:-12px;
+    z-index:3;
+    margin:0 -10px 10px;
+    padding:12px 10px 10px;
+    background:#fcfdff;
+    border-bottom:1px solid var(--line);
+  }
+  #priceDrawer > .drawerHead:first-child .actions{display:flex;gap:6px;margin:0}
+  #priceDrawer > .drawerHead:first-child .actions button{width:auto;min-height:44px;padding:10px 12px;border-radius:8px;font-size:12px}
+  #priceDrawer > .drawerHead:first-child h2{font-size:20px}
+  #priceDrawer .priceManagerFilters{display:grid;grid-template-columns:minmax(100px,.8fr) minmax(0,1.5fr);gap:10px}
+  #priceDrawer .priceManagerFilters label{font-size:11px;letter-spacing:0}
+  #priceDrawer .priceManagerFilters input,
+  #priceDrawer .priceManagerFilters select{min-height:44px;font-size:16px;padding:10px}
+  #priceDrawer .totalsManager{margin-top:10px}
+  #priceDrawer .priceDefaultCosts{padding:0;border-radius:0!important;border-left:0;border-right:0;background:#f4f8fa}
+  #priceDrawer .priceDefaultCosts summary{
+    min-height:44px;
+    padding:13px 12px;
+    font-size:13px;
+  }
+  #priceDrawer .priceDefaultCosts[open] summary{border-bottom:1px solid var(--line)}
+  #priceDrawer .priceDefaultCosts[open] > :not(summary){margin-left:0;margin-right:0}
+  #priceDrawer .priceDefaultCosts[open] > .drawerHead{margin-top:12px}
+  #priceDrawer .priceDefaultCosts .drawerHead{display:grid;grid-template-columns:1fr;gap:10px}
+  #priceDrawer .priceDefaultCosts .row2{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  #priceDrawer .priceDefaultCosts select{font-size:16px;min-height:44px;padding:10px}
+  #priceDrawer .priceDefaultCosts button{min-height:44px}
+  #priceDrawer .priceDefaultCosts .hint{margin-bottom:12px;font-size:12px}
+  #priceDrawer .priceManagerTable,
+  #priceDrawer .defaultCostManagerTable{
+    display:block;
+    width:100%;
+    min-width:0!important;
+    font-size:13px;
+  }
+  #priceDrawer .priceManagerTable thead,
+  #priceDrawer .defaultCostManagerTable thead{display:none}
+  #priceDrawer .priceManagerTable tbody,
+  #priceDrawer .defaultCostManagerTable tbody{display:block;width:100%}
+  #priceDrawer .priceManagerTable tr,
+  #priceDrawer .defaultCostManagerTable tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px;width:100%}
+  #priceDrawer .priceManagerTable tr,
+  #priceDrawer .defaultCostManagerTable tr{
+    padding:14px;
+    border-bottom:1px solid var(--line);
+  }
+  #priceDrawer .priceManagerTable tr:last-child,
+  #priceDrawer .defaultCostManagerTable tr:last-child{border-bottom:0}
+  #priceDrawer .priceManagerTable td,
+  #priceDrawer .defaultCostManagerTable td{
+    display:grid;
+    grid-template-columns:minmax(0,1fr);
+    gap:6px;
+    align-items:center;
+    min-width:0;
+    padding:0;
+    border:0;
+    background:transparent!important;
+    text-align:left;
+  }
+  #priceDrawer .priceManagerTable td[data-label]::before,
+  #priceDrawer .defaultCostManagerTable td[data-label]::before{
+    content:attr(data-label);
+    display:block;
+    color:#526072;
+    font-size:11px;
+    font-weight:800;
+    letter-spacing:0;
+    line-height:1.25;
+    text-transform:uppercase;
+  }
+  #priceDrawer .priceManagerTable td[data-label="Brand"]{grid-column:1;grid-row:1;font-size:15px;font-weight:800;align-content:center}
+  #priceDrawer .priceManagerTable td[data-label="Actions"]{grid-column:2;grid-row:1;justify-items:end}
+  #priceDrawer .priceManagerTable td[data-label="Type"]{grid-column:1;grid-row:2;color:#526072}
+  #priceDrawer .priceManagerTable td[data-label="Size"]{grid-column:2;grid-row:2;text-align:right;color:#526072}
+  #priceDrawer .priceManagerTable td[data-label="Model"]{grid-column:1 / -1;grid-row:3;margin:4px 0}
+  #priceDrawer .priceManagerTable td[data-label="Status"]{grid-column:1 / -1;grid-row:5}
+  #priceDrawer .priceManagerTable td[data-label="Type"]::before,
+  #priceDrawer .priceManagerTable td[data-label="Brand"]::before,
+  #priceDrawer .priceManagerTable td[data-label="Size"]::before,
+  #priceDrawer .priceManagerTable td[data-label="Actions"]::before,
+  #priceDrawer .priceManagerTable td[data-label="Status"]::before{display:none}
+  #priceDrawer .defaultCostManagerTable td[data-label="kW range"],
+  #priceDrawer .defaultCostManagerTable td[data-label="Power / electrician ex GST"]{grid-column:1 / -1}
+  #priceDrawer .priceManagerTable .priceInput,
+  #priceDrawer .defaultCostManagerTable .priceInput{
+    box-sizing:border-box;
+    width:100%;
+    min-width:0;
+    min-height:44px;
+    height:44px;
+    font-size:16px;
+    border-radius:8px;
+  }
+  #priceDrawer .priceManagerTable .modelInput{min-width:0}
+  #priceDrawer .priceManagerTable .is-locked .modelInput{display:none}
+  #priceDrawer .priceManagerTable .is-locked .managedModelValue{
+    display:block;
+    min-width:0;
+    color:#0f172a;
+    font-weight:700;
+    line-height:1.4;
+    overflow-wrap:anywhere;
+    font-size:14px;
+  }
+  #priceDrawer .priceManagerTable .priceInput:disabled{color:#334155;opacity:1}
+  #priceDrawer .priceManagerTable .managedLockBtn{
+    width:96px;
+    min-height:44px;
+    padding:10px 12px;
+    font-size:13px;
+    border-radius:8px;
+  }
+  #priceDrawer .priceManagerTable .pill{justify-self:start}
+  #priceDrawer .priceManagerTable td[colspan],
+  #priceDrawer .defaultCostManagerTable td[colspan]{display:block;grid-column:1 / -1;padding:14px 0}
+  #priceDrawer .priceManagerTable td[colspan]::before,
+  #priceDrawer .defaultCostManagerTable td[colspan]::before{display:none}
+}
 @media(max-width:900px) and (max-height:600px) and (orientation:landscape){
   .portraitOnlyNotice{display:flex}
   .wrap,.floatingActionBar,.drawerOverlay,.quoteDrawer,.quoteActionNotice,.quoteNameModal{visibility:hidden!important;pointer-events:none!important}
@@ -3615,19 +3775,18 @@ body.guidanceModalOpen{overflow:hidden}
   <div id="wonJobsSummary" class="wonJobsSummary"></div>
   <div id="wonJobsList" class="wonJobsList"></div>
 </div>
-<div id="priceDrawer" class="quoteDrawer priceDrawer">
+<div id="priceDrawer" class="quoteDrawer priceDrawer" role="dialog" aria-modal="true" aria-labelledby="priceManagerTitle">
   <div class="drawerHead">
     <div>
-      <div class="kicker">Price manager</div>
-      <h2 style="margin:4px 0">Editable calculator pricing</h2>
-      <div class="sub">Unlock a row to edit model number, unit price, or rebate. Changes are saved in this browser and used throughout the calculator.</div>
+      <h2 id="priceManagerTitle" tabindex="-1" style="margin:4px 0">Price Manager</h2>
     </div>
     <div class="actions">
-      <button class="secondary" onclick="resetAllManagedPrices()">Reset all prices</button>
+      <button class="secondary" title="Reset all prices" aria-label="Reset all prices" onclick="resetAllManagedPrices()">Reset</button>
       <button class="secondary" onclick="closePriceDrawer()">Close</button>
     </div>
   </div>
-  <div class="totalsManager" style="margin-top:14px">
+  <details class="totalsManager priceDefaultCosts" style="margin-top:14px">
+    <summary>Default install costs</summary>
     <div class="drawerHead" style="margin-bottom:10px;align-items:flex-end">
       <div>
         <div class="kicker">Default install costs</div>
@@ -3637,17 +3796,18 @@ body.guidanceModalOpen{overflow:hidden}
       <div class="actions" style="margin-top:0"><button class="secondary" onclick="resetDefaultCostRules()">Reset default costs</button></div>
     </div>
     <div class="row2" style="margin-bottom:14px">
-      <div><label>Default system type</label><select id="defaultCostTypeFilter" onchange="renderDefaultCostManager()"><option value="all">All</option><option value="split">Split only</option><option value="ducted">Ducted only</option></select></div>
-      <div><label>Default install type</label><select id="defaultCostInstallFilter" onchange="renderDefaultCostManager()"><option value="all">All</option><option value="new">New install only</option><option value="replacement">Replacement only</option></select></div>
+      <div><label for="defaultCostTypeFilter">System type</label><select id="defaultCostTypeFilter" onchange="renderDefaultCostManager()"><option value="all">All systems</option><option value="split">Split</option><option value="ducted">Ducted</option></select></div>
+      <div><label for="defaultCostInstallFilter">Install type</label><select id="defaultCostInstallFilter" onchange="renderDefaultCostManager()"><option value="all">All installs</option><option value="new">New</option><option value="replacement">Replacement</option></select></div>
     </div>
-    <div class="tableWrap"><table style="min-width:880px"><thead><tr><th>System</th><th>Install</th><th>kW range</th><th>Labour ex GST</th><th>Materials inc GST</th><th>Power / electrician ex GST</th></tr></thead><tbody id="defaultCostRows"><tr><td colspan="6">Loading default costs...</td></tr></tbody></table></div>
+    <div class="tableWrap"><table class="defaultCostManagerTable"><thead><tr><th>System</th><th>Install</th><th>kW range</th><th>Labour ex GST</th><th>Materials inc GST</th><th>Power / electrician ex GST</th></tr></thead><tbody id="defaultCostRows"><tr><td colspan="6">Loading default costs...</td></tr></tbody></table></div>
     <div class="hint" id="defaultCostStatus">Changes are saved in this browser and applied when defaults are loaded for the selected unit.</div>
+  </details>
+  <div class="row2 priceManagerFilters">
+    <div><label for="priceTypeFilter">System type</label><select id="priceTypeFilter" onchange="renderPriceManager()"><option value="all">All</option><option value="split">Split</option><option value="ducted">Ducted</option></select></div>
+    <div><label for="priceSearch">Brand or model</label><input id="priceSearch" type="search" placeholder="Search models" oninput="renderPriceManager()"></div>
   </div>
-  <div class="row2" style="margin-bottom:14px">
-    <div><label>Filter system type</label><select id="priceTypeFilter" onchange="renderPriceManager()"><option value="all">All</option><option value="split">Split only</option><option value="ducted">Ducted only</option></select></div>
-    <div><label>Search brand / model</label><input id="priceSearch" placeholder="Search model, brand, size" oninput="renderPriceManager()"></div>
-  </div>
-  <div class="tableWrap"><table><thead><tr><th>Type</th><th>Brand</th><th>Size</th><th>Model</th><th>Unit price inc GST</th><th class="managedRebateColumn">Rebate</th><th>Status</th><th>Actions</th></tr></thead><tbody id="priceRows"><tr><td colspan="8">Loading prices...</td></tr></tbody></table></div>
+  <p id="priceResultCount" class="priceManagerCount" role="status" aria-live="polite"></p>
+  <div class="tableWrap"><table class="priceManagerTable"><thead><tr><th>Type</th><th>Brand</th><th>Size</th><th>Model</th><th>Unit price inc GST</th><th class="managedRebateColumn">Rebate</th><th>Status</th><th>Actions</th></tr></thead><tbody id="priceRows"><tr><td colspan="8">Loading prices...</td></tr></tbody></table></div>
 </div>
 <div id="certDrawer" class="quoteDrawer priceDrawer">
   <div class="drawerHead">
@@ -9149,7 +9309,13 @@ function loadManagedPrices(){
 function persistManagedPrices(){
   try{localStorage.setItem(PRICE_STORAGE_KEY, JSON.stringify(priceLocks));}catch(e){}
 }
-function openPriceDrawer(){renderDefaultCostManager(); renderPriceManager(); $('priceDrawer').classList.add('open'); $('overlay').classList.add('open'); syncOverlayState();}
+let priceDrawerReturnFocus=null;
+function openPriceDrawer(){
+  priceDrawerReturnFocus=document.activeElement;
+  renderDefaultCostManager(); renderPriceManager();
+  $('priceDrawer').classList.add('open'); $('overlay').classList.add('open'); syncOverlayState();
+  $('priceManagerTitle').focus({preventScroll:true});
+}
 function closePriceDrawer(){$('priceDrawer').classList.remove('open'); if(!$('drawer').classList.contains('open') && !$('certDrawer').classList.contains('open')) $('overlay').classList.remove('open');}
 function closeAllDrawers(){closeDrawer(); closePriceDrawer(); closeCertDrawer();}
 function ruleSystemLabel(rule){return rule.system==='split'?'Split':'Ducted';}
@@ -9162,12 +9328,12 @@ function renderDefaultCostManager(){
   const rows=activeDefaultCostRules().filter(rule=>(typeFilter==='all'||rule.system===typeFilter) && (installFilter==='all'||rule.install===installFilter));
   if(!rows.length){rowsEl.innerHTML='<tr><td colspan="6">No matching default cost rules.</td></tr>'; return;}
   rowsEl.innerHTML=rows.map(rule=>`<tr data-cost-rule="${htmlEscape(rule.id)}">
-    <td>${ruleSystemLabel(rule)}</td>
-    <td>${ruleInstallLabel(rule)}</td>
-    <td>${htmlEscape(rule.rangeLabel)}</td>
-    <td><input class="priceInput defaultCostInput" data-field="labour" type="number" step="0.01" value="${Number(rule.labour||0).toFixed(2)}"></td>
-    <td><input class="priceInput defaultCostInput" data-field="materials" type="number" step="0.01" value="${Number(rule.materials||0).toFixed(2)}"></td>
-    <td><input class="priceInput defaultCostInput" data-field="power" type="number" step="0.01" value="${Number(rule.power||0).toFixed(2)}"></td>
+    <td data-label="System">${ruleSystemLabel(rule)}</td>
+    <td data-label="Install">${ruleInstallLabel(rule)}</td>
+    <td data-label="kW range">${htmlEscape(rule.rangeLabel)}</td>
+    <td data-label="Labour ex GST"><input aria-label="${htmlEscape(`${ruleSystemLabel(rule)} ${ruleInstallLabel(rule)} ${rule.rangeLabel} labour ex GST`)}" class="priceInput defaultCostInput" data-field="labour" type="number" step="0.01" value="${Number(rule.labour||0).toFixed(2)}"></td>
+    <td data-label="Materials inc GST"><input aria-label="${htmlEscape(`${ruleSystemLabel(rule)} ${ruleInstallLabel(rule)} ${rule.rangeLabel} materials inc GST`)}" class="priceInput defaultCostInput" data-field="materials" type="number" step="0.01" value="${Number(rule.materials||0).toFixed(2)}"></td>
+    <td data-label="Power / electrician ex GST"><input aria-label="${htmlEscape(`${ruleSystemLabel(rule)} ${ruleInstallLabel(rule)} ${rule.rangeLabel} power or electrician ex GST`)}" class="priceInput defaultCostInput" data-field="power" type="number" step="0.01" value="${Number(rule.power||0).toFixed(2)}"></td>
   </tr>`).join('');
 }
 function setDefaultCostStatus(message,isError){
@@ -9205,6 +9371,7 @@ function togglePriceLock(key){
   entry.locked=!entry.locked;
   persistManagedPrices();
   renderPriceManager();
+  $('priceRows').querySelector(`tr[data-key="${encodeKeyForDom(key)}"] .managedLockBtn`)?.focus({preventScroll:true});
 }
 function updateManagedPrice(key,field,value){
   const item=managedProductByKey(key);
@@ -9254,6 +9421,7 @@ function renderPriceManager(){
   if(search){
     items=items.filter(item=>`${item.label} ${item.p.brand} ${item.p.series||''} ${item.p.capacity||item.p.size+'kW'} ${item.p.model}`.toLowerCase().includes(search));
   }
+  if($('priceResultCount')) $('priceResultCount').textContent=`${items.length} ${items.length===1?'model':'models'}`;
   if(!items.length){$('priceRows').innerHTML='<tr><td colspan="8">No matching products.</td></tr>';return;}
   $('priceRows').innerHTML=items.map(item=>{
     const key=item.key;
@@ -9264,15 +9432,15 @@ function renderPriceManager(){
     const price=Number(saved.unitPriceInc ?? item.p.unitPriceInc ?? item.p.priceIncGst ?? 0).toFixed(2);
     const rebate=Number(saved.rebate ?? item.p.rebate ?? 0).toFixed(2);
     const model=htmlEscape(String(saved.model||item.p.model||''));
-    return `<tr data-key="${domKey}">
-      <td>${htmlEscape(item.label)}</td>
-      <td>${htmlEscape(item.p.brand)}</td>
-      <td>${htmlEscape(item.p.capacity||item.p.size+'kW')}</td>
-      <td><input class="priceInput modelInput managedPriceInput" data-field="model" type="text" value="${model}" ${locked?'disabled':''}></td>
-      <td><input class="priceInput managedPriceInput" data-field="unitPriceInc" type="number" step="0.01" value="${price}" ${locked?'disabled':''}></td>
-      <td class="managedRebateColumn"><input class="priceInput managedPriceInput" data-field="rebate" type="number" step="0.01" value="${rebate}" ${rebateLocked?'disabled':''}></td>
-      <td><span class="pill">${locked?'Locked':'Unlocked'}</span></td>
-      <td><button type="button" class="lockBtn ${locked?'':'unlocked'} managedLockBtn" onclick="event.stopPropagation(); togglePriceLock(decodeKeyFromDom(this.closest('tr[data-key]').dataset.key));">${locked?'Unlock':'Lock'}</button></td>
+    return `<tr data-key="${domKey}" class="${locked?'is-locked':''}">
+      <td data-label="Type">${htmlEscape(item.label)}</td>
+      <td data-label="Brand">${htmlEscape(item.p.brand)}</td>
+      <td data-label="Size">${htmlEscape(item.p.capacity||item.p.size+'kW')}</td>
+      <td data-label="Model"><span class="managedModelValue">${model}</span><input aria-label="${htmlEscape(`${item.p.brand} model`)}" class="priceInput modelInput managedPriceInput" data-field="model" type="text" value="${model}" ${locked?'disabled':''}></td>
+      <td data-label="Unit price inc GST"><input aria-label="${htmlEscape(`${item.p.brand} unit price including GST`)}" class="priceInput managedPriceInput" data-field="unitPriceInc" type="number" step="0.01" value="${price}" ${locked?'disabled':''}></td>
+      <td class="managedRebateColumn" data-label="Rebate"><input aria-label="${htmlEscape(`${item.p.brand} rebate`)}" class="priceInput managedPriceInput" data-field="rebate" type="number" step="0.01" value="${rebate}" ${rebateLocked?'disabled':''}></td>
+      <td data-label="Status"><span class="pill">${locked?'Locked':'Unlocked'}</span></td>
+      <td data-label="Actions"><button type="button" aria-label="${locked?'Unlock':'Lock'} ${htmlEscape(item.p.brand)} ${htmlEscape(item.p.model||'product')}" class="lockBtn ${locked?'':'unlocked'} managedLockBtn" onclick="event.stopPropagation(); togglePriceLock(decodeKeyFromDom(this.closest('tr[data-key]').dataset.key));">${locked?'Unlock':'Lock'}</button></td>
     </tr>`;
   }).join('');
 }
@@ -11585,7 +11753,13 @@ function syncOverlayState(){
   document.body.classList.toggle('drawerOpen',open);
 }
 function closeDrawer(){const el=$('drawer'); if(el) el.classList.remove('open'); syncOverlayState();}
-function closePriceDrawer(){const el=$('priceDrawer'); if(el) el.classList.remove('open'); syncOverlayState();}
+function closePriceDrawer(){
+  const el=$('priceDrawer');
+  const wasOpen=el?.classList.contains('open');
+  if(el) el.classList.remove('open');
+  syncOverlayState();
+  if(wasOpen && priceDrawerReturnFocus?.isConnected) priceDrawerReturnFocus.focus({preventScroll:true});
+}
 function closeCertDrawer(){const el=$('certDrawer'); if(el) el.classList.remove('open'); syncOverlayState();}
 function closeProposalDrawer(){const el=$('proposalDrawer'); if(el) el.classList.remove('open'); syncOverlayState();}
 function closeAllDrawers(){['drawer','priceDrawer','certDrawer','proposalDrawer','wonJobsDrawer'].forEach(id=>{const el=$(id); if(el) el.classList.remove('open');}); syncOverlayState();}
@@ -12110,6 +12284,17 @@ if(multiFinalInput){
   input.addEventListener('change',()=>saveCommissionRateFromInput(type));
 });
 document.addEventListener('keydown',event=>{
+  const priceDrawer=$('priceDrawer');
+  if(priceDrawer?.classList.contains('open') && !document.querySelector('.quoteNameModal.open')){
+    if(event.key==='Escape'){event.preventDefault(); closePriceDrawer(); return;}
+    if(event.key==='Tab'){
+      const controls=Array.from(priceDrawer.querySelectorAll('button,input,select,summary,[tabindex="0"]')).filter(el=>!el.disabled && el.getClientRects().length);
+      const first=controls[0],last=controls[controls.length-1];
+      const active=document.activeElement;
+      if(event.shiftKey && (active===first || !controls.includes(active))){event.preventDefault(); last?.focus();}
+      else if(!event.shiftKey && (active===last || !priceDrawer.contains(active))){event.preventDefault(); first?.focus();}
+    }
+  }
   if(event.key==='Escape' && $('dcceewInfoModal')?.classList.contains('open')) closeDcceewInfoModal();
   if(event.key==='Escape' && $('modelRequestModal')?.classList.contains('open')) closeModelRequestModal();
 });
