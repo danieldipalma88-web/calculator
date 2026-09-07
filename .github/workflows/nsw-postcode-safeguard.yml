@@ -1,0 +1,72 @@
+name: NSW postcode rebate safeguard
+
+on:
+  schedule:
+    # Monday 06:17 AEST / 07:17 AEDT, away from the busy top of the hour.
+    - cron: '17 20 * * 0'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'lib/nsw-hvac-rebate.ts'
+      - 'lib/gems-model-search.ts'
+      - 'lib/public-rebate-catalogue.generated.json'
+      - 'scripts/*postcode*'
+      - 'scripts/fixtures/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/nsw-postcode-safeguard.yml'
+  pull_request:
+    paths:
+      - 'index.html'
+      - 'lib/nsw-hvac-rebate.ts'
+      - 'lib/gems-model-search.ts'
+      - 'lib/public-rebate-catalogue.generated.json'
+      - 'scripts/*postcode*'
+      - 'scripts/fixtures/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/nsw-postcode-safeguard.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nsw-postcodes-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  postcode-check:
+    # Standard runners are free in public repos. Never incur private-repo minutes.
+    if: github.event.repository.private == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+      - name: Check the safeguard and known postcode regressions
+        run: |
+          node scripts/verify-postcode-monitor.mjs
+          node scripts/verify-nsw-hvac-rebate-rules.mjs
+      - name: Check live rebates for every NSW postcode
+        if: github.event_name != 'pull_request'
+        run: node scripts/monitor-nsw-postcodes.mjs --output=postcode-report.json --summary=postcode-report.md
+      - name: Publish the report in the run summary
+        if: always()
+        run: |
+          if [ -f postcode-report.md ]; then
+            cat postcode-report.md >> "$GITHUB_STEP_SUMMARY"
+          elif [ "${{ github.event_name }}" != "pull_request" ]; then
+            printf '%s\n' 'The live postcode sweep did not complete. Check the failed step; this run does not establish postcode coverage.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Keep detailed results in the run log
+        if: always()
+        run: |
+          if [ -f postcode-report.json ]; then
+            cat postcode-report.json
+          fi
