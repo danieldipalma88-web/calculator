@@ -112,7 +112,15 @@ const retired4To6KwNonDuctedKeys = [
   "RINNAI|HSNRTX35",
   "RINNAI|HSNRTX50",
 ];
-assert.equal(new Set(postcodes).size, 647, "workbook postcode set changed unexpectedly");
+const sortedPostcodes = [...postcodes].sort((left, right) => left - right);
+assert.equal(postcodes.length, 283, "workbook postcode count changed unexpectedly");
+assert.equal(new Set(postcodes).size, 283, "workbook postcode set contains duplicates");
+assert.deepEqual(postcodes, sortedPostcodes, "workbook postcode set must remain sorted");
+assert.equal(
+  crypto.createHash("sha256").update(sortedPostcodes.join(",")).digest("hex"),
+  "700d20074563752d33589e59646b4aad65dec64bd91a39369500880a914e2d7a",
+  "workbook postcode set differs from the reviewed authoritative set",
+);
 assert.equal(new Set(productKeys).size, 796, "central DCCEEW product register changed unexpectedly");
 assert.equal(
   crypto.createHash("sha256").update([...productKeys].sort().join("\n")).digest("hex"),
@@ -125,7 +133,7 @@ for (const key of required4To6KwNonDuctedKeys) {
 for (const key of retired4To6KwNonDuctedKeys) {
   assert.ok(!productKeys.includes(key), `retired 4-6kW non-ducted product remains active: ${key}`);
 }
-assert.ok(postcodes.includes(2163), "approved postcode 2163 is missing");
+assert.ok(postcodes.includes(2311), "approved postcode 2311 is missing");
 assert.ok(productKeys.includes("FUJITSU|AOTG09KMTCASTG09KMTC"), "approved Fujitsu fixture is missing");
 
 assert.match(route, /DCCEEW_ELIGIBLE_POSTCODES/, "raw calculator route does not inject postcode data");
@@ -138,7 +146,7 @@ assert.ok(matcherStart >= 0 && matcherEnd > matcherStart, "could not isolate con
 const sandbox = {
   window: { DCCEEW_CONTRACT_DATA: { rate: 30, postcodes, productKeys } },
   state: "NSW",
-  postcode: "2163",
+  postcode: "2311",
   candidate: { brand: "Fujitsu General", model: "AOTG09KMTC/ASTG09KMTC" },
 };
 sandbox.rebatesEnabled = () => true;
@@ -154,6 +162,8 @@ sandbox.state = "NSW";
 sandbox.postcode = "2002";
 assert.equal(sandbox.__match(), null, "unlisted postcode received a contract match");
 sandbox.postcode = "2163";
+assert.equal(sandbox.__match(), null, "retired postcode 2163 received a contract match");
+sandbox.postcode = "2311";
 sandbox.candidate = { brand: "Other Brand", model: "AOTG09KMTC/ASTG09KMTC" };
 assert.equal(sandbox.__match(), null, "model matched without the exact approved brand");
 sandbox.candidate = { brand: "Rinnai", model: "MVRFON6H20" };
