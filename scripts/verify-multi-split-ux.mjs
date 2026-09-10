@@ -86,7 +86,7 @@ const contractSet = new Set(dcceewProducts);
 const contractMatches = multiOutdoors.filter(({ brand, model }) => contractSet.has(
   `${normalizeBrand(brand)}|${model.toUpperCase().replace(/[^A-Z0-9]/g, "")}`,
 ));
-assert.ok(contractMatches.length >= 20, "Approved multi-head outdoor models must remain detectable in the DCCEEW register.");
+assert.equal(contractMatches.length, 9, "DCCEEW-approved multi-head outdoor models must match the authoritative register.");
 assert.match(html, /getDcceewContractMatch\(\{brand:outdoor\.brand,model:outdoor\.rebateModel\|\|outdoor\.model\},postcode\)/, "Multi-head calculations must check the approved rebate model against the DCCEEW register.");
 assert.match(html, /applyDcceewContractRebate\(dcceewMatch,standardResult\)/, "A qualifying multi-head calculation must use the DCCEEW contract payout.");
 assert.match(html, /id="multiSplitDcceewContractPanel"/, "Multi-head contract eligibility must be visible to the user.");
