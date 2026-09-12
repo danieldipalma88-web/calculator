@@ -1259,11 +1259,12 @@ function wonPaymentStatus(paymentRequestedAt: string, paidInAt: string, paidOutA
   return "payment_open";
 }
 
-function wonPaymentStatusLabel(status: WonPaymentStatus) {
-  if (status === "payment_complete") return "Paid in and out";
-  if (status === "payment_partial") return "Part paid";
-  if (status === "payment_requested") return "Payment requested";
-  return "Payment open";
+function wonPaymentStatusLabel(paymentRequestedAt: string, paidInAt: string, paidOutAt: string) {
+  if (paidInAt && paidOutAt) return "Settled";
+  if (paidInAt) return "Commission to pay";
+  if (paidOutAt) return "Awaiting agency payment";
+  if (paymentRequestedAt) return "Awaiting agency payment";
+  return "Not requested";
 }
 
 function wonOptionDomKey(option: Pick<WonOption, "userEmail" | "dataUserId" | "dataOwnerEmail" | "sourceId" | "optionId" | "wonAt">) {
@@ -1289,24 +1290,30 @@ function applyWonPaymentFields(
   if (mode === "reset_payment") return clearWonPaymentFields(next);
 
   if (mode === "payment_requested") {
-    next.paymentRequestedAt = now;
-    next.paymentRequestedByEmail = adminEmail;
+    if (!next.paymentRequestedAt) {
+      next.paymentRequestedAt = now;
+      next.paymentRequestedByEmail = adminEmail;
+    }
     return next;
   }
 
   if (mode === "paid_in") {
-    next.agencyPaidInAt = now;
-    next.agencyPaidInByEmail = adminEmail;
-    next.paidInAt = now;
-    next.paidInByEmail = adminEmail;
+    if (!next.paidInAt && !next.agencyPaidInAt) {
+      next.agencyPaidInAt = now;
+      next.agencyPaidInByEmail = adminEmail;
+      next.paidInAt = now;
+      next.paidInByEmail = adminEmail;
+    }
     return next;
   }
 
   if (mode === "paid_out") {
-    next.salespersonPaidOutAt = now;
-    next.salespersonPaidOutByEmail = adminEmail;
-    next.paidOutAt = now;
-    next.paidOutByEmail = adminEmail;
+    if (!next.paidOutAt && !next.salespersonPaidOutAt) {
+      next.salespersonPaidOutAt = now;
+      next.salespersonPaidOutByEmail = adminEmail;
+      next.paidOutAt = now;
+      next.paidOutByEmail = adminEmail;
+    }
   }
 
   return next;
@@ -1409,10 +1416,11 @@ function wonExportScript() {
     });
   }
   function paymentFilterLabel(value) {
-    if (value === "unpaid") return "Unpaid";
-    if (value === "requested") return "Payment requested";
-    if (value === "paid-in") return "Paid in";
-    if (value === "paid-out") return "Paid out";
+    if (value === "not-requested") return "Not requested";
+    if (value === "awaiting-agency") return "Awaiting agency payment";
+    if (value === "commission-to-pay") return "Commission to pay";
+    if (value === "settled") return "Settled";
+    if (value === "all") return "All";
     return value;
   }
   function currency(value) {
@@ -1423,10 +1431,8 @@ function wonExportScript() {
     return Number.isFinite(parsed) ? parsed : 0;
   }
   function cardMatchesPaymentFilters(card, activePayments) {
-    if (!activePayments.length) return true;
-    return activePayments.some(function(payment){
-      return card.getAttribute("data-payment-" + payment) === "true";
-    });
+    var payment = activePayments[0] || "all";
+    return payment === "all" || card.getAttribute("data-payment-" + payment) === "true";
   }
   function visibleWonCards() {
     return Array.prototype.slice.call(document.querySelectorAll(".won-options-section .won-card")).filter(function(card){
@@ -1442,7 +1448,7 @@ function wonExportScript() {
     return String(card.getAttribute("data-won-search") || "").toLowerCase().indexOf(search) >= 0;
   }
   function hasActiveWonFilter() {
-    return activeSalespersonEmails().length > 0 || activePaymentFilters().length > 0 || Boolean(activeWonSearch());
+    return activeSalespersonEmails().length > 0 || activePaymentFilters()[0] !== "all" || Boolean(activeWonSearch());
   }
   function updateSelectAllLabel() {
     var visibleBoxes = visibleWonCards()
@@ -1474,6 +1480,46 @@ function wonExportScript() {
   function selectedWonSelections() {
     return selectedWonCards().map(parseSelectionCard).filter(Boolean);
   }
+  function bulkModeForForm(form, submitter) {
+    if (submitter && submitter.name === "bulkMode") return String(submitter.value || "");
+    var input = form ? form.querySelector('input[name="bulkMode"]') : null;
+    return String(input && input.value || "");
+  }
+  function bulkEligibleCards(mode, cards) {
+    if (mode === "payment_requested") return cards.filter(function(card){ return card.getAttribute("data-payment-not-requested") === "true"; });
+    if (mode === "paid_in") return cards.filter(function(card){ return card.getAttribute("data-payment-paid-in") !== "true"; });
+    if (mode === "paid_out") return cards.filter(function(card){ return card.getAttribute("data-payment-paid-out") !== "true"; });
+    return cards;
+  }
+  function setBulkSelections(cards) {
+    var value = JSON.stringify(cards.map(parseSelectionCard).filter(Boolean));
+    Array.prototype.slice.call(document.querySelectorAll("[data-selected-won-input]")).forEach(function(input){
+      input.value = value;
+    });
+  }
+  function bulkConfirmationMessage(mode, selectedCards, eligibleCards) {
+    var skipped = selectedCards.length - eligibleCards.length;
+    var agencyTotal = eligibleCards.reduce(function(total, card){ return total + numberFromCard(card, "data-won-agency-total"); }, 0);
+    var salesTotal = eligibleCards.reduce(function(total, card){ return total + numberFromCard(card, "data-won-sales-total"); }, 0);
+    var label = mode === "paid_in" ? "Record agency payment received" :
+      mode === "paid_out" ? "Record salesperson commission paid" :
+      mode === "payment_requested" ? "Record payment request" :
+      mode === "reset_payment" ? "Reset payment status" :
+      mode === "unlock" ? "Unlock" :
+      mode === "delete" ? "Permanently delete" : "Update rebate";
+    var amount = mode === "paid_out" ? salesTotal : agencyTotal;
+    var amountLabel = mode === "paid_out" ? "sales commission" : "agency payment";
+    var paymentAction = mode === "payment_requested" || mode === "paid_in" || mode === "paid_out";
+    var detail = label + " for " + eligibleCards.length + " won quote" + (eligibleCards.length === 1 ? "" : "s") +
+      (paymentAction ? " (" + amountLabel + " " + currency(amount) + ")?" : "?");
+    if (paymentAction) {
+      var salespeople = Array.from(new Set(eligibleCards.map(function(card){ return (parseCard(card) || {}).Salesperson; }).filter(Boolean)));
+      if (salespeople.length) detail += " Salespeople: " + salespeople.join(", ") + ".";
+    }
+    if (skipped) detail += " " + skipped + " already-recorded payment" + (skipped === 1 ? " will" : "s will") + " be skipped.";
+    if (mode === "delete") detail += " This cannot be undone.";
+    return detail;
+  }
   function updateSelectedTotals() {
     var totalsNodes = Array.prototype.slice.call(document.querySelectorAll("[data-won-selected-totals]"));
     if (!totalsNodes.length) return;
@@ -1486,16 +1532,14 @@ function wonExportScript() {
       return;
     }
     var totals = cards.reduce(function(total, card){
-      total.sales += numberFromCard(card, "data-won-sales-total");
-      total.agency += numberFromCard(card, "data-won-agency-total");
+      if (card.getAttribute("data-payment-paid-in") !== "true") total.agencyOutstanding += numberFromCard(card, "data-won-agency-total");
+      if (card.getAttribute("data-payment-commission-to-pay") === "true") total.salesOutstanding += numberFromCard(card, "data-won-sales-total");
       total.agencyProfit += numberFromCard(card, "data-won-agency-profit-total");
-      total.profit += numberFromCard(card, "data-won-profit-total");
       return total;
-    }, { sales: 0, agency: 0, agencyProfit: 0, profit: 0 });
-    var text = "Selected totals (" + cards.length + "): Sales comm " + currency(totals.sales) +
-      " | Agency comm " + currency(totals.agency) +
-      " | Agency profit inc GST " + currency(totals.agencyProfit) +
-      " | Installer profit " + currency(totals.profit);
+    }, { agencyOutstanding: 0, salesOutstanding: 0, agencyProfit: 0 });
+    var text = "Selected " + cards.length + ": Agency outstanding " + currency(totals.agencyOutstanding) +
+      " | Commission ready to pay " + currency(totals.salesOutstanding) +
+      " | Agency profit inc GST " + currency(totals.agencyProfit);
     totalsNodes.forEach(function(node){
       node.hidden = false;
       node.textContent = text;
@@ -1583,7 +1627,7 @@ function wonExportScript() {
     var status = document.querySelector("[data-won-filter-status]");
     if (!status) return;
     var visibleCount = visibleWonCards().length;
-    var paymentText = activePayments.length ? " with " + activePayments.map(paymentFilterLabel).join(", ") : "";
+    var paymentText = activePayments[0] && activePayments[0] !== "all" ? " with " + paymentFilterLabel(activePayments[0]) : "";
     if (!activeEmails.length) {
       if (paymentText) {
         status.textContent = "Showing " + visibleCount + paymentText + " won quotes.";
@@ -1604,10 +1648,8 @@ function wonExportScript() {
       .filter(Boolean);
   }
   function activePaymentFilters() {
-    var values = Array.prototype.slice.call(document.querySelectorAll("[data-payment-filter].is-active, [data-mobile-payment-filter].is-active"))
-      .map(function(button){ return String(button.getAttribute("data-payment-filter") || button.getAttribute("data-mobile-payment-filter") || ""); })
-      .filter(Boolean);
-    return values.filter(function(value, index){ return values.indexOf(value) === index; });
+    var active = document.querySelector("[data-won-payment-filter].is-active");
+    return [String(active && active.getAttribute("data-won-payment-filter") || "all")];
   }
   function setActiveSalespersonEmails(emails) {
     var normalized = emails.map(function(email){ return String(email || "").toLowerCase(); }).filter(Boolean);
@@ -1635,17 +1677,10 @@ function wonExportScript() {
     }
   }
   function setActivePaymentFilters(payments) {
-    var normalized = payments.filter(Boolean);
-    var selectedEmails = activeSalespersonEmails();
-    var hasSelectedSalespeople = selectedEmails.length > 0;
-    Array.prototype.slice.call(document.querySelectorAll("[data-payment-filter], [data-mobile-payment-filter]")).forEach(function(button){
-      var payment = String(button.getAttribute("data-payment-filter") || button.getAttribute("data-mobile-payment-filter") || "");
-      var summaryCard = button.closest ? button.closest("[data-salesperson-filter]") : null;
-      var summaryEmail = summaryCard
-        ? String(summaryCard.getAttribute("data-salesperson-filter") || "").toLowerCase()
-        : "";
-      var appliesToSummary = !summaryCard || !hasSelectedSalespeople || selectedEmails.indexOf(summaryEmail) >= 0;
-      var isActive = appliesToSummary && normalized.indexOf(payment) >= 0;
+    var selected = String(payments[0] || "all");
+    Array.prototype.slice.call(document.querySelectorAll("[data-won-payment-filter]")).forEach(function(button){
+      var payment = String(button.getAttribute("data-won-payment-filter") || "");
+      var isActive = payment === selected;
       button.classList.toggle("is-active", isActive);
       button.setAttribute("aria-pressed", isActive ? "true" : "false");
     });
@@ -1705,25 +1740,16 @@ function wonExportScript() {
     });
     var totals = visibleCards.reduce(function(total, card){
       total.quotes += 1;
-      total.agency += numberFromCard(card, "data-won-agency-total");
-      total.sales += numberFromCard(card, "data-won-sales-total");
+      if (card.getAttribute("data-payment-paid-in") !== "true") total.agencyOutstanding += numberFromCard(card, "data-won-agency-total");
+      if (card.getAttribute("data-payment-commission-to-pay") === "true") total.salesOutstanding += numberFromCard(card, "data-won-sales-total");
       total.agencyProfit += numberFromCard(card, "data-won-agency-profit-total");
-      total.installer += numberFromCard(card, "data-won-profit-total");
       return total;
-    }, { quotes: 0, agency: 0, sales: 0, agencyProfit: 0, installer: 0 });
-    var statusCounts = baseCards.reduce(function(total, card){
-      if (card.getAttribute("data-payment-unpaid") === "true") total.unpaid += 1;
-      if (card.getAttribute("data-payment-requested") === "true") total.requested += 1;
-      if (card.getAttribute("data-payment-paid-in") === "true") total.paidIn += 1;
-      if (card.getAttribute("data-payment-paid-out") === "true") total.paidOut += 1;
-      return total;
-    }, { unpaid: 0, requested: 0, paidIn: 0, paidOut: 0 });
+    }, { quotes: 0, agencyOutstanding: 0, salesOutstanding: 0, agencyProfit: 0 });
     var context = document.querySelector("[data-mobile-summary-context]");
     var quoteCount = document.querySelector("[data-mobile-summary-quotes]");
-    var agency = document.querySelector("[data-mobile-summary-agency]");
-    var sales = document.querySelector("[data-mobile-summary-sales]");
+    var agencyOutstanding = document.querySelector("[data-mobile-summary-agency-outstanding]");
+    var salesOutstanding = document.querySelector("[data-mobile-summary-sales-outstanding]");
     var agencyProfit = document.querySelector("[data-mobile-summary-agency-profit]");
-    var installer = document.querySelector("[data-mobile-summary-installer]");
     if (context) {
       var names = activeEmails.map(function(email){
         var card = salespersonCardForEmail(email);
@@ -1732,36 +1758,12 @@ function wonExportScript() {
       context.textContent = names.length ? names.join(", ") : "All salespeople";
     }
     if (quoteCount) quoteCount.textContent = String(totals.quotes);
-    if (agency) agency.textContent = currency(totals.agency);
-    if (sales) sales.textContent = currency(totals.sales);
+    if (agencyOutstanding) agencyOutstanding.textContent = currency(totals.agencyOutstanding);
+    if (salesOutstanding) salesOutstanding.textContent = currency(totals.salesOutstanding);
     if (agencyProfit) agencyProfit.textContent = currency(totals.agencyProfit);
-    if (installer) installer.textContent = currency(totals.installer);
-    Array.prototype.slice.call(document.querySelectorAll("[data-mobile-payment-count]")).forEach(function(node){
-      var payment = String(node.getAttribute("data-mobile-payment-count") || "");
-      if (payment === "unpaid") node.textContent = String(statusCounts.unpaid);
-      if (payment === "requested") node.textContent = String(statusCounts.requested);
-      if (payment === "paid-in") node.textContent = String(statusCounts.paidIn);
-      if (payment === "paid-out") node.textContent = String(statusCounts.paidOut);
-    });
   }
   function updatePaymentFilterButtons(activePayments) {
     setActivePaymentFilters(activePayments);
-  }
-  function updateRequestedOutstanding() {
-    var node = document.querySelector("[data-won-requested-outstanding]");
-    if (!node) return;
-    var cards = visibleWonCards().filter(function(card){
-      return card.getAttribute("data-payment-requested-outstanding") === "true";
-    });
-    var total = cards.reduce(function(sum, card){
-      return sum + numberFromCard(card, "data-won-agency-total");
-    }, 0);
-    if (!cards.length) {
-      node.textContent = "No requested payments are currently awaiting payment.";
-      return;
-    }
-    node.textContent = "Payment requested, awaiting payment: " + cards.length + " job" +
-      (cards.length === 1 ? "" : "s") + " | Outstanding agency commission: " + currency(total);
   }
   function currentWonSort() {
     var sort = document.querySelector("[data-won-sort]");
@@ -1843,7 +1845,7 @@ function wonExportScript() {
     if (search) search.value = String(state.search || "");
     if (sort) sort.value = String(state.sort || "recent");
     setActiveSalespersonEmails(Array.isArray(state.salespeople) ? state.salespeople : []);
-    setActivePaymentFilters(Array.isArray(state.payments) ? state.payments : []);
+    setActivePaymentFilters(Array.isArray(state.payments) && state.payments.length ? state.payments : ["all"]);
     applyWonSalespersonFilter();
     (Array.isArray(state.expanded) ? state.expanded : []).forEach(function(key){
       var card = document.querySelector('.won-card[data-won-card-key="' + CSS.escape(String(key)) + '"]');
@@ -1877,7 +1879,6 @@ function wonExportScript() {
     updateSalespersonSummaryTotals(activePayments);
     updateMobileFilterSummary(activeEmails, activePayments, search);
     updateWonFilterStatus(activeEmails, activePayments);
-    updateRequestedOutstanding();
     sortWonCards();
     updateWonSelectionDock();
   }
@@ -2337,7 +2338,7 @@ function wonExportScript() {
       if (search) search.value = "";
       if (sort) sort.value = "recent";
       setActiveSalespersonEmails([]);
-      setActivePaymentFilters([]);
+      setActivePaymentFilters(["all"]);
       applyWonSalespersonFilter();
       setExportStatus("Cleared Won Quotes filters.", "success");
       rememberWonUiState(false);
@@ -2351,21 +2352,13 @@ function wonExportScript() {
       return;
     }
 
-    var paymentTarget = event.target && event.target.closest ? event.target.closest("[data-payment-filter], [data-mobile-payment-filter]") : null;
+    var paymentTarget = event.target && event.target.closest ? event.target.closest("[data-won-payment-filter]") : null;
     if (paymentTarget) {
       event.preventDefault();
       event.stopPropagation();
-      var payment = String(paymentTarget.getAttribute("data-payment-filter") || paymentTarget.getAttribute("data-mobile-payment-filter") || "");
+      var payment = String(paymentTarget.getAttribute("data-won-payment-filter") || "");
       if (!payment) return;
-      var selectedSalespeople = activeSalespersonEmails();
-      var paymentSummary = paymentTarget.closest ? paymentTarget.closest("[data-salesperson-filter]") : null;
-      var paymentSummaryEmail = paymentSummary
-        ? String(paymentSummary.getAttribute("data-salesperson-filter") || "").toLowerCase()
-        : "";
-      if (paymentSummary && selectedSalespeople.length && selectedSalespeople.indexOf(paymentSummaryEmail) < 0) return;
-      var activePayments = activePaymentFilters();
-      var isActive = paymentTarget.classList.contains("is-active");
-      updatePaymentFilterButtons(isActive ? activePayments.filter(function(value){ return value !== payment; }) : activePayments.concat(payment));
+      updatePaymentFilterButtons([payment]);
       applyWonSalespersonFilter();
       rememberWonUiState(false);
       return;
@@ -2382,7 +2375,7 @@ function wonExportScript() {
       selectionControl.click();
       return;
     }
-    if (event.target && event.target.closest && event.target.closest("[data-payment-filter]")) return;
+    if (event.target && event.target.closest && event.target.closest("[data-won-payment-filter]")) return;
     var target = event.target && event.target.closest ? event.target.closest("[data-salesperson-filter]") : null;
     if (!target) return;
     event.preventDefault();
@@ -2435,10 +2428,23 @@ function wonExportScript() {
     var form = event.target;
     if (!form || !form.closest || !form.closest(".won-options-section")) return;
     if (form.hasAttribute("data-bulk-won-form")) {
-      refreshBulkInputs();
-      if (!selectedWonSelections().length) {
+      var selectedCards = selectedWonCards();
+      if (!selectedCards.length) {
         event.preventDefault();
         setExportStatus("Select at least one won quote first.", "error");
+        return;
+      }
+      var mode = bulkModeForForm(form, event.submitter);
+      var eligibleCards = bulkEligibleCards(mode, selectedCards);
+      if (!eligibleCards.length) {
+        event.preventDefault();
+        setExportStatus("All selected won quotes already have that payment recorded; no timestamps were changed.", "success");
+        return;
+      }
+      setBulkSelections(eligibleCards);
+      if (!window.confirm(bulkConfirmationMessage(mode, selectedCards, eligibleCards))) {
+        event.preventDefault();
+        refreshBulkInputs();
         return;
       }
     }
@@ -2495,6 +2501,7 @@ function wonExportScript() {
 }
 
 const CURRENT_WON_SOURCE_ID = "current";
+const WON_PAYMENT_ALREADY_RECORDED = "__won_payment_already_recorded__";
 
 function savedQuoteSetSourceId(set: Record<string, unknown>, index: number) {
   const id = String(set.id || "").trim();
@@ -2723,7 +2730,7 @@ function addWonOptionsFromSnapshot({
         paidInAt,
         paidOutAt,
         paymentStatus,
-        paymentStatusLabel: wonPaymentStatusLabel(paymentStatus),
+        paymentStatusLabel: wonPaymentStatusLabel(paymentRequestedAt, paidInAt, paidOutAt),
         systemCount: rows.length,
         customerTotal: rows.reduce((sum, quote) => sum + moneyValue(quote.finalInc), 0),
         rebateTotal: rows.reduce((sum, quote) => sum + quoteRebateValue(quote), 0),
@@ -3010,18 +3017,24 @@ function upsertWonAdminState(
   };
 
   if (mode === "payment_requested") {
-    nextRecord.paymentRequestedAt = now;
-    nextRecord.paymentRequestedByEmail = adminEmail;
+    if (!nextRecord.paymentRequestedAt) {
+      nextRecord.paymentRequestedAt = now;
+      nextRecord.paymentRequestedByEmail = adminEmail;
+    }
     delete nextRecord.paymentResetAt;
     delete nextRecord.paymentResetByEmail;
   } else if (mode === "paid_in") {
-    nextRecord.paidInAt = now;
-    nextRecord.paidInByEmail = adminEmail;
+    if (!nextRecord.paidInAt) {
+      nextRecord.paidInAt = now;
+      nextRecord.paidInByEmail = adminEmail;
+    }
     delete nextRecord.paymentResetAt;
     delete nextRecord.paymentResetByEmail;
   } else if (mode === "paid_out") {
-    nextRecord.paidOutAt = now;
-    nextRecord.paidOutByEmail = adminEmail;
+    if (!nextRecord.paidOutAt) {
+      nextRecord.paidOutAt = now;
+      nextRecord.paidOutByEmail = adminEmail;
+    }
     delete nextRecord.paymentResetAt;
     delete nextRecord.paymentResetByEmail;
   } else if (mode === "reset_payment") {
@@ -3271,6 +3284,12 @@ async function updateWonOptionState(
 
     if (backupResult.error) return dbMessage(backupResult.error);
     if (!backupResult.data?.data) return "Could not find that recovered backup.";
+    if (
+      wonOptionPaymentAlreadyRecorded(backupResult.data.data as Record<string, unknown>, backupSource.sourceId, optionId, wonAt, mode)
+      || wonAdminPaymentAlreadyRecorded(backupResult.data.data as Record<string, unknown>, userEmail, ownerEmail, dataUserId, backupSource.sourceId, optionId, wonAt, mode)
+    ) {
+      return WON_PAYMENT_ALREADY_RECORDED;
+    }
 
     const next = updateDataForSource(backupResult.data.data as Record<string, unknown>, backupSource.sourceId);
     if (!next.updated) return "Could not find that won option in the recovered backup.";
@@ -3291,6 +3310,12 @@ async function updateWonOptionState(
 
   if (dataResult.error) return dbMessage(dataResult.error);
   if (!dataResult.data?.data) return "Could not find saved calculator data for this user.";
+  if (
+    wonOptionPaymentAlreadyRecorded(dataResult.data.data as Record<string, unknown>, sourceId, optionId, wonAt, mode)
+    || wonAdminPaymentAlreadyRecorded(dataResult.data.data as Record<string, unknown>, userEmail, ownerEmail, dataUserId, sourceId, optionId, wonAt, mode)
+  ) {
+    return WON_PAYMENT_ALREADY_RECORDED;
+  }
 
   const next = updateDataForSource(dataResult.data.data as Record<string, unknown>, sourceId);
   const adminState = upsertWonAdminState(
@@ -3732,18 +3757,23 @@ async function updateWonPaymentStatus(formData: FormData) {
     wonAt,
   );
 
+  if (errorMessage === WON_PAYMENT_ALREADY_RECORDED) {
+    const label = mode === "payment_requested" ? "Agency payment request" : mode === "paid_in" ? "Agency payment" : "Salesperson commission";
+    redirect(`/admin/users?message=${encodeURIComponent(`${label} was already recorded; the original timestamp was kept.`)}`);
+  }
+
   if (errorMessage) {
     redirect(`/admin/users?error=${encodeURIComponent(errorMessage)}`);
   }
 
   const message =
     mode === "payment_requested"
-      ? "Payment was marked as requested."
+      ? "Agency payment was requested."
       : mode === "paid_out"
-      ? "Sale was marked as paid out."
+      ? "Salesperson commission was marked as paid."
       : mode === "paid_in"
-        ? "Sale was marked as paid in."
-        : "Sale payment status was reset.";
+        ? "Agency payment was marked as received."
+        : "Payment status was reset.";
 
   revalidatePath("/admin/users");
   redirect(`/admin/users?message=${encodeURIComponent(message)}`);
@@ -3799,6 +3829,65 @@ function parseWonOptionSelections(value: FormDataEntryValue | null) {
     selections.push(selection);
   });
   return selections;
+}
+
+function wonOptionPaymentAlreadyRecorded(
+  data: Record<string, unknown>,
+  sourceId: string,
+  optionId: string,
+  wonAt: string,
+  mode: WonOptionUpdateMode,
+) {
+  if (mode !== "payment_requested" && mode !== "paid_in" && mode !== "paid_out") return false;
+
+  let optionDefs: Record<string, unknown>[] = [];
+  let quotes: Record<string, unknown>[] = [];
+  if (sourceId === CURRENT_WON_SOURCE_ID) {
+    optionDefs = parseStoredJson<Record<string, unknown>[]>(data[storedJsonKey(data, OPTION_DEF_STORAGE_KEYS)], []);
+    quotes = parseStoredJson<Record<string, unknown>[]>(data[storedJsonKey(data, QUOTE_STORAGE_KEYS)], []);
+  } else {
+    const savedQuoteSets = parseStoredJson<Record<string, unknown>[]>(data[storedJsonKey(data, SAVED_QUOTE_SET_STORAGE_KEYS)], []);
+    const savedQuoteSet = savedQuoteSets.find((set, index) => savedQuoteSetSourceId(set, index) === sourceId);
+    optionDefs = Array.isArray(savedQuoteSet?.optionDefs) ? savedQuoteSet.optionDefs as Record<string, unknown>[] : [];
+    quotes = Array.isArray(savedQuoteSet?.quotes) ? savedQuoteSet.quotes as Record<string, unknown>[] : [];
+  }
+
+  return optionDefs.concat(quotes).some((record) => {
+    const recordOptionId = String(record.optionId || record.id || "option_1");
+    if (recordOptionId !== optionId) return false;
+    if (wonAt && record.wonAt && String(record.wonAt) !== wonAt) return false;
+    if (mode === "payment_requested") {
+      return Boolean(record.paymentRequestedAt || record.paidInAt || record.agencyPaidInAt || record.paidOutAt || record.salespersonPaidOutAt);
+    }
+    return mode === "paid_in"
+      ? Boolean(record.paidInAt || record.agencyPaidInAt)
+      : Boolean(record.paidOutAt || record.salespersonPaidOutAt);
+  });
+}
+
+function wonAdminPaymentAlreadyRecorded(
+  data: Record<string, unknown>,
+  userEmail: string,
+  dataOwnerEmail: string,
+  dataUserId: string,
+  sourceId: string,
+  optionId: string,
+  wonAt: string,
+  mode: WonOptionUpdateMode,
+) {
+  if (mode !== "payment_requested" && mode !== "paid_in" && mode !== "paid_out") return false;
+  return wonAdminStateRecordsFromData(data, dataOwnerEmail, dataUserId).some((record) => {
+    if (
+      record.userEmail !== userEmail.toLowerCase()
+      || record.dataOwnerEmail !== dataOwnerEmail.toLowerCase()
+      || record.dataUserId !== dataUserId
+      || record.sourceId !== sourceId
+      || record.optionId !== optionId
+      || record.wonAt !== wonAt
+    ) return false;
+    if (mode === "payment_requested") return Boolean(record.paymentRequestedAt || record.paidInAt || record.paidOutAt);
+    return mode === "paid_in" ? Boolean(record.paidInAt) : Boolean(record.paidOutAt);
+  });
 }
 
 type RebateRefreshEnvironment = {
@@ -4292,6 +4381,7 @@ async function bulkUpdateWonOptions(formData: FormData) {
 
   const errors: string[] = [];
   let updatedCount = 0;
+  let alreadyRecordedCount = 0;
   for (const selection of selections) {
     const errorMessage = await updateWonOptionState(
       supabase,
@@ -4304,7 +4394,9 @@ async function bulkUpdateWonOptions(formData: FormData) {
       selection.dataOwnerEmail,
       selection.wonAt,
     );
-    if (errorMessage) {
+    if (errorMessage === WON_PAYMENT_ALREADY_RECORDED) {
+      alreadyRecordedCount += 1;
+    } else if (errorMessage) {
       errors.push(`${selection.userEmail}: ${errorMessage}`);
     } else {
       updatedCount += 1;
@@ -4320,18 +4412,21 @@ async function bulkUpdateWonOptions(formData: FormData) {
 
   const actionLabel =
     mode === "payment_requested"
-      ? "marked as payment requested"
+      ? "requested for agency payment"
       : mode === "paid_out"
-      ? "marked as paid out"
+      ? "marked with salesperson commission paid"
       : mode === "paid_in"
-        ? "marked as paid in"
+        ? "marked with agency payment received"
         : mode === "reset_payment"
           ? "reset"
           : mode === "unlock"
             ? "unlocked"
             : "permanently deleted";
 
-  redirect(`/admin/users?message=${encodeURIComponent(`${updatedCount} won option${updatedCount === 1 ? "" : "s"} ${actionLabel}.`)}`);
+  const skipped = alreadyRecordedCount
+    ? ` ${alreadyRecordedCount} already-recorded payment${alreadyRecordedCount === 1 ? " was" : "s were"} skipped.`
+    : "";
+  redirect(`/admin/users?message=${encodeURIComponent(`${updatedCount} won option${updatedCount === 1 ? "" : "s"} ${actionLabel}.${skipped}`)}`);
 }
 
 function WonBulkActionControls({ mobile = false }: { mobile?: boolean }) {
@@ -4348,33 +4443,32 @@ function WonBulkActionControls({ mobile = false }: { mobile?: boolean }) {
           Update rebate
         </button>
         <button className="secondary" type="submit" name="bulkMode" value="payment_requested">
-          Mark payment requested
+          Record payment request
         </button>
         <button className="secondary" type="submit" name="bulkMode" value="paid_in">
-          Mark paid in
+          Record payment received
         </button>
         <button className="secondary" type="submit" name="bulkMode" value="paid_out">
-          Mark paid out
-        </button>
-        <button className="secondary" type="submit" name="bulkMode" value="reset_payment">
-          Reset payment
-        </button>
-        <button className="secondary" type="submit" name="bulkMode" value="unlock">
-          Unlock
+          Record commission paid
         </button>
       </form>
-      <details className={deleteClassName}>
-        <summary>Delete selected</summary>
+      <details className={`${deleteClassName} won-secondary-actions`}>
+        <summary>More actions</summary>
+        <form action={bulkUpdateWonOptions} className="won-secondary-action" data-bulk-won-form>
+          <input type="hidden" name="selectedWonOptions" data-selected-won-input />
+          <button className="secondary" type="submit" name="bulkMode" value="reset_payment">
+            Reset payment status
+          </button>
+          <button className="secondary" type="submit" name="bulkMode" value="unlock">
+            Unlock quote
+          </button>
+        </form>
         <form
           action={bulkUpdateWonOptions}
           data-bulk-won-form
-          data-confirm-message="This permanently deletes the selected won quotes from current and recovered backup data. This cannot be undone."
         >
           <input type="hidden" name="selectedWonOptions" data-selected-won-input />
           <input type="hidden" name="bulkMode" value="delete" />
-          <p className="delete-warning">
-            This permanently deletes the selected won quotes from current and recovered backup data. This cannot be undone.
-          </p>
           <button className="danger" type="submit">
             Permanently delete
           </button>
@@ -5277,7 +5371,7 @@ export default async function AdminUsersPage({
           <summary className="section-heading admin-section-summary">
             <div>
               <h2>Won Quotes</h2>
-              <p>Quotes marked as won in each calculator, including Daniel's full commission view.</p>
+              <p>Track agency payments and salesperson commissions.</p>
             </div>
             <span className="section-count">{wonOptions.length} total</span>
             <span className="section-chevron" aria-hidden="true" />
@@ -5292,7 +5386,8 @@ export default async function AdminUsersPage({
               </div>
             </div>
             <div className="won-backup-note">
-              <div>
+              <details className="won-backup-menu">
+                <summary>Backup recovery</summary>
                 <strong>
                   {includeBackupWonOptions ? "Recovered won quotes included" : "Current won quotes only"}
                 </strong>
@@ -5301,13 +5396,10 @@ export default async function AdminUsersPage({
                     ? "This view includes recovered backup records and may take longer to load."
                     : "Recovered backups are skipped on normal loads so paid-status updates stay fast."}
                 </span>
-              </div>
-              <a
-                className="button secondary"
-                href={includeBackupWonOptions ? "/admin/users#won-options" : "/admin/users?checkBackups=1#won-options"}
-              >
-                {includeBackupWonOptions ? "Hide backups" : "Check recovered backups"}
-              </a>
+                <a href={includeBackupWonOptions ? "/admin/users#won-options" : "/admin/users?checkBackups=1#won-options"}>
+                  {includeBackupWonOptions ? "Hide recovered backups" : "Check recovered backups"}
+                </a>
+              </details>
             </div>
             <div className="won-toolbar won-desktop-toolbar">
               <div className="won-toolbar-controls">
@@ -5322,6 +5414,7 @@ export default async function AdminUsersPage({
                 </button>
                 <WonBulkActionControls />
               </div>
+              <div className="won-selected-totals won-selected-totals-toolbar" data-won-selected-totals hidden aria-live="polite" />
               <span className="won-export-status" data-won-export-status role="status" aria-live="polite" />
             </div>
 
@@ -5366,26 +5459,19 @@ export default async function AdminUsersPage({
                   <option value="outstanding">Highest payment outstanding</option>
                 </select>
               </label>
-              <div className="won-mobile-payment-filters" aria-label="Payment filters">
-                <button aria-pressed="false" className="status-chip status-chip-red" data-mobile-payment-filter="unpaid" type="button">
-                  <strong data-mobile-payment-count="unpaid">0</strong><span>Unpaid</span>
-                </button>
-                <button aria-pressed="false" className="status-chip status-chip-blue" data-mobile-payment-filter="requested" type="button">
-                  <strong data-mobile-payment-count="requested">0</strong><span>Requested</span>
-                </button>
-                <button aria-pressed="false" className="status-chip status-chip-amber" data-mobile-payment-filter="paid-in" type="button">
-                  <strong data-mobile-payment-count="paid-in">0</strong><span>Paid in</span>
-                </button>
-                <button aria-pressed="false" className="status-chip status-chip-green" data-mobile-payment-filter="paid-out" type="button">
-                  <strong data-mobile-payment-count="paid-out">0</strong><span>Paid out</span>
-                </button>
+              <div className="won-payment-filters" aria-label="Payment status filter">
+                <button aria-pressed="true" className="status-chip is-active" data-won-payment-filter="all" type="button">All</button>
+                <button aria-pressed="false" className="status-chip" data-won-payment-filter="not-requested" type="button">Not requested</button>
+                <button aria-pressed="false" className="status-chip" data-won-payment-filter="awaiting-agency" type="button">Awaiting agency payment</button>
+                <button aria-pressed="false" className="status-chip" data-won-payment-filter="commission-to-pay" type="button">Commission to pay</button>
+                <button aria-pressed="false" className="status-chip" data-won-payment-filter="settled" type="button">Settled</button>
               </div>
               <button className="secondary won-clear-filters" data-clear-won-filters type="button">
                 Clear filters
               </button>
             </div>
 
-          <section className="won-mobile-filter-summary" data-won-mobile-summary aria-live="polite">
+          <section className="won-filtered-totals" data-won-mobile-summary aria-live="polite">
             <div className="won-mobile-filter-summary-head">
               <div>
                 <span>Filtered summary</span>
@@ -5394,10 +5480,9 @@ export default async function AdminUsersPage({
               <span><strong data-mobile-summary-quotes>{wonOptions.length}</strong> quotes</span>
             </div>
             <div className="won-mobile-filter-summary-grid">
-              <div><span>Agency comm</span><strong data-mobile-summary-agency>{formatMoney(0)}</strong></div>
-              <div><span>Sales comm</span><strong data-mobile-summary-sales>{formatMoney(0)}</strong></div>
+              <div><span>Agency outstanding</span><strong data-mobile-summary-agency-outstanding>{formatMoney(0)}</strong></div>
+              <div><span>Commission ready to pay</span><strong data-mobile-summary-sales-outstanding>{formatMoney(0)}</strong></div>
               <div className="agency-profit-metric"><span>Agency profit inc GST</span><strong data-mobile-summary-agency-profit>{formatMoney(0)}</strong></div>
-              <div><span>Installer profit</span><strong data-mobile-summary-installer>{formatMoney(0)}</strong></div>
             </div>
           </section>
 
@@ -5417,51 +5502,7 @@ export default async function AdminUsersPage({
                     <strong>{summary.userName}</strong>
                     <span>{summary.businessNames || summary.userEmail}</span>
                   </div>
-                  <div className="sales-summary-metrics">
-                    <div><span>Sales</span><strong data-summary-sales="true">{summary.saleCount}</strong></div>
-                    <div><span>Customer</span><strong data-summary-customer="true">{formatMoney(summary.customerTotal)}</strong></div>
-                    <div><span>Agency comm</span><strong data-summary-agency="true">{formatMoney(summary.agencyCommissionTotal)}</strong></div>
-                    <div><span>Sales comm</span><strong data-summary-sales-comm="true">{formatMoney(summary.salespersonCommissionTotal)}</strong></div>
-                    <div className="agency-profit-metric"><span>Agency profit inc GST</span><strong data-summary-agency-profit="true">{formatMoney(summary.agencyProfitAfterSalesTotal)}</strong></div>
-                  </div>
-                  <div className="sales-status-strip">
-                    <button
-                      aria-pressed="false"
-                      className="status-chip status-chip-red"
-                      data-payment-filter="unpaid"
-                      type="button"
-                    >
-                      <strong data-summary-unpaid="true">{summary.notPaidInCount}</strong>
-                      <span>Unpaid</span>
-                    </button>
-                    <button
-                      aria-pressed="false"
-                      className="status-chip status-chip-blue"
-                      data-payment-filter="requested"
-                      type="button"
-                    >
-                      <strong data-summary-payment-requested="true">{summary.paymentRequestedCount}</strong>
-                      <span>Requested</span>
-                    </button>
-                    <button
-                      aria-pressed="false"
-                      className="status-chip status-chip-amber"
-                      data-payment-filter="paid-in"
-                      type="button"
-                    >
-                      <strong data-summary-paid-in="true">{summary.paidInCount}</strong>
-                      <span>Paid in</span>
-                    </button>
-                    <button
-                      aria-pressed="false"
-                      className="status-chip status-chip-green"
-                      data-payment-filter="paid-out"
-                      type="button"
-                    >
-                      <strong data-summary-paid-out="true">{summary.paidOutCount}</strong>
-                      <span>Paid out</span>
-                    </button>
-                  </div>
+                  <span className="won-person-count"><strong data-summary-sales="true">{summary.saleCount}</strong> jobs</span>
                 </article>
               ))}
             </div>
@@ -5469,9 +5510,6 @@ export default async function AdminUsersPage({
 
           <div className="won-filter-status" data-won-filter-status>
             Showing all {wonOptions.length} won quotes.
-          </div>
-          <div className="won-requested-outstanding" data-won-requested-outstanding aria-live="polite">
-            No requested payments are currently awaiting payment.
           </div>
           <div className="won-selected-totals won-selected-totals-inline" data-won-selected-totals hidden aria-live="polite" />
 
@@ -5493,10 +5531,11 @@ export default async function AdminUsersPage({
                 data-won-card-key={wonOptionDomKey(option)}
                 data-won-search={[option.optionName, option.userName, option.businessName, option.userEmail].join(" ").toLowerCase()}
                 data-won-time={Number.isFinite(new Date(option.wonAt).getTime()) ? new Date(option.wonAt).getTime() : 0}
-                data-won-outstanding={option.paymentRequestedAt && !option.paidInAt ? option.agencyCommissionTotal : 0}
-                data-payment-unpaid={option.paidInAt ? "false" : "true"}
-                data-payment-requested={option.paymentRequestedAt && !option.paidInAt ? "true" : "false"}
-                data-payment-requested-outstanding={option.paymentRequestedAt && !option.paidInAt ? "true" : "false"}
+                data-won-outstanding={!option.paidInAt ? option.agencyCommissionTotal : 0}
+                data-payment-not-requested={!option.paymentRequestedAt && !option.paidInAt && !option.paidOutAt ? "true" : "false"}
+                data-payment-awaiting-agency={!option.paidInAt && (option.paymentRequestedAt || option.paidOutAt) ? "true" : "false"}
+                data-payment-commission-to-pay={option.paidInAt && !option.paidOutAt ? "true" : "false"}
+                data-payment-settled={option.paidInAt && option.paidOutAt ? "true" : "false"}
                 data-payment-paid-in={option.paidInAt ? "true" : "false"}
                 data-payment-paid-out={option.paidOutAt ? "true" : "false"}
                 data-won-agency-total={option.agencyCommissionTotal}
@@ -5534,25 +5573,9 @@ export default async function AdminUsersPage({
                       <span>Won</span>
                       <strong>{option.wonAt ? formatShortDate(option.wonAt) : "Won"}</strong>
                     </span>
-                    <span className="won-row-metric won-row-metric-systems">
-                      <span>Systems</span>
-                      <strong>{option.systemCount}</strong>
-                    </span>
-                    <span className="won-row-metric won-row-metric-agency">
-                      <span>Agency comm</span>
-                      <strong>{formatMoney(option.agencyCommissionTotal)}</strong>
-                    </span>
-                    <span className="won-row-metric won-row-metric-sales">
-                      <span>Sales comm</span>
-                      <strong>{formatMoney(option.salespersonCommissionTotal)}</strong>
-                    </span>
-                    <span className="won-row-metric won-row-metric-agency-profit agency-profit-metric">
-                      <span>Agency profit inc GST</span>
-                      <strong>{formatMoney(option.agencyProfitAfterSalesTotal)}</strong>
-                    </span>
-                    <span className="won-row-metric won-row-metric-installer">
-                      <span>Installer profit</span>
-                      <strong>{formatMoney(option.installerProfitTotal)}</strong>
+                    <span className="won-row-metric won-row-metric-payment">
+                      <span>{!option.paidInAt ? "Agency outstanding" : !option.paidOutAt ? "Commission to pay" : "Outstanding"}</span>
+                      <strong>{formatMoney(!option.paidInAt ? option.agencyCommissionTotal : !option.paidOutAt ? option.salespersonCommissionTotal : 0)}</strong>
                     </span>
                   </div>
                   <span className="won-expand-label">
@@ -5573,15 +5596,6 @@ export default async function AdminUsersPage({
                       <span className={`payment-pill payment-pill-${option.paymentStatus}`}>
                         {option.paymentStatusLabel}
                       </span>
-                      <span className={`payment-flag ${option.paymentRequestedAt ? "payment-flag-requested" : "payment-flag-off"}`}>
-                        Payment requested: {option.paymentRequestedAt ? formatShortDate(option.paymentRequestedAt) : "Not yet"}
-                      </span>
-                      <span className={`payment-flag ${option.paidInAt ? "payment-flag-on" : "payment-flag-off"}`}>
-                        Paid in: {option.paidInAt ? formatShortDate(option.paidInAt) : "Not yet"}
-                      </span>
-                      <span className={`payment-flag ${option.paidOutAt ? "payment-flag-on" : "payment-flag-off"}`}>
-                        Paid out: {option.paidOutAt ? formatShortDate(option.paidOutAt) : "Not yet"}
-                      </span>
                     </div>
                     <span className="locked-pill">
                       {option.wonAt ? formatShortDate(option.wonAt) : "Won"}
@@ -5597,7 +5611,7 @@ export default async function AdminUsersPage({
                         <input type="hidden" name="wonAt" value={option.wonAt} />
                         <input type="hidden" name="paymentMode" value="payment_requested" />
                         <button className="secondary" type="submit">
-                          Mark payment requested
+                          Record payment request
                         </button>
                       </form>
                     ) : null}
@@ -5611,7 +5625,7 @@ export default async function AdminUsersPage({
                         <input type="hidden" name="wonAt" value={option.wonAt} />
                         <input type="hidden" name="paymentMode" value="paid_in" />
                         <button className="secondary" type="submit">
-                          Mark paid in
+                          Record payment received
                         </button>
                       </form>
                     ) : null}
@@ -5625,10 +5639,12 @@ export default async function AdminUsersPage({
                         <input type="hidden" name="wonAt" value={option.wonAt} />
                         <input type="hidden" name="paymentMode" value="paid_out" />
                         <button className="secondary" type="submit">
-                          Mark paid out
+                          Record commission paid
                         </button>
                       </form>
                     ) : null}
+                    <details className="won-secondary-actions">
+                      <summary>More actions</summary>
                     {option.paymentRequestedAt || option.paidInAt || option.paidOutAt ? (
                       <form action={updateWonPaymentStatus}>
                         <input type="hidden" name="userEmail" value={option.userEmail} />
@@ -5639,7 +5655,7 @@ export default async function AdminUsersPage({
                         <input type="hidden" name="wonAt" value={option.wonAt} />
                         <input type="hidden" name="paymentMode" value="reset_payment" />
                         <button className="secondary" type="submit">
-                          Reset payment
+                          Reset payment status
                         </button>
                       </form>
                     ) : null}
@@ -5655,7 +5671,7 @@ export default async function AdminUsersPage({
                       </button>
                     </form>
                     <details className="delete-confirm">
-                      <summary>Delete</summary>
+                      <summary>Delete quote</summary>
                       <form
                         action={deleteWonOption}
                         data-confirm-message="This permanently deletes this won opportunity from current and recovered backup data. This cannot be undone."
@@ -5674,20 +5690,25 @@ export default async function AdminUsersPage({
                         </button>
                       </form>
                     </details>
+                    </details>
                   </div>
                 </div>
+                <div className="won-payment-details">
+                  <div className="won-payment-line"><span>Agency payment</span><strong>{formatMoney(option.agencyCommissionTotal)}</strong><em>{option.paidInAt ? "Received" : option.paymentRequestedAt || option.paidOutAt ? "Awaiting agency payment" : "Not requested"}</em><small>{option.paidInAt ? `Received ${formatShortDate(option.paidInAt)}` : option.paymentRequestedAt ? `Requested ${formatShortDate(option.paymentRequestedAt)}` : "No request date"}</small></div>
+                  <div className="won-payment-line"><span>Salesperson commission</span><strong>{formatMoney(option.salespersonCommissionTotal)}</strong><em>{option.paidOutAt ? "Paid" : option.paidInAt ? "Commission to pay" : "Not paid"}</em><small>{option.paidOutAt ? `Paid ${formatShortDate(option.paidOutAt)}` : option.userName}</small></div>
+                </div>
+                <details className="won-financial-details">
+                <summary>Quote amounts and profit</summary>
                 <div className="won-metrics">
                   <div><span>Systems</span><strong>{option.systemCount}</strong></div>
                   <div><span>Customer</span><strong>{formatMoney(option.customerTotal)}</strong></div>
                   <div><span>Rebate</span><strong>{formatMoney(option.rebateTotal)}</strong></div>
                   <div><span>Agency comm</span><strong>{formatMoney(option.agencyCommissionTotal)}</strong></div>
                   <div><span>Sales comm</span><strong>{formatMoney(option.salespersonCommissionTotal)}</strong></div>
-                  <div className="agency-profit-metric"><span>Agency profit after salesperson commission inc GST</span><strong>{formatMoney(option.agencyProfitAfterSalesTotal)}</strong></div>
+                  <div className="agency-profit-metric"><span>Agency profit inc GST</span><strong>{formatMoney(option.agencyProfitAfterSalesTotal)}</strong></div>
                   <div><span>Installer profit</span><strong>{formatMoney(option.installerProfitTotal)}</strong></div>
-                  <div><span>Payment requested</span><strong>{option.paymentRequestedAt ? formatShortDate(option.paymentRequestedAt) : "Not yet"}</strong></div>
-                  <div><span>Paid in</span><strong>{option.paidInAt ? formatShortDate(option.paidInAt) : "Not yet"}</strong></div>
-                  <div><span>Paid out</span><strong>{option.paidOutAt ? formatShortDate(option.paidOutAt) : "Not yet"}</strong></div>
                 </div>
+                </details>
                 <div className="won-lines">
                   {option.rows.map((row, index) => (
                     <div className="won-line" key={`${row.label}-${index}`}>
