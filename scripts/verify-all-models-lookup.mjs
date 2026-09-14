@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import vm from "node:vm";
 import { fileURLToPath } from "node:url";
 import {
   cleanGemsBrand,
@@ -23,8 +24,8 @@ assert.match(html, /id="allModelsCard"/);
 assert.match(html, /id="allModelsBrand"/);
 assert.match(html, /id="allModelsSearch"/);
 assert.match(html, /id="allModelsCalculateBtn"/);
-assert.match(html, /calculateCertificatesForModel\(meta,climate,\{airConditionerType,installType:allModelsInstallType\}\)/);
-assert.match(html, /getDcceewContractMatch\(\{brand:selected\.brand,model:selected\.model\},postcode\)/);
+assert.match(html, /calculateCertificatesForModel\(meta,climate,\{airConditionerType:calculationContext\.airConditionerType,installType:calculationContext\.installType\}\)/);
+assert.match(html, /getDcceewContractMatch\(\{brand:selected\.brand,model:selected\.model\},postcode,calculationContext\)/);
 assert.match(html, /selected\.multiHead/);
 assert.match(html, /Rebate set to \$0\.00 because the calculation could not be completed/);
 assert.match(html, /source!==['"]allModels['"]/);
@@ -36,6 +37,39 @@ const allModelsSection = html.slice(
 assert.ok(allModelsSection.length > 0, "All Models section should be present");
 assert.doesNotMatch(allModelsSection, /onclick="addToQuote\(/);
 assert.doesNotMatch(allModelsSection, /unitPriceInc|finalInc|Add to Quote/);
+
+const airTypeStart = html.indexOf("function allModelsAirConditionerType");
+const airTypeEnd = html.indexOf("function allModelsCalculationContext", airTypeStart);
+assert.ok(airTypeStart >= 0 && airTypeEnd > airTypeStart, "could not isolate All Models air-conditioner classification");
+const airTypeSandbox = { hvacProductClassNumber: () => 0 };
+vm.runInNewContext(
+  `${html.slice(airTypeStart, airTypeEnd)}\nglobalThis.__airType=allModelsAirConditionerType;`,
+  airTypeSandbox,
+);
+assert.equal(
+  airTypeSandbox.__airType({ productType: "Non Ducted Unitary System" }, {}),
+  "non_ducted_unitary_system",
+  "All Models must not classify non-ducted unitary products as ducted",
+);
+assert.equal(
+  airTypeSandbox.__airType({ productType: "Ducted Unitary System" }, {}),
+  "ducted_unitary_system",
+  "All Models must retain ducted unitary classification",
+);
+
+const allModelsContextStart = html.indexOf("function allModelsCalculationContext");
+const allModelsContextEnd = html.indexOf("function renderAllModelsCalculation", allModelsContextStart);
+assert.ok(allModelsContextStart >= 0 && allModelsContextEnd > allModelsContextStart, "could not isolate All Models calculation context");
+const allModelsContextSandbox = { allModelsInstallType: "new" };
+vm.runInNewContext(
+  `${html.slice(allModelsContextStart, allModelsContextEnd)}\nglobalThis.__allModelsContext=allModelsCalculationContext;`,
+  allModelsContextSandbox,
+);
+const newDuctedContext = allModelsContextSandbox.__allModelsContext("ducted_single_split_system");
+assert.equal(newDuctedContext.systemType, "ducted", "All Models must resolve ducted type from the selected model metadata");
+assert.equal(newDuctedContext.installType, "new", "All Models must retain its own install type");
+const splitContext = allModelsContextSandbox.__allModelsContext("non_ducted_single_split_system");
+assert.equal(splitContext.systemType, "split", "All Models must not inherit the background calculator system type");
 
 assert.match(route, /mode === "brands"/);
 assert.match(route, /mode === "multi-brands"/);

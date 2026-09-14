@@ -1,5 +1,7 @@
+import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import vm from "node:vm";
 
 const root = process.cwd();
 const admin = fs.readFileSync(path.join(root, "app/admin/users/page.tsx"), "utf8");
@@ -8,6 +10,19 @@ const calculator = fs.readFileSync(path.join(root, "index.html"), "utf8");
 
 function expect(source, pattern, message) {
   if (!pattern.test(source)) throw new Error(message);
+}
+
+function functionSource(source, name) {
+  const start = source.indexOf(`function ${name}`);
+  if (start < 0) throw new Error(`${name} is missing`);
+  const bodyStart = source.indexOf("{", start);
+  let depth = 0;
+  for (let index = bodyStart; index < source.length; index += 1) {
+    if (source[index] === "{") depth += 1;
+    if (source[index] === "}") depth -= 1;
+    if (depth === 0) return source.slice(start, index + 1);
+  }
+  throw new Error(`${name} has an incomplete body`);
 }
 
 expect(admin, /value="update_rebate"[\s\S]{0,100}>\s*Update rebate\s*</, "Won Quotes is missing the Update rebate bulk action");
@@ -19,6 +34,20 @@ expect(admin, /state: Record<string, unknown> = \{ \.\.\.quoteState\(row\), reba
 expect(admin, /verifyResult[\s\S]*savedWonRebateSummary[\s\S]*verified\.rebateTotal/, "Saved rebate updates are not verified after the database write");
 expect(admin, /eq\("updated_at", dataResult\.data\.updated_at\)/, "Rebate updates are missing optimistic concurrency protection");
 expect(admin, /Recovered backup quotes cannot be repriced/, "Recovered backup quote safety guard is missing");
+expect(admin, /if \(!systemType\) throw new Error\(`Saved quote system \$\{index \+ 1\} has an unrecognised system type/, "Unknown saved quote types do not fail safely before repricing");
+
+const savedSystemTypeSource = functionSource(admin, "savedQuoteSystemType")
+  .replace(/^function savedQuoteSystemType\([^)]*\): [^{]+\{/, "function savedQuoteSystemType(row) {");
+const systemTypeSandbox = {
+  quoteState: (row) => row.state && typeof row.state === "object" && !Array.isArray(row.state) ? row.state : {},
+};
+vm.runInNewContext(`${savedSystemTypeSource}\nglobalThis.__savedSystemType=savedQuoteSystemType;`, systemTypeSandbox);
+assert.equal(systemTypeSandbox.__savedSystemType({ state: { systemType: "ducted" } }), "ducted");
+assert.equal(systemTypeSandbox.__savedSystemType({ type: "Ducted" }), "ducted", "legacy Ducted quote labels must remain supported");
+assert.equal(systemTypeSandbox.__savedSystemType({ type: "Multi-head Split" }), "multi_split", "legacy multi-head quote labels must remain supported");
+assert.equal(systemTypeSandbox.__savedSystemType({ type: "Split" }), "split", "legacy Split quote labels must remain supported");
+assert.equal(systemTypeSandbox.__savedSystemType({ state: { systemType: "unrecognised" }, type: "Ducted" }), "ducted", "a valid legacy row type must recover an invalid state label");
+assert.equal(systemTypeSandbox.__savedSystemType({ state: { systemType: "unknown new ducted" } }), null, "ambiguous saved quote types must not default to split");
 
 expect(rebate, /DCCEEW_CONTRACT_RATE/, "Current rebate calculator does not include the DCCEEW contract rate");
 expect(rebate, /certificates\.esc \* effectiveEscRate[\s\S]*certificates\.prc \* input\.prcRate/, "Current payout rates are not applied to live certificate counts");

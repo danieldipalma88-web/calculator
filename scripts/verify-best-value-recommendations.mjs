@@ -19,9 +19,10 @@ const rebateSandbox = {
   applyCalls: 0,
 };
 rebateSandbox.hasManualRebateOverride = () => rebateSandbox.manual;
-rebateSandbox.getDcceewContractMatch = (_product, postcode) => {
+rebateSandbox.isNewDuctedDcceewExclusion = (context) => context?.systemType === "ducted" && context?.installType === "new";
+rebateSandbox.getDcceewContractMatch = (_product, postcode, context) => {
   rebateSandbox.matchedPostcode = postcode;
-  return rebateSandbox.match;
+  return rebateSandbox.isNewDuctedDcceewExclusion(context) ? null : rebateSandbox.match;
 };
 rebateSandbox.applyDcceewContractRebate = (match, result) => {
   rebateSandbox.applyCalls += 1;
@@ -47,6 +48,7 @@ const contractResult = rebateSandbox.__recommendationRebate(
   { brand: "Fujitsu General", model: "AOTG09KMTC/ASTG09KMTC" },
   certificateResult,
   "2163",
+  { systemType: "split", installType: "new" },
 );
 assert.equal(Number(contractResult.rebate.toFixed(2)), 382.01, "recommendations must rank an eligible candidate using the $30 ESC contract rate");
 assert.equal(contractResult.rebateSource, "contract", "contract recommendation must disclose its rebate basis");
@@ -58,6 +60,7 @@ const manualResult = rebateSandbox.__recommendationRebate(
   { brand: "Example", model: "MANUAL", rebate: 444.4 },
   certificateResult,
   "2163",
+  { systemType: "split", installType: "new" },
 );
 assert.equal(manualResult.rebate, 444.4, "manual candidate rebate must be respected by recommendations");
 assert.equal(manualResult.rebateSource, "manual", "manual recommendation must disclose its rebate basis");
@@ -69,9 +72,28 @@ const standardResult = rebateSandbox.__recommendationRebate(
   { brand: "Example", model: "STANDARD" },
   certificateResult,
   "2002",
+  { systemType: "split", installType: "new" },
 );
 assert.equal(Number(standardResult.rebate.toFixed(2)), 330.35, "standard recommendation rebate changed unexpectedly");
 assert.equal(standardResult.rebateSource, "standard", "standard recommendation must disclose its rebate basis");
+
+rebateSandbox.match = { rate: 30 };
+const newDuctedResult = rebateSandbox.__recommendationRebate(
+  { brand: "Daikin", model: "RZAS71C2V1 / FDYA71AV19" },
+  certificateResult,
+  "2000",
+  { systemType: "ducted", installType: "new" },
+);
+assert.equal(Number(newDuctedResult.rebate.toFixed(2)), 330.35, "new ducted recommendations must use the standard rate");
+assert.equal(newDuctedResult.contractApplied, false, "new ducted recommendations must not display a contract uplift");
+assert.equal(newDuctedResult.contractExcluded, true, "new ducted recommendations must expose the exclusion context");
+const ductedReplacementResult = rebateSandbox.__recommendationRebate(
+  { brand: "Daikin", model: "RZAS71C2V1 / FDYA71AV19" },
+  certificateResult,
+  "2000",
+  { systemType: "ducted", installType: "replacement" },
+);
+assert.equal(ductedReplacementResult.contractApplied, true, "ducted replacement recommendations must retain the contract rate");
 
 const scopeStart = html.indexOf("function recommendationPhaseValue");
 const scopeEnd = html.indexOf("function recommendationScopeLabel", scopeStart);
@@ -89,14 +111,16 @@ assert.equal(scopeSandbox.__matches(selectedDucted, { capacityNum: 14.1, phase: 
 assert.equal(scopeSandbox.__matches(selectedDucted, { capacityNum: 14, phase: "Three" }, 14, "ducted"), false, "three-phase ducted candidate must not replace a single-phase recommendation");
 assert.equal(scopeSandbox.__matches({ capacityNum: 7.1 }, { capacityNum: 7, phase: "Three" }, 7, "split"), true, "split recommendations should not apply a phase filter");
 
-assert.match(html, /calculateRecommendationCandidate\(item,postcode\)/, "candidate comparison does not use the effective rebate pipeline");
-assert.match(html, /hasManualRebateOverride\(systemType,p\)\?null:await estimateLiveEssRebate/, "manual candidates still make unnecessary live rebate requests");
+assert.match(html, /calculateRecommendationCandidate\(item,postcode,calculationContext\)/, "candidate comparison does not use an explicit calculation context");
+assert.match(html, /hasManualRebateOverride\(context\.systemType,p\)\?null:await estimateLiveEssRebate/, "manual candidates still make unnecessary live rebate requests");
 assert.match(html, /activeBusinessName\(\).*activeBusinessState\(\).*candidateSignature/s, "recommendation cache is not scoped to business and current prices");
 assert.match(html, /invalidateBestValueRecommendations\(true\);\s*syncCurrentProductAfterPriceChange/, "price edits do not invalidate recommendation results");
 assert.match(html, /populateProducts\(\{skipProductChange:true\}\);\s*\$\('product'\)\.value=String\(idx\);\s*onProductChange\(\);/, "recommended unit loading still calculates an intermediate brand default");
 assert.match(html, /setSystem\(s\.systemType\|\|'split',\{skipProductChange:true\}\)/, "saved quote loading still starts an intermediate product calculation");
 assert.match(html, /setInstall\(s\.installType\|\|'new',\{skipRefresh:true\}\);\s*onProductChange\(\{skipAsyncRefresh:true\}\);/, "saved quote state is not applied atomically before recalculation");
 assert.match(html, /DCCEEW \$30 ESC rate/, "recommendation card does not disclose the contract rebate basis");
+assert.match(html, /recommendationFootnote\(categoryLabel,postcode,failedCount,entry\.calculationContext\)/, "recommendations do not preserve the explicit calculation context in their footnote");
+assert.match(html, /New ducted installations are excluded from the DCCEEW contract rate\./, "recommendations do not explain the new ducted exclusion");
 
 const refreshStart = html.indexOf("async function refreshBestValueIndicator");
 const refreshEnd = html.indexOf("function hasManualRebateOverride", refreshStart);

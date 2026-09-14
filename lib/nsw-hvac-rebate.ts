@@ -617,6 +617,7 @@ async function calculateCertificates(
 }
 
 function contractMatch(input: CurrentRebateInput) {
+  if (input.systemType === "ducted" && input.installType === "new") return false;
   const postcode = Number(input.postcode);
   if (!dcceewPostcodes.has(postcode)) return false;
   const direct = `${normalizeBrand(input.brand)}|${normalize(input.model)}`;

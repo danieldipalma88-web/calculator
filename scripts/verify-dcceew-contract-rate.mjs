@@ -9,8 +9,22 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "utf8");
 const html = read("index.html");
 const dataSource = read("lib/dcceew-contract-data.ts");
+const serverRebateSource = read("lib/nsw-hvac-rebate.ts");
 const productRegister = JSON.parse(read("lib/dcceew-contract-products.json"));
 const route = read("app/calculator/raw/route.ts");
+
+function functionSource(source, name) {
+  const start = source.indexOf(`function ${name}`);
+  assert.ok(start >= 0, `${name} must exist`);
+  const bodyStart = source.indexOf("{", start);
+  let depth = 0;
+  for (let index = bodyStart; index < source.length; index += 1) {
+    if (source[index] === "{") depth += 1;
+    if (source[index] === "}") depth -= 1;
+    if (depth === 0) return source.slice(start, index + 1);
+  }
+  assert.fail(`${name} must have a complete body`);
+}
 
 for (const name of [
   "normalizeDcceewBrand",
@@ -91,6 +105,26 @@ sandbox.product = () => sandbox.candidate;
 vm.runInNewContext(`${html.slice(matcherStart, matcherEnd)}\nglobalThis.__match=getDcceewContractMatch;`, sandbox);
 
 assert.equal(sandbox.__match()?.rate, 30, "eligible NSW postcode/product did not receive contract match");
+assert.equal(
+  sandbox.__match(undefined, undefined, { systemType: "ducted", installType: "new" }),
+  null,
+  "new ducted installations must use the standard rate even when the product and postcode match",
+);
+assert.equal(
+  sandbox.__match(undefined, undefined, { systemType: "ducted", installType: "replacement" })?.rate,
+  30,
+  "ducted replacements must retain the contract rate",
+);
+assert.equal(
+  sandbox.__match(undefined, undefined, { systemType: "split", installType: "new" })?.rate,
+  30,
+  "new split installations must retain the contract rate",
+);
+assert.equal(
+  sandbox.__match(undefined, undefined, { systemType: "multi_split", installType: "new" })?.rate,
+  30,
+  "new multi-split installations must retain the contract rate",
+);
 sandbox.state = "QLD";
 assert.equal(sandbox.__match(), null, "contract match must be NSW-only");
 sandbox.state = "NSW";
@@ -107,6 +141,33 @@ for (const postcode of ["2058", "2252", "2300", "2309", "2500", "2522", "2890", 
 sandbox.postcode = "2311";
 sandbox.candidate = { brand: "Other Brand", model: "AOTG09KMTC/ASTG09KMTC" };
 assert.equal(sandbox.__match(), null, "model matched without the exact approved brand");
+
+const serverSandbox = {
+  dcceewPostcodes: new Set([2000]),
+  dcceewProductKeys: new Set(["DAIKIN|RZAS71C2V1FDYA71AV19"]),
+  normalizeBrand: (value) => String(value || "").toUpperCase().replace(/[^A-Z0-9]/g, ""),
+  normalize: (value) => String(value || "").toUpperCase().replace(/[^A-Z0-9]/g, ""),
+  catalogueProductFor: () => null,
+};
+const serverContractMatch = functionSource(serverRebateSource, "contractMatch")
+  .replace("function contractMatch(input: CurrentRebateInput)", "function contractMatch(input)");
+vm.runInNewContext(`${serverContractMatch}\nglobalThis.__serverContractMatch=contractMatch;`, serverSandbox);
+const serverInput = { brand: "Daikin", model: "RZAS71C2V1 / FDYA71AV19", postcode: "2000" };
+assert.equal(
+  serverSandbox.__serverContractMatch({ ...serverInput, systemType: "ducted", installType: "new" }),
+  false,
+  "server rebate refresh must exclude new ducted contract uplift",
+);
+assert.equal(
+  serverSandbox.__serverContractMatch({ ...serverInput, systemType: "ducted", installType: "replacement" }),
+  true,
+  "server rebate refresh must retain ducted replacement contract uplift",
+);
+assert.equal(
+  serverSandbox.__serverContractMatch({ ...serverInput, systemType: "split", installType: "new" }),
+  true,
+  "server rebate refresh must retain new split contract uplift",
+);
 
 const rebateStart = html.indexOf("function applyDcceewContractRebate");
 const rebateEnd = html.indexOf("function setCertificateBreakdown", rebateStart);
@@ -148,6 +209,9 @@ assert.match(html, /const effective=applyDcceewContractRebate\(dcceewMatch,resul
 assert.match(html, /\$\('rebate'\)\.value=\(Math\.round\(effective\.rebate\*100\)\/100\)\.toFixed\(2\);/, "contract rebate is not written to the Costs section");
 assert.match(html, /id="rebateCostHint"/, "Costs section does not explain the contract uplift");
 assert.match(html, /DCCEEW contract rate applied/, "rebate metadata does not disclose the applied contract rate");
+assert.match(html, /id="dcceewExclusionNote"/, "new ducted standard-rate explanation is missing from the standard calculator");
+assert.match(html, /\.dcceewExclusionNote\.show\{display:block\}/, "new ducted standard-rate explanation is not visible on mobile");
+assert.match(html, /New ducted installations are excluded from the DCCEEW contract rate\./, "new ducted standard-rate explanation text changed");
 assert.match(html, /\.dcceewComparisonCard:first-child\{\s*order:1;/, "standard rebate is not displayed first");
 assert.match(html, /\.dcceewComparisonCard\.uplift\{\s*order:2;/, "additional contract value is not displayed second");
 assert.match(html, /\.dcceewComparisonCard\.contract\{\s*order:3;/, "contract rebate is not displayed last");

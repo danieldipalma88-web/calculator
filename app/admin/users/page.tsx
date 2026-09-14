@@ -3915,12 +3915,16 @@ function quoteEssState(state: Record<string, unknown>) {
     : {};
 }
 
-function savedQuoteSystemType(row: Record<string, unknown>): CurrentRebateInput["systemType"] {
+function savedQuoteSystemType(row: Record<string, unknown>): CurrentRebateInput["systemType"] | null {
   const state = quoteState(row);
-  const value = String(state.systemType || row.type || "").toLowerCase();
-  if (value.includes("multi")) return "multi_split";
-  if (value.includes("ducted")) return "ducted";
-  return "split";
+  const values = [state.systemType, row.type];
+  for (const value of values) {
+    const normalized = String(value || "").trim().toLowerCase().replace(/[_\s-]+/g, " ");
+    if (["multi split", "multi head", "multi head split", "multi head split system"].includes(normalized)) return "multi_split";
+    if (["ducted", "ducted system", "ducted air conditioner"].includes(normalized)) return "ducted";
+    if (["split", "split system", "single split", "single split system"].includes(normalized)) return "split";
+  }
+  return null;
 }
 
 function savedQuotePostcode(row: Record<string, unknown>) {
@@ -4164,6 +4168,7 @@ async function refreshQuoteRows(
     if (quoteStateDisablesRebates(row)) return { index, rebate: 0 };
     const values = certificateValuesForSavedQuote(selection, row, environment);
     const systemType = savedQuoteSystemType(row);
+    if (!systemType) throw new Error(`Saved quote system ${index + 1} has an unrecognised system type. Correct the saved quote before updating its rebate.`);
     const result = await calculateCurrentNswRebate({
       brand: savedQuoteBrand(row),
       model: savedQuoteModel(row),

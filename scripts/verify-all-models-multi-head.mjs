@@ -178,7 +178,7 @@ assert.match(html, /heatingCapacity:capacityInputs\.heatingCapacity/);
 assert.match(html, /inputPower:capacityInputs\.inputPower/);
 assert.match(
   html,
-  /getDcceewContractMatch\(\{brand:outdoor\.brand,model:outdoor\.rebateModel\|\|outdoor\.model\},postcode\)/,
+  /getDcceewContractMatch\(\{brand:outdoor\.brand,model:outdoor\.rebateModel\|\|outdoor\.model\},postcode,calculationContext\)/,
 );
 assert.match(html, /renderAllModelsCalculationError\(error\)/);
 assert.match(html, /Rebate set to \$0\.00 because the calculation could not be completed/);

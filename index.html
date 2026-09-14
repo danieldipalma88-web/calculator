@@ -635,6 +635,8 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
   box-shadow:0 8px 18px rgba(146,64,14,.08);
 }
 .dcceewEligible .dcceewContractPanel{display:block}
+.dcceewExclusionNote{display:none;margin-top:8px;font-size:12px;line-height:1.4;color:#475569}
+.dcceewExclusionNote.show{display:block}
 .dcceewContractHead{
   display:flex;
   align-items:flex-start;
@@ -3407,7 +3409,7 @@ body.guidanceModalOpen{overflow:hidden}
           <div class="mobileHideRebateConfig"><label>PERC (PRC) $ per cert</label><input id="essPrcRate" type="number" step="0.01" value="2.85"></div>
           <div class="mobileHideRebateConfig"><label>Live calc source</label><input readonly value="NSW ESS/PDRS API"></div>
         </div>
-        <div class="selected" id="liveRebatePanel"><div class="selectedText"><div class="selectedHeader"><strong id="selectedModel"></strong><button type="button" class="copyModelBtn" onclick="copyCurrentModel()">Copy model</button></div><div class="tiny" id="modelMeta"></div><div class="tiny rebateSchemeUi" id="rebateCalcMeta">Live ESS/PERC rebate status will appear here.</div><div class="dcceewContractPanel rebateSchemeUi" id="dcceewContractPanel" aria-hidden="true"><div class="dcceewContractHead"><div class="dcceewContractCopy"><span class="dcceewContractBadge">DCCEEW contract match</span><strong>Potentially eligible for the fixed $30 per ESC rate</strong><p>The selected postcode and product are on the approved contract lists. Required compliance steps must still be completed.</p></div><div class="dcceewInfoPrompt"><span>Action required</span><div class="dcceewInfoActions"><button id="dcceewInfoButton" class="dcceewInfoButton" type="button" onclick="openDcceewInfoModal()"><span class="dcceewInfoIcon" aria-hidden="true">i</span>Important information</button><a class="dcceewGuideButton" href="https://rebateportal.com.au/first-job-guide" target="_blank" rel="noopener noreferrer">Open first job checklist</a></div></div></div><div class="dcceewComparison"><div class="dcceewComparisonCard"><span>Standard rebate</span><strong id="dcceewStandardTotal">Calculating...</strong><small id="dcceewStandardMeta">Using the normal business ESC rate</small></div><div class="dcceewComparisonCard contract"><span>DCCEEW contract rebate</span><strong id="dcceewContractTotal">Calculating...</strong><small id="dcceewContractMeta">ESCs at $30.00 plus unchanged PERC</small></div><div class="dcceewComparisonCard uplift"><span>Additional contract value</span><strong id="dcceewContractUplift">Calculating...</strong><small id="dcceewUpliftMeta">Difference from the standard payout</small></div></div><div class="dcceewComparisonNote" id="dcceewComparisonNote">The contract-rate rebate is included in Costs for this match. Missing a required compliance step means the standard market rate applies.</div></div><div class="certificateBreakdown rebateSchemeUi" id="certificateBreakdown"><div class="certificateMetric"><span>ESC generated</span><strong id="escCertCount">-</strong><small id="escCertValue">Waiting for live lookup</small></div><div class="certificateMetric"><span>PERC generated</span><strong id="prcCertCount">-</strong><small id="prcCertValue">Waiting for live lookup</small></div><div class="certificateMetric"><span>Rebate calculation</span><strong id="certRebateValue">-</strong><small id="certRebateMeta">Waiting for live lookup</small></div></div><div class="recommendationCards rebateSchemeUi" id="bestValueComparison"><div class="recommendationCard" id="bestValueMeta"><div class="recommendationEyebrow">Best rebate</div><div class="recommendationStatus">Best rebate indicator will appear here.</div></div><div class="recommendationCard net" id="bestNetCostMeta"><div class="recommendationEyebrow">Best net unit cost</div><div class="recommendationStatus">Best net unit cost indicator will appear here.</div></div></div></div></div>
+        <div class="selected" id="liveRebatePanel"><div class="selectedText"><div class="selectedHeader"><strong id="selectedModel"></strong><button type="button" class="copyModelBtn" onclick="copyCurrentModel()">Copy model</button></div><div class="tiny" id="modelMeta"></div><div class="tiny rebateSchemeUi" id="rebateCalcMeta">Live ESS/PERC rebate status will appear here.</div><div class="dcceewExclusionNote" id="dcceewExclusionNote" role="status">New ducted installations are excluded from the DCCEEW contract rate.</div><div class="dcceewContractPanel rebateSchemeUi" id="dcceewContractPanel" aria-hidden="true"><div class="dcceewContractHead"><div class="dcceewContractCopy"><span class="dcceewContractBadge">DCCEEW contract match</span><strong>Potentially eligible for the fixed $30 per ESC rate</strong><p>The selected postcode and product are on the approved contract lists. Required compliance steps must still be completed.</p></div><div class="dcceewInfoPrompt"><span>Action required</span><div class="dcceewInfoActions"><button id="dcceewInfoButton" class="dcceewInfoButton" type="button" onclick="openDcceewInfoModal()"><span class="dcceewInfoIcon" aria-hidden="true">i</span>Important information</button><a class="dcceewGuideButton" href="https://rebateportal.com.au/first-job-guide" target="_blank" rel="noopener noreferrer">Open first job checklist</a></div></div></div><div class="dcceewComparison"><div class="dcceewComparisonCard"><span>Standard rebate</span><strong id="dcceewStandardTotal">Calculating...</strong><small id="dcceewStandardMeta">Using the normal business ESC rate</small></div><div class="dcceewComparisonCard contract"><span>DCCEEW contract rebate</span><strong id="dcceewContractTotal">Calculating...</strong><small id="dcceewContractMeta">ESCs at $30.00 plus unchanged PERC</small></div><div class="dcceewComparisonCard uplift"><span>Additional contract value</span><strong id="dcceewContractUplift">Calculating...</strong><small id="dcceewUpliftMeta">Difference from the standard payout</small></div></div><div class="dcceewComparisonNote" id="dcceewComparisonNote">The contract-rate rebate is included in Costs for this match. Missing a required compliance step means the standard market rate applies.</div></div><div class="certificateBreakdown rebateSchemeUi" id="certificateBreakdown"><div class="certificateMetric"><span>ESC generated</span><strong id="escCertCount">-</strong><small id="escCertValue">Waiting for live lookup</small></div><div class="certificateMetric"><span>PERC generated</span><strong id="prcCertCount">-</strong><small id="prcCertValue">Waiting for live lookup</small></div><div class="certificateMetric"><span>Rebate calculation</span><strong id="certRebateValue">-</strong><small id="certRebateMeta">Waiting for live lookup</small></div></div><div class="recommendationCards rebateSchemeUi" id="bestValueComparison"><div class="recommendationCard" id="bestValueMeta"><div class="recommendationEyebrow">Best rebate</div><div class="recommendationStatus">Best rebate indicator will appear here.</div></div><div class="recommendationCard net" id="bestNetCostMeta"><div class="recommendationEyebrow">Best net unit cost</div><div class="recommendationStatus">Best net unit cost indicator will appear here.</div></div></div></div></div>
       </div>
       <div class="card">
         <h2 class="sectionTitle">Costs</h2>
@@ -5721,8 +5723,17 @@ function normalizeDcceewBrand(value){
 function dcceewProductKey(brand,model){
   return `${normalizeDcceewBrand(brand)}|${String(model||'').toUpperCase().replace(/[^A-Z0-9]/g,'')}`;
 }
-function getDcceewContractMatch(candidate,postcodeValue){
+function isNewDuctedDcceewExclusion(context){
+  return !!context && context.systemType==='ducted' && context.installType==='new';
+}
+function setDcceewExclusionNote(context){
+  const note=$('dcceewExclusionNote');
+  if(!note) return;
+  note.classList.toggle('show',isNewDuctedDcceewExclusion(context));
+}
+function getDcceewContractMatch(candidate,postcodeValue,context){
   if(!rebatesEnabled() || activeBusinessState()!=='NSW') return null;
+  if(isNewDuctedDcceewExclusion(context)) return null;
   const data=dcceewContractData();
   if(!Array.isArray(data.postcodes) || !Array.isArray(data.productKeys)) return null;
   if(!dcceewPostcodeSet) dcceewPostcodeSet=new Set(data.postcodes.map(Number));
@@ -5819,7 +5830,7 @@ function currentMultiSplitDcceewMatch(postcodeValue){
   const outdoor=selectedMultiSplitOutdoor();
   if(!outdoor) return null;
   const postcode=postcodeValue===undefined?String(($('multiSplitPostcode')&&$('multiSplitPostcode').value)||'').trim():postcodeValue;
-  return getDcceewContractMatch({brand:outdoor.brand,model:outdoor.rebateModel||outdoor.model},postcode);
+  return getDcceewContractMatch({brand:outdoor.brand,model:outdoor.rebateModel||outdoor.model},postcode,{systemType:'multi_split',installType:selectedMultiSplitInstallType()});
 }
 function setMultiSplitDcceewContractDisplay(match,result,errorMessage){
   const rebatePanel=$('multiSplitRebatePanel');
@@ -6123,13 +6134,13 @@ function updateCertificateBreakdownFromRuntime(){
   const prcRate=getEssPrcRate();
   if(!((essRuntime.lastEsc>0 || essRuntime.lastPrc>0) && escRate>0 && prcRate>0)){
     setCertificateBreakdown(null,'Waiting for live lookup',false);
-    setDcceewContractDisplay(getDcceewContractMatch(product()),null);
+    setDcceewContractDisplay(getDcceewContractMatch(product(),undefined,{systemType,installType}),null);
     return 0;
   }
   const escValue=essRuntime.lastEsc*escRate;
   const prcValue=essRuntime.lastPrc*prcRate;
   const result={esc:essRuntime.lastEsc,prc:essRuntime.lastPrc,officialEsc:essRuntime.lastOfficialEsc,officialPrc:essRuntime.lastOfficialPrc,zone:essRuntime.lastZone,bcaZone:essRuntime.lastBcaZone,escRate,prcRate,escValue,prcValue,rebate:escValue+prcValue};
-  const match=getDcceewContractMatch(product());
+  const match=getDcceewContractMatch(product(),undefined,{systemType,installType});
   const effective=applyDcceewContractRebate(match,result);
   setCertificateBreakdown(effective,'',false);
   setDcceewContractDisplay(match,result);
@@ -6178,26 +6189,27 @@ function unitDisplayName(row){return `${row.brand||''}${row.series?' '+row.serie
 function findCurrentRecommendationMatch(entry,currentProduct){
   return ((entry&&entry.rows)||[]).find(r=>brandsEquivalent(r.brand,currentProduct.brand) && normalizeLookup(r.model)===normalizeLookup(currentProduct.model))||null;
 }
-function recommendationEffectiveRebate(p,result,postcode){
-  if(hasManualRebateOverride(systemType,p)){
+function recommendationEffectiveRebate(p,result,postcode,context){
+  if(hasManualRebateOverride(context.systemType,p)){
     const manual=Number(p&&p.rebate);
     return {rebate:Number.isFinite(manual)?manual:0,rebateSource:'manual',contractApplied:false,contractUplift:0};
   }
-  const match=getDcceewContractMatch(p,postcode);
+  const match=getDcceewContractMatch(p,postcode,context);
   const effective=applyDcceewContractRebate(match,result);
-  return {...effective,rebateSource:effective&&effective.contractApplied?'contract':'standard'};
+  return {...effective,rebateSource:effective&&effective.contractApplied?'contract':'standard',contractExcluded:isNewDuctedDcceewExclusion(context)};
 }
 function recommendationRebateBasis(row){
   if(row&&row.rebateSource==='contract') return {label:'DCCEEW $30 ESC rate',className:'contract'};
   if(row&&row.rebateSource==='manual') return {label:'Manual rebate',className:'manual'};
+  if(row&&row.contractExcluded) return {label:'Standard business rate',className:''};
   return {label:'Standard business rate',className:''};
 }
-async function calculateRecommendationCandidate(item,postcode){
+async function calculateRecommendationCandidate(item,postcode,context){
   const p=item.p;
-  const result=hasManualRebateOverride(systemType,p)?null:await estimateLiveEssRebate(p.brand,p.model);
-  const effective=recommendationEffectiveRebate(p,result,postcode);
+  const result=hasManualRebateOverride(context.systemType,p)?null:await estimateLiveEssRebate(p.brand,p.model,context);
+  const effective=recommendationEffectiveRebate(p,result,postcode,context);
   const unitCost=Number(p.unitPriceInc||p.priceIncGst||0);
-  return {ok:true,brand:p.brand,series:p.series||'',model:p.model,phase:p.phase||'',productIndex:item.i,productManagedKey:managedProductKey(systemType,item.i),unitCost,rebate:Number(effective.rebate)||0,netCost:unitCost-(Number(effective.rebate)||0),rebateSource:effective.rebateSource,contractApplied:!!effective.contractApplied,contractUplift:Number(effective.contractUplift)||0};
+  return {ok:true,brand:p.brand,series:p.series||'',model:p.model,phase:p.phase||'',productIndex:item.i,productManagedKey:managedProductKey(context.systemType,item.i),unitCost,rebate:Number(effective.rebate)||0,netCost:unitCost-(Number(effective.rebate)||0),rebateSource:effective.rebateSource,contractApplied:!!effective.contractApplied,contractUplift:Number(effective.contractUplift)||0,contractExcluded:!!effective.contractExcluded};
 }
 function recommendationMoney(value,fallback){
   const n=Number(value);
@@ -6237,8 +6249,10 @@ function renderRecommendationCard(id,kind,title,value,model,stats,basis,delta,fo
   const basisHtml=basis&&basis.label?`<div class="recommendationBasis${basis.className?` ${htmlEscape(basis.className)}`:''}">${htmlEscape(basis.label)}</div>`:'';
   el.innerHTML=`<div class="recommendationCardHead"><div class="recommendationEyebrow">${htmlEscape(title)}</div>${action}</div><div class="recommendationValue">${htmlEscape(value)}</div><div class="recommendationModel">${htmlEscape(model)}</div>${basisHtml}${recommendationStatsHtml(stats)}${delta?`<div class="recommendationDelta">${htmlEscape(delta)}</div>`:''}${foot?`<div class="recommendationFoot">${htmlEscape(foot)}</div>`:''}`;
 }
-function recommendationFootnote(scopeLabel,postcode,failedCount){
-  return `${scopeLabel} category - ${installType}, postcode ${postcode}${failedCount?` - ${failedCount} unavailable`:''}`;
+function recommendationFootnote(scopeLabel,postcode,failedCount,context){
+  const calculationContext=context||{systemType,installType};
+  const exclusionNote=isNewDuctedDcceewExclusion(calculationContext)?' New ducted installations are excluded from the DCCEEW contract rate.':'';
+  return `${scopeLabel} category - ${calculationContext.installType}, postcode ${postcode}${failedCount?` - ${failedCount} unavailable`:''}${exclusionNote}`;
 }
 function rebateDeltaText(best,currentMatch){
   if(!currentMatch) return 'Highest rebate in this kW category';
@@ -6265,7 +6279,7 @@ function renderBestRecommendationCards(entry,currentProduct,categoryLabel,postco
     renderRecommendationCard('bestValueMeta','rebate','Best rebate',money(best.rebate),unitDisplayName(best),[
       {label:'Unit price',value:unitCost>0?money(unitCost):'Not saved'},
       {label:'Net cost',value:unitCost>0?money(netCost):'-'}
-    ],recommendationRebateBasis(best),rebateDeltaText(best,currentMatch),recommendationFootnote(categoryLabel,postcode,failedCount),false);
+    ],recommendationRebateBasis(best),rebateDeltaText(best,currentMatch),recommendationFootnote(categoryLabel,postcode,failedCount,entry.calculationContext),false);
   }
   if(!entry || !entry.bestNetCost){
     setBestNetCostMeta(`Best net unit cost unavailable for ${categoryLabel} (${installType}, postcode ${postcode}).`,true);
@@ -6275,7 +6289,7 @@ function renderBestRecommendationCards(entry,currentProduct,categoryLabel,postco
     renderRecommendationCard('bestNetCostMeta','net','Best net unit cost',recommendationMoney(best.netCost),unitDisplayName(best),[
       {label:'Unit price',value:recommendationMoney(best.unitCost)},
       {label:'Rebate',value:recommendationMoney(best.rebate)}
-    ],recommendationRebateBasis(best),netCostDeltaText(best,currentMatch),recommendationFootnote(categoryLabel,postcode,failedCount),false);
+    ],recommendationRebateBasis(best),netCostDeltaText(best,currentMatch),recommendationFootnote(categoryLabel,postcode,failedCount,entry.calculationContext),false);
   }
 }
 function formatBestValueMessage(entry,currentProduct,categoryLabel,postcode,failedCount){
@@ -6331,7 +6345,8 @@ async function refreshBestValueIndicator(){
   const scopeLabel=recommendationScopeLabel(categoryLabel,current);
   const zoneSel=getEssZoneSelection();
   const phase=recommendationPhaseValue(current);
-  const allCandidates=data().map((p,i)=>({p,i})).filter(item=>productVisibleToCurrentUser(item.p)&&recommendationCandidateMatchesScope(current,item.p,category,systemType));
+  const calculationContext={systemType,installType};
+  const allCandidates=data().map((p,i)=>({p,i})).filter(item=>productVisibleToCurrentUser(item.p)&&recommendationCandidateMatchesScope(current,item.p,category,calculationContext.systemType));
   const uniqueCandidates=[];
   const seenKeys=new Set();
   allCandidates.forEach(item=>{
@@ -6355,7 +6370,7 @@ async function refreshBestValueIndicator(){
   try{
     settled=await Promise.all(uniqueCandidates.map(async item=>{
       try{
-        return await calculateRecommendationCandidate(item,postcode);
+        return await calculateRecommendationCandidate(item,postcode,calculationContext);
       }catch(e){
         return {ok:false,error:String(e && e.message ? e.message : e)};
       }
@@ -6374,7 +6389,7 @@ async function refreshBestValueIndicator(){
   const best=[...winners].sort((a,b)=>(b.rebate-a.rebate)||(a.netCost-b.netCost)||unitDisplayName(a).localeCompare(unitDisplayName(b)))[0];
   const netCostCandidates=winners.filter(r=>r.unitCost>0);
   const bestNetCost=netCostCandidates.length?[...netCostCandidates].sort((a,b)=>(a.netCost-b.netCost)||(b.rebate-a.rebate)||unitDisplayName(a).localeCompare(unitDisplayName(b)))[0]:null;
-  const entry={best,bestNetCost,rows:winners,failedCount};
+  const entry={best,bestNetCost,rows:winners,failedCount,calculationContext};
   essBestValueRuntime.cache[cacheKey]=entry;
   renderBestRecommendationCards(entry,current,scopeLabel,postcode,failedCount);
 }
@@ -7040,11 +7055,13 @@ async function calculateCertificatesForModel(meta,climate,options){
   const prcEffective=eligibility.prcEligible?Math.min(prcNum,caps.prc):0;
   return {esc:escEffective, prc:prcEffective, officialEsc:Number.isFinite(escOfficial)?escOfficial:escNum, officialPrc:Number.isFinite(prcOfficial)?prcOfficial:prcNum, eligibility,caps,airConditionerType};
 }
-async function estimateLiveEssRebate(localBrand,localModel){
+async function estimateLiveEssRebate(localBrand,localModel,context){
+  const calculationContext=context||{systemType,installType};
   const resolved=await resolveModelMetadataForRebate(localBrand,localModel);
   const meta=resolved.meta;
   const climate=await getClimateContext();
-  const certs=await calculateCertificatesForModel(meta,climate);
+  const airConditionerType=calculationContext.airConditionerType||normalizeAirConditionerType(HVAC_AIR_CONDITIONER_TYPES[calculationContext.systemType]||HVAC_AIR_CONDITIONER_TYPES.split);
+  const certs=await calculateCertificatesForModel(meta,climate,{airConditionerType,installType:calculationContext.installType});
   const escRate=getEssEscRate(), prcRate=getEssPrcRate();
   if(!(escRate>0)) throw new Error('Enter a valid ESS $ per ESC');
   if(!(prcRate>0)) throw new Error('Enter a valid PERC (PRC) $ per cert');
@@ -7078,16 +7095,19 @@ async function refreshLiveRebateForCurrentProduct(){
   const p=product();
   setLiveRebateLoading(false);
   const requestId=++essCache.requestSeq;
-  if(!p){setDcceewContractDisplay(null,null); return;}
+  if(!p){setDcceewExclusionNote(null);setDcceewContractDisplay(null,null); return;}
   if(!rebatesEnabled()){
     clearCertificateRuntime();
+    setDcceewExclusionNote(null);
     setDcceewContractDisplay(null,null);
     if($('rebate')) $('rebate').value='0.00';
     applyRebateSchemeUi();
     render();
     return;
   }
-  const dcceewMatch=getDcceewContractMatch(p);
+  const calculationContext={systemType,installType};
+  setDcceewExclusionNote(calculationContext);
+  const dcceewMatch=getDcceewContractMatch(p,undefined,calculationContext);
   setDcceewContractDisplay(dcceewMatch,null);
   if(hasManualRebateOverride(systemType,p)){
     clearCertificateRuntime();
@@ -7104,7 +7124,7 @@ async function refreshLiveRebateForCurrentProduct(){
   setLiveRebateLoading(true);
   try{
     const result=await withTimeout(
-      estimateLiveEssRebate(p.brand,p.model),
+      estimateLiveEssRebate(p.brand,p.model,calculationContext),
       LIVE_REBATE_TIMEOUT_MS,
       'Live rebate calculation timed out. Please try again.'
     );
@@ -8159,7 +8179,7 @@ function allModelsAirConditionerType(item,meta){
   const source=`${item&&item.productType||''} ${meta&&meta['Product Type']||''} ${meta&&meta.Configuration2||''}`.toLowerCase();
   const productClass=hvacProductClassNumber(meta&&meta['Product Class']);
   if(item&&item.multiHead || /multi[ -]?(split|head)/i.test(source)) return '';
-  if(source.includes('unitary')) return source.includes('ducted')?'ducted_unitary_system':'non_ducted_unitary_system';
+  if(source.includes('unitary')) return /non[ _-]?ducted/.test(source)?'non_ducted_unitary_system':'ducted_unitary_system';
   if(source.includes('non')&&source.includes('ducted')) return 'non_ducted_single_split_system';
   if(source.includes('ducted')) return 'ducted_single_split_system';
   if([8,9].includes(productClass)) return 'non_ducted_single_split_system';
@@ -8167,13 +8187,18 @@ function allModelsAirConditionerType(item,meta){
   if([18,19,20,21].includes(productClass)) return 'non_ducted_unitary_system';
   return '';
 }
-function renderAllModelsCalculation(result,effective,match,climate,lookupSource){
+function allModelsCalculationContext(airConditionerType){
+  const systemType=['ducted_single_split_system','ducted_unitary_system'].includes(airConditionerType)?'ducted':'split';
+  return {systemType,installType:allModelsInstallType,airConditionerType};
+}
+function renderAllModelsCalculation(result,effective,match,climate,lookupSource,context){
   const escRate=match?Number(match.rate)||30:Number(result.escRate)||0;
   const escValue=match?Number(effective.contractEscValue)||0:Number(result.escValue)||0;
   const prcValue=Number(result.prcValue)||0;
-  const calculationContext=`${allModelsMode==='multi'?'Multi-head ':''}${allModelsInstallType==='replacement'?'replacement':'new install'} at postcode ${climate.postcode}.`;
+  const calculationContext=`${context.systemType==='multi_split'?'Multi-head ':''}${context.installType==='replacement'?'replacement':'new install'} at postcode ${climate.postcode}.`;
+  const contractExcluded=isNewDuctedDcceewExclusion(context);
   if($('allModelsRebateTotal')) $('allModelsRebateTotal').textContent=money(effective.rebate);
-  if($('allModelsRebateSummary')) $('allModelsRebateSummary').textContent=match?`${calculationContext} Includes ${money(effective.contractUplift)} additional DCCEEW contract value.`:calculationContext;
+  if($('allModelsRebateSummary')) $('allModelsRebateSummary').textContent=match?`${calculationContext} Includes ${money(effective.contractUplift)} additional DCCEEW contract value.`:(contractExcluded?'New ducted installations are excluded from the DCCEEW contract rate.':calculationContext);
   if($('allModelsEscCount')) $('allModelsEscCount').textContent=certCountText(result.esc);
   if($('allModelsPrcCount')) $('allModelsPrcCount').textContent=certCountText(result.prc);
   if($('allModelsEscValue')) $('allModelsEscValue').textContent=`${certCountText(result.esc)} x ${money(escRate)} = ${money(escValue)}`;
@@ -8232,10 +8257,11 @@ async function calculateAllModelsMultiRebate(){
     const escRate=getEssEscRate(),prcRate=getEssPrcRate();
     if(!(escRate>0)||!(prcRate>0)) throw new Error('The current business certificate payout rates are unavailable.');
     const result={apiBrand:outdoor.brand,apiModel:outdoor.rebateModel||outdoor.model,lookupSource:resolved.source,esc:certs.esc,prc:certs.prc,officialEsc:certs.officialEsc,officialPrc:certs.officialPrc,eligibility:certs.eligibility,zone:climate.climateZone,bcaZone:climate.bcaZone,escRate,prcRate,escValue:certs.esc*escRate,prcValue:certs.prc*prcRate,rebate:(certs.esc*escRate)+(certs.prc*prcRate)};
-    const match=getDcceewContractMatch({brand:outdoor.brand,model:outdoor.rebateModel||outdoor.model},postcode);
+    const calculationContext={systemType:'multi_split',installType:allModelsInstallType,airConditionerType:'non_ducted_multi_split_system'};
+    const match=getDcceewContractMatch({brand:outdoor.brand,model:outdoor.rebateModel||outdoor.model},postcode,calculationContext);
     const effective=applyDcceewContractRebate(match,result);
     if(requestId!==allModelsCalculationRequestSeq||allModelsMode!=='multi') return;
-    renderAllModelsCalculation(result,effective,match,climate,`${resolved.source} Capacity used: ${capacityInputs.coolingCapacity.toFixed(2)}kW cooling and ${capacityInputs.heatingCapacity.toFixed(2)}kW heating`);
+    renderAllModelsCalculation(result,effective,match,climate,`${resolved.source} Capacity used: ${capacityInputs.coolingCapacity.toFixed(2)}kW cooling and ${capacityInputs.heatingCapacity.toFixed(2)}kW heating`,calculationContext);
   }catch(error){
     if(requestId!==allModelsCalculationRequestSeq) return;
     renderAllModelsCalculationError(error);
@@ -8266,15 +8292,16 @@ async function calculateAllModelsRebate(){
     }
     const airConditionerType=allModelsAirConditionerType(selected,meta);
     if(!airConditionerType) throw new Error('This model needs an indoor-head combination. Use the Multi-head Split System calculator.');
+    const calculationContext=allModelsCalculationContext(airConditionerType);
     const climate=await getClimateContext(postcode);
-    const certs=await withTimeout(calculateCertificatesForModel(meta,climate,{airConditionerType,installType:allModelsInstallType}),LIVE_REBATE_TIMEOUT_MS,'Live rebate calculation timed out. Please try again.');
+    const certs=await withTimeout(calculateCertificatesForModel(meta,climate,{airConditionerType:calculationContext.airConditionerType,installType:calculationContext.installType}),LIVE_REBATE_TIMEOUT_MS,'Live rebate calculation timed out. Please try again.');
     const escRate=getEssEscRate(),prcRate=getEssPrcRate();
     if(!(escRate>0)||!(prcRate>0)) throw new Error('The current business certificate payout rates are unavailable.');
     const result={apiBrand:selected.brand,apiModel:selected.model,lookupSource,esc:certs.esc,prc:certs.prc,officialEsc:certs.officialEsc,officialPrc:certs.officialPrc,eligibility:certs.eligibility,zone:climate.climateZone,bcaZone:climate.bcaZone,escRate,prcRate,escValue:certs.esc*escRate,prcValue:certs.prc*prcRate,rebate:(certs.esc*escRate)+(certs.prc*prcRate)};
-    const match=getDcceewContractMatch({brand:selected.brand,model:selected.model},postcode);
+    const match=getDcceewContractMatch({brand:selected.brand,model:selected.model},postcode,calculationContext);
     const effective=applyDcceewContractRebate(match,result);
     if(requestId!==allModelsCalculationRequestSeq||allModelsSelected!==selected) return;
-    renderAllModelsCalculation(result,effective,match,climate,lookupSource);
+    renderAllModelsCalculation(result,effective,match,climate,lookupSource,calculationContext);
   }catch(error){
     if(requestId!==allModelsCalculationRequestSeq) return;
     renderAllModelsCalculationError(error);
