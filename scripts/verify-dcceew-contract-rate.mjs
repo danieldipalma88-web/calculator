@@ -42,13 +42,13 @@ const retiredAuthoritativeKeys = [
   "RINNAI|MVRFON6H20",
 ];
 const sortedPostcodes = [...postcodes].sort((left, right) => left - right);
-assert.equal(postcodes.length, 651, "workbook postcode count changed unexpectedly");
-assert.equal(new Set(postcodes).size, 651, "workbook postcode set contains duplicates");
-assert.deepEqual(postcodes, sortedPostcodes, "workbook postcode set must remain sorted");
+assert.equal(postcodes.length, 514, "authoritative postcode count changed unexpectedly");
+assert.equal(new Set(postcodes).size, 514, "authoritative postcode set contains duplicates");
+assert.deepEqual(postcodes, sortedPostcodes, "authoritative postcode set must remain sorted");
 assert.equal(
   crypto.createHash("sha256").update(sortedPostcodes.join(",")).digest("hex"),
-  "2fc22d84f9c9b505ad516345cf9586e6694d67d9010708f31f0525d7c20f83f3",
-  "workbook postcode set differs from the reviewed authoritative set",
+  "d31d7e548629c0cc0088b3b6126dc02e54a309cc27f89d1de519dc68df6148c6",
+  "postcode set differs from the reviewed metro and regional source files",
 );
 assert.equal(productKeys.length, 245, "central DCCEEW product register changed unexpectedly");
 assert.equal(new Set(productKeys).size, 245, "central DCCEEW product register contains duplicates");
@@ -64,11 +64,11 @@ for (const key of requiredAuthoritativeKeys) {
 for (const key of retiredAuthoritativeKeys) {
   assert.ok(!productKeys.includes(key), `retired product remains active: ${key}`);
 }
-for (const postcode of [2000, 2309, 2522, 2890, 4380]) {
+for (const postcode of [2000, 2163, 2311, 2550, 4380]) {
   assert.ok(postcodes.includes(postcode), `approved postcode ${postcode} is missing`);
 }
-for (const postcode of [2058, 2252, 2891]) {
-  assert.ok(!postcodes.includes(postcode), `removed Sheet2 postcode ${postcode} remains eligible`);
+for (const postcode of [2058, 2252, 2300, 2309, 2500, 2522, 2890, 2891]) {
+  assert.ok(!postcodes.includes(postcode), `unapproved postcode ${postcode} remains eligible`);
 }
 
 assert.match(route, /DCCEEW_ELIGIBLE_POSTCODES/, "raw calculator route does not inject postcode data");
@@ -81,7 +81,7 @@ assert.ok(matcherStart >= 0 && matcherEnd > matcherStart, "could not isolate con
 const sandbox = {
   window: { DCCEEW_CONTRACT_DATA: { rate: 30, postcodes, productKeys } },
   state: "NSW",
-  postcode: "2309",
+  postcode: "2311",
   candidate: { brand: "Fujitsu General", model: "AOTG09KMTC/ASTG09KMTC" },
 };
 sandbox.rebatesEnabled = () => true;
@@ -94,17 +94,17 @@ assert.equal(sandbox.__match()?.rate, 30, "eligible NSW postcode/product did not
 sandbox.state = "QLD";
 assert.equal(sandbox.__match(), null, "contract match must be NSW-only");
 sandbox.state = "NSW";
-for (const postcode of ["2000", "2309", "2522", "2890", "4380"]) {
+for (const postcode of ["2000", "2163", "2311", "2550", "4380"]) {
   sandbox.postcode = postcode;
   assert.equal(sandbox.__match()?.rate, 30, `approved postcode ${postcode} did not receive a contract match`);
 }
 sandbox.postcode = "2002";
 assert.equal(sandbox.__match(), null, "unlisted postcode received a contract match");
-for (const postcode of ["2058", "2252", "2891"]) {
+for (const postcode of ["2058", "2252", "2300", "2309", "2500", "2522", "2890", "2891"]) {
   sandbox.postcode = postcode;
-  assert.equal(sandbox.__match(), null, `removed Sheet2 postcode ${postcode} received a contract match`);
+  assert.equal(sandbox.__match(), null, `unapproved postcode ${postcode} received a contract match`);
 }
-sandbox.postcode = "2309";
+sandbox.postcode = "2311";
 sandbox.candidate = { brand: "Other Brand", model: "AOTG09KMTC/ASTG09KMTC" };
 assert.equal(sandbox.__match(), null, "model matched without the exact approved brand");
 
