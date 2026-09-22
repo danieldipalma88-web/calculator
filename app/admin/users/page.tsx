@@ -25,6 +25,7 @@ import {
 import PageLoadingOverlay from "../../page-loading-overlay";
 import BusinessMultiSelect from "./business-multi-select";
 import CertificateHistoryRangeSelect from "./certificate-history-range";
+import DirectoryList from "./directory-list";
 
 export const maxDuration = 60;
 
@@ -4907,10 +4908,9 @@ export default async function AdminUsersPage({
             </button>
             </form>
 
-            <div className="business-grid">
-            {businesses.map((business) => {
+            <DirectoryList kind="businesses" className="business-grid" items={businesses.map((business) => {
               const businessCertificate = businessCertificateValues[business.id] || { ...DEFAULT_CERTIFICATE_VALUES };
-              return (
+              return { id: business.id, name: business.name, searchText: business.operating_state, createdAt: business.created_at, content: (
               <details className="business-card business-edit-card locked-card" key={business.id}>
                 <summary className="business-summary">
                   <div>
@@ -5013,10 +5013,8 @@ export default async function AdminUsersPage({
                   </button>
                 </form>
               </details>
-              );
-            })}
-            {!businesses.length ? <div className="empty-card">No businesses yet.</div> : null}
-            </div>
+              ) };
+            })} />
           </div>
         </details>
 
@@ -5115,11 +5113,16 @@ export default async function AdminUsersPage({
             </button>
             </form>
 
-            <div className="user-card-grid">
-            {users.map((approvedUser) => {
+            <DirectoryList kind="users" className="user-card-grid" defaultSort="newest" activitySort items={users.map((approvedUser) => {
               const isSelf = approvedUser.email.toLowerCase() === currentEmail;
               const commissionOverride = approvedUser.commission_type_override || "business_default";
-              return (
+              return {
+                id: approvedUser.email,
+                name: displayNameFor(approvedUser),
+                searchText: [approvedUser.email, ...approvedUser.business_names, approvedUser.business_name || "", approvedUser.role].join(" "),
+                createdAt: approvedUser.created_at,
+                lastActiveAt: approvedUser.last_active_at,
+                content: (
                 <details className={`user-card user-card-collapsible${approvedUser.is_locked ? " user-card-locked" : ""}`} key={approvedUser.email}>
                   <summary className="user-card-summary">
                     <div className="user-summary-identity">
@@ -5131,6 +5134,7 @@ export default async function AdminUsersPage({
                         </span>
                       </div>
                       <span>{approvedUser.email}</span>
+                      <span title="Updated when this person opens or saves their calculator">Last active: {formatLastActive(approvedUser.last_active_at)}</span>
                     </div>
                     <div className="user-summary-meta">
                       <span>
@@ -5245,10 +5249,8 @@ export default async function AdminUsersPage({
                     </div>
                   </div>
                 </details>
-              );
-            })}
-            {!users.length ? <div className="empty-card">No approved users found.</div> : null}
-            </div>
+              ) };
+            })} />
 
             <div className="table-wrap legacy-users-table">
             <table className="admin-table">

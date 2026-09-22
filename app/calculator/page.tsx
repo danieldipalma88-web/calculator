@@ -311,6 +311,7 @@ export default async function CalculatorPage({
                 name="as"
                 options={approvedUsers.map((approvedUser) => ({
                   label: displayName(approvedUser),
+                  secondaryLabel: approvedUser.email,
                   value: approvedUser.email,
                 }))}
                 value={viewingEmail}

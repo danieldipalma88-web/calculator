@@ -1,0 +1,10 @@
+.directory { min-width: 0; }
+.toolbar { display: grid; grid-template-columns: minmax(0, 1fr) minmax(180px, 230px); gap: 12px; align-items: end; margin-top: 20px; }
+.search, .sort { min-width: 0; }
+.toolbar input, .toolbar select { width: 100%; min-width: 0; min-height: 44px; font-size: 16px; }
+.count { margin: 8px 0 12px; color: var(--muted); font-size: 12px; }
+.entry { display: contents; }
+.entry[hidden] { display: none; }
+@media (max-width: 520px) {
+  .toolbar { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+}

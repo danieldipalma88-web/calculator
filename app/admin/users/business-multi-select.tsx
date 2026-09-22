@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 
 type BusinessOption = {
   id: string;
@@ -28,6 +28,9 @@ export default function BusinessMultiSelect({
   selectedIds: string[];
 }) {
   const [selected, setSelected] = useState(() => normalizedSelection(businesses, selectedIds));
+  const [query, setQuery] = useState("");
+  const searchId = useId();
+  const matches = (business: BusinessOption) => business.name.toLocaleLowerCase("en-AU").includes(query.trim().toLocaleLowerCase("en-AU"));
 
   useEffect(() => {
     setSelected(normalizedSelection(businesses, selectedIds));
@@ -59,8 +62,18 @@ export default function BusinessMultiSelect({
         <span aria-hidden="true">v</span>
       </summary>
       <div className="business-multiselect-menu">
+        <label className="business-multiselect-search" htmlFor={searchId}>Search businesses</label>
+        <input id={searchId} type="search" value={query} placeholder="Business name" autoComplete="off"
+          onChange={(event) => setQuery(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") event.preventDefault();
+            if (event.key === "Escape") {
+              const details = event.currentTarget.closest("details");
+              if (details) { details.open = false; details.querySelector("summary")?.focus(); }
+            }
+          }} />
         {businesses.map((business) => (
-          <label className="checkbox-pill" key={business.id}>
+          <label className="checkbox-pill" key={business.id} style={matches(business) ? undefined : { display: "none" }}>
             <input
               type="checkbox"
               name="businessIds"
@@ -71,6 +84,7 @@ export default function BusinessMultiSelect({
             <span>{business.name}</span>
           </label>
         ))}
+        {businesses.length > 0 && !businesses.some(matches) ? <span className="empty-select-note" role="status">No businesses match your search.</span> : null}
         {!businesses.length ? <span className="empty-select-note">Add a business first.</span> : null}
       </div>
     </details>
