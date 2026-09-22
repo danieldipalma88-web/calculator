@@ -1,4 +1,4 @@
-name: NSW postcode rebate safeguard
+name: NSW weekly rebate safeguards
 
 on:
   schedule:
@@ -13,6 +13,9 @@ on:
       - 'lib/gems-model-search.ts'
       - 'lib/public-rebate-catalogue.generated.json'
       - 'scripts/*postcode*'
+      - 'scripts/*rebate-sample*'
+      - 'scripts/*rebate-live*'
+      - 'lib/dcceew-contract*'
       - 'scripts/fixtures/**'
       - 'package.json'
       - 'package-lock.json'
@@ -24,6 +27,9 @@ on:
       - 'lib/gems-model-search.ts'
       - 'lib/public-rebate-catalogue.generated.json'
       - 'scripts/*postcode*'
+      - 'scripts/*rebate-sample*'
+      - 'scripts/*rebate-live*'
+      - 'lib/dcceew-contract*'
       - 'scripts/fixtures/**'
       - 'package.json'
       - 'package-lock.json'
@@ -69,4 +75,64 @@ jobs:
         run: |
           if [ -f postcode-report.json ]; then
             cat postcode-report.json
+          fi
+
+  rotating-model-check:
+    if: github.event.repository.private == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+      - name: Test sample selection and financial guardrails
+        run: |
+          node scripts/verify-rebate-sample.mjs
+          node scripts/verify-dcceew-contract-rate.mjs
+          node scripts/verify-rebate-failure-zero.mjs
+          node scripts/verify-multi-split-capacity-rules.mjs
+      - name: Test rotating models with live rebate services
+        if: github.event_name != 'pull_request'
+        run: node scripts/monitor-rebate-sample.mjs --output=rebate-sample-report.json --summary=rebate-sample-report.md
+      - name: Publish sample report even on failure
+        if: always()
+        run: |
+          if [ -f rebate-sample-report.md ]; then
+            cat rebate-sample-report.md >> "$GITHUB_STEP_SUMMARY"
+          elif [ "${{ github.event_name }}" != "pull_request" ]; then
+            printf '%s\n' 'The rotating rebate check did not complete. No live sample coverage is established.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ -f rebate-sample-report.json ]; then
+            cat rebate-sample-report.json
+          fi
+
+  live-service-check:
+    if: github.event.repository.private == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+      - name: Verify live service monitor
+        run: node scripts/verify-rebate-live.mjs
+      - name: Check live release and public endpoints
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        run: node scripts/monitor-rebate-live.mjs
+      - name: Publish live service report even on failure
+        if: always()
+        run: |
+          if [ -f rebate-live-report.md ]; then
+            cat rebate-live-report.md >> "$GITHUB_STEP_SUMMARY"
+          elif [ "${{ github.event_name }}" = "schedule" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            printf '%s\n' 'The live service check did not complete. No live service coverage is established.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ -f rebate-live-report.json ]; then
+            cat rebate-live-report.json
           fi

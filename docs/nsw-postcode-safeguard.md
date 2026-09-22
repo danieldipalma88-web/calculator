@@ -1,4 +1,4 @@
-# NSW Postcode Rebate Safeguard
+# NSW Weekly Rebate Safeguards
 
 The safeguard checks postcode resolution and real rebate calculations without
 changing quotes, certificate prices, business settings, or product prices.
@@ -36,12 +36,60 @@ Ducted new/replacement controls also exercise the 2550 recovery path. This is
 postcode coverage monitoring, not an audit of every model or multi-head
 combination, nor a guarantee that every product is rebate-eligible.
 
+## Rotating Model Checks
+
+The same workflow also runs `scripts/monitor-rebate-sample.mjs`. It records its
+weekly seed and selected cases so a failure can be reproduced. The default
+sample covers 30 model/postcode combinations, each as new and replacement.
+These include permanent regressions and historical Electric Future reference
+cases. One manufacturer-confirmed multi-head combination adds two more cases.
+
+```sh
+node scripts/verify-rebate-sample.mjs
+node scripts/monitor-rebate-sample.mjs --output=rebate-sample-report.json --summary=rebate-sample-report.md
+```
+
+Certificate counts are compared between calculator paths, and payout arithmetic
+uses explicit test rates so a weekly market-price movement does not look like a
+calculation regression. This is not a check of private business-specific payout
+settings. The independent reference cases come from user-provided Electric
+Future screenshots; their original capture dates are not confirmed. Differences
+require investigation, not automatic replacement of the expected values with
+our own calculator's output.
+The original screenshots are user-provided evidence outside the repository;
+the fixture preserves their filenames and transcribed certificate counts.
+
+Legitimate ineligible results are not assumed to be positive. Missing metadata,
+service failures and incomplete cases are reported rather than counted as a
+pass. Sampled checks do not establish coverage of every model. Read the report's
+coverage limits for multi-head combinations and other untested cases.
+
+## Live-Site Checks
+
+`scripts/monitor-rebate-live.mjs` checks the live public login page, catalogue
+and GEMS search. The tested `index.html` must have the same source hash as the
+live catalogue release. A release mismatch fails instead of claiming live
+coverage. These checks run on the weekly schedule and manual dispatch; push and
+pull-request events run their offline verifier so a deployment still in progress
+is not mistaken for a production regression.
+
+Only three public GET requests are made. No login code, account credentials or
+customer records are required. Authentication, private prices and browser UI
+are outside this check. The registry blocked automated Chromium requests during
+setup, so no weekly browser automation is enabled. The rotating sample instead
+compares the actual frontend calculation helpers with the server using live
+public API data. An incomplete run fails and reports what was checked.
+
 ## Automatic Checks
 
 `.github/workflows/nsw-postcode-safeguard.yml` runs every Monday at 06:17 AEST
 (07:17 AEDT), after relevant changes on `main`, and on manual dispatch. Pull
 requests run the offline checks. GitHub may delay scheduled runs during busy
 periods; this is periodic monitoring, not a continuous availability guarantee.
+
+The postcode, rotating-model and live-service checks are independent jobs: a failure
+in one does not stop the others collecting evidence. No job auto-fixes data or
+changes eligibility rules. The only automated output is the test report.
 
 Read each run's summary in the repository's **Actions** tab. Detailed JSON is
 included in its log. Failed runs identify postcodes/scenarios needing attention;

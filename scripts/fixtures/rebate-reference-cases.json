@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "controlledPayoutRates": { "esc": 17.25, "prc": 3.4 },
+  "sample": {
+    "distinctCombinations": 30,
+    "verifiedMultiSplit": {
+      "id": "rinnai-px-2x25",
+      "verified": true,
+      "brand": "Rinnai",
+      "model": "MON2H05B1LA",
+      "outdoorProductCode": "MON2H05B1LA2head",
+      "systemType": "multi_split",
+      "postcode": "2550",
+      "requirePositiveCertificates": true,
+      "expectedContract": { "new": false, "replacement": false },
+      "indoorHeads": [
+        { "model": "HINRPX25M", "qty": 2, "ratedCoolingCapacity": 2.6, "ratedHeatingCapacity": 3.25 }
+      ],
+      "provenance": {
+        "source": "Rinnai current product specification and manufacturer combination table, page 2",
+        "url": "https://www.rinnai.com.au/catalogue/products/multi-split-air/multi-wall-mount/wall-mount-2-5",
+        "combinationTableUrl": "https://www.rinnai.com.au/documents/063dbd57ac/ac-multisplit-combination-2607-spe.pdf",
+        "combinationTablePage": 2,
+        "evidence": "MON2H05B1LA supports two 2.6 kW wall-mounted HINRPX25M units at 100% capacity. Each indoor head is manufacturer-rated 2.6 kW cooling and 3.25 kW heating."
+      }
+    },
+    "postcodesByClimate": {
+      "hot": "2481",
+      "mixed": "2145",
+      "cold": "2620"
+    },
+    "fixedCombinations": [
+      {
+        "id": "fixed-2550-split",
+        "brand": "TCL",
+        "model": "TAC-10CHSD/VEIH",
+        "systemType": "split",
+        "postcode": "2550",
+        "requirePositiveCertificates": true,
+        "expectedContract": { "new": false, "replacement": false },
+        "provenance": "Committed public rebate catalogue fallback metadata."
+      },
+      {
+        "id": "dcceew-split",
+        "brand": "Fujitsu General",
+        "model": "AOTG09KMTC/ASTG09KMTC",
+        "systemType": "split",
+        "postcode": "2170",
+        "requirePositiveCertificates": true,
+        "expectedContract": { "new": true, "replacement": true },
+        "provenance": "Exact DCCEEW contract register entry and eligible postcode."
+      },
+      {
+        "id": "dcceew-ducted-new-exclusion",
+        "brand": "Daikin",
+        "model": "RZAS71C2V1 / FDYA71AV19",
+        "systemType": "ducted",
+        "postcode": "2170",
+        "requirePositiveCertificates": true,
+        "expectedContract": { "new": false, "replacement": true },
+        "provenance": "Exact DCCEEW contract register entry and eligible postcode; new ducted installations are excluded."
+      },
+      {
+        "id": "historical-rinnai-2549",
+        "brand": "Rinnai",
+        "model": "HONRPX50/HINRPX50M",
+        "systemType": "split",
+        "postcode": "2549",
+        "requirePositiveCertificates": true,
+        "expectedContract": { "new": false, "replacement": false },
+        "provenance": "Historical user-supplied Electric Future evidence; current exact GEMS evidence remains required at runtime."
+      }
+    ]
+  },
+  "historicalElectricFutureEvidence": [
+    {
+      "id": "fujitsu-2170-new",
+      "brand": "Fujitsu General",
+      "model": "AOTG09KMTC/ASTG09KMTC",
+      "postcode": "2170",
+      "installType": "new",
+      "systemType": "split",
+      "expectedRoundedCertificates": { "esc": 8.61, "prc": 86.65, "decimalPlaces": 2, "tolerance": 0.0051 },
+      "provenance": "Historical user-supplied Electric Future screenshot codex-clipboard-d62119b1-02bd-439a-9842-23f5bd7547a9.png. Screenshot date is not confirmed; this is not a current pricing oracle."
+    },
+    {
+      "id": "rinnai-2549-replacement",
+      "brand": "Rinnai",
+      "model": "HONRPX50/HINRPX50M",
+      "postcode": "2549",
+      "installType": "replacement",
+      "systemType": "split",
+      "expectedRoundedCertificates": { "esc": 40.33, "prc": 315.59, "decimalPlaces": 2, "tolerance": 0.0051 },
+      "provenance": "Historical user-supplied Electric Future screenshot codex-clipboard-b5d28ed3-1951-4bf5-9420-42a90e71f192.png. Screenshot date is not confirmed; this is not a current pricing oracle."
+    }
+  ],
+  "coverageLimits": {
+    "multiSplit": "One manufacturer-proven physical Rinnai combination is sampled: MON2H05B1LA with 2x HINRPX25M. It provides limited one-combination coverage only; other multi-split combinations remain uncovered.",
+    "nonEligibleZero": "The live catalogue does not contain a provenance-backed exact GEMS non-eligible model fixture. The frontend zero rule and zero-payout validation are exercised offline with deliberately non-eligible metadata; this is not represented as a live physical-model pass."
+  }
+}
