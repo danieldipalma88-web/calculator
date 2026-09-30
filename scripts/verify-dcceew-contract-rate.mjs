@@ -56,13 +56,13 @@ const retiredAuthoritativeKeys = [
   "RINNAI|MVRFON6H20",
 ];
 const sortedPostcodes = [...postcodes].sort((left, right) => left - right);
-assert.equal(postcodes.length, 514, "authoritative postcode count changed unexpectedly");
-assert.equal(new Set(postcodes).size, 514, "authoritative postcode set contains duplicates");
+assert.equal(postcodes.length, 110, "regional Average-zone postcode count changed unexpectedly");
+assert.equal(new Set(postcodes).size, 110, "regional Average-zone postcode set contains duplicates");
 assert.deepEqual(postcodes, sortedPostcodes, "authoritative postcode set must remain sorted");
 assert.equal(
   crypto.createHash("sha256").update(sortedPostcodes.join(",")).digest("hex"),
-  "d31d7e548629c0cc0088b3b6126dc02e54a309cc27f89d1de519dc68df6148c6",
-  "postcode set differs from the reviewed metro and regional source files",
+  "8034aa34553647bc5a9e44fcb4f62fbfd163da52e7af3ed9a87b303b2490fb79",
+  "postcode set differs from the regional Average-zone source rows",
 );
 assert.equal(productKeys.length, 245, "central DCCEEW product register changed unexpectedly");
 assert.equal(new Set(productKeys).size, 245, "central DCCEEW product register contains duplicates");
@@ -78,10 +78,10 @@ for (const key of requiredAuthoritativeKeys) {
 for (const key of retiredAuthoritativeKeys) {
   assert.ok(!productKeys.includes(key), `retired product remains active: ${key}`);
 }
-for (const postcode of [2000, 2163, 2311, 2550, 4380]) {
+for (const postcode of [2311, 2480, 2648, 2831, 4380]) {
   assert.ok(postcodes.includes(postcode), `approved postcode ${postcode} is missing`);
 }
-for (const postcode of [2058, 2252, 2300, 2309, 2500, 2522, 2890, 2891]) {
+for (const postcode of [2000, 2145, 2170, 2300, 2350, 2481, 2500, 2550, 2620, 2890]) {
   assert.ok(!postcodes.includes(postcode), `unapproved postcode ${postcode} remains eligible`);
 }
 
@@ -128,13 +128,13 @@ assert.equal(
 sandbox.state = "QLD";
 assert.equal(sandbox.__match(), null, "contract match must be NSW-only");
 sandbox.state = "NSW";
-for (const postcode of ["2000", "2163", "2311", "2550", "4380"]) {
+for (const postcode of ["2311", "2480", "2648", "2831", "4380"]) {
   sandbox.postcode = postcode;
   assert.equal(sandbox.__match()?.rate, 30, `approved postcode ${postcode} did not receive a contract match`);
 }
 sandbox.postcode = "2002";
 assert.equal(sandbox.__match(), null, "unlisted postcode received a contract match");
-for (const postcode of ["2058", "2252", "2300", "2309", "2500", "2522", "2890", "2891"]) {
+for (const postcode of ["2000", "2145", "2170", "2300", "2350", "2481", "2500", "2550", "2620", "2890"]) {
   sandbox.postcode = postcode;
   assert.equal(sandbox.__match(), null, `unapproved postcode ${postcode} received a contract match`);
 }
@@ -143,7 +143,7 @@ sandbox.candidate = { brand: "Other Brand", model: "AOTG09KMTC/ASTG09KMTC" };
 assert.equal(sandbox.__match(), null, "model matched without the exact approved brand");
 
 const serverSandbox = {
-  dcceewPostcodes: new Set([2000]),
+  dcceewPostcodes: new Set(postcodes),
   dcceewProductKeys: new Set(["DAIKIN|RZAS71C2V1FDYA71AV19"]),
   normalizeBrand: (value) => String(value || "").toUpperCase().replace(/[^A-Z0-9]/g, ""),
   normalize: (value) => String(value || "").toUpperCase().replace(/[^A-Z0-9]/g, ""),
@@ -152,7 +152,7 @@ const serverSandbox = {
 const serverContractMatch = functionSource(serverRebateSource, "contractMatch")
   .replace("function contractMatch(input: CurrentRebateInput)", "function contractMatch(input)");
 vm.runInNewContext(`${serverContractMatch}\nglobalThis.__serverContractMatch=contractMatch;`, serverSandbox);
-const serverInput = { brand: "Daikin", model: "RZAS71C2V1 / FDYA71AV19", postcode: "2000" };
+const serverInput = { brand: "Daikin", model: "RZAS71C2V1 / FDYA71AV19", postcode: "2311" };
 assert.equal(
   serverSandbox.__serverContractMatch({ ...serverInput, systemType: "ducted", installType: "new" }),
   false,
@@ -168,6 +168,13 @@ assert.equal(
   true,
   "server rebate refresh must retain new split contract uplift",
 );
+for (const postcode of ["2000", "2350", "2481"]) {
+  assert.equal(
+    serverSandbox.__serverContractMatch({ ...serverInput, postcode, systemType: "split", installType: "replacement" }),
+    false,
+    `server rebate refresh must reject unapproved postcode ${postcode}`,
+  );
+}
 
 const rebateStart = html.indexOf("function applyDcceewContractRebate");
 const rebateEnd = html.indexOf("function setCertificateBreakdown", rebateStart);

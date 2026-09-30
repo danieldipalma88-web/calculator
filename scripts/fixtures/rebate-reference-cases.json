@@ -45,7 +45,7 @@
         "brand": "Fujitsu General",
         "model": "AOTG09KMTC/ASTG09KMTC",
         "systemType": "split",
-        "postcode": "2170",
+        "postcode": "2311",
         "requirePositiveCertificates": true,
         "expectedContract": { "new": true, "replacement": true },
         "provenance": "Exact DCCEEW contract register entry and eligible postcode."
@@ -55,7 +55,7 @@
         "brand": "Daikin",
         "model": "RZAS71C2V1 / FDYA71AV19",
         "systemType": "ducted",
-        "postcode": "2170",
+        "postcode": "2311",
         "requirePositiveCertificates": true,
         "expectedContract": { "new": false, "replacement": true },
         "provenance": "Exact DCCEEW contract register entry and eligible postcode; new ducted installations are excluded."

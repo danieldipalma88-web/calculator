@@ -66,11 +66,15 @@ assert.equal(cases.find((item) => item.id.includes("dcceew-ducted-new-exclusion"
 const approvedPostcodes = catalogue.dcceewPostcodes;
 const approvedSplit = { systemType: "split", dcceewEligible: true };
 const approvedDucted = { systemType: "ducted", dcceewEligible: true };
-assert.equal(rotatingContractExpectation(approvedSplit, "2145", "new", approvedPostcodes), true, "an approved rotating split/new case must use the contract ESC rate");
-assert.equal(rotatingContractExpectation(approvedDucted, "2620", "replacement", approvedPostcodes), true, "an approved rotating ducted/replacement case must use the contract ESC rate");
-assert.equal(rotatingContractExpectation(approvedDucted, "2620", "new", approvedPostcodes), false, "approved new ducted cases remain excluded from the contract rate");
+assert.equal(rotatingContractExpectation(approvedSplit, "2311", "new", approvedPostcodes), true, "an approved rotating split/new case must use the contract ESC rate");
+assert.equal(rotatingContractExpectation(approvedDucted, "2311", "replacement", approvedPostcodes), true, "an approved rotating ducted/replacement case must use the contract ESC rate");
+assert.equal(rotatingContractExpectation(approvedDucted, "2311", "new", approvedPostcodes), false, "approved new ducted cases remain excluded from the contract rate");
+for (const postcode of ["2145", "2481", "2620"]) {
+  assert.equal(rotatingContractExpectation(approvedSplit, postcode, "replacement", approvedPostcodes), false,
+    `metro or non-Average regional postcode ${postcode} must not receive the contract rate`);
+}
 assert.equal(rotatingContractExpectation(approvedSplit, "9999", "replacement", approvedPostcodes), false, "non-approved postcodes must not receive the contract rate");
-assert.equal(rotatingContractExpectation({ systemType: "split", dcceewEligible: false }, "2145", "replacement", approvedPostcodes), false, "products absent from the exact contract catalogue must not receive the contract rate");
+assert.equal(rotatingContractExpectation({ systemType: "split", dcceewEligible: false }, "2311", "replacement", approvedPostcodes), false, "products absent from the exact contract catalogue must not receive the contract rate");
 const multiSplitCases = makeVerifiedMultiSplitCases(fixture);
 assert.equal(multiSplitCases.length, 2, "the verified physical multi-split combination must add new and replacement cases");
 assert.deepEqual(multiSplitCases.map((item) => item.installType), ["new", "replacement"]);
