@@ -5757,6 +5757,57 @@ function getDcceewContractMatch(candidate,postcodeValue,context){
   const rate=Number(data.rate);
   return {postcode,productKey,rate:Number.isFinite(rate)&&rate>0?rate:30,matchKey:`${postcode}|${productKey}`};
 }
+function applyAuthoritativeDcceewContractData(next,deferRefresh){
+  if(!next || typeof next!=='object' || !Number.isFinite(next.rate) || next.rate<=0 || next.rate>100) return false;
+  if(!Array.isArray(next.postcodes) || !Array.isArray(next.productKeys) || next.postcodes.length>5000 || next.productKeys.length>5000) return false;
+  if(!next.postcodes.every(value=>Number.isInteger(value)&&value>=1000&&value<=9999)) return false;
+  if(!next.productKeys.every(value=>typeof value==='string'&&/^[A-Z0-9]+\|[A-Z0-9]+$/.test(value))) return false;
+  if(new Set(next.postcodes).size!==next.postcodes.length || new Set(next.productKeys).size!==next.productKeys.length) return false;
+  const data={rate:next.rate,postcodes:[...next.postcodes],productKeys:[...next.productKeys]};
+  const current=dcceewContractData();
+  if(JSON.stringify(data)===JSON.stringify({rate:current.rate,postcodes:current.postcodes,productKeys:current.productKeys})) return false;
+  window.DCCEEW_CONTRACT_DATA=data;
+  dcceewPostcodeSet=null;
+  dcceewProductSet=null;
+  if(!deferRefresh) refreshAuthoritativeRebateResults();
+  return true;
+}
+window.applyAuthoritativeDcceewContractData=applyAuthoritativeDcceewContractData;
+window.applyAuthoritativeRebateSettings=function(contract,certificateRaw){
+  const contractChanged=applyAuthoritativeDcceewContractData(contract,true);
+  const pricesChanged=certificateRaw?window.applyAuthoritativeCertificateValues(certificateRaw,true):false;
+  if(contractChanged || pricesChanged) refreshAuthoritativeRebateResults();
+  return contractChanged || pricesChanged;
+};
+function refreshAuthoritativeRebateResults(){
+  const allModelsHadResult=!!($('allModelsRebateTotal')&&$('allModelsRebateTotal').textContent!=='-');
+  const allModelsWasLoading=!!($('allModelsCalculateBtn')&&$('allModelsCalculateBtn').getAttribute('aria-busy')==='true');
+  const multiSplitWasLoading=!!($('multiSplitRebatePanel')&&$('multiSplitRebatePanel').getAttribute('aria-busy')==='true');
+  const mainHasResult=!hasManualRebateOverride(systemType,product()) && (essRuntime.lastEsc>0 || essRuntime.lastPrc>0);
+  // Keep certificate caches and draft inputs; only contract-dependent results are stale.
+  invalidateBestValueRecommendations(false);
+  essCache.requestSeq++;
+  multiSplitTrialRequestSeq++;
+  setLiveRebateLoading(false);
+  setSectionLoading('multiSplitRebatePanel',false);
+  setDcceewContractDisplay(getDcceewContractMatch(product(),undefined,{systemType,installType}),null);
+  if(mainHasResult){
+    const total=updateCertificateBreakdownFromRuntime();
+    if($('rebate')) $('rebate').value=total.toFixed(2);
+    setRebateCalcMeta('Rebate settings updated. The current rebate uses the latest approved list and payout rates.',false);
+    render();
+  }
+  resetMultiSplitRebateMetrics('Rebate settings updated. Recalculating the current rebate...');
+  resetAllModelsResult('Rebate settings updated. Recalculating the current rebate...');
+  if(activeCalculatorView==='allModels'){
+    if(allModelsHadResult || allModelsWasLoading) calculateAllModelsRebate();
+  }else if(activeCalculatorView==='multiSplit'){
+    if(multiSplitHasCalculated || multiSplitWasLoading) calculateMultiSplitTrialRebate();
+  }else{
+    if(!mainHasResult) refreshLiveRebateForCurrentProduct();
+    refreshBestValueIndicator();
+  }
+}
 function dcceewSignedMoney(value){
   const amount=Number(value)||0;
   if(amount>0) return `+${money(amount)}`;
@@ -6191,7 +6242,7 @@ function recommendationCandidateSignature(items){
 }
 function dcceewRecommendationSignature(){
   const contract=dcceewContractData();
-  return `${Number(contract.rate)||30}:${Array.isArray(contract.postcodes)?contract.postcodes.length:0}:${Array.isArray(contract.productKeys)?contract.productKeys.length:0}`;
+  return JSON.stringify({rate:contract.rate,postcodes:contract.postcodes,productKeys:contract.productKeys});
 }
 function bestValueCacheKey(category,postcode,zoneSel,escRate,prcRate,phase,candidateSignature){
   return [normalizeLookup(activeBusinessName()),activeBusinessState(),activeCatalogKey(),systemType,installType,postcode,zoneSel,category.toFixed(1),phase,String(escRate),String(prcRate),dcceewRecommendationSignature(),candidateSignature].join('|');
@@ -6538,7 +6589,7 @@ function certValuesSignature(values){
     updatedAt:normalized.updatedAt
   });
 }
-window.applyAuthoritativeCertificateValues=function(raw){
+window.applyAuthoritativeCertificateValues=function(raw,deferRefresh){
   try{
     const parsed=typeof raw==='string'?JSON.parse(raw):raw;
     const next=normalizeCertValues(parsed);
@@ -6546,16 +6597,7 @@ window.applyAuthoritativeCertificateValues=function(raw){
     certValues=next;
     persistCertValues();
     applyLockedCertValuesToMain();
-    if(activeCalculatorView==='allModels'){
-      resetAllModelsResult('Certificate payout rates changed. Calculate the rebate again.');
-      updateAllModelsRates();
-    }else if(activeCalculatorView==='multiSplit'){
-      resetMultiSplitRebateMetrics('Certificate spot prices updated. Recalculating the rebate...');
-      if(multiSplitHasCalculated) calculateMultiSplitTrialRebate();
-    }else{
-      refreshLiveRebateForCurrentProduct();
-      refreshBestValueIndicator();
-    }
+    if(!deferRefresh) refreshAuthoritativeRebateResults();
     return true;
   }catch(e){
     return false;
@@ -7141,7 +7183,7 @@ async function refreshLiveRebateForCurrentProduct(){
   }
   const calculationContext={systemType,installType};
   setDcceewExclusionNote(calculationContext);
-  const dcceewMatch=getDcceewContractMatch(p,undefined,calculationContext);
+  let dcceewMatch=getDcceewContractMatch(p,undefined,calculationContext);
   setDcceewContractDisplay(dcceewMatch,null);
   if(hasManualRebateOverride(systemType,p)){
     clearCertificateRuntime();
@@ -7165,6 +7207,7 @@ async function refreshLiveRebateForCurrentProduct(){
     if(requestId!==essCache.requestSeq) return;
     const current=product();
     if(!current || current.brand!==p.brand || current.model!==p.model) return;
+    dcceewMatch=getDcceewContractMatch(p,undefined,calculationContext);
     essRuntime.lastEsc=result.esc;
     essRuntime.lastPrc=result.prc;
     essRuntime.lastOfficialEsc=result.officialEsc;
@@ -7739,6 +7782,8 @@ function setAllModelsSearchBusy(busy){
 }
 function resetAllModelsResult(message){
   allModelsCalculationRequestSeq++;
+  const button=$('allModelsCalculateBtn');
+  if(button){button.textContent='Calculate rebate';button.removeAttribute('aria-busy');}
   if($('allModelsRebateTotal')) $('allModelsRebateTotal').textContent='-';
   if($('allModelsRebateSummary')) $('allModelsRebateSummary').textContent=message||'Select a model and calculate its rebate.';
   if($('allModelsEscCount')) $('allModelsEscCount').textContent='-';
@@ -7751,6 +7796,7 @@ function resetAllModelsResult(message){
   if(status){status.className='allModelsResultStatus';status.textContent=message||'The result will show eligibility, certificate counts and the calculation source.';}
   updateAllModelsRates();
   setSectionLoading('allModelsResultCard',false);
+  updateAllModelsCalculateState();
 }
 function selectedAllModelsMultiOutdoor(){
   const select=$('allModelsMultiOutdoor');
@@ -9128,7 +9174,7 @@ async function calculateMultiSplitTrialRebate(revealResults){
   const postcode=String(($('multiSplitPostcode')&&$('multiSplitPostcode').value)||'').trim();
   const install=String(($('multiSplitInstallType')&&$('multiSplitInstallType').value)||'replacement');
   if(!/^\d{4}$/.test(postcode)){setMultiSplitStatus('Enter a valid 4-digit postcode for the rebate calculation.','error'); return;}
-  const dcceewMatch=currentMultiSplitDcceewMatch(postcode);
+  let dcceewMatch=currentMultiSplitDcceewMatch(postcode);
   setMultiSplitDcceewContractDisplay(dcceewMatch,null);
   setMultiSplitStatus('Checking GEMS data and NSW multi-split certificate calculation...','loading');
   setSectionLoading('multiSplitRebatePanel',true,'Calculating multi-head rebate...');
@@ -9145,6 +9191,7 @@ async function calculateMultiSplitTrialRebate(revealResults){
       inputPower:capacityInputs.inputPower
     });
     if(requestId!==multiSplitTrialRequestSeq) return;
+    dcceewMatch=currentMultiSplitDcceewMatch(postcode);
     const escRate=getEssEscRate();
     const prcRate=getEssPrcRate();
     const escValue=(Number(certs.esc)||0)*escRate;

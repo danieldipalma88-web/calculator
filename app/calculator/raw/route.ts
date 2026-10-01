@@ -517,6 +517,11 @@ function injectCloudStorageSync(
       return response.json();
     }).then(function(result){
       var certificateValue = authoritativeCertificateValue(result && result.data);
+      if (typeof window.applyAuthoritativeRebateSettings === 'function') {
+        window.applyAuthoritativeRebateSettings(result && result.dcceewContract, certificateValue && certificateValue.value);
+      } else if (result && result.dcceewContract && typeof window.applyAuthoritativeDcceewContractData === 'function') {
+        window.applyAuthoritativeDcceewContractData(result.dcceewContract);
+      }
       if (certificateValue) setCloudValue(certificateValue.key, certificateValue.value);
     }).catch(function(){
     }).finally(function(){

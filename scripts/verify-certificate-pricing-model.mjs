@@ -30,7 +30,7 @@ for (const [name, pattern] of [
   ["calculator derived PERC payout default", /const DEFAULT_PRC_RATE=2\.70;/],
   ["calculator normalizes spot values", /function normalizeCertValues\(saved\)/],
   ["calculator derives payout from spot less agreement", /escRate:certPayoutRate\(escSpotPrice,escAgreementDeduction\)/],
-  ["calculator accepts authoritative refreshes", /window\.applyAuthoritativeCertificateValues=function\(raw\)/],
+  ["calculator accepts authoritative refreshes", /window\.applyAuthoritativeCertificateValues=function\(raw,deferRefresh\)/],
 ]) {
   assert.match(indexHtml, pattern, name);
 }

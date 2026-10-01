@@ -9,6 +9,11 @@ import {
 } from "../../../lib/certificate-values";
 import { mergeCalculatorData } from "../../../lib/quote-sync";
 import {
+  DCCEEW_CONTRACT_RATE,
+  DCCEEW_ELIGIBLE_POSTCODES,
+  DCCEEW_ELIGIBLE_PRODUCT_KEYS,
+} from "../../../lib/dcceew-contract-data";
+import {
   validateNewWonJobTransitions,
   wonJobValidationMessage,
 } from "../../../lib/won-job-validation";
@@ -453,6 +458,11 @@ export async function GET(request: Request) {
 
   return NextResponse.json(
     {
+      dcceewContract: {
+        rate: DCCEEW_CONTRACT_RATE,
+        postcodes: DCCEEW_ELIGIBLE_POSTCODES,
+        productKeys: DCCEEW_ELIGIBLE_PRODUCT_KEYS,
+      },
       data: {
         ...stripCertificateValueKeys(userData),
         ...authoritativeBusinessData,
