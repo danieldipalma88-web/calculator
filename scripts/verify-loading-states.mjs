@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 
 const files = {
+  workspace: await readFile(new URL("../app/admin/users/admin-workspace.tsx", import.meta.url), "utf8"),
   admin: await readFile(new URL("../app/admin/users/page.tsx", import.meta.url), "utf8"),
   calculator: await readFile(new URL("../app/calculator/page.tsx", import.meta.url), "utf8"),
   raw: await readFile(new URL("../app/calculator/raw/route.ts", import.meta.url), "utf8"),
@@ -11,7 +12,10 @@ const checks = [
   [files.calculator, "<CalculatorFrame src={rawSrc} />", "initial calculator loader"],
   [files.calculator, 'loadingLabel="Switching business..."', "business switch loader"],
   [files.calculator, 'loadingLabel="Opening user calculator..."', "account switch loader"],
-  [files.admin, "<PageLoadingOverlay />", "Platform Admin loader"],
+  [files.admin, "<PageLoadingOverlay captureForms={false} />", "Platform Admin navigation loader"],
+  [files.admin, "<AdminSaveStatus />", "local form save feedback"],
+  [files.workspace, "useFormStatus()", "pending state follows the actual server action"],
+  [files.workspace, 'form.removeAttribute("aria-busy")', "form loading state cleanup"],
   [files.admin, "setWonActionLoading(form, submitter)", "won action loader"],
   [files.admin, "watchWonActionCompletion(section)", "won action completion watcher"],
   [files.admin, "clearWonActionLoading();", "won action loader reset"],

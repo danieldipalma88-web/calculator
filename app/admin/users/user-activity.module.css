@@ -1,0 +1,14 @@
+.activity { display: block; width: fit-content; max-width: 100%; overflow: visible; color: #59636e; font-size: 13px; white-space: normal; }
+.activity button { display: inline; max-width: 100%; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer; }
+.activity button:focus-visible { outline: 2px solid #167447; outline-offset: 2px; }
+.active { color: #167447; }
+.neutral { color: #59636e; }
+.stale { color: #9a5b00; }
+.unknown { color: #747d86; }
+.activity time { display: block; max-width: 100%; margin-top: 4px; color: #27313a; font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; }
+.activity time[hidden] { display: none; }
+:global(.user-summary-identity) .activity { overflow: visible; white-space: normal; }
+:global(.user-summary-identity) .activity.active { color: #167447; }
+:global(.user-summary-identity) .activity.neutral { color: #59636e; }
+:global(.user-summary-identity) .activity.stale { color: #9a5b00; }
+:global(.user-summary-identity) .activity.unknown { color: #747d86; }

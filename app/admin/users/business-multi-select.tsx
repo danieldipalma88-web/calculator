@@ -16,8 +16,7 @@ function selectionLabel(businesses: BusinessOption[], selectedIds: string[]) {
   if (!businesses.length) return "No businesses available";
   const selected = businesses.filter((business) => selectedIds.includes(business.id));
   if (!selected.length) return "No business selected";
-  if (selected.length === 1) return selected[0].name;
-  return selected.length + " businesses selected";
+  return selected.map((business) => business.name).join(", ");
 }
 
 export default function BusinessMultiSelect({
@@ -56,7 +55,7 @@ export default function BusinessMultiSelect({
       onToggle={(event) => closeOtherMenus(event.currentTarget)}
     >
       <summary className="business-multiselect-summary">
-        <span className="business-multiselect-label">
+        <span className="business-multiselect-label" style={{ whiteSpace: "normal", overflow: "visible", textOverflow: "clip", overflowWrap: "anywhere", padding: "8px 0" }}>
           {selectionLabel(businesses, selected)}
         </span>
         <span aria-hidden="true">v</span>

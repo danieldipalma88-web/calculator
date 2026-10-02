@@ -24,8 +24,10 @@ import {
 } from "../../../lib/nsw-hvac-rebate";
 import PageLoadingOverlay from "../../page-loading-overlay";
 import BusinessMultiSelect from "./business-multi-select";
-import CertificateHistoryRangeSelect from "./certificate-history-range";
+import CertificateHistory from "./certificate-history";
 import DirectoryList from "./directory-list";
+import AdminWorkspace, { AdminPanel, AdminSaveStatus } from "./admin-workspace";
+import UserActivity from "./user-activity";
 
 export const maxDuration = 60;
 
@@ -347,42 +349,6 @@ function normalizeCertificateHistoryRange(value: string | null | undefined): Cer
   return value === "3m" || value === "6m" || value === "1y" || value === "all" ? value : "4w";
 }
 
-function certificateHistoryRangeLabel(value: CertificateHistoryRange) {
-  if (value === "3m") return "Last 3 months";
-  if (value === "6m") return "Last 6 months";
-  if (value === "1y") return "Last year";
-  if (value === "all") return "All time";
-  return "Last 4 weeks";
-}
-
-function certificateHistoryCutoff(value: CertificateHistoryRange) {
-  if (value === "all") return null;
-  const sydneyDate = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Australia/Sydney",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
-  const cutoff = new Date(`${sydneyDate}T00:00:00Z`);
-  if (value === "4w") cutoff.setUTCDate(cutoff.getUTCDate() - 28);
-  if (value === "3m") cutoff.setUTCMonth(cutoff.getUTCMonth() - 3);
-  if (value === "6m") cutoff.setUTCMonth(cutoff.getUTCMonth() - 6);
-  if (value === "1y") cutoff.setUTCFullYear(cutoff.getUTCFullYear() - 1);
-  return cutoff.toISOString().slice(0, 10);
-}
-
-function filterCertificateHistory(rows: CertificateValueHistory[], range: CertificateHistoryRange) {
-  const cutoff = certificateHistoryCutoff(range);
-  if (!cutoff) return rows;
-  return rows.filter((row) => row.effectiveWeek >= cutoff);
-}
-
-function formatCertificateHistoryWeek(value: string) {
-  const parsed = new Date(`${value}T00:00:00+10:00`);
-  return Number.isFinite(parsed.getTime())
-    ? parsed.toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })
-    : value;
-}
 
 function certificateTrendClass(change: number | null) {
   if (change === null || Math.abs(change) < 0.005) return "steady";
@@ -395,89 +361,6 @@ function certificateTrendLabel(change: number | null) {
   return `${change > 0 ? "+" : "-"}${formatMoneyNumber(Math.abs(change))} from prior record`;
 }
 
-function formatCertificateChange(change: number | null) {
-  if (change === null) return "-";
-  if (Math.abs(change) < 0.005) return "$0.00";
-  return `${change > 0 ? "+" : "-"}${formatMoneyNumber(Math.abs(change))}`;
-}
-
-function certificateHistoryExtremes(
-  rows: CertificateValueHistory[],
-  metric: "escSpotPrice" | "prcSpotPrice",
-) {
-  if (!rows.length) return { high: null, low: null };
-  const values = rows.map((row) => row[metric]);
-  return { high: Math.max(...values), low: Math.min(...values) };
-}
-
-function CertificatePriceChart({
-  rows,
-  metric,
-  label,
-  color,
-}: {
-  rows: CertificateValueHistory[];
-  metric: "escSpotPrice" | "prcSpotPrice";
-  label: string;
-  color: string;
-}) {
-  if (!rows.length) {
-    return <div className="certificate-chart-empty">No observations in this range.</div>;
-  }
-
-  const width = 640;
-  const height = 180;
-  const horizontalPadding = 26;
-  const verticalPadding = 22;
-  const values = rows.map((row) => row[metric]);
-  const rawMin = Math.min(...values);
-  const rawMax = Math.max(...values);
-  const spread = Math.max(rawMax - rawMin, Math.max(rawMax * 0.02, 0.02));
-  const min = Math.max(0, rawMin - spread * 0.35);
-  const max = rawMax + spread * 0.35;
-  const xFor = (index: number) => rows.length === 1
-    ? width / 2
-    : horizontalPadding + (index * (width - (horizontalPadding * 2))) / (rows.length - 1);
-  const yFor = (value: number) => verticalPadding
-    + ((max - value) * (height - (verticalPadding * 2))) / Math.max(max - min, 0.01);
-  const points = rows.map((row, index) => `${xFor(index)},${yFor(row[metric])}`).join(" ");
-
-  return (
-    <svg
-      className="certificate-price-chart"
-      viewBox={`0 0 ${width} ${height}`}
-      role="img"
-      aria-label={`${label} spot price history`}
-      preserveAspectRatio="none"
-    >
-      <title>{label} spot price history</title>
-      {[0.25, 0.5, 0.75].map((position) => (
-        <line
-          key={position}
-          x1={horizontalPadding}
-          x2={width - horizontalPadding}
-          y1={height * position}
-          y2={height * position}
-          className="certificate-chart-gridline"
-        />
-      ))}
-      <polyline points={points} fill="none" stroke={color} strokeWidth="4" strokeLinejoin="round" strokeLinecap="round" />
-      {rows.map((row, index) => (
-        <circle
-          key={row.id}
-          cx={xFor(index)}
-          cy={yFor(row[metric])}
-          r="5"
-          fill="#fff"
-          stroke={color}
-          strokeWidth="3"
-        >
-          <title>{`${formatCertificateHistoryWeek(row.effectiveWeek)}: ${formatMoneyNumber(row[metric])}`}</title>
-        </circle>
-      ))}
-    </svg>
-  );
-}
 
 function certificateAgreementLabel(values: CertificateValues) {
   return `ESC ${formatMoneyNumber(values.escAgreementDeduction)} / PERC ${formatMoneyNumber(values.prcAgreementDeduction)}`;
@@ -3461,13 +3344,16 @@ async function savePlatformCertificateValues(formData: FormData) {
   }
 
   revalidatePath("/admin/users");
-  redirect(`/admin/users?message=${encodeURIComponent(`Certificate spot prices were saved to the authoritative record, read back successfully, and verified across all businesses.`)}`);
+  redirect(`/admin/users?message=${encodeURIComponent(`Spot prices saved and applied to all NSW calculators. Business fees are unchanged.`)}`);
 }
 
-async function resetPlatformCertificateValues() {
+async function resetPlatformCertificateValues(formData: FormData) {
   "use server";
 
   const { supabase, email } = await requireAdmin();
+  if (formData.get("confirmResetAgreements") !== "yes") {
+    redirect("/admin/users?error=Confirm that you want to reset spot prices and every business pricing agreement.#certificate-values");
+  }
   const businessesResult = await listBusinesses(supabase);
   const values = {
     ...DEFAULT_CERTIFICATE_VALUES,
@@ -3493,7 +3379,7 @@ async function resetPlatformCertificateValues() {
   }
 
   revalidatePath("/admin/users");
-  redirect(`/admin/users?message=${encodeURIComponent("Certificate spot prices and pricing agreements were reset, read back, and verified across all businesses.")}`);
+  redirect(`/admin/users?message=${encodeURIComponent("Spot prices and all business certificate fees were reset to defaults.")}`);
 }
 
 async function addApprovedUser(formData: FormData) {
@@ -4520,8 +4406,6 @@ export default async function AdminUsersPage({
   const certificateValues = certificateResult.data;
   const businessCertificateValues = certificateResult.businessValuesById;
   const certificateHistory = certificateHistoryResult.data;
-  const visibleCertificateHistory = filterCertificateHistory(certificateHistory, certificateHistoryRange);
-  const latestCertificateHistory = certificateHistory.at(-1) || null;
   const previousCertificateHistory = certificateHistory.at(-2) || null;
   const escTrend = previousCertificateHistory
     ? certificateValues.escSpotPrice - previousCertificateHistory.escSpotPrice
@@ -4529,12 +4413,6 @@ export default async function AdminUsersPage({
   const prcTrend = previousCertificateHistory
     ? certificateValues.prcSpotPrice - previousCertificateHistory.prcSpotPrice
     : null;
-  const certificateHistoryRows = visibleCertificateHistory.map((row, index) => ({
-    ...row,
-    previous: index > 0 ? visibleCertificateHistory[index - 1] : null,
-  })).reverse();
-  const escHistoryExtremes = certificateHistoryExtremes(visibleCertificateHistory, "escSpotPrice");
-  const prcHistoryExtremes = certificateHistoryExtremes(visibleCertificateHistory, "prcSpotPrice");
   const setupBusiness = businesses.find((business) => business.id === params?.setupBusiness) || null;
   const setupAction = setupBusiness && ["choose", "create", "assign"].includes(params?.setupAction || "")
     ? params?.setupAction
@@ -4545,16 +4423,13 @@ export default async function AdminUsersPage({
 
   return (
     <main className="admin-shell">
-      <PageLoadingOverlay />
+      <PageLoadingOverlay captureForms={false} />
       <section className="admin-card">
         <div className="admin-head">
           <div>
-            <p className="kicker">Platform admin</p>
-            <h1>Businesses and users</h1>
-            <p>
-              Add businesses, assign approved email addresses, and control which commission
-              structure each user receives.
-            </p>
+            <p className="kicker">Quote Calculator</p>
+            <h1>Platform Admin</h1>
+            <p>Manage businesses, user access, won jobs and certificate prices.</p>
           </div>
           <a className="button secondary" href="/calculator" data-loading-label="Opening calculator...">
             Calculator
@@ -4611,254 +4486,89 @@ export default async function AdminUsersPage({
           </section>
         ) : null}
 
-        <details className="admin-section" id="certificate-values" open={Boolean(params?.certificateHistoryRange)}>
-          <summary className="section-heading admin-section-summary">
+        <AdminWorkspace storageScope={currentEmail} initialView={setupBusiness ? "users" : params?.certificateHistoryRange ? "prices" : includeBackupWonOptions ? "jobs" : undefined}>
+        <AdminPanel view="prices" id="certificate-values">
+          <div className="section-heading admin-section-summary">
             <div>
-              <h2>Certificate values</h2>
-              <p>Spot prices are shared across NSW businesses. Each business agreement below is deducted from these prices.</p>
+              <h2>Spot prices</h2>
+              <p>Shared across NSW calculators. Business fees are deducted from these rates.</p>
             </div>
-            <span className="section-count">
-              {certificateResult.appliedBusinessCount}/{certificateResult.totalBusinessCount} verified
-            </span>
-            <span className="section-chevron" aria-hidden="true" />
-          </summary>
+          </div>
 
           <div className="admin-section-body">
-            <div className="certificate-admin-grid">
-              <form action={savePlatformCertificateValues} className="certificate-admin-form" data-loading-label="Saving certificate values...">
-                <div>
-                  <label htmlFor="certificateEscSpotPrice">ESC spot price</label>
-                  <input
-                    id="certificateEscSpotPrice"
-                    name="escSpotPrice"
-                    type="number"
-                    min="0.01"
-                    step="0.01"
-                    defaultValue={certificateValues.escSpotPrice.toFixed(2)}
-                    required
-                  />
-                </div>
-                <div>
-                  <label htmlFor="certificatePrcSpotPrice">PERC spot price</label>
-                  <input
-                    id="certificatePrcSpotPrice"
-                    name="prcSpotPrice"
-                    type="number"
-                    min="0.01"
-                    step="0.01"
-                    defaultValue={certificateValues.prcSpotPrice.toFixed(2)}
-                    required
-                  />
-                </div>
-                <div>
-                  <label htmlFor="certificateSource">Provider label</label>
-                  <input
-                    id="certificateSource"
-                    name="source"
-                    defaultValue={certificateValues.source}
-                    placeholder="Electric Future"
-                  />
-                </div>
-                <label className="checkbox-pill certificate-lock-toggle">
-                  <input
-                    type="checkbox"
-                    name="locked"
-                    value="1"
-                    defaultChecked={certificateValues.locked}
-                  />
-                  <span>Lock in calculators</span>
-                </label>
-                <button className="orange" type="submit">
-                  Save and apply
-                </button>
-              </form>
-
-              <div className="certificate-admin-status">
-                <div>
-                  <span>Source of truth</span>
-                  <strong>
-                    {certificateResult.authoritativeVerified
-                      ? "Database record verified"
-                      : "Verification required"}
-                  </strong>
-                </div>
-                <div>
-                  <span>Current spot</span>
-                  <strong>{`ESC ${formatMoneyNumber(certificateValues.escSpotPrice)} / PERC ${formatMoneyNumber(certificateValues.prcSpotPrice)}`}</strong>
-                </div>
-                <div>
-                  <span>Calculator fields</span>
-                  <strong>{certificateValues.locked ? "Locked" : "Unlocked"}</strong>
-                </div>
-                <div>
-                  <span>Last updated</span>
-                  <strong>
-                    {certificateValues.updatedAt
-                      ? new Date(certificateValues.updatedAt).toLocaleString("en-AU")
-                      : "Not saved yet"}
-                  </strong>
-                </div>
-                {certificateResult.updatedByEmail ? (
-                  <div>
-                    <span>Updated by</span>
-                    <strong>{certificateResult.updatedByEmail}</strong>
-                  </div>
-                ) : null}
-                <form action={resetPlatformCertificateValues} data-loading-label="Resetting certificate values...">
-                  <button className="secondary" type="submit">
-                    Reset defaults
-                  </button>
-                </form>
-              </div>
-            </div>
-
             <div className="certificate-current-trends" aria-label="Current certificate price trends">
               <article className="certificate-current-trend-card">
-                <div>
-                  <span>ESC current spot</span>
-                  <strong>{formatMoneyNumber(certificateValues.escSpotPrice)}</strong>
-                </div>
-                <p className={`certificate-trend ${certificateTrendClass(escTrend)}`}>
-                  {certificateTrendLabel(escTrend)}
-                </p>
+                <div><span>ESC per certificate</span><strong>{formatMoneyNumber(certificateValues.escSpotPrice)}</strong></div>
+                <p className={`certificate-trend ${certificateTrendClass(escTrend)}`}>{certificateTrendLabel(escTrend)}</p>
               </article>
               <article className="certificate-current-trend-card">
-                <div>
-                  <span>PERC current spot</span>
-                  <strong>{formatMoneyNumber(certificateValues.prcSpotPrice)}</strong>
-                </div>
-                <p className={`certificate-trend ${certificateTrendClass(prcTrend)}`}>
-                  {certificateTrendLabel(prcTrend)}
-                </p>
+                <div><span>PERC per certificate</span><strong>{formatMoneyNumber(certificateValues.prcSpotPrice)}</strong></div>
+                <p className={`certificate-trend ${certificateTrendClass(prcTrend)}`}>{certificateTrendLabel(prcTrend)}</p>
               </article>
             </div>
-
-            <details
-              className="certificate-history-panel"
-              id="certificate-price-history"
-              open={Boolean(params?.certificateHistoryRange)}
-            >
-              <summary>
+            <p className="certificate-update-note">
+              {certificateValues.updatedAt ? `Updated ${new Date(certificateValues.updatedAt).toLocaleString("en-AU", { timeZone: "Australia/Sydney", dateStyle: "medium", timeStyle: "short" })}` : "No update recorded"}
+              {certificateResult.updatedByEmail?.startsWith("automation:") ? " automatically" : ""}
+              {certificateValues.locked ? " · Price editing disabled in calculators" : ""}
+            </p>
+            <details className="admin-create certificate-price-editor" data-admin-record="edit-spot-prices">
+              <summary><span className="when-closed">Edit spot prices</span><span className="when-open">Close price editor</span><span className="section-chevron" aria-hidden="true" /></summary>
+              <form action={savePlatformCertificateValues} className="certificate-admin-form" data-loading-label="Saving spot prices...">
                 <div>
-                  <strong>View price history</strong>
-                  <span>
-                    {latestCertificateHistory
-                      ? `${certificateHistory.length} recorded ${certificateHistory.length === 1 ? "observation" : "observations"}; latest week ${formatCertificateHistoryWeek(latestCertificateHistory.effectiveWeek)}.`
-                      : "History will appear after the first verified spot-price observation."}
-                  </span>
+                  <label htmlFor="certificateEscSpotPrice">ESC spot price ($)</label>
+                  <input id="certificateEscSpotPrice" name="escSpotPrice" type="number" min="0.01" step="0.01" defaultValue={certificateValues.escSpotPrice.toFixed(2)} required />
                 </div>
-                <span className="section-chevron" aria-hidden="true" />
-              </summary>
-
-              <div className="certificate-history-body">
-                <div className="certificate-history-toolbar">
-                  <div>
-                    <h3>Spot-price trend</h3>
-                    <p>{certificateHistoryRangeLabel(certificateHistoryRange)}. The fixed DCCEEW $30 contract rate is separate from these market prices.</p>
-                  </div>
-                  <CertificateHistoryRangeSelect value={certificateHistoryRange} />
+                <div>
+                  <label htmlFor="certificatePrcSpotPrice">PERC spot price ($)</label>
+                  <input id="certificatePrcSpotPrice" name="prcSpotPrice" type="number" min="0.01" step="0.01" defaultValue={certificateValues.prcSpotPrice.toFixed(2)} required />
                 </div>
-
-                <div className="certificate-chart-grid">
-                  <article className="certificate-chart-card">
-                    <div className="certificate-chart-heading">
-                      <div>
-                        <span>ESC spot price</span>
-                        <strong>{formatMoneyNumber(certificateValues.escSpotPrice)}</strong>
-                      </div>
-                      <div className="certificate-chart-extremes">
-                        <span>High {escHistoryExtremes.high === null ? "-" : formatMoneyNumber(escHistoryExtremes.high)}</span>
-                        <span>Low {escHistoryExtremes.low === null ? "-" : formatMoneyNumber(escHistoryExtremes.low)}</span>
-                      </div>
-                    </div>
-                    <CertificatePriceChart
-                      rows={visibleCertificateHistory}
-                      metric="escSpotPrice"
-                      label="ESC"
-                      color="#0f766e"
-                    />
-                  </article>
-
-                  <article className="certificate-chart-card">
-                    <div className="certificate-chart-heading">
-                      <div>
-                        <span>PERC spot price</span>
-                        <strong>{formatMoneyNumber(certificateValues.prcSpotPrice)}</strong>
-                      </div>
-                      <div className="certificate-chart-extremes">
-                        <span>High {prcHistoryExtremes.high === null ? "-" : formatMoneyNumber(prcHistoryExtremes.high)}</span>
-                        <span>Low {prcHistoryExtremes.low === null ? "-" : formatMoneyNumber(prcHistoryExtremes.low)}</span>
-                      </div>
-                    </div>
-                    <CertificatePriceChart
-                      rows={visibleCertificateHistory}
-                      metric="prcSpotPrice"
-                      label="PERC"
-                      color="#c2410c"
-                    />
-                  </article>
+                <div>
+                  <label htmlFor="certificateSource">Price provider</label>
+                  <input id="certificateSource" name="source" defaultValue={certificateValues.source} placeholder="Electric Future" />
                 </div>
-
-                <div className="certificate-history-table-wrap">
-                  <table className="certificate-history-table">
-                    <thead>
-                      <tr>
-                        <th>Effective week</th>
-                        <th>ESC spot</th>
-                        <th>ESC change</th>
-                        <th>PERC spot</th>
-                        <th>PERC change</th>
-                        <th>Source</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {certificateHistoryRows.length ? certificateHistoryRows.map((row) => {
-                        const escChange = row.previous ? row.escSpotPrice - row.previous.escSpotPrice : null;
-                        const prcChange = row.previous ? row.prcSpotPrice - row.previous.prcSpotPrice : null;
-                        return (
-                          <tr key={row.id}>
-                            <td>
-                              <strong>{formatCertificateHistoryWeek(row.effectiveWeek)}</strong>
-                              <span>{new Date(row.observedAt).toLocaleString("en-AU", { timeZone: "Australia/Sydney" })}</span>
-                            </td>
-                            <td>{formatMoneyNumber(row.escSpotPrice)}</td>
-                            <td className={`certificate-history-change ${certificateTrendClass(escChange)}`}>
-                              {formatCertificateChange(escChange)}
-                            </td>
-                            <td>{formatMoneyNumber(row.prcSpotPrice)}</td>
-                            <td className={`certificate-history-change ${certificateTrendClass(prcChange)}`}>
-                              {formatCertificateChange(prcChange)}
-                            </td>
-                            <td>
-                              <strong>{row.source}</strong>
-                              {row.observedByEmail ? <span>{row.observedByEmail}</span> : null}
-                            </td>
-                          </tr>
-                        );
-                      }) : (
-                        <tr>
-                          <td colSpan={6} className="certificate-history-empty">No spot-price observations fall within this range.</td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+                <label className="checkbox-pill certificate-lock-toggle">
+                  <input type="checkbox" name="locked" value="1" defaultChecked={certificateValues.locked} />
+                  <span>Prevent price edits in calculators</span>
+                </label>
+                <button className="orange" type="submit">Save spot prices</button>
+                <p className="help form-full-width">Applies to all NSW businesses. Each business keeps its own certificate fees.</p>
+              <AdminSaveStatus />
+                </form>
+            </details>
+            <CertificateHistory rows={certificateHistory} initialRange={certificateHistoryRange} initialOpen={Boolean(params?.certificateHistoryRange)} />
+            <details className="admin-advanced">
+              <summary>Advanced settings</summary>
+              <p className="help">{certificateResult.authoritativeVerified ? "Shared prices verified." : "Shared prices could not be verified."} Provider: {certificateValues.source}.</p>
+              <details className="admin-reset-settings">
+                <summary>Reset spot prices and all business fees</summary>
+                <p>This replaces the platform spot prices and the certificate fee agreement for every business. Existing saved quotes are not changed.</p>
+                <dl className="admin-reset-values">
+                  <div><dt>ESC spot price</dt><dd>{formatMoneyNumber(DEFAULT_CERTIFICATE_VALUES.escSpotPrice)}</dd></div>
+                  <div><dt>PERC spot price</dt><dd>{formatMoneyNumber(DEFAULT_CERTIFICATE_VALUES.prcSpotPrice)}</dd></div>
+                  <div><dt>ESC business fee</dt><dd>{formatMoneyNumber(DEFAULT_CERTIFICATE_VALUES.escAgreementDeduction)}</dd></div>
+                  <div><dt>PERC business fee</dt><dd>{formatMoneyNumber(DEFAULT_CERTIFICATE_VALUES.prcAgreementDeduction)}</dd></div>
+                </dl>
+                <form action={resetPlatformCertificateValues} data-loading-label="Resetting prices and business fees..." data-confirm-message="Reset platform spot prices and EVERY business certificate fee agreement to the defaults shown?">
+                  <label className="checkbox-pill"><input type="checkbox" name="confirmResetAgreements" value="yes" required /><span>I understand this resets certificate fees for all {businesses.length} businesses.</span></label>
+                  <button className="danger" type="submit">Reset prices and all business fees</button>
+                <AdminSaveStatus />
+                </form>
+              </details>
             </details>
           </div>
-        </details>
-
-        <details className="admin-section">
-          <summary className="section-heading admin-section-summary">
+        </AdminPanel>
+        <AdminPanel view="businesses" id="businesses">
+          <div className="section-heading admin-section-summary">
             <div>
               <h2>Businesses</h2>
               <p>Business defaults are used unless a user has their own commission override.</p>
             </div>
-            <span className="section-count">{businesses.length} total</span>
-            <span className="section-chevron" aria-hidden="true" />
-          </summary>
+            <span className="section-count">{businesses.length} businesses</span>
+          </div>
 
           <div className="admin-section-body">
+            <details className="admin-create" id="new-business" data-admin-record="add-business">
+              <summary><span className="when-closed">Add business</span><span className="when-open">Close new business</span><span className="section-chevron" aria-hidden="true" /></summary>
             <form action={upsertBusiness} className="admin-form business-form" data-loading-label="Adding business...">
             <div>
               <label htmlFor="businessName">Business name</label>
@@ -4888,30 +4598,32 @@ export default async function AdminUsersPage({
               </select>
             </div>
             <div>
-              <label htmlFor="businessAgencyRate">Agency / standard %</label>
+              <label htmlFor="businessAgencyRate">Agency / standard commission (%)</label>
               <input id="businessAgencyRate" name="agencyCommissionRate" type="number" min="0" max="100" step="0.1" defaultValue="25" />
             </div>
             <div>
-              <label htmlFor="businessSalespersonRate">Salesperson %</label>
+              <label htmlFor="businessSalespersonRate">Salesperson commission (%)</label>
               <input id="businessSalespersonRate" name="salespersonCommissionRate" type="number" min="0" max="100" step="0.1" defaultValue="50" />
             </div>
             <div>
-              <label htmlFor="businessEscAgreement">ESC agreement deduction</label>
+              <label htmlFor="businessEscAgreement">ESC fee per certificate ($)</label>
               <input id="businessEscAgreement" name="escAgreementDeduction" type="number" min="0" step="0.01" defaultValue={DEFAULT_CERTIFICATE_VALUES.escAgreementDeduction.toFixed(2)} />
             </div>
             <div>
-              <label htmlFor="businessPrcAgreement">PERC agreement deduction</label>
+              <label htmlFor="businessPrcAgreement">PERC fee per certificate ($)</label>
               <input id="businessPrcAgreement" name="prcAgreementDeduction" type="number" min="0" step="0.01" defaultValue={DEFAULT_CERTIFICATE_VALUES.prcAgreementDeduction.toFixed(2)} />
             </div>
             <button className="orange" type="submit">
               Add business
             </button>
-            </form>
+            <AdminSaveStatus />
+                </form>
+            </details>
 
-            <DirectoryList kind="businesses" className="business-grid" items={businesses.map((business) => {
+            <DirectoryList storageScope={currentEmail} kind="businesses" className="business-grid" items={businesses.map((business) => {
               const businessCertificate = businessCertificateValues[business.id] || { ...DEFAULT_CERTIFICATE_VALUES };
               return { id: business.id, name: business.name, searchText: business.operating_state, createdAt: business.created_at, content: (
-              <details className="business-card business-edit-card locked-card" key={business.id}>
+              <details className="business-card business-edit-card" data-admin-record={`business:${business.id}`} key={business.id}>
                 <summary className="business-summary">
                   <div>
                     <label>Business</label>
@@ -4927,30 +4639,29 @@ export default async function AdminUsersPage({
                     <strong>{commissionLabel(business.commission_type)}</strong>
                   </div>
                   <div>
-                    <label>Agency / standard %</label>
+                    <label>Agency / standard commission (%)</label>
                     <strong>{formatRate(business.agency_commission_rate)}%</strong>
                   </div>
                   <div>
-                    <label>Salesperson %</label>
+                    <label>Salesperson commission (%)</label>
                     <strong>{formatRate(business.salesperson_commission_rate)}%</strong>
                   </div>
                   <div>
-                    <label>EF agreement</label>
+                    <label>Certificate fees</label>
                     <strong>{business.operating_state === "NSW" ? certificateAgreementLabel(businessCertificate) : "No NSW rebate"}</strong>
                     {business.operating_state === "NSW" ? <span>{certificatePayoutLabel(businessCertificate)}</span> : null}
                   </div>
-                  <span className="locked-pill locked-state">Locked</span>
-                  <span className="locked-pill unlocked-state">Unlocked</span>
+                  <span className="record-edit-label"><span className="when-closed">Edit</span><span className="when-open">Close</span></span>
                 </summary>
                 <form action={upsertBusiness} className="business-edit-form" data-loading-label="Saving business...">
                   <input type="hidden" name="businessId" value={business.id} />
                   <div>
-                    <label>Business name</label>
-                    <input name="businessName" defaultValue={business.name} required />
+                    <label htmlFor={`business-businessName-${business.id}`}>Business name</label>
+                    <input id={`business-businessName-${business.id}`} name="businessName" defaultValue={business.name} required />
                   </div>
                   <div>
-                    <label>Operating state</label>
-                    <select name="operatingState" defaultValue={business.operating_state}>
+                    <label htmlFor={`business-operatingState-${business.id}`}>Operating state</label>
+                    <select id={`business-operatingState-${business.id}`} name="operatingState" defaultValue={business.operating_state}>
                       {operatingStateOptions.map((option) => (
                         <option key={option.value} value={option.value}>
                           {operatingStateLabel(option.value)}
@@ -4959,16 +4670,16 @@ export default async function AdminUsersPage({
                     </select>
                   </div>
                   <div>
-                    <label>Default commission</label>
-                    <select name="commissionType" defaultValue={business.commission_type}>
+                    <label htmlFor={`business-commissionType-${business.id}`}>Default commission</label>
+                    <select id={`business-commissionType-${business.id}`} name="commissionType" defaultValue={business.commission_type}>
                       <option value="none">No commission</option>
                       <option value="standard">Standard</option>
                       <option value="agency">Agency</option>
                     </select>
                   </div>
                   <div>
-                    <label>Agency / standard %</label>
-                    <input
+                    <label htmlFor={`business-agencyCommissionRate-${business.id}`}>Agency / standard commission (%)</label>
+                    <input id={`business-agencyCommissionRate-${business.id}`}
                       name="agencyCommissionRate"
                       type="number"
                       min="0"
@@ -4978,8 +4689,8 @@ export default async function AdminUsersPage({
                     />
                   </div>
                   <div>
-                    <label>Salesperson %</label>
-                    <input
+                    <label htmlFor={`business-salespersonCommissionRate-${business.id}`}>Salesperson commission (%)</label>
+                    <input id={`business-salespersonCommissionRate-${business.id}`}
                       name="salespersonCommissionRate"
                       type="number"
                       min="0"
@@ -4989,8 +4700,8 @@ export default async function AdminUsersPage({
                     />
                   </div>
                   <div>
-                    <label>ESC agreement deduction</label>
-                    <input
+                    <label htmlFor={`business-escAgreementDeduction-${business.id}`}>ESC fee per certificate ($)</label>
+                    <input id={`business-escAgreementDeduction-${business.id}`}
                       name="escAgreementDeduction"
                       type="number"
                       min="0"
@@ -4999,8 +4710,8 @@ export default async function AdminUsersPage({
                     />
                   </div>
                   <div>
-                    <label>PERC agreement deduction</label>
-                    <input
+                    <label htmlFor={`business-prcAgreementDeduction-${business.id}`}>PERC fee per certificate ($)</label>
+                    <input id={`business-prcAgreementDeduction-${business.id}`}
                       name="prcAgreementDeduction"
                       type="number"
                       min="0"
@@ -5011,22 +4722,22 @@ export default async function AdminUsersPage({
                   <button className="orange" type="submit">
                     Save business
                   </button>
+                <AdminSaveStatus />
                 </form>
               </details>
               ) };
             })} />
           </div>
-        </details>
+        </AdminPanel>
 
-        <details className="admin-section" id="approved-users" open={Boolean(setupBusiness)}>
-          <summary className="section-heading admin-section-summary">
+        <AdminPanel view="users" id="approved-users">
+          <div className="section-heading admin-section-summary">
             <div>
               <h2>Approved users</h2>
               <p>Salespeople can use the calculator without seeing hidden commission percentages.</p>
             </div>
-            <span className="section-count">{users.length} total</span>
-            <span className="section-chevron" aria-hidden="true" />
-          </summary>
+            <span className="section-count">{users.length} users</span>
+          </div>
 
           <div className="admin-section-body">
             {setupBusiness && setupAction === "create" ? (
@@ -5060,8 +4771,11 @@ export default async function AdminUsersPage({
                 <a className="button secondary" href="/admin/users">
                   Do this later
                 </a>
-              </form>
+              <AdminSaveStatus />
+                </form>
             ) : null}
+            <details className="admin-create" open={Boolean(setupBusiness && setupAction === "create")} data-admin-record="add-user">
+              <summary><span className="when-closed">Add user</span><span className="when-open">Close new user</span><span className="section-chevron" aria-hidden="true" /></summary>
             <form
               action={addApprovedUser}
               className="admin-form user-form"
@@ -5101,19 +4815,21 @@ export default async function AdminUsersPage({
               </select>
             </div>
             <div>
-              <label htmlFor="agencyCommissionRate">Agency / standard %</label>
+              <label htmlFor="agencyCommissionRate">Agency / standard commission (%)</label>
               <input id="agencyCommissionRate" name="agencyCommissionRate" type="number" min="0" max="100" step="0.1" placeholder="Default" />
             </div>
             <div>
-              <label htmlFor="salespersonCommissionRate">Salesperson %</label>
+              <label htmlFor="salespersonCommissionRate">Salesperson commission (%)</label>
               <input id="salespersonCommissionRate" name="salespersonCommissionRate" type="number" min="0" max="100" step="0.1" placeholder="Default" />
             </div>
             <button className="orange" type="submit">
               Add user
             </button>
-            </form>
+            <AdminSaveStatus />
+                </form>
+            </details>
 
-            <DirectoryList kind="users" className="user-card-grid" defaultSort="newest" activitySort items={users.map((approvedUser) => {
+            <DirectoryList storageScope={currentEmail} kind="users" className="user-card-grid" defaultSort="active-newest" activitySort items={users.map((approvedUser) => {
               const isSelf = approvedUser.email.toLowerCase() === currentEmail;
               const commissionOverride = approvedUser.commission_type_override || "business_default";
               return {
@@ -5123,18 +4839,18 @@ export default async function AdminUsersPage({
                 createdAt: approvedUser.created_at,
                 lastActiveAt: approvedUser.last_active_at,
                 content: (
-                <details className={`user-card user-card-collapsible${approvedUser.is_locked ? " user-card-locked" : ""}`} key={approvedUser.email}>
+                <details className={`user-card user-card-collapsible${approvedUser.is_locked ? " user-card-locked" : ""}`} data-admin-record={`user:${approvedUser.email}`} key={approvedUser.email}>
                   <summary className="user-card-summary">
                     <div className="user-summary-identity">
                       <div>
                         <strong>{displayNameFor(approvedUser)}</strong>
                         {isSelf ? <span className="self-pill">You</span> : null}
                         <span className={`user-access-pill ${approvedUser.is_locked ? "is-locked" : "is-active"}`}>
-                          {approvedUser.is_locked ? "Locked" : "Active"}
+                          {approvedUser.is_locked ? "Access locked" : "Access enabled"}
                         </span>
                       </div>
                       <span>{approvedUser.email}</span>
-                      <span title="Updated when this person opens or saves their calculator">Last active: {formatLastActive(approvedUser.last_active_at)}</span>
+                      <UserActivity email={approvedUser.email} initialLastActiveAt={approvedUser.last_active_at} />
                     </div>
                     <div className="user-summary-meta">
                       <span>
@@ -5156,21 +4872,20 @@ export default async function AdminUsersPage({
                     <div className="user-facts">
                       <div><span>Businesses</span><strong>{approvedUser.business_names.join(", ") || approvedUser.business_name || "No business"}</strong></div>
                       <div><span>Role</span><strong>{roleOptions.find((option) => option.value === approvedUser.role)?.label || approvedUser.role}</strong></div>
-                      <div title="Updated when this person opens or saves their calculator"><span>Last active</span><strong>{formatLastActive(approvedUser.last_active_at)}</strong></div>
                       <div><span>Commission</span><strong>{commissionLabel(approvedUser.effective_commission_type)}</strong></div>
-                      <div><span>Rates</span><strong>{formatRate(approvedUser.effective_agency_commission_rate)}% / {formatRate(approvedUser.effective_salesperson_commission_rate)}%</strong></div>
+                      <div><span>Current commission rates</span><strong>{formatRate(approvedUser.effective_agency_commission_rate)}% agency / standard; {formatRate(approvedUser.effective_salesperson_commission_rate)}% salesperson</strong></div>
                     </div>
 
                     <form action={updateApprovedUser} className="user-edit-grid" data-loading-label="Saving approved user...">
                       <input type="hidden" name="email" value={approvedUser.email} />
                       {isSelf ? <input type="hidden" name="role" value={approvedUser.role} /> : null}
                       <div>
-                        <label>Name</label>
-                        <input name="displayName" defaultValue={approvedUser.display_name} placeholder="Name" />
+                        <label htmlFor={`user-displayName-${approvedUser.email}`}>Name</label>
+                        <input id={`user-displayName-${approvedUser.email}`} name="displayName" defaultValue={approvedUser.display_name} placeholder="Name" />
                       </div>
                       <div>
-                        <label>Role</label>
-                        <select name="role" defaultValue={approvedUser.role} disabled={isSelf}>
+                        <label htmlFor={`user-role-${approvedUser.email}`}>Role</label>
+                        <select id={`user-role-${approvedUser.email}`} name="role" defaultValue={approvedUser.role} disabled={isSelf}>
                           {roleOptions.map((option) => (
                             <option key={option.value} value={option.value}>
                               {option.label}
@@ -5183,8 +4898,8 @@ export default async function AdminUsersPage({
                         <BusinessMultiSelect businesses={businesses} selectedIds={approvedUser.business_ids} />
                       </div>
                       <div>
-                        <label>Override</label>
-                        <select name="commissionType" defaultValue={commissionOverride}>
+                        <label htmlFor={`user-commissionType-${approvedUser.email}`}>Commission plan</label>
+                        <select id={`user-commissionType-${approvedUser.email}`} name="commissionType" defaultValue={commissionOverride}>
                           {commissionOptions.map((option) => (
                             <option key={option.value} value={option.value}>
                               {option.label}
@@ -5193,8 +4908,8 @@ export default async function AdminUsersPage({
                         </select>
                       </div>
                       <div>
-                        <label>Primary %</label>
-                        <input
+                        <label htmlFor={`user-agencyCommissionRate-${approvedUser.email}`}>Agency / standard commission (%)</label>
+                        <input id={`user-agencyCommissionRate-${approvedUser.email}`}
                           name="agencyCommissionRate"
                           type="number"
                           min="0"
@@ -5209,8 +4924,8 @@ export default async function AdminUsersPage({
                         />
                       </div>
                       <div>
-                        <label>Salesperson %</label>
-                        <input
+                        <label htmlFor={`user-salespersonCommissionRate-${approvedUser.email}`}>Salesperson commission (%)</label>
+                        <input id={`user-salespersonCommissionRate-${approvedUser.email}`}
                           name="salespersonCommissionRate"
                           type="number"
                           min="0"
@@ -5224,10 +4939,12 @@ export default async function AdminUsersPage({
                           }
                         />
                       </div>
-                      <button className="secondary" type="submit" disabled={isSelf}>
+                      <p className="help form-full-width">Use business default to inherit the commission plan. Leave a percentage blank to use its business rate; an entered percentage overrides that rate.</p>
+                      <button className="orange" type="submit" disabled={isSelf}>
                         Save user
                       </button>
-                    </form>
+                    <AdminSaveStatus />
+                </form>
 
                     <div className="user-card-actions">
                       <a className="button secondary" href={`/calculator?as=${encodeURIComponent(approvedUser.email)}`} data-loading-label="Opening user calculator...">
@@ -5239,13 +4956,15 @@ export default async function AdminUsersPage({
                         <button className="secondary" type="submit" disabled={isSelf}>
                           {approvedUser.is_locked ? "Unlock access" : "Lock access"}
                         </button>
-                      </form>
-                      <form action={removeApprovedUser} data-loading-label="Removing approved user...">
+                      <AdminSaveStatus />
+                </form>
+                      <form action={removeApprovedUser} data-loading-label="Removing approved user..." data-confirm-message={`Remove calculator access for ${approvedUser.email}?`}>
                         <input type="hidden" name="email" value={approvedUser.email} />
                         <button className="danger" type="submit" disabled={isSelf}>
                           Remove
                         </button>
-                      </form>
+                      <AdminSaveStatus />
+                </form>
                     </div>
                   </div>
                 </details>
@@ -5338,7 +5057,8 @@ export default async function AdminUsersPage({
                           <button className="secondary" type="submit" disabled={isSelf}>
                             Save
                           </button>
-                        </form>
+                        <AdminSaveStatus />
+                </form>
                       </td>
                       <td>{new Date(approvedUser.created_at).toLocaleDateString("en-AU")}</td>
                       <td>
@@ -5351,7 +5071,8 @@ export default async function AdminUsersPage({
                             <button className="danger" type="submit" disabled={isSelf}>
                               Remove
                             </button>
-                          </form>
+                          <AdminSaveStatus />
+                </form>
                         </div>
                       </td>
                     </tr>
@@ -5372,17 +5093,16 @@ export default async function AdminUsersPage({
             commission uses both percentages.
             </div>
           </div>
-        </details>
+        </AdminPanel>
 
-        <details className="admin-section won-options-section" id="won-options">
-          <summary className="section-heading admin-section-summary">
+        <AdminPanel view="jobs" id="won-options" className="won-options-section">
+          <div className="section-heading admin-section-summary">
             <div>
               <h2>Won Quotes</h2>
               <p>Track agency payments and salesperson commissions.</p>
             </div>
-            <span className="section-count">{wonOptions.length} total</span>
-            <span className="section-chevron" aria-hidden="true" />
-          </summary>
+            <span className="section-count">{wonOptions.length} quotes</span>
+          </div>
 
           <div className="admin-section-body">
             <div className="won-loading-overlay" data-won-loading-overlay>
@@ -5573,8 +5293,9 @@ export default async function AdminUsersPage({
                     <span>{option.userName} - {option.businessName}</span>
                   </div>
                   <div className="won-row-metrics">
-                    <span className={`payment-pill payment-pill-${option.paymentStatus}`}>
-                      {option.paymentStatusLabel}
+                    <span className="won-payment-summary">
+                      <span className={option.paidInAt ? "is-complete" : "is-pending"}>Agency: {option.paidInAt ? "Received" : option.paymentRequestedAt || option.paidOutAt ? "Awaiting payment" : "Not requested"}</span>
+                      <span className={option.paidOutAt ? "is-complete" : "is-pending"}>Commission: {option.paidOutAt ? "Paid" : "Not paid"}</span>
                     </span>
                     <span className="won-row-metric won-row-metric-won">
                       <span>Won</span>
@@ -5617,7 +5338,7 @@ export default async function AdminUsersPage({
                         <input type="hidden" name="optionId" value={option.optionId} />
                         <input type="hidden" name="wonAt" value={option.wonAt} />
                         <input type="hidden" name="paymentMode" value="payment_requested" />
-                        <button className="secondary" type="submit">
+                        <button className="orange" type="submit">
                           Record payment request
                         </button>
                       </form>
@@ -5631,7 +5352,7 @@ export default async function AdminUsersPage({
                         <input type="hidden" name="optionId" value={option.optionId} />
                         <input type="hidden" name="wonAt" value={option.wonAt} />
                         <input type="hidden" name="paymentMode" value="paid_in" />
-                        <button className="secondary" type="submit">
+                        <button className={option.paymentRequestedAt || option.paidOutAt ? "orange" : "secondary"} type="submit">
                           Record payment received
                         </button>
                       </form>
@@ -5645,7 +5366,7 @@ export default async function AdminUsersPage({
                         <input type="hidden" name="optionId" value={option.optionId} />
                         <input type="hidden" name="wonAt" value={option.wonAt} />
                         <input type="hidden" name="paymentMode" value="paid_out" />
-                        <button className="secondary" type="submit">
+                        <button className={option.paidInAt ? "orange" : "secondary"} type="submit">
                           Record commission paid
                         </button>
                       </form>
@@ -5767,7 +5488,8 @@ export default async function AdminUsersPage({
               </div>
             </aside>
           </div>
-        </details>
+        </AdminPanel>
+        </AdminWorkspace>
       </section>
       <Script id="admin-users-page-actions" strategy="afterInteractive">
         {wonExportScript()}

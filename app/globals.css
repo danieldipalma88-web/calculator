@@ -927,8 +927,8 @@ button.danger {
   min-width: 0;
 }
 
-.certificate-history-panel > summary strong,
-.certificate-history-panel > summary span {
+.certificate-history-panel > summary > div > strong,
+.certificate-history-panel > summary > div > span {
   display: block;
 }
 
@@ -3585,4 +3585,148 @@ select {
   .won-row-metric-installer {
     display: grid;
   }
+}
+
+/* Platform admin uses compact views; financial and calculator surfaces stay unchanged. */
+.admin-workspace { margin-top: 24px; min-width: 0; }
+.admin-workspace [hidden] { display: none !important; }
+.admin-tabs { display: flex; gap: 6px; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+.admin-tabs button { border: 0; border-radius: 6px; padding: 10px 18px; background: transparent; color: #475569; }
+.admin-tabs button[aria-selected="true"] { background: #0f766e; color: white; }
+.admin-tabs button:hover:not([aria-selected="true"]) { background: #edf4f5; }
+.admin-workspace :is(button, a, summary, select, input):focus-visible { outline: 3px solid #2563eb; outline-offset: 3px; }
+.admin-workspace .admin-section { border: 0; border-radius: 0; overflow: visible; margin-top: 0; background: white; }
+.admin-workspace .admin-section-summary { padding: 24px 0 16px; cursor: default; background: transparent; }
+.admin-workspace .admin-section-summary h2 { font-size: 20px; }
+.admin-workspace .admin-section-summary p { font-size: 14px; }
+.admin-workspace .admin-section-body { padding: 0; border: 0; background: transparent; }
+.admin-workspace .section-count { border: 0; border-radius: 4px; font-weight: 600; }
+.admin-workspace label { text-transform: none; letter-spacing: 0; font-size: 13px; font-weight: 700; }
+.admin-workspace :is(input, select, button, .button) { min-width: 0; }
+.admin-workspace :is(button, .button) { white-space: normal; line-height: 1.35; }
+.admin-workspace :is(button, .button).orange { background: #c2410c; color: #fff; }
+.admin-workspace .help { line-height: 1.5; }
+.admin-create { margin: 0 0 18px; border-bottom: 1px solid var(--line); }
+.admin-create > summary { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 10px 0; width: fit-content; color: #0f766e; font-weight: 700; cursor: pointer; list-style: none; }
+.admin-create > summary::-webkit-details-marker { display: none; }
+.admin-workspace .section-chevron { display: inline-flex; flex: 0 0 20px; width: 20px; height: 20px; background: transparent; border: 0; border-radius: 0; margin-left: auto; }
+.admin-workspace details:not([open]) > summary .section-chevron { transform: rotate(-90deg); }
+.admin-workspace details[open] > summary .section-chevron { transform: none; }
+.admin-workspace details > summary .when-open,
+.admin-workspace details[open] > summary .when-closed { display: none; }
+.admin-workspace details[open] > summary .when-open { display: inline; }
+.admin-workspace .admin-form { margin: 4px 0 18px; padding: 16px 0; border: 0; border-radius: 0; background: white; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.admin-workspace :is(.business-edit-form, .user-edit-grid) { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: end; }
+.admin-workspace .form-full-width, .admin-save-status { grid-column: 1 / -1; margin: 0; }
+.admin-save-status { padding: 10px 0; color: #0f766e; font-size: 13px; }
+.admin-workspace form[aria-busy="true"] { opacity: .7; }
+.admin-workspace .business-summary { grid-template-columns: minmax(0, 1.6fr) repeat(4, minmax(0, .8fr)) minmax(0, 1.6fr) auto; gap: 14px; }
+.admin-workspace .business-summary > div { min-width: 0; overflow-wrap: anywhere; }
+.admin-workspace .business-summary > div :is(strong,span) { display: block; line-height: 1.45; }
+.admin-workspace .business-summary strong { font-size: 14px; }
+.admin-workspace .business-summary label { font-size: 11px; }
+.admin-workspace .business-summary span { font-size: 12px; }
+.record-edit-label { color: #0f766e; font-size: 13px; font-weight: 700; }
+.admin-workspace .user-card-summary { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) auto; }
+.admin-workspace .user-summary-meta { grid-template-columns: minmax(0, .65fr) minmax(0, 1fr); }
+.admin-workspace .user-summary-identity > span, .admin-workspace .user-summary-meta strong { white-space: normal; overflow-wrap: anywhere; }
+.admin-workspace .user-access-pill { font-size: 11px; text-transform: none; font-weight: 600; }
+.admin-workspace .user-access-pill.is-active { color: #475569; background: #f1f5f9; }
+.admin-workspace .user-facts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.admin-workspace :is(.user-facts, .won-metrics) > div { min-height: 0; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; justify-content: start; }
+.admin-workspace :is(.user-facts, .won-metrics) { padding: 0 0 16px; border-bottom: 1px solid var(--line); gap: 16px; }
+.admin-workspace :is(.user-facts, .won-metrics) span { white-space: normal; letter-spacing: 0; text-transform: none; font-weight: 600; }
+.admin-workspace .user-expand-label { min-width: 60px; padding: 0 8px; border: 0; border-radius: 4px; color: #0f766e; }
+.admin-workspace .certificate-current-trends { margin-top: 0; }
+.admin-workspace .certificate-current-trend-card { background: #f7fafb; padding: 20px; }
+.certificate-update-note { font-size: 13px; color: #59677a; margin: 12px 0; }
+.admin-workspace .certificate-admin-form { border: 0; background: white; padding: 12px 0 18px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.admin-workspace .certificate-lock-toggle { grid-column: 1 / 3; }
+.admin-workspace .certificate-lock-toggle input, .admin-reset-settings input[type="checkbox"] { flex: 0 0 18px; width: 18px; min-height: 18px; }
+.admin-workspace .certificate-history-panel { border: 0; border-radius: 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.admin-workspace .certificate-history-panel > summary { padding: 16px 0; }
+.admin-workspace .certificate-history-body { padding: 18px 0; background: white; }
+.admin-workspace .certificate-chart-grid { gap: 24px; }
+.admin-workspace .certificate-chart-card { padding: 0; border: 0; border-radius: 0; }
+.admin-workspace .certificate-chart-heading strong { font-size: 14px; }
+.admin-workspace .certificate-price-chart { height: 230px; }
+.admin-workspace .certificate-chart-empty { padding: 16px; height: 150px; }
+.certificate-chart-axis { fill: #475569; font-size: 12px; }
+.certificate-chart-detail { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px; min-height: 44px; align-items: center; font-size: 13px; color: #475569; }
+.certificate-chart-detail strong { color: #0f172a; }
+.certificate-history-point-controls { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; color: #475569; margin-top: 8px; }
+.certificate-history-point-button { min-width: 44px; min-height: 44px; background: #edf4f5; color: #0f766e; border: 1px solid #dbe6ef; border-radius: 6px; }
+.certificate-history-point-button:disabled { opacity: .45; cursor: default; }
+.certificate-history-point-readout { font-size: 13px; line-height: 1.5; margin: 10px 0 0; min-height: 40px; color: #475569; }
+.certificate-history-axis { stroke: #94a3b8; stroke-width: 1; }
+.admin-workspace .certificate-history-table { min-width: 0; table-layout: fixed; }
+.admin-workspace .certificate-history-table :is(td,th) { overflow-wrap: anywhere; }
+.admin-advanced { margin-top: 24px; border-top: 1px solid var(--line); padding-top: 12px; }
+.admin-advanced > summary, .admin-reset-settings > summary { cursor: pointer; min-height: 44px; padding: 10px 0; font-size: 14px; font-weight: 600; }
+.admin-reset-settings { margin-top: 8px; color: #991b1b; }
+.admin-reset-settings p { color: #475569; line-height: 1.5; }
+.admin-reset-values { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; color: #0f172a; }
+.admin-reset-values dt { font-size: 12px; }
+.admin-reset-values dd { margin: 4px 0 0; font-weight: 700; }
+.admin-reset-settings form { display: grid; gap: 16px; justify-items: start; }
+.admin-reset-settings .checkbox-pill { display: flex; align-items: center; gap: 10px; margin: 0; }
+.admin-workspace .won-backup-note { border: 0; border-radius: 0; margin: 0 0 12px; padding: 0; background: white; }
+.admin-workspace .won-filter-controls { margin-top: 12px; padding: 14px 0; border: 0; border-radius: 0; background: white; }
+.admin-workspace .won-card, .admin-workspace .won-filtered-totals { border-radius: 8px; }
+.won-payment-summary { display: grid; gap: 4px; font-size: 12px; font-weight: 600; }
+.won-payment-summary .is-complete { color: #08783e; }
+.won-payment-summary .is-pending { color: #854d0e; }
+.admin-workspace .won-row-metrics { grid-template-columns: minmax(150px, 1.5fr) minmax(70px, .6fr) minmax(130px, 1fr); }
+.admin-workspace .won-payment-filters { display: flex; flex-wrap: wrap; gap: 6px; }
+.admin-workspace .won-payment-filters button { min-height: 44px; padding: 8px 12px; border-radius: 6px; }
+
+@media (max-width: 1100px) {
+  .admin-workspace .business-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .admin-workspace .record-edit-label { justify-self: end; grid-column: 3; }
+  .admin-workspace .user-card-summary { grid-template-columns: minmax(0, 1fr) auto; }
+  .admin-workspace .user-summary-meta { grid-column: 1 / -1; grid-row: 2; }
+  .admin-workspace .user-expand-label { grid-column: 2; grid-row: 1; }
+  .admin-workspace .certificate-current-trend-card { align-items: flex-start; flex-direction: column; gap: 12px; }
+  .admin-workspace .certificate-trend { text-align: left; }
+}
+@media (max-width: 760px) {
+  .admin-shell { padding: 12px; }
+  .admin-shell > .admin-card { padding: 16px; border-radius: 8px; }
+  .admin-workspace { margin-top: 16px; }
+  .admin-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+  .admin-tabs button { padding: 8px 4px; font-size: 12px; min-height: 48px; }
+  .admin-workspace .admin-section-summary { padding-top: 18px; gap: 8px; }
+  .admin-workspace .admin-section-summary h2 { font-size: 18px; }
+  .admin-workspace .admin-section-summary > div:first-child { flex-basis: auto; }
+  .admin-workspace .section-count { padding: 4px 6px; }
+  .admin-workspace :is(.admin-form, .business-edit-form, .user-edit-grid, .certificate-admin-form, .assign-approved-user-form) { grid-template-columns: 1fr; }
+  .admin-workspace .certificate-lock-toggle { grid-column: auto; }
+  .admin-workspace .business-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 14px; }
+  .admin-workspace .business-summary > div:first-child { grid-column: 1 / -1; }
+  .admin-workspace .record-edit-label { grid-column: 2; }
+  .admin-workspace .user-card-summary { padding: 14px 12px; }
+  .admin-workspace .user-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-workspace .user-summary-meta { grid-template-columns: minmax(80px, .6fr) minmax(0, 1.4fr); gap: 12px; }
+  .admin-workspace .user-card-body { padding: 12px; }
+  .admin-workspace .user-card-actions { display: grid; grid-template-columns: 1fr; }
+  .admin-workspace .user-card-actions :is(form,button,.button) { width: 100%; }
+  .admin-workspace .certificate-current-trends { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-workspace .certificate-current-trend-card { padding: 14px 10px; gap: 10px; }
+  .admin-workspace .certificate-current-trend-card strong { font-size: 24px; }
+  .admin-workspace .certificate-trend { font-size: 12px; }
+  .admin-workspace .certificate-chart-heading { flex-direction: row; }
+  .admin-workspace .certificate-chart-extremes { justify-content: flex-end; }
+  .admin-workspace .certificate-history-table :is(td,th) { padding: 10px 6px; font-size: 12px; }
+  .admin-workspace .certificate-history-table :is(th,td):last-child { display: none; }
+  .admin-reset-values { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-workspace .won-filter-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-workspace .won-mobile-salesperson-field, .admin-workspace .won-sort-field { grid-column: auto; }
+  .admin-workspace .won-payment-filters, .admin-workspace .won-clear-filters { grid-column: 1 / -1; }
+  .admin-workspace .won-payment-filters button { flex: 1 1 130px; }
+  .admin-workspace .won-row-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .won-payment-summary { grid-column: 1 / -1; }
+}
+
+@media (max-width: 380px) {
+  .admin-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

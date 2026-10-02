@@ -418,6 +418,19 @@ function injectCloudStorageSync(
   var certificateRefreshInFlight = false;
   var certificateRefreshIntervalMs = 60000;
   var certificateValueKeys = ['installerCertificateValuesV1', 'greenEnergyCertificateValuesV1', 'CertificateValuesV1'];
+  var lastActivityAttemptAt = null;
+  function recordVisibleUserInteraction(event){
+    if (!event.isTrusted || document.visibilityState !== 'visible') return;
+    var now = performance.now();
+    if (lastActivityAttemptAt !== null && now - lastActivityAttemptAt < 60000) return;
+    lastActivityAttemptAt = now;
+    try {
+      fetch('/api/user-activity', {method: 'POST', credentials: 'same-origin', cache: 'no-store'}).catch(function(){});
+    } catch(e) {}
+  }
+  ['pointerdown', 'keydown', 'input', 'change'].forEach(function(type){
+    document.addEventListener(type, recordVisibleUserInteraction, {capture: true, passive: true});
+  });
   window.DCCEEW_CONTRACT_DATA = ${safeScriptJson({
     rate: DCCEEW_CONTRACT_RATE,
     postcodes: DCCEEW_ELIGIBLE_POSTCODES,

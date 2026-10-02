@@ -36,13 +36,12 @@ function useNavigationLoading(
   });
 
   useEffect(() => {
-    if (!captureForms) return;
-
     function show(label: string) {
       setLoading({ label: label || "Loading...", visible: true });
     }
 
     function handleSubmit(event: SubmitEvent) {
+      if (!captureForms || event.defaultPrevented) return;
       const form = event.target instanceof HTMLFormElement ? event.target : null;
       if (!form || form.closest(".won-options-section")) return;
       const submitter = event.submitter instanceof HTMLElement ? event.submitter : null;
@@ -63,7 +62,7 @@ function useNavigationLoading(
       show(target.dataset.loadingLabel || "Loading...");
     }
 
-    document.addEventListener("submit", handleSubmit, true);
+    if (captureForms) document.addEventListener("submit", handleSubmit, true);
     document.addEventListener("click", handleClick, true);
     return () => {
       document.removeEventListener("submit", handleSubmit, true);

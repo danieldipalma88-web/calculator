@@ -40,7 +40,7 @@ const checks = [
   [adminPage.includes("user-card-collapsible"), "collapsible approved users"],
   [adminPage.includes("action={setApprovedUserLock}"), "approved-user lock action"],
   [adminPage.includes("admin_list_approved_user_activity"), "approved-user activity lookup"],
-  [adminPage.includes("formatLastActive(approvedUser.last_active_at)"), "last-active user detail"],
+  [adminPage.includes("<UserActivity email={approvedUser.email} initialLastActiveAt={approvedUser.last_active_at} />"), "live last-active user detail"],
   [styles.includes(".won-toolbar-controls"), "compact Won Quotes toolbar"],
   [styles.includes(".won-filter-controls"), "Won Quotes filter controls"],
   [styles.includes(".won-mobile-selection-dock"), "sticky Won Quotes mobile dock"],
