@@ -38,7 +38,9 @@ const checks = [
   [admin.includes('if (!next.paidOutAt && !next.salespersonPaidOutAt)'), "salesperson payout timestamp preservation"],
   [admin.includes('option.paidOutAt ? "Paid" : option.paidInAt ? "Commission to pay" : "Not paid"'), "salesperson status before agency receipt"],
   [!admin.includes('if (!option.salespersonCommissionTotal)'), "zero sales commission semantics preserved"],
-  [styles.includes('position: sticky;\n  top: 8px;'), "sticky selection toolbar"],
+  [styles.replace(/\r\n/g, '\n').includes('.won-selection-toolbar:not([hidden]) {\n  position: fixed;'), "fixed bottom selection toolbar"],
+  [styles.includes('--won-selection-height'), "measured clearance below the final job"],
+  [admin.includes('new ResizeObserver(updateWonDockSpacing)'), "toolbar clearance follows wrapping and viewport changes"],
   [styles.includes('.won-secondary-actions'), "secondary action menus"],
 ];
 
@@ -74,4 +76,67 @@ assert.equal(receiptOnly.paidOutAt, undefined, "Receipt must not imply salespers
 const payoutOnly = sandbox.applyWonPaymentFields({}, "paid_out", "admin@example.test");
 assert.ok(payoutOnly.paidOutAt);
 assert.equal(payoutOnly.paidInAt, undefined, "Payout must not imply agency receipt");
+
+const bulkControls = syntax.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'WonBulkActionControls').getText(syntax);
+const primaryForm = bulkControls.slice(0, bulkControls.indexOf('</form>'));
+assert.deepEqual([...primaryForm.matchAll(/name="bulkMode" value="([^"]+)"/g)].map(match => match[1]), ['paid_in', 'paid_out']);
+for (const mode of ['payment_requested', 'update_rebate', 'reset_payment', 'unlock', 'delete']) {
+  assert.ok(bulkControls.includes(`value="${mode}"`), `Secondary ${mode} remains available`);
+}
+assert.equal((admin.match(/<WonBulkActionControls\s*\/>/g) || []).length, 1, 'One shared action bar on desktop and mobile');
+const scriptNode = syntax.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'wonExportScript');
+const scriptScope = {};
+vm.runInNewContext(ts.transpileModule(scriptNode.getText(syntax), { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText, scriptScope);
+const scriptAst = ts.createSourceFile('won-runtime.js', scriptScope.wonExportScript(), ts.ScriptTarget.Latest, true);
+const dockFunctions = [];
+function visit(node) {
+  if (ts.isFunctionDeclaration(node) && ['updateWonSelectionDock', 'updateWonDockSpacing', 'handleWonKeydown', 'handleWonSubmit', 'setWonSectionLoading'].includes(node.name?.text)) dockFunctions.push(node.getText(scriptAst));
+  ts.forEachChild(node, visit);
+}
+visit(scriptAst);
+assert.equal(dockFunctions.length, 5);
+const dock = { hidden: true, offsetHeight: 112 };
+const count = {}, scope = {}, clear = {}, actions = { open: true };
+let selection = [], reservedHeight, hasDock, focusReturned = false, busy = false;
+const section = {
+  classList: { toggle: (_name, value) => { hasDock = value; } },
+  style: { setProperty: (_name, value) => { reservedHeight = value; } },
+  setAttribute: () => { busy = true; }, removeAttribute: () => { busy = false; }, getAttribute: () => busy ? 'true' : null,
+  querySelector: selector => selector === '[data-won-mobile-selection-dock]' ? dock : {},
+};
+const dockScope = {
+  selectedWonCards: () => selection, visibleWonCards: () => [{}, {}, {}], hasActiveWonFilter: () => true,
+  document: {
+    querySelector: selector => selector === '.won-options-section' ? section : selector === '[data-won-mobile-actions][open]' ? { ...actions, querySelector: () => ({ focus: () => { focusReturned = true; } }) } : dock,
+    querySelectorAll: selector => ({ '[data-won-selection-count]': [count], '[data-won-selection-scope]': [scope], '[data-won-clear-selection]': [clear], '[data-won-mobile-actions]': [actions] })[selector],
+  },
+};
+vm.runInNewContext(dockFunctions.join('\n'), dockScope);
+dockScope.updateWonSelectionDock();
+assert.equal(dock.hidden, true); assert.equal(hasDock, false); assert.equal(actions.open, false);
+selection = [{}, {}]; dockScope.updateWonSelectionDock();
+assert.equal(dock.hidden, false); assert.equal(hasDock, true);
+assert.equal(count.textContent, '2 selected'); assert.equal(scope.textContent, '3 filtered quotes visible');
+assert.equal(clear.hidden, false); assert.equal(reservedHeight, '112px');
+dock.offsetHeight = 210; dockScope.updateWonDockSpacing(); assert.equal(reservedHeight, '210px');
+dockScope.handleWonKeydown({ key: 'Escape' }); assert.equal(focusReturned, true);
+dockScope.setWonSectionLoading(true, 'Recording...'); assert.equal(dock.inert, true);
+let prevented = 0, confirmations = 0, saves = 0, restored = 0;
+const submitEvent = { target: { closest: () => section, hasAttribute: () => true, getAttribute: () => null }, submitter: { name: 'bulkMode', value: 'paid_in' }, preventDefault: () => { prevented++; } };
+dockScope.handleWonSubmit(submitEvent);
+assert.equal(prevented, 1, 'Pending payment blocks repeat submissions before changing selection or confirming');
+dockScope.setWonSectionLoading(false); assert.equal(dock.inert, false);
+Object.assign(dockScope, {
+  bulkModeForForm: (_form, submitter) => submitter.value,
+  bulkEligibleCards: (_mode, cards) => cards,
+  setBulkSelections: cards => assert.equal(cards, selection),
+  bulkConfirmationMessage: () => 'Confirm selected jobs',
+  window: { confirm: () => { confirmations++; return false; } },
+  refreshBulkInputs: () => { restored++; },
+  rememberWonUiState: () => {}, setWonActionLoading: () => { saves++; },
+});
+dockScope.handleWonSubmit(submitEvent);
+assert.equal(confirmations, 1); assert.equal(restored, 1); assert.equal(saves, 0, 'Cancellation does not start a payment');
+dockScope.window.confirm = () => true;
+dockScope.handleWonSubmit(submitEvent); assert.equal(saves, 1);
 console.log("Won Quote payment admin UX and payment-state behavior checks passed.");

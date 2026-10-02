@@ -1438,6 +1438,8 @@ function wonExportScript() {
     section.classList.toggle("is-loading", !!active);
     if (active) section.setAttribute("aria-busy", "true");
     else section.removeAttribute("aria-busy");
+    var dock = section.querySelector("[data-won-mobile-selection-dock]");
+    if (dock) dock.inert = !!active;
     var label = section.querySelector("[data-won-loading-label]");
     if (label && labelText) label.textContent = labelText;
   }
@@ -1679,6 +1681,12 @@ function wonExportScript() {
       control.hidden = !selected.length;
       if (!selected.length) control.open = false;
     });
+    updateWonDockSpacing();
+  }
+  function updateWonDockSpacing() {
+    var dock = document.querySelector("[data-won-mobile-selection-dock]");
+    var section = document.querySelector(".won-options-section");
+    if (dock && section) section.style.setProperty("--won-selection-height", dock.offsetHeight + "px");
   }
   var WON_UI_STORAGE_KEY = "calculator-won-quotes-ui-v1";
   function readWonUiState() {
@@ -2241,6 +2249,11 @@ function wonExportScript() {
     toggleSalespersonCard(target);
   }
   function handleWonKeydown(event) {
+    if (event.key === "Escape") {
+      var menu = document.querySelector("[data-won-mobile-actions][open]");
+      if (menu) { menu.open = false; menu.querySelector("summary").focus(); }
+      return;
+    }
     if (event.key !== "Enter" && event.key !== " ") return;
     var selectionControl = event.target && event.target.closest ? event.target.closest(".won-card-summary [data-won-select-toggle]") : null;
     if (selectionControl) {
@@ -2300,6 +2313,10 @@ function wonExportScript() {
   function handleWonSubmit(event) {
     var form = event.target;
     if (!form || !form.closest || !form.closest(".won-options-section")) return;
+    if (form.closest(".won-options-section").getAttribute("aria-busy") === "true") {
+      event.preventDefault();
+      return;
+    }
     if (form.hasAttribute("data-bulk-won-form")) {
       var selectedCards = selectedWonCards();
       if (!selectedCards.length) {
@@ -2369,6 +2386,12 @@ function wonExportScript() {
     });
   }
   window.__adminWonOptionsRuntime.refresh();
+  if (window.__adminWonDockObserver) window.__adminWonDockObserver.disconnect();
+  var selectionDock = document.querySelector("[data-won-mobile-selection-dock]");
+  if (selectionDock && typeof ResizeObserver === "function") {
+    window.__adminWonDockObserver = new ResizeObserver(updateWonDockSpacing);
+    window.__adminWonDockObserver.observe(selectionDock);
+  }
 })();
 `;
 }
@@ -4290,22 +4313,11 @@ async function bulkUpdateWonOptions(formData: FormData) {
   redirect(`/admin/users?message=${encodeURIComponent(`${updatedCount} won option${updatedCount === 1 ? "" : "s"} ${actionLabel}.${skipped}`)}`);
 }
 
-function WonBulkActionControls({ mobile = false }: { mobile?: boolean }) {
-  const className = mobile ? "won-bulk-actions won-mobile-bulk-actions" : "won-bulk-actions";
-  const deleteClassName = mobile
-    ? "delete-confirm bulk-delete-confirm won-mobile-delete-confirm"
-    : "delete-confirm bulk-delete-confirm";
-
+function WonBulkActionControls() {
   return (
     <>
-      <form action={bulkUpdateWonOptions} className={className} data-bulk-won-form>
+      <form action={bulkUpdateWonOptions} className="won-bulk-actions" data-bulk-won-form>
         <input type="hidden" name="selectedWonOptions" data-selected-won-input />
-        <button className="secondary" type="submit" name="bulkMode" value="update_rebate">
-          Update rebate
-        </button>
-        <button className="secondary" type="submit" name="bulkMode" value="payment_requested">
-          Record payment request
-        </button>
         <button className="secondary" type="submit" name="bulkMode" value="paid_in">
           Record payment received
         </button>
@@ -4313,10 +4325,20 @@ function WonBulkActionControls({ mobile = false }: { mobile?: boolean }) {
           Record commission paid
         </button>
       </form>
-      <details className={`${deleteClassName} won-secondary-actions`}>
+      <details className="delete-confirm bulk-delete-confirm won-secondary-actions" data-won-mobile-actions>
         <summary>More actions</summary>
+        <div className="won-selection-menu">
+        <div className="won-selected-totals" data-won-selected-totals hidden aria-live="polite" />
+        <button className="secondary" data-select-all-won type="button">Select all</button>
+        <button className="secondary" data-export-won-selected type="button">Export selected Excel</button>
         <form action={bulkUpdateWonOptions} className="won-secondary-action" data-bulk-won-form>
           <input type="hidden" name="selectedWonOptions" data-selected-won-input />
+          <button className="secondary" type="submit" name="bulkMode" value="payment_requested">
+            Record payment request
+          </button>
+          <button className="secondary" type="submit" name="bulkMode" value="update_rebate">
+            Update rebate
+          </button>
           <button className="secondary" type="submit" name="bulkMode" value="reset_payment">
             Reset payment status
           </button>
@@ -4334,6 +4356,7 @@ function WonBulkActionControls({ mobile = false }: { mobile?: boolean }) {
             Permanently delete
           </button>
         </form>
+        </div>
       </details>
     </>
   );
@@ -4975,23 +4998,6 @@ export default async function AdminUsersPage({
                 </a>
               </details>
             </div>
-            <div className="won-toolbar won-desktop-toolbar">
-              <div className="won-toolbar-controls">
-                <button className="secondary" type="button" data-select-all-won>
-                  Select All
-                </button>
-                <button className="secondary" data-won-clear-selection hidden type="button">
-                  Clear selection
-                </button>
-                <button className="orange" type="button" data-export-won-selected>
-                  Export selected Excel
-                </button>
-                <WonBulkActionControls />
-              </div>
-              <div className="won-selected-totals won-selected-totals-toolbar" data-won-selected-totals hidden aria-live="polite" />
-              <span className="won-export-status" data-won-export-status role="status" aria-live="polite" />
-            </div>
-
             <div className="won-filter-controls">
               <label className="won-filter-field won-search-field">
                 <span>Search Won Quotes</span>
@@ -5042,6 +5048,9 @@ export default async function AdminUsersPage({
               </div>
               <button className="secondary won-clear-filters" data-clear-won-filters type="button">
                 Clear filters
+              </button>
+              <button className="secondary won-clear-filters" data-select-all-won type="button">
+                Select all visible
               </button>
             </div>
 
@@ -5309,30 +5318,19 @@ export default async function AdminUsersPage({
             ))}
           {!wonOptions.length ? <div className="empty-card">No won quotes yet.</div> : null}
             </div>
-            <aside className="won-mobile-selection-dock" data-won-mobile-selection-dock hidden aria-label="Won Quote selection actions">
-              <div className="won-mobile-selection-main">
-                <div>
+            <aside className="won-toolbar won-selection-toolbar won-mobile-selection-dock" data-won-mobile-selection-dock hidden aria-label="Selected won jobs">
+              <div className="won-toolbar-controls">
+                <div className="won-selection-summary" aria-live="polite">
                   <strong data-won-selection-count>0 selected</strong>
                   <span data-won-selection-scope>0 quotes visible</span>
                 </div>
-                <button className="secondary" data-select-all-won type="button">
-                  Select all
+                <button className="secondary" data-won-clear-selection type="button">
+                  Clear selection
                 </button>
-                <details className="won-mobile-actions" data-won-mobile-actions hidden>
-                  <summary>Actions</summary>
-                  <div className="won-mobile-actions-panel">
-                    <div className="won-mobile-action-totals won-selected-totals" data-won-selected-totals hidden aria-live="polite" />
-                    <button className="secondary" data-won-clear-selection type="button">
-                      Clear selection
-                    </button>
-                    <button className="orange" data-export-won-selected type="button">
-                      Export selected Excel
-                    </button>
-                    <WonBulkActionControls mobile />
-                    <span className="won-export-status" data-won-export-status role="status" aria-live="polite" />
-                  </div>
-                </details>
+                <WonBulkActionControls />
               </div>
+              <div className="won-selected-totals won-selected-totals-toolbar" data-won-selected-totals hidden aria-live="polite" />
+              <span className="won-export-status" data-won-export-status role="status" aria-live="polite" />
             </aside>
           </div>
         </AdminPanel>
