@@ -69,7 +69,7 @@ assert.match(
 );
 assert.match(
   rawCalculatorRoute,
-  /setInterval\(refreshAuthoritativeCertificateValues, certificateRefreshIntervalMs\)/,
+  /setInterval\(function\(\)\{\s*if \(document.visibilityState === 'visible'\) refreshAuthoritativeCertificateValues\(\);\s*\}, certificateRefreshIntervalMs\)/,
   "open calculators must refresh authoritative certificate values",
 );
 assert.match(

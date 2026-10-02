@@ -96,10 +96,11 @@ const refreshEnd = raw.indexOf("  function stripCertificateRatesFromStoredEssVal
 let response = { dcceewContract: currentData, data: { certificate: "rates" } };
 const bridgeCalls = [];
 const bridge = {
-  certificateRefreshInFlight: false, calculatorSyncUrl: "/api/calculator-data",
+  certificateRefreshInFlight: false, calculatorSettingsUrl: "/api/calculator-data?mode=rebate-settings",
+  certificateRefreshTimeoutMs: 12000, setTimeout, clearTimeout, AbortController,
   window: { applyAuthoritativeDcceewContractData: (data) => bridgeCalls.push(["contract", data]) },
   fetch: async (url, options) => {
-    assert.equal(url, "/api/calculator-data");
+    assert.equal(url, "/api/calculator-data?mode=rebate-settings");
     assert.equal(options.cache, "no-store");
     return { ok: true, json: async () => response };
   },
@@ -189,7 +190,7 @@ pending[2]({ esc: 10, prc: 100 });
 await hiddenCalculation;
 assert.equal(displayed.length, 1, "hidden cancelled result must not repaint");
 assert.match(api, /dcceewContract:\s*\{\s*rate: DCCEEW_CONTRACT_RATE,\s*postcodes: DCCEEW_ELIGIBLE_POSTCODES,\s*productKeys: DCCEEW_ELIGIBLE_PRODUCT_KEYS/);
-assert.match(raw, /setInterval\(refreshAuthoritativeCertificateValues, certificateRefreshIntervalMs\)/);
+assert.match(raw, /setInterval\(function\(\)\{\s*if \(document.visibilityState === 'visible'\) refreshAuthoritativeCertificateValues\(\);\s*\}, certificateRefreshIntervalMs\)/);
 assert.match(raw, /addEventListener\('focus', refreshAuthoritativeCertificateValues\)/);
 assert.match(raw, /visibilityState === 'visible'\) refreshAuthoritativeCertificateValues/);
 assert.doesNotMatch(matcher, /location\.reload|localStorage|persistQuotes|persistOptionDefs/, "refresh must not reload, persist rules as user overrides or rewrite quotes");

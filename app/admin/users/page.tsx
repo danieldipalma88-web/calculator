@@ -28,6 +28,7 @@ import CertificateHistory from "./certificate-history";
 import DirectoryList from "./directory-list";
 import AdminWorkspace, { AdminPanel, AdminSaveStatus } from "./admin-workspace";
 import UserActivity from "./user-activity";
+import RemoveUserButton from "./remove-user-button";
 
 export const maxDuration = 60;
 
@@ -1012,18 +1013,6 @@ async function saveUserBusinessMemberships(
   );
 
   return insertResult.error ? schemaSetupMessage(insertResult.error) : "";
-}
-
-async function deleteApprovedUser(supabase: SupabaseServer, email: string) {
-  const rpcResult = await supabase.rpc("admin_delete_approved_user", {
-    target_email: email,
-  });
-
-  if (!rpcResult.error) return "";
-  if (!isSchemaCacheFunctionError(rpcResult.error)) return dbMessage(rpcResult.error);
-
-  const directResult = await supabase.from("approved_users").delete().eq("email", email);
-  return directResult.error ? schemaSetupMessage(directResult.error) : "";
 }
 
 async function saveApprovedUserLock(supabase: SupabaseServer, email: string, locked: boolean) {
@@ -3518,26 +3507,6 @@ async function updateApprovedUser(formData: FormData) {
   redirect(`/admin/users?message=${encodeURIComponent(`${displayName || email} was updated.`)}`);
 }
 
-async function removeApprovedUser(formData: FormData) {
-  "use server";
-
-  const { supabase, email: currentEmail } = await requireAdmin();
-  const email = normalizeEmail(formData.get("email"));
-
-  if (email === currentEmail) {
-    redirect("/admin/users?error=You cannot remove your own admin account.");
-  }
-
-  const errorMessage = await deleteApprovedUser(supabase, email);
-
-  if (errorMessage) {
-    redirect(`/admin/users?error=${encodeURIComponent(errorMessage)}`);
-  }
-
-  revalidatePath("/admin/users");
-  redirect(`/admin/users?message=${encodeURIComponent(`${email} was removed.`)}`);
-}
-
 async function setApprovedUserLock(formData: FormData) {
   "use server";
 
@@ -4736,7 +4705,6 @@ export default async function AdminUsersPage({
               <h2>Approved users</h2>
               <p>Salespeople can use the calculator without seeing hidden commission percentages.</p>
             </div>
-            <span className="section-count">{users.length} users</span>
           </div>
 
           <div className="admin-section-body">
@@ -4958,134 +4926,13 @@ export default async function AdminUsersPage({
                         </button>
                       <AdminSaveStatus />
                 </form>
-                      <form action={removeApprovedUser} data-loading-label="Removing approved user..." data-confirm-message={`Remove calculator access for ${approvedUser.email}?`}>
-                        <input type="hidden" name="email" value={approvedUser.email} />
-                        <button className="danger" type="submit" disabled={isSelf}>
-                          Remove
-                        </button>
-                      <AdminSaveStatus />
-                </form>
+                      <RemoveUserButton email={approvedUser.email} disabled={isSelf || isOwnerEmail(approvedUser.email)} />
                     </div>
                   </div>
                 </details>
               ) };
             })} />
 
-            <div className="table-wrap legacy-users-table">
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>Email</th>
-                  <th>Role</th>
-                  <th>Business</th>
-                  <th>Commission</th>
-                  <th>Rates</th>
-                  <th>Added</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((approvedUser) => {
-                  const isSelf = approvedUser.email.toLowerCase() === currentEmail;
-                  const commissionOverride = approvedUser.commission_type_override || "business_default";
-                  return (
-                    <tr key={approvedUser.email}>
-                      <td>
-                        <strong>{approvedUser.email}</strong>
-                        {isSelf ? <span className="self-pill">You</span> : null}
-                        <span className="muted-line">
-                          {approvedUser.business_name || "No business"} ·{" "}
-                          {commissionLabel(approvedUser.effective_commission_type)} ·{" "}
-                          {formatRate(approvedUser.effective_agency_commission_rate)}% primary /{" "}
-                          {formatRate(approvedUser.effective_salesperson_commission_rate)}% salesperson
-                        </span>
-                      </td>
-                      <td colSpan={4}>
-                        <form action={updateApprovedUser} className="inline-form wide-inline-form" data-loading-label="Saving approved user...">
-                          <input type="hidden" name="email" value={approvedUser.email} />
-                          {isSelf ? <input type="hidden" name="role" value={approvedUser.role} /> : null}
-                          <select name="role" defaultValue={approvedUser.role} disabled={isSelf}>
-                            {roleOptions.map((option) => (
-                              <option key={option.value} value={option.value}>
-                                {option.label}
-                              </option>
-                            ))}
-                          </select>
-                          <select name="businessId" defaultValue={approvedUser.business_id || ""}>
-                            <option value="">No business</option>
-                            {businesses.map((business) => (
-                              <option key={business.id} value={business.id}>
-                                {business.name}
-                              </option>
-                            ))}
-                          </select>
-                          <select name="commissionType" defaultValue={commissionOverride}>
-                            {commissionOptions.map((option) => (
-                              <option key={option.value} value={option.value}>
-                                {option.label}
-                              </option>
-                            ))}
-                          </select>
-                          <input
-                            aria-label="Agency or standard commission percentage"
-                            name="agencyCommissionRate"
-                            type="number"
-                            min="0"
-                            max="100"
-                            step="0.1"
-                            placeholder="Default"
-                            defaultValue={
-                              approvedUser.agency_commission_rate_override === null
-                                ? ""
-                                : formatRate(approvedUser.agency_commission_rate_override)
-                            }
-                          />
-                          <input
-                            aria-label="Salesperson commission percentage"
-                            name="salespersonCommissionRate"
-                            type="number"
-                            min="0"
-                            max="100"
-                            step="0.1"
-                            placeholder="Default"
-                            defaultValue={
-                              approvedUser.salesperson_commission_rate_override === null
-                                ? ""
-                                : formatRate(approvedUser.salesperson_commission_rate_override)
-                            }
-                          />
-                          <button className="secondary" type="submit" disabled={isSelf}>
-                            Save
-                          </button>
-                        <AdminSaveStatus />
-                </form>
-                      </td>
-                      <td>{new Date(approvedUser.created_at).toLocaleDateString("en-AU")}</td>
-                      <td>
-                        <div className="action-stack">
-                          <a className="button secondary" href={`/calculator?as=${encodeURIComponent(approvedUser.email)}`} data-loading-label="Opening user calculator...">
-                            Open
-                          </a>
-                          <form action={removeApprovedUser} data-loading-label="Removing approved user...">
-                            <input type="hidden" name="email" value={approvedUser.email} />
-                            <button className="danger" type="submit" disabled={isSelf}>
-                              Remove
-                            </button>
-                          <AdminSaveStatus />
-                </form>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {!users.length ? (
-                  <tr>
-                    <td colSpan={7}>No approved users found.</td>
-                  </tr>
-                ) : null}
-              </tbody>
-            </table>
-            </div>
 
             <div className="admin-help">
             <strong>Commission shown above:</strong> a user with Use business default inherits the

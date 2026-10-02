@@ -40,24 +40,22 @@ const BUSINESS_SHARED_STORAGE_KEYS = new Set([
   "DefaultCostRulesV1",
 ]);
 
+type ApprovedCalculatorUser = {
+  role?: string;
+  business_id?: string | null;
+  is_locked?: boolean;
+};
+
 async function currentApprovedUser(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   email: string,
 ) {
-  const upgraded = await supabase
+  const result = await supabase
     .from("approved_users")
     .select("role, business_id, is_locked")
     .eq("email", email)
     .maybeSingle();
-  if (!upgraded.error) {
-    return upgraded.data as { role?: string; business_id?: string | null; is_locked?: boolean } | null;
-  }
-  const { data } = await supabase
-    .from("approved_users")
-    .select("role, business_id")
-    .eq("email", email)
-    .maybeSingle();
-  return data as { role?: string; business_id?: string | null; is_locked?: boolean } | null;
+  return { data: result.data as ApprovedCalculatorUser | null, error: result.error };
 }
 
 function targetEmailFromRequest(request: Request, currentEmail: string, canManage: boolean) {
@@ -132,14 +130,14 @@ async function resolveBusinessId(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   viewingEmail: string,
   canManage: boolean,
+  approvedUser: ApprovedCalculatorUser,
 ) {
   const { searchParams } = new URL(request.url);
   const requestedBusinessId = String(searchParams.get("businessId") || "").trim();
   if (!requestedBusinessId) return null;
   if (canManage) return requestedBusinessId;
 
-  const approvedUser = await currentApprovedUser(supabase, viewingEmail);
-  const businessIds = await businessIdsForEmail(supabase, viewingEmail, approvedUser?.business_id);
+  const businessIds = await businessIdsForEmail(supabase, viewingEmail, approvedUser.business_id);
   return businessIds.includes(requestedBusinessId) ? requestedBusinessId : null;
 }
 
@@ -390,8 +388,15 @@ export async function GET(request: Request) {
   }
 
   const currentEmail = String(user.email || "").toLowerCase();
-  const approvedUser = await currentApprovedUser(supabase, currentEmail);
-  if (approvedUser?.is_locked) {
+  const approval = await currentApprovedUser(supabase, currentEmail);
+  if (approval.error) {
+    return NextResponse.json({ error: "Unable to verify account approval" }, { status: 503 });
+  }
+  const approvedUser = approval.data;
+  if (!approvedUser) {
+    return NextResponse.json({ error: "Account not approved" }, { status: 403 });
+  }
+  if (approvedUser.is_locked) {
     return NextResponse.json({ error: "Account locked" }, { status: 403 });
   }
   const canManage = canManageUsers(currentEmail, approvedUser?.role);
@@ -400,43 +405,51 @@ export async function GET(request: Request) {
     currentEmail,
     canManage,
   );
-  const businessId = await resolveBusinessId(request, supabase, viewingEmail, canManage);
-  const byEmail = await supabase
-    .from("user_calculator_data")
-    .select("data")
-    .eq("email", viewingEmail)
-    .maybeSingle();
-
-  if (byEmail.error) {
-    return NextResponse.json({ error: byEmail.error.message }, { status: 500 });
-  }
-
-  let userData: Record<string, unknown> = (byEmail.data?.data || {}) as Record<string, unknown>;
-
-  if (viewingEmail === currentEmail) {
-    const { data, error } = await supabase
+  const businessId = await resolveBusinessId(request, supabase, viewingEmail, canManage, approvedUser);
+  const settingsOnly = new URL(request.url).searchParams.get("mode") === "rebate-settings";
+  let userData: Record<string, unknown> = {};
+  if (!settingsOnly) {
+    const byEmail = await supabase
       .from("user_calculator_data")
       .select("data")
-      .eq("user_id", user.id)
+      .eq("email", viewingEmail)
       .maybeSingle();
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    if (byEmail.error) {
+      return NextResponse.json({ error: byEmail.error.message }, { status: 500 });
     }
 
-    if (!byEmail.data?.data) userData = (data?.data || {}) as Record<string, unknown>;
+    userData = (byEmail.data?.data || {}) as Record<string, unknown>;
+
+    if (viewingEmail === currentEmail) {
+      const { data, error } = await supabase
+        .from("user_calculator_data")
+        .select("data")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+
+      if (!byEmail.data?.data) userData = (data?.data || {}) as Record<string, unknown>;
+    }
   }
 
   let businessData: Record<string, unknown> = {};
   if (businessId) {
     const businessResult = await supabase
       .from("business_calculator_data")
-      .select("data")
+      // JSON projections retain business fee context without loading prices or quotes.
+      .select(settingsOnly
+        ? CERTIFICATE_VALUES_STORAGE_KEYS.map((key) => `${key}:data->${key}`).join(",")
+        : "data")
       .eq("business_id", businessId)
       .maybeSingle();
 
     if (!businessResult.error) {
-      businessData = (businessResult.data?.data || {}) as Record<string, unknown>;
+      const row = businessResult.data as unknown as Record<string, unknown> | null;
+      businessData = (settingsOnly ? row || {} : row?.data || {}) as Record<string, unknown>;
     }
   }
 
@@ -454,6 +467,13 @@ export async function GET(request: Request) {
     businessData,
     platformValues,
   );
+  const settingsData: Record<string, unknown> = {};
+  if (settingsOnly) {
+    for (const key of CERTIFICATE_VALUES_STORAGE_KEYS) {
+      // Missing JSON properties are returned as null by the projection.
+      if (authoritativeBusinessData[key] != null) settingsData[key] = authoritativeBusinessData[key];
+    }
+  }
 
   return NextResponse.json(
     {
@@ -462,7 +482,7 @@ export async function GET(request: Request) {
         postcodes: DCCEEW_ELIGIBLE_POSTCODES,
         productKeys: DCCEEW_ELIGIBLE_PRODUCT_KEYS,
       },
-      data: {
+      data: settingsOnly ? settingsData : {
         ...stripCertificateValueKeys(userData),
         ...authoritativeBusinessData,
       },
@@ -485,11 +505,16 @@ async function saveCalculatorData(request: Request) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
 
-  const body = await request.json().catch(() => null);
-  const rawCalculatorData = body && typeof body.data === "object" ? body.data : {};
   const currentEmail = String(user.email || "").toLowerCase();
-  const approvedUser = await currentApprovedUser(supabase, currentEmail);
-  if (approvedUser?.is_locked) {
+  const approval = await currentApprovedUser(supabase, currentEmail);
+  if (approval.error) {
+    return NextResponse.json({ error: "Unable to verify account approval" }, { status: 503 });
+  }
+  const approvedUser = approval.data;
+  if (!approvedUser) {
+    return NextResponse.json({ error: "Account not approved" }, { status: 403 });
+  }
+  if (approvedUser.is_locked) {
     return NextResponse.json({ error: "Account locked" }, { status: 403 });
   }
   const canManage = canManageUsers(currentEmail, approvedUser?.role);
@@ -498,7 +523,9 @@ async function saveCalculatorData(request: Request) {
     currentEmail,
     canManage,
   );
-  const businessId = await resolveBusinessId(request, supabase, viewingEmail, canManage);
+  const businessId = await resolveBusinessId(request, supabase, viewingEmail, canManage, approvedUser);
+  const body = await request.json().catch(() => null);
+  const rawCalculatorData = body && typeof body.data === "object" ? body.data : {};
   const canEditManagedRebates = isOwnerEmail(viewingEmail);
   const calculatorData = sanitizeIncomingCalculatorData(
     rawCalculatorData,

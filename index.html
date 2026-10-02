@@ -6724,7 +6724,7 @@ async function fetchJson(url,options){
       try{body=await resp.text();}catch(e){}
       throw new Error(`HTTP ${resp.status}${body?` - ${body}`:''}`);
     }
-    return resp.json();
+    return await resp.json();
   }catch(e){
     if(controller&&controller.signal.aborted) throw new Error('Live rebate service timed out. Please try again.');
     throw e;
@@ -7026,12 +7026,22 @@ function certificatePayload(baseBuilding,fields,postcode){
   fields.forEach(field=>{building[field]={[ESS_CALC_DATE]:null};});
   return {buildings:{building_1:building},persons:{person1:{}}};
 }
+const pendingCertificateCalculations=new Map();
 async function fetchCertificateCalculation(baseBuilding,fields,postcode){
-  return fetchJson(ESS_CALCULATE_API,{
+  const body=JSON.stringify(certificatePayload(baseBuilding,fields,postcode));
+  const key=ESS_CALCULATE_API+'|'+body;
+  if(pendingCertificateCalculations.has(key)) return pendingCertificateCalculations.get(key);
+  const request=fetchJson(ESS_CALCULATE_API,{
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify(certificatePayload(baseBuilding,fields,postcode))
+    body
   });
+  pendingCertificateCalculations.set(key,request);
+  try{
+    return await request;
+  }finally{
+    if(pendingCertificateCalculations.get(key)===request) pendingCertificateCalculations.delete(key);
+  }
 }
 function certificateBuilding(resp){return ((resp||{}).buildings||{}).building_1||{};}
 function certificateFieldNumber(building,field){
@@ -7133,9 +7143,11 @@ async function calculateCertificatesForModel(meta,climate,options){
 }
 async function estimateLiveEssRebate(localBrand,localModel,context,climatePromise){
   const calculationContext=context||{systemType,installType};
-  const resolved=await resolveModelMetadataForRebate(localBrand,localModel);
+  const [resolved,climate]=await Promise.all([
+    resolveModelMetadataForRebate(localBrand,localModel),
+    climatePromise||getClimateContext()
+  ]);
   const meta=resolved.meta;
-  const climate=await (climatePromise||getClimateContext());
   const airConditionerType=calculationContext.airConditionerType||normalizeAirConditionerType(HVAC_AIR_CONDITIONER_TYPES[calculationContext.systemType]||HVAC_AIR_CONDITIONER_TYPES.split);
   const certs=await calculateCertificatesForModel(meta,climate,{airConditionerType,installType:calculationContext.installType});
   const escRate=calculationContext.escRate??getEssEscRate(), prcRate=calculationContext.prcRate??getEssPrcRate();
@@ -11130,7 +11142,12 @@ function markRecommendedOption(id){
 }
 function optionGroups(){
   ensureOptionDefs();
-  return quoteOptionDefs.map((o,idx)=>({def:o,number:idx+1,rows:quotes.map((q,i)=>({...q,_index:i})).filter(q=>q.optionId===o.id)}));
+  const rowsByOption=new Map();
+  quotes.forEach((q,i)=>{
+    if(!rowsByOption.has(q.optionId)) rowsByOption.set(q.optionId,[]);
+    rowsByOption.get(q.optionId).push({...q,_index:i});
+  });
+  return quoteOptionDefs.map((o,idx)=>({def:o,number:idx+1,rows:rowsByOption.get(o.id)||[]}));
 }
 function groupTotals(rows){
   const sum=(fn)=>rows.reduce((a,r)=>a+(Number(fn(r))||0),0);

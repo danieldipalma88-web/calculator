@@ -402,6 +402,7 @@ function injectCloudStorageSync(
   var cloudData = ${safeScriptJson(sanitizedData)};
   var calculatorUser = ${safeScriptJson(userContext)};
   var calculatorSyncUrl = ${safeScriptJson(syncUrl)};
+  var calculatorSettingsUrl = calculatorSyncUrl + (calculatorSyncUrl.indexOf('?') >= 0 ? '&' : '?') + 'mode=rebate-settings';
   var profileStorageKey = '__calculatorProfileEmail';
   var profileEmail = ((calculatorUser && (calculatorUser.viewingEmail || calculatorUser.email)) || '') + '|' + ((calculatorUser && calculatorUser.businessId) || '');
   var trustedManagedPriceKeys = {};
@@ -417,6 +418,7 @@ function injectCloudStorageSync(
   var saveRequestTimeoutMs = 12000;
   var certificateRefreshInFlight = false;
   var certificateRefreshIntervalMs = 60000;
+  var certificateRefreshTimeoutMs = 12000;
   var certificateValueKeys = ['installerCertificateValuesV1', 'greenEnergyCertificateValuesV1', 'CertificateValuesV1'];
   var lastActivityAttemptAt = null;
   function recordVisibleUserInteraction(event){
@@ -520,15 +522,27 @@ function injectCloudStorageSync(
   }
   function refreshAuthoritativeCertificateValues(){
     if (certificateRefreshInFlight) return;
+    var controller = typeof AbortController === 'function' ? new AbortController() : null;
     certificateRefreshInFlight = true;
-    fetch(calculatorSyncUrl, {
-      method: 'GET',
-      headers: {'Accept': 'application/json'},
-      cache: 'no-store'
+    var timeoutId;
+    var deadline = new Promise(function(resolve, reject){
+      timeoutId = setTimeout(function(){
+        if (controller) controller.abort();
+        reject(new Error('Certificate value refresh timed out'));
+      }, certificateRefreshTimeoutMs);
+    });
+    var request = Promise.resolve().then(function(){
+      return fetch(calculatorSettingsUrl, {
+        method: 'GET',
+        headers: {'Accept': 'application/json'},
+        cache: 'no-store',
+        signal: controller ? controller.signal : undefined
+      });
     }).then(function(response){
       if (!response.ok) throw new Error('Certificate value refresh failed');
       return response.json();
-    }).then(function(result){
+    });
+    return Promise.race([request, deadline]).then(function(result){
       var certificateValue = authoritativeCertificateValue(result && result.data);
       if (typeof window.applyAuthoritativeRebateSettings === 'function') {
         window.applyAuthoritativeRebateSettings(result && result.dcceewContract, certificateValue && certificateValue.value);
@@ -538,6 +552,7 @@ function injectCloudStorageSync(
       if (certificateValue) setCloudValue(certificateValue.key, certificateValue.value);
     }).catch(function(){
     }).finally(function(){
+      clearTimeout(timeoutId);
       certificateRefreshInFlight = false;
     });
   }
@@ -850,7 +865,9 @@ function injectCloudStorageSync(
     document.addEventListener('input', function(){ scheduleSync(); }, true);
     document.addEventListener('change', function(){ scheduleSync(); }, true);
     setInterval(function(){ writeSnapshot(false); }, 5000);
-    setInterval(refreshAuthoritativeCertificateValues, certificateRefreshIntervalMs);
+    setInterval(function(){
+      if (document.visibilityState === 'visible') refreshAuthoritativeCertificateValues();
+    }, certificateRefreshIntervalMs);
     setTimeout(refreshAuthoritativeCertificateValues, 2000);
     window.addEventListener('focus', refreshAuthoritativeCertificateValues);
     document.addEventListener('visibilitychange', function(){
