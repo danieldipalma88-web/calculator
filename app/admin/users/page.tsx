@@ -29,6 +29,8 @@ import DirectoryList from "./directory-list";
 import AdminWorkspace, { AdminPanel, AdminSaveStatus } from "./admin-workspace";
 import UserActivity from "./user-activity";
 import RemoveUserButton from "./remove-user-button";
+import PaymentFollowUpNotice from "./payment-follow-up-notice";
+import { sydneyToday } from "../../../lib/payment-follow-up";
 
 export const maxDuration = 60;
 
@@ -2310,6 +2312,32 @@ function wonExportScript() {
     }
     if (event.target.matches(".won-card")) rememberWonUiState(false);
   }
+  function reviewWonJob(event) {
+    var section = document.querySelector(".won-options-section");
+    if (!section || section.getAttribute("aria-busy") === "true") {
+      event.preventDefault();
+      return;
+    }
+    var card = Array.prototype.slice.call(section.querySelectorAll(".won-card")).find(function(item){
+      return item.getAttribute("data-won-card-key") === event.detail.key;
+    });
+    if (!card) { event.preventDefault(); return; }
+    var tab = document.getElementById("admin-tab-jobs");
+    if (tab) tab.click();
+    var search = document.querySelector("[data-won-search]");
+    if (search) search.value = "";
+    setActiveSalespersonEmails([]);
+    setActivePaymentFilters(["all"]);
+    applyWonSalespersonFilter();
+    card.open = true;
+    card.setAttribute("tabindex", "-1");
+    event.detail.opened = true;
+    window.requestAnimationFrame(function(){
+      card.focus({ preventScroll: true });
+      card.scrollIntoView({ block: "start", behavior: "instant" });
+      rememberWonUiState(false);
+    });
+  }
   function handleWonSubmit(event) {
     var form = event.target;
     if (!form || !form.closest || !form.closest(".won-options-section")) return;
@@ -2353,6 +2381,7 @@ function wonExportScript() {
     change: handleWonChange,
     input: handleWonInput,
     toggle: handleWonToggle,
+    review: reviewWonJob,
     submit: handleWonSubmit,
     refresh: function(){
       clearWonActionLoading();
@@ -2363,6 +2392,9 @@ function wonExportScript() {
   };
   if (!window.__adminWonOptionsHandlersBound) {
     window.__adminWonOptionsHandlersBound = true;
+    document.addEventListener("admin:review-won-job", function(event){
+      if (window.__adminWonOptionsRuntime) window.__adminWonOptionsRuntime.review(event);
+    });
     document.addEventListener("click", function(event){
       if (window.__adminWonOptionsRuntime) window.__adminWonOptionsRuntime.selectionClick(event);
     }, true);
@@ -2724,6 +2756,10 @@ function paymentStatusPriority(option: WonOption) {
 }
 
 function preferDuplicateWonOption(existing: WonOption, next: WonOption) {
+  // Recovery must not replace a live job with a historical payment state.
+  if (existing.recoveredFromBackup !== next.recoveredFromBackup) {
+    return existing.recoveredFromBackup ? next : existing;
+  }
   const existingOwnerMatches = existing.dataOwnerEmail.toLowerCase() === existing.userEmail.toLowerCase();
   const nextOwnerMatches = next.dataOwnerEmail.toLowerCase() === next.userEmail.toLowerCase();
   if (existingOwnerMatches !== nextOwnerMatches) return nextOwnerMatches ? next : existing;
@@ -4427,6 +4463,20 @@ export default async function AdminUsersPage({
             Calculator
           </a>
         </div>
+
+        {isOwnerEmail(currentEmail) ? <PaymentFollowUpNotice
+          initialToday={sydneyToday()}
+          unavailable={Boolean(wonResult.errorMessage)}
+          jobs={wonOptions.filter((option) => !option.recoveredFromBackup).map((option) => ({
+            key: wonOptionDomKey(option), name: option.optionName,
+            salesperson: option.userName, business: option.businessName,
+            proposedInstallationDate: option.proposedInstallationDate,
+            paymentRequestedAt: option.paymentRequestedAt,
+            paidInAt: option.paidInAt, paidOutAt: option.paidOutAt,
+            agencyCommissionTotal: option.agencyCommissionTotal,
+            salespersonCommissionTotal: option.salespersonCommissionTotal,
+          }))}
+        /> : null}
 
         {params?.message ? <div className="notice success">{params.message}</div> : null}
         {params?.error ? <div className="notice">{params.error}</div> : null}

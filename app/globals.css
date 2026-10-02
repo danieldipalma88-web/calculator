@@ -3732,6 +3732,37 @@ select {
 }
 
 /* Keep selected-job actions within reach without covering the final job. */
+.payment-follow-up-notice {
+  margin: 20px 0;
+  padding: 16px;
+  border-block: 1px solid #edc96e;
+  border-left: 4px solid #bd7100;
+  background: #fff9e9;
+  color: #402d10;
+}
+.payment-follow-up-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.payment-follow-up-heading > div { min-width: 0; }
+.payment-follow-up-eyebrow { font-size: 12px; font-weight: 700; color: #805006; }
+.payment-follow-up-notice h2 { margin: 4px 0; font-size: 19px; line-height: 1.4; }
+.payment-follow-up-notice p { margin: 4px 0 0; font-size: 13px; line-height: 1.5; color: #695539; }
+.payment-follow-up-notice button { flex-shrink: 0; min-height: 44px; border-radius: 6px; font-size: 13px; }
+.payment-follow-up-notice .payment-follow-up-toggle { background: #805006; color: #fff; }
+.payment-follow-up-notice button:focus-visible { outline: 3px solid #0f766e; outline-offset: 3px; }
+.payment-follow-up-notice .payment-follow-up-note { margin-top: 16px; }
+.payment-follow-up-list { list-style: none; margin: 12px 0 0; padding: 0; max-height: 440px; overflow-y: auto; overscroll-behavior-y: contain; }
+.payment-follow-up-list li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(140px, auto) auto; align-items: center; gap: 12px; padding: 14px 4px; border-top: 1px solid #e8d8b5; }
+.payment-follow-up-job, .payment-follow-up-action { display: grid; gap: 4px; min-width: 0; overflow-wrap: anywhere; }
+.payment-follow-up-list strong { font-size: 14px; }
+.payment-follow-up-job span, .payment-follow-up-job small { color: #695539; font-size: 12px; line-height: 1.5; }
+.payment-follow-up-action span { font-size: 14px; font-variant-numeric: tabular-nums; }
+.won-card:focus { outline: 3px solid #0f766e; outline-offset: 3px; scroll-margin-block: 16px; }
+@media (max-width: 600px) {
+  .payment-follow-up-notice { padding: 12px; }
+  .payment-follow-up-heading { flex-wrap: wrap; gap: 10px; }
+  .payment-follow-up-list { max-height: min(55dvh, 440px); }
+  .payment-follow-up-list li { grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }
+  .payment-follow-up-job { grid-column: 1 / -1; }
+}
 .won-selection-toolbar[hidden] { display: none !important; }
 .won-selection-toolbar:not([hidden]) {
   position: fixed;
