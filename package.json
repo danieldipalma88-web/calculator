@@ -20,6 +20,7 @@
     "verify:won-payment-admin": "node scripts/verify-won-payment-admin-ux.mjs",
     "verify:payment-follow-up": "node scripts/verify-payment-follow-up.mjs",
     "verify:auth": "node scripts/verify-email-code-login.mjs",
+    "verify:google-address": "node scripts/verify-google-address.mjs",
     "verify:guidance": "node scripts/verify-calculator-guidance-and-model-requests.mjs",
     "verify:price-updates": "node scripts/verify-business-price-update-tool.mjs",
     "verify:daikin-catalogue": "node scripts/verify-daikin-business-catalogue.mjs && node scripts/verify-daikin-zena-catalogue.mjs",

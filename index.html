@@ -10443,6 +10443,7 @@ let wonSaveInProgress=false;
 let wonAddressAutocomplete=null;
 let wonAddressSearchTimer=null;
 let wonAddressSearchController=null;
+let wonAddressDetailsController=null;
 let wonAddressSearchSequence=0;
 let wonAddressSessionToken='';
 let wonAddressBusy=false;
@@ -10478,19 +10479,41 @@ function clearWonAddressSuggestions(){
   if(input) input.setAttribute('aria-expanded','false');
 }
 async function googleAddressRequest(payload,signal){
-  const response=await fetch('/api/google-address',{
-    method:'POST',
-    credentials:'same-origin',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify(payload),
-    signal
-  });
-  const result=await response.json().catch(()=>({}));
-  if(!response.ok) throw new Error(result&&result.error?result.error:'Google address search is temporarily unavailable. Please try again.');
-  return result;
+  const controller=new AbortController();
+  let timedOut=false;
+  const cancel=()=>controller.abort();
+  if(signal){
+    if(signal.aborted) cancel();
+    else signal.addEventListener('abort',cancel,{once:true});
+  }
+  const timeout=setTimeout(()=>{timedOut=true;controller.abort();},12000);
+  try{
+    const response=await fetch('/api/google-address',{
+      method:'POST',
+      credentials:'same-origin',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload),
+      signal:controller.signal
+    });
+    const result=await response.json();
+    if(!response.ok) throw new Error(result&&result.error?result.error:'Google address search is temporarily unavailable. Please try again.');
+    return result;
+  }catch(error){
+    if(timedOut) throw new Error('Google address search took too long. Please try again.');
+    throw error;
+  }finally{
+    clearTimeout(timeout);
+    if(signal) signal.removeEventListener('abort',cancel);
+  }
 }
 async function selectWonAddressSuggestion(suggestion){
   if(!suggestion||!suggestion.placeId||!pendingWonOptionId) return;
+  if(wonAddressSearchTimer) clearTimeout(wonAddressSearchTimer);
+  if(wonAddressSearchController) wonAddressSearchController.abort();
+  if(wonAddressDetailsController) wonAddressDetailsController.abort();
+  const sequence=++wonAddressSearchSequence;
+  const controller=new AbortController();
+  wonAddressDetailsController=controller;
   const optionId=pendingWonOptionId;
   const input=$('wonAddressInput');
   if(input) input.value=String(suggestion.text||'');
@@ -10503,8 +10526,8 @@ async function selectWonAddressSuggestion(suggestion){
       action:'details',
       placeId:suggestion.placeId,
       sessionToken:wonAddressSessionToken
-    });
-    if(!pendingWonOptionId||pendingWonOptionId!==optionId) return;
+    },controller.signal);
+    if(sequence!==wonAddressSearchSequence||!pendingWonOptionId||pendingWonOptionId!==optionId) return;
     const place=result&&result.place;
     const formattedAddress=String(place&&place.formattedAddress||'').trim();
     const placeId=String(place&&place.placeId||'').trim();
@@ -10519,12 +10542,15 @@ async function selectWonAddressSuggestion(suggestion){
     setWonAddressStatus(formattedAddress,'success');
     updateWonDetailsSubmitState();
   }catch(error){
-    if(!pendingWonOptionId||pendingWonOptionId!==optionId) return;
+    if(sequence!==wonAddressSearchSequence||!pendingWonOptionId||pendingWonOptionId!==optionId) return;
     selectedWonGooglePlace=null;
     setWonAddressStatus(error&&error.message?error.message:'Select a valid Google address.','error');
     updateWonDetailsSubmitState();
   }finally{
-    if(pendingWonOptionId===optionId) setWonAddressBusy(false);
+    if(sequence===wonAddressSearchSequence&&pendingWonOptionId===optionId){
+      wonAddressDetailsController=null;
+      setWonAddressBusy(false);
+    }
   }
 }
 function renderWonAddressSuggestions(suggestions){
@@ -10555,6 +10581,8 @@ function searchWonAddresses(value){
   setWonAddressBusy(false);
   if(wonAddressSearchTimer) clearTimeout(wonAddressSearchTimer);
   if(wonAddressSearchController) wonAddressSearchController.abort();
+  if(wonAddressDetailsController) wonAddressDetailsController.abort();
+  wonAddressDetailsController=null;
   if(selectedWonGooglePlace) wonAddressSessionToken=newWonAddressSessionToken();
   const input=String(value||'').trim();
   const sequence=++wonAddressSearchSequence;
@@ -10591,6 +10619,10 @@ function searchWonAddresses(value){
 function mountWonAddressAutocomplete(){
   const container=$('wonAddressLookup');
   if(!container) return;
+  if(wonAddressSearchTimer) clearTimeout(wonAddressSearchTimer);
+  if(wonAddressSearchController) wonAddressSearchController.abort();
+  if(wonAddressDetailsController) wonAddressDetailsController.abort();
+  wonAddressSearchSequence++;
   wonAddressSessionToken=newWonAddressSessionToken();
   setWonAddressBusy(false);
   container.innerHTML='<input id="wonAddressInput" class="wonAddressInput" type="search" autocomplete="off" spellcheck="false" aria-label="Installation address" aria-autocomplete="list" aria-controls="wonAddressSuggestions" aria-expanded="false" placeholder="Start typing an Australian address"><div id="wonAddressSuggestions" class="wonAddressSuggestions" role="listbox" aria-label="Google address suggestions" hidden></div>';
@@ -10636,8 +10668,10 @@ function closeWonDetailsModal(force){
   if(modal) modal.classList.remove('open');
   if(wonAddressSearchTimer) clearTimeout(wonAddressSearchTimer);
   if(wonAddressSearchController) wonAddressSearchController.abort();
+  if(wonAddressDetailsController) wonAddressDetailsController.abort();
   wonAddressSearchTimer=null;
   wonAddressSearchController=null;
+  wonAddressDetailsController=null;
   wonAddressSearchSequence++;
   wonAddressSessionToken='';
   pendingWonOptionId='';

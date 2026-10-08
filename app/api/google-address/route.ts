@@ -3,6 +3,12 @@ import { isOwnerEmail } from "../../../lib/admin";
 import { publicSiteUrl } from "../../../lib/supabase/config";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
 
+type GoogleError = {
+  status?: string;
+  message?: string;
+  details?: Array<{ reason?: string }>;
+};
+
 type GoogleAutocompleteResponse = {
   suggestions?: Array<{
     placePrediction?: {
@@ -10,14 +16,14 @@ type GoogleAutocompleteResponse = {
       text?: { text?: string };
     };
   }>;
-  error?: { status?: string; message?: string };
+  error?: GoogleError;
 };
 
 type GooglePlaceDetailsResponse = {
   id?: string;
   formattedAddress?: string;
   location?: { latitude?: number; longitude?: number };
-  error?: { status?: string; message?: string };
+  error?: GoogleError;
 };
 
 function noStoreJson(body: unknown, status = 200) {
@@ -28,15 +34,15 @@ function noStoreJson(body: unknown, status = 200) {
 }
 
 function googleHeaders(fieldMask: string) {
-  const key = String(process.env.GOOGLE_MAPS_BROWSER_KEY || "").trim();
+  const serverKey = String(process.env.GOOGLE_PLACES_SERVER_KEY || "").trim();
+  const key = serverKey || String(process.env.GOOGLE_MAPS_BROWSER_KEY || "").trim();
   if (!key) return null;
   const origin = new URL(publicSiteUrl).origin;
   return {
     "Content-Type": "application/json",
     "X-Goog-Api-Key": key,
     "X-Goog-FieldMask": fieldMask,
-    Origin: origin,
-    Referer: `${origin}/`,
+    ...(serverKey ? {} : { Origin: origin, Referer: `${origin}/` }),
   };
 }
 
@@ -64,17 +70,46 @@ async function approvedEmail() {
   return { status: 200 as const, email };
 }
 
-function googleFailure(action: string, status: number, error?: { status?: string; message?: string }) {
+function googleFailure(action: string, status: number, error?: GoogleError) {
+  const reason = error?.details?.find((detail) => detail.reason)?.reason || "unknown";
   console.error("[google-address] Google Places request failed", {
     action,
     status,
     googleStatus: error?.status || "unknown",
-    message: error?.message || "No error message returned",
+    reason,
+    message: (error?.message || "No error message returned").replace(/AIza[\w-]+/g, "[redacted]"),
   });
+  if (status === 401 || status === 403) {
+    return noStoreJson(
+      { error: "Google address search is unavailable due to a service configuration issue. Please contact support." },
+      503,
+    );
+  }
   return noStoreJson(
     { error: "Google address search is temporarily unavailable. Please try again." },
     502,
   );
+}
+
+async function googleRequest<T extends { error?: GoogleError }>(action: string, url: string, init: RequestInit) {
+  try {
+    const response = await fetch(url, {
+      ...init,
+      cache: "no-store",
+      signal: AbortSignal.timeout(8000),
+    });
+    const result = (await response.json()) as T;
+    return response.ok ? { result } : { failure: googleFailure(action, response.status, result.error) };
+  } catch (error) {
+    const timedOut = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
+    console.error("[google-address] Google Places request did not complete", { action, timedOut });
+    return {
+      failure: noStoreJson(
+        { error: timedOut ? "Google address search took too long. Please try again." : "Google address search could not connect. Please try again." },
+        timedOut ? 504 : 502,
+      ),
+    };
+  }
 }
 
 export async function POST(request: Request) {
@@ -95,7 +130,7 @@ export async function POST(request: Request) {
     const input = String(body?.input || "").trim().slice(0, 180);
     if (input.length < 3) return noStoreJson({ suggestions: [] });
 
-    const response = await fetch("https://places.googleapis.com/v1/places:autocomplete", {
+    const lookup = await googleRequest<GoogleAutocompleteResponse>(action, "https://places.googleapis.com/v1/places:autocomplete", {
       method: "POST",
       headers,
       body: JSON.stringify({
@@ -105,10 +140,9 @@ export async function POST(request: Request) {
         regionCode: "au",
         ...(sessionToken ? { sessionToken } : {}),
       }),
-      cache: "no-store",
     });
-    const result = (await response.json().catch(() => ({}))) as GoogleAutocompleteResponse;
-    if (!response.ok) return googleFailure(action, response.status, result.error);
+    if (lookup.failure) return lookup.failure;
+    const result = lookup.result;
 
     const suggestions = (result.suggestions || [])
       .map((suggestion) => ({
@@ -126,12 +160,12 @@ export async function POST(request: Request) {
     const detailHeaders = googleHeaders("id,formattedAddress,location");
     if (!detailHeaders) return noStoreJson({ error: "Google address search is not configured." }, 503);
     const query = sessionToken ? `?sessionToken=${encodeURIComponent(sessionToken)}` : "";
-    const response = await fetch(
+    const lookup = await googleRequest<GooglePlaceDetailsResponse>(action,
       `https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}${query}`,
-      { headers: detailHeaders, cache: "no-store" },
+      { headers: detailHeaders },
     );
-    const result = (await response.json().catch(() => ({}))) as GooglePlaceDetailsResponse;
-    if (!response.ok) return googleFailure(action, response.status, result.error);
+    if (lookup.failure) return lookup.failure;
+    const result = lookup.result;
 
     const formattedAddress = String(result.formattedAddress || "").trim();
     const verifiedPlaceId = String(result.id || "").trim();
