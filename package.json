@@ -28,6 +28,7 @@
     "verify:actron-catalogue": "node scripts/verify-actron-catalogue.mjs",
     "verify:gree-catalogue": "node scripts/verify-gree-catalogue.mjs",
     "verify:kaden-catalogue": "node scripts/verify-kaden-catalogue.mjs",
+    "verify:hitachi-catalogue": "node --experimental-strip-types scripts/verify-hitachi-catalogue.mjs",
     "verify:mitsubishi-electric-ducted-catalogue": "node scripts/verify-mitsubishi-electric-ducted-catalogue.mjs",
     "verify:public-rebate-catalogue": "node --experimental-strip-types scripts/verify-public-rebate-catalogue.mjs",
     "verify:all-models": "node --experimental-strip-types scripts/verify-all-models-lookup.mjs && node scripts/verify-all-models-multi-head.mjs",
