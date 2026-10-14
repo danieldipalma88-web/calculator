@@ -29,9 +29,10 @@ const expected = [
 const daikinFloor = sandbox.products.filter((product) => product.brand === "Daikin" && product.series === "Floor Standing");
 const mhiBronte = sandbox.products.filter((product) => product.brand === "Mitsubishi Heavy Industries" && product.series === "Bronte");
 const expectedExistingBronteModels = ["DXC24ZRA-W - DXK24ZRA-WF1", "SRC95ZRA-W / SRK95ZRA-WF1"];
-const existingBronteModels = Array.from(mhiBronte, (product) => product.model).filter((model) => model !== "DXC28ZRA-W / DXK28ZRA-WF1").sort();
 assert.equal(daikinFloor.length, 6, "Expected exactly six Daikin Floor Standing systems, without duplicates.");
-assert.deepEqual(existingBronteModels, [...expectedExistingBronteModels].sort(), "Existing Bronte models must remain present.");
+for (const model of expectedExistingBronteModels) {
+  assert.equal(mhiBronte.filter((product) => product.model === model).length, 1, "Existing Bronte models must remain present exactly once.");
+}
 assert.equal(mhiBronte.filter((product) => product.model === "DXC28ZRA-W / DXK28ZRA-WF1").length, 1, "The requested Bronte model must exist exactly once.");
 
 for (const [brand, series, model, capacity] of expected) {

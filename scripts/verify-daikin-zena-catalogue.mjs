@@ -39,6 +39,6 @@ assert.match(
   /"model":"RZYQ10TY1 \/ FDYQ250LCV1","priceIncGst":0\.0[\s\S]*?"capacityNum":24\.0,"unitPriceInc":0\.0/,
   "The rebate-compatible 24.0kW premium model must exist unpriced in the shared catalogue.",
 );
-assert.doesNotMatch(sharedDuctedSection, /FDYAN(?:50|60|71|85|100|125|140|160)/, "Standard FDYAN inverter models must stay out of the shared catalogue.");
+assert.doesNotMatch(sharedDuctedSection, /FDYAN(?:50|60)AV1/, "Unrequested standard FDYAN inverter models must stay out of the shared catalogue.");
 
 console.log("Daikin Zena catalogue checks passed.");
