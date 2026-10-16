@@ -137,14 +137,10 @@ export async function GET(request: NextRequest) {
         limit: 10_000,
         revalidateSeconds: 86_400,
       });
-      const brands = [
-        ...new Set(
-          records
-            .filter(isEligibleAustralianGemsRecord)
-            .map((record) => cleanGemsBrand(String(record.Brand || "")))
-            .filter(Boolean),
-        ),
-      ].sort((a, b) => a.localeCompare(b));
+      const values = records.filter(isEligibleAustralianGemsRecord)
+        .map((record) => cleanGemsBrand(String(record.Brand || ""))).filter(Boolean);
+      const brands = [...new Map(values.map((brand) => [brand.toLowerCase(), displayBrand(brand)])).values()]
+        .sort((a, b) => a.localeCompare(b));
       return NextResponse.json({ brands }, { headers: responseHeaders });
     }
 
@@ -173,10 +169,9 @@ export async function GET(request: NextRequest) {
       .map(mapGemsModelSearchItem)
       .filter((item): item is NonNullable<typeof item> => Boolean(item))
       .filter((item) => {
+        if (normalizeGemsModelQuery(item.brand) !== normalizeGemsModelQuery(brand)) return false;
         if (!normalizeGemsModelQuery(item.model).includes(query)) return false;
-        const key = `${item.brand.toUpperCase()}|${item.model
-          .toUpperCase()
-          .replace(/[^A-Z0-9]/g, "")}`;
+        const key = `${item.brand.toUpperCase()}|${normalizeGemsModelQuery(item.model)}`;
         if (seen.has(key)) return false;
         seen.add(key);
         return true;

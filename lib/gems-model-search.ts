@@ -285,7 +285,15 @@ export async function fetchGemsDatastoreRecords(options: {
       }
       if (query) params.set("q", query);
       if (options.fields?.length) params.set("fields", options.fields.join(","));
-      const response = await fetch(`${GEMS_DATASTORE_API}?${params.toString()}`, {
+      // GEMS contains mixed-case brand registrations (for example RINNAI and Rinnai).
+      // Brand inventories must include both; exact CKAN filters silently omit older rows.
+      const inventorySql = brand && !query
+        ? `SELECT ${options.fields?.length ? safeSqlFields(options.fields).join(", ") : "*"} FROM "${resourceId}" WHERE LOWER("Brand") = LOWER('${sqlLiteral(brand)}') AND "SubmitStatus" = 'Approved' AND "Availability Status" = 'Available' LIMIT ${params.get("limit")}`
+        : "";
+      const url = inventorySql
+        ? `${GEMS_DATASTORE_SQL_API}?sql=${encodeURIComponent(inventorySql)}`
+        : `${GEMS_DATASTORE_API}?${params.toString()}`;
+      const response = await fetch(url, {
         signal: controller.signal,
         headers: {
           Accept: "application/json",
