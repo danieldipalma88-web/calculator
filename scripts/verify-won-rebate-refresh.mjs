@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
+import ts from "typescript";
 
 const root = process.cwd();
 const admin = fs.readFileSync(path.join(root, "app/admin/users/page.tsx"), "utf8");
@@ -48,6 +49,58 @@ assert.equal(systemTypeSandbox.__savedSystemType({ type: "Multi-head Split" }), 
 assert.equal(systemTypeSandbox.__savedSystemType({ type: "Split" }), "split", "legacy Split quote labels must remain supported");
 assert.equal(systemTypeSandbox.__savedSystemType({ state: { systemType: "unrecognised" }, type: "Ducted" }), "ducted", "a valid legacy row type must recover an invalid state label");
 assert.equal(systemTypeSandbox.__savedSystemType({ state: { systemType: "unknown new ducted" } }), null, "ambiguous saved quote types must not default to split");
+
+const syntax = ts.createSourceFile("admin.tsx", admin, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+const refreshHelpers = [
+  "moneyValue", "optionalMoneyValue", "quoteState", "quoteMaterialsInc", "quotePowerOrElectricianEx",
+  "savedQuoteSystemType", "boundedCommissionRate", "savedQuoteCommissionTypeForRefresh",
+  "savedAgencyCommissionRate", "savedSalespersonCommissionRate", "savedSalespersonGstRegistered",
+  "recomputeSavedQuoteAfterRebate",
+];
+const functions = syntax.statements.filter(node => ts.isFunctionDeclaration(node) && refreshHelpers.includes(node.name?.text));
+assert.equal(functions.length, refreshHelpers.length);
+const refresh = {};
+vm.runInNewContext(ts.transpileModule(functions.map(node => node.getText(syntax)).join("\n"), {
+  compilerOptions: { target: ts.ScriptTarget.ES2022 },
+}).outputText, refresh);
+const original = {
+  type: "Split", finalInc: 4400, unitInc: 1100, labour: 300, materialsInc: 220, miscInc: 110, powerCost: 100,
+  cashProfit: 2500, agencyCommission: 625, salespersonCommission: 312.5,
+  state: { commissionType: "agency", agencyCommissionRate: 25, salespersonCommissionRate: 50, retained: "keep" },
+};
+for (const [changes, registered] of [
+  [{ salespersonGstRegistered: false }, false],
+  [{ state: { ...original.state, salespersonGstRegistered: false } }, false],
+  [{ salespersonGstRegistered: false, state: { ...original.state, salespersonGstRegistered: true } }, false],
+  [{ salespersonGstRegistered: true, state: { ...original.state, salespersonGstRegistered: false } }, true],
+  [{ salespersonCommissionGst: 0 }, false],
+  [{ salespersonCommissionGst: "0.00" }, false],
+  [{ salespersonCommissionGst: 31.25 }, true],
+  [{ salespersonCommissionGst: undefined }, true],
+  [{ salespersonCommissionGst: null }, true],
+  [{ salespersonCommissionGst: "" }, true],
+  [{ salespersonCommission: 0, salespersonCommissionGst: 0 }, true],
+  [{ salespersonGstRegistered: true, salespersonCommissionGst: 0 }, true],
+]) {
+  const row = { ...original, ...changes };
+  const before = JSON.stringify(row);
+  const result = refresh.recomputeSavedQuoteAfterRebate(row, 500);
+  assert.equal(JSON.stringify(row), before, "Rebate refresh must not mutate the original row/state");
+  assert.equal(result.salespersonGstRegistered, registered);
+  assert.equal(result.state.salespersonGstRegistered, registered, "GST registration persists in saved state");
+  assert.equal(result.salespersonCommission, result.agencyCommission * 0.5, "50% agency share is unchanged");
+  assert.equal(result.salespersonCommissionGst, registered ? result.salespersonCommission * 0.1 : 0);
+  assert.equal(result.salespersonCommissionInc, result.salespersonCommission + result.salespersonCommissionGst);
+  assert.equal(result.agencyCommissionGst, result.agencyCommission * 0.1, "Agency GST is unchanged");
+  assert.equal(result.agencyCommission, result.cashProfit * 0.25);
+  assert.equal(result.netProfit, result.cashProfit - result.agencyCommission);
+  assert.equal(result.state.retained, "keep");
+  assert.equal(refresh.recomputeSavedQuoteAfterRebate(result, 750).salespersonGstRegistered, registered, "Repeated refresh retains historic GST registration");
+}
+const standard = refresh.recomputeSavedQuoteAfterRebate({ ...original, salespersonGstRegistered: false, state: { ...original.state, commissionType: "standard" } }, 500);
+assert.equal(standard.salespersonCommission, standard.cashProfit * 0.25);
+assert.equal(standard.salespersonCommissionGst, 0);
+assert.equal(standard.agencyCommissionGst, 0);
 
 expect(rebate, /DCCEEW_CONTRACT_RATE/, "Current rebate calculator does not include the DCCEEW contract rate");
 expect(rebate, /certificates\.esc \* effectiveEscRate[\s\S]*certificates\.prc \* input\.prcRate/, "Current payout rates are not applied to live certificate counts");

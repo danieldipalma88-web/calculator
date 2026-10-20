@@ -75,6 +75,7 @@ type ApprovedUser = {
   commission_type_override: CommissionType | null;
   agency_commission_rate_override: number | null;
   salesperson_commission_rate_override: number | null;
+  salesperson_gst_registered?: boolean;
   effective_commission_type: CommissionType;
   effective_agency_commission_rate: number;
   effective_salesperson_commission_rate: number;
@@ -309,6 +310,11 @@ function businessIdsFromForm(formData: FormData) {
   return uniqueStrings(formData.getAll("businessIds").map((value) => String(value || "")));
 }
 
+function salespersonGstRegistrationFromForm(formData: FormData) {
+  if (!formData.has("salespersonGstRegistered")) return undefined;
+  return formData.getAll("salespersonGstRegistered").includes("1");
+}
+
 function certificateAgreementFromForm(formData: FormData) {
   return {
     escAgreementDeduction: certificateMoneyValue(
@@ -396,6 +402,11 @@ function isSchemaCacheFunctionError(error: DbError) {
   return message.includes("schema cache") && message.includes("function");
 }
 
+function isMissingSalespersonGstColumn(error: DbError) {
+  return (error?.code === "42703" || error?.code === "PGRST204") &&
+    dbMessage(error).includes("salesperson_gst_registered");
+}
+
 function schemaSetupMessage(error: DbError) {
   const message = dbMessage(error);
   return `Supabase setup needs the latest business/user SQL. Run the full supabase/schema.sql file in Supabase SQL Editor, then wait a minute or refresh the schema cache. ${message}`;
@@ -461,6 +472,7 @@ function normalizeApprovedUser(
       salespersonOverride === null || salespersonOverride === undefined
         ? null
         : asNumber(salespersonOverride, 0),
+    salesperson_gst_registered: row.salesperson_gst_registered !== false,
     effective_commission_type: isCommissionType(row.effective_commission_type)
       ? row.effective_commission_type
       : commissionOverride || business?.commission_type || "none",
@@ -747,9 +759,23 @@ async function listApprovedUsers(supabase: SupabaseServer, businesses: Business[
       : ((lockResult.data || []) as { email?: string | null; is_locked?: boolean | null }[])
           .map((row) => [String(row.email || "").toLowerCase(), Boolean(row.is_locked)]),
   );
+  // Older list RPCs do not return the commission GST flag.
+  const gstResult = await supabase
+    .from("approved_users")
+    .select("email, salesperson_gst_registered");
+  if (gstResult.error && !isMissingSalespersonGstColumn(gstResult.error)) {
+    return { data: [] as ApprovedUser[], errorMessage: dbMessage(gstResult.error) };
+  }
+  const gstByEmail = new Map(
+    gstResult.error
+      ? []
+      : ((gstResult.data || []) as { email?: string | null; salesperson_gst_registered?: boolean }[])
+          .map((row) => [String(row.email || "").toLowerCase(), row.salesperson_gst_registered !== false]),
+  );
   const withLockState = (row: Record<string, unknown>) => ({
     ...row,
     is_locked: lockByEmail.get(String(row.email || "").toLowerCase()) || false,
+    salesperson_gst_registered: gstByEmail.get(String(row.email || "").toLowerCase()) ?? row.salesperson_gst_registered,
   });
   const rpcResult = await supabase.rpc("admin_list_approved_users");
   if (!rpcResult.error) {
@@ -946,9 +972,14 @@ async function saveApprovedUser(
   commissionType: CommissionOverride,
   agencyRate: number | null,
   salespersonRate: number | null,
+  salespersonGstRegistered?: boolean,
 ) {
   const commissionOverride = commissionType === "business_default" ? null : commissionType;
   const primaryBusinessId = businessIds[0] || null;
+  const completeSave = async () => {
+    const gstError = await saveSalespersonGstRegistration(supabase, email, salespersonGstRegistered);
+    return gstError || saveUserBusinessMemberships(supabase, email, businessIds);
+  };
   const rpcResult = await supabase.rpc("admin_upsert_approved_user", {
     target_email: email,
     target_role: role,
@@ -959,7 +990,7 @@ async function saveApprovedUser(
     target_salesperson_commission_rate_override: salespersonRate,
   });
 
-  if (!rpcResult.error) return saveUserBusinessMemberships(supabase, email, businessIds);
+  if (!rpcResult.error) return completeSave();
   if (!isSchemaCacheFunctionError(rpcResult.error)) return dbMessage(rpcResult.error);
 
   const directResult = await supabase.from("approved_users").upsert(
@@ -975,7 +1006,7 @@ async function saveApprovedUser(
     { onConflict: "email" },
   );
 
-  if (!directResult.error) return saveUserBusinessMemberships(supabase, email, businessIds);
+  if (!directResult.error) return completeSave();
 
   const preNameResult = await supabase.from("approved_users").upsert(
     {
@@ -990,7 +1021,27 @@ async function saveApprovedUser(
   );
 
   if (preNameResult.error) return schemaSetupMessage(directResult.error);
-  return saveUserBusinessMemberships(supabase, email, businessIds);
+  return completeSave();
+}
+
+async function saveSalespersonGstRegistration(
+  supabase: SupabaseServer,
+  email: string,
+  registered?: boolean,
+) {
+  if (registered === undefined) return "";
+  const result = await supabase.from("approved_users")
+    .update({ salesperson_gst_registered: registered })
+    .eq("email", email)
+    .select("email, salesperson_gst_registered")
+    .maybeSingle();
+  if (result.error) {
+    if (registered && isMissingSalespersonGstColumn(result.error)) return "";
+    return schemaSetupMessage(result.error);
+  }
+  return result.data?.salesperson_gst_registered === registered
+    ? ""
+    : "The commission GST registration could not be verified. Refresh the user and try again.";
 }
 
 async function saveUserBusinessMemberships(
@@ -1214,7 +1265,7 @@ function wonExportRow(option: WonOption) {
     "Customer total inc GST": option.customerTotal.toFixed(2),
     Rebate: option.rebateTotal.toFixed(2),
     "Agency commission inc GST": option.agencyCommissionTotal.toFixed(2),
-    "Salesperson commission inc GST": option.salespersonCommissionTotal.toFixed(2),
+    "Salesperson commission payable": option.salespersonCommissionTotal.toFixed(2),
     "Agency profit after salesperson commission inc GST": option.agencyProfitAfterSalesTotal.toFixed(2),
     "Installer profit ex GST": option.installerProfitTotal.toFixed(2),
     Rows: option.rows,
@@ -1408,12 +1459,12 @@ function wonExportScript() {
     }
     var totals = cards.reduce(function(total, card){
       if (card.getAttribute("data-payment-paid-in") !== "true") total.agencyOutstanding += numberFromCard(card, "data-won-agency-total");
-      if (card.getAttribute("data-payment-commission-to-pay") === "true") total.salesOutstanding += numberFromCard(card, "data-won-sales-total");
+      if (card.getAttribute("data-payment-paid-out") !== "true") total.salesOutstanding += numberFromCard(card, "data-won-sales-total");
       total.agencyProfit += numberFromCard(card, "data-won-agency-profit-total");
       return total;
     }, { agencyOutstanding: 0, salesOutstanding: 0, agencyProfit: 0 });
     var text = "Selected " + cards.length + ": Agency outstanding " + currency(totals.agencyOutstanding) +
-      " | Commission ready to pay " + currency(totals.salesOutstanding) +
+      " | Commission unpaid " + currency(totals.salesOutstanding) +
       " | Agency profit inc GST " + currency(totals.agencyProfit);
     totalsNodes.forEach(function(node){
       node.hidden = false;
@@ -1618,7 +1669,7 @@ function wonExportScript() {
     var totals = visibleCards.reduce(function(total, card){
       total.quotes += 1;
       if (card.getAttribute("data-payment-paid-in") !== "true") total.agencyOutstanding += numberFromCard(card, "data-won-agency-total");
-      if (card.getAttribute("data-payment-commission-to-pay") === "true") total.salesOutstanding += numberFromCard(card, "data-won-sales-total");
+      if (card.getAttribute("data-payment-paid-out") !== "true") total.salesOutstanding += numberFromCard(card, "data-won-sales-total");
       total.agencyProfit += numberFromCard(card, "data-won-agency-profit-total");
       return total;
     }, { quotes: 0, agencyOutstanding: 0, salesOutstanding: 0, agencyProfit: 0 });
@@ -1815,7 +1866,7 @@ function wonExportScript() {
       "Customer total inc GST",
       "Rebate",
       "Agency commission inc GST",
-      "Salesperson commission inc GST",
+      "Salesperson commission payable",
       "Agency profit after salesperson commission inc GST",
       "Installer profit ex GST"
     ]];
@@ -1833,7 +1884,7 @@ function wonExportScript() {
       var customer = Number(job["Customer total inc GST"] || 0);
       var rebate = Number(job.Rebate || 0);
       var agency = Number(job["Agency commission inc GST"] || 0);
-      var salesperson = Number(job["Salesperson commission inc GST"] || 0);
+      var salesperson = Number(job["Salesperson commission payable"] || 0);
       var agencyProfit = Number(job["Agency profit after salesperson commission inc GST"] || 0);
       var profit = Number(job["Installer profit ex GST"] || 0);
       totals.systems += systems;
@@ -1902,7 +1953,7 @@ function wonExportScript() {
       ["Customer total inc GST", Number(job["Customer total inc GST"] || 0)],
       ["Rebate", Number(job.Rebate || 0)],
       ["Agency commission inc GST", Number(job["Agency commission inc GST"] || 0)],
-      ["Salesperson commission inc GST", Number(job["Salesperson commission inc GST"] || 0)],
+      ["Salesperson commission payable", Number(job["Salesperson commission payable"] || 0)],
       ["Agency profit after salesperson commission inc GST", Number(job["Agency profit after salesperson commission inc GST"] || 0)],
       ["Installer profit ex GST", Number(job["Installer profit ex GST"] || 0)],
       [],
@@ -1929,7 +1980,7 @@ function wonExportScript() {
         "Agency commission ex GST",
         "Agency commission GST",
         "Agency commission inc GST",
-        "Salesperson commission inc GST",
+        "Salesperson commission payable",
         "Agency profit after salesperson commission inc GST",
         "Installer profit ex GST",
         "Margin %",
@@ -3162,13 +3213,14 @@ async function updateWonOptionState(
   if (mode === "delete") {
     let currentQuery = supabase
       .from("user_calculator_data")
-      .select("user_id, email, data");
+      .select("user_id, email, data, updated_at");
     currentQuery = currentQuery.eq(ownerColumn, ownerValue);
     const currentResult = await currentQuery.maybeSingle();
     if (currentResult.error) return dbMessage(currentResult.error);
 
     let markerColumn = ownerColumn;
     let markerValue = ownerValue;
+    let markerVersion = currentResult.data?.updated_at ?? null;
     let originalData = (currentResult.data?.data || null) as Record<string, unknown> | null;
     let removed = originalData
       ? deleteFromEverySource(originalData)
@@ -3177,13 +3229,14 @@ async function updateWonOptionState(
     if (!originalData && adminEmail) {
       const adminResult = await supabase
         .from("user_calculator_data")
-        .select("user_id, email, data")
+        .select("user_id, email, data, updated_at")
         .eq("email", adminEmail.toLowerCase())
         .maybeSingle();
       if (adminResult.error) return dbMessage(adminResult.error);
       if (adminResult.data?.data) {
         markerColumn = "email";
         markerValue = adminEmail.toLowerCase();
+        markerVersion = adminResult.data.updated_at ?? null;
         originalData = adminResult.data.data as Record<string, unknown>;
         removed = { data: originalData, updated: false };
       }
@@ -3198,12 +3251,7 @@ async function updateWonOptionState(
       return "Could not identify this won option closely enough to delete it.";
     }
 
-    let updateQuery = supabase
-      .from("user_calculator_data")
-      .update({ data: marked.data, updated_at: new Date().toISOString() });
-    updateQuery = updateQuery.eq(markerColumn, markerValue);
-    const updateResult = await updateQuery;
-    return updateResult.error ? dbMessage(updateResult.error) : "";
+    return saveWonCalculatorSnapshot(supabase, markerColumn, markerValue, marked.data, markerVersion);
   }
 
   const backupSource = backupSourceParts(sourceId);
@@ -3236,7 +3284,7 @@ async function updateWonOptionState(
 
   let dataQuery = supabase
     .from("user_calculator_data")
-    .select("user_id, data");
+    .select("user_id, data, updated_at");
   dataQuery = dataQuery.eq(ownerColumn, ownerValue);
   const dataResult = await dataQuery.maybeSingle();
 
@@ -3267,13 +3315,23 @@ async function updateWonOptionState(
 
   if (!updated) return "Could not find that won option in the saved calculator data.";
 
-  let updateQuery = supabase
-    .from("user_calculator_data")
-    .update({ data: adminState.data, updated_at: new Date().toISOString() });
-  updateQuery = updateQuery.eq(ownerColumn, ownerValue);
-  const updateResult = await updateQuery;
+  return saveWonCalculatorSnapshot(supabase, ownerColumn, ownerValue, adminState.data, dataResult.data.updated_at ?? null);
+}
 
-  return updateResult.error ? dbMessage(updateResult.error) : "";
+async function saveWonCalculatorSnapshot(
+  supabase: SupabaseServer,
+  ownerColumn: string,
+  ownerValue: string,
+  data: Record<string, unknown>,
+  previousUpdatedAt: string | null,
+) {
+  let update = supabase.from("user_calculator_data")
+    .update({ data, updated_at: new Date().toISOString() })
+    .eq(ownerColumn, ownerValue);
+  update = previousUpdatedAt ? update.eq("updated_at", previousUpdatedAt) : update.is("updated_at", null);
+  const result = await update.select("user_id");
+  if (result.error) return dbMessage(result.error);
+  return result.data?.length ? "" : "This calculator changed during the update. Refresh Won Jobs and retry; no payment change was saved.";
 }
 
 async function requireAdmin() {
@@ -3455,6 +3513,7 @@ async function addApprovedUser(formData: FormData) {
     commissionType,
     agencyRate,
     salespersonRate,
+    salespersonGstRegistrationFromForm(formData),
   );
 
   if (errorMessage) {
@@ -3556,6 +3615,7 @@ async function updateApprovedUser(formData: FormData) {
     commissionType,
     agencyRate,
     salespersonRate,
+    salespersonGstRegistrationFromForm(formData),
   );
 
   if (errorMessage) {
@@ -3980,6 +4040,15 @@ function savedSalespersonCommissionRate(row: Record<string, unknown>) {
     : 0;
 }
 
+function savedSalespersonGstRegistered(row: Record<string, unknown>) {
+  const state = quoteState(row);
+  if (typeof row.salespersonGstRegistered === "boolean") return row.salespersonGstRegistered;
+  if (typeof state.salespersonGstRegistered === "boolean") return state.salespersonGstRegistered;
+  const gst = row.salespersonCommissionGst;
+  return !(moneyValue(row.salespersonCommission) > 0 &&
+    gst !== undefined && gst !== null && gst !== "" && Number(gst) === 0);
+}
+
 function recomputeSavedQuoteAfterRebate(row: Record<string, unknown>, rebate: number) {
   const next = { ...row };
   const state: Record<string, unknown> = { ...quoteState(row), rebate: rebate.toFixed(2) };
@@ -4002,6 +4071,8 @@ function recomputeSavedQuoteAfterRebate(row: Record<string, unknown>, rebate: nu
   const commissionModelOn = commissionType !== "none" && state.commissionModelOn !== false;
   const agencyCommissionRate = commissionModelOn ? savedAgencyCommissionRate(next) : 0;
   const salespersonCommissionRate = commissionModelOn ? savedSalespersonCommissionRate(next) : 0;
+  const salespersonGstRegistered = savedSalespersonGstRegistered(next);
+  state.salespersonGstRegistered = salespersonGstRegistered;
   let agencyCommission = 0;
   let salespersonCommission = 0;
   if (commissionModelOn && commissionType === "agency") {
@@ -4011,7 +4082,7 @@ function recomputeSavedQuoteAfterRebate(row: Record<string, unknown>, rebate: nu
     salespersonCommission = cashProfit * (agencyCommissionRate / 100);
   }
   const agencyCommissionGst = commissionModelOn ? agencyCommission * 0.1 : 0;
-  const salespersonCommissionGst = commissionModelOn ? salespersonCommission * 0.1 : 0;
+  const salespersonCommissionGst = commissionModelOn && salespersonGstRegistered ? salespersonCommission * 0.1 : 0;
   const netProfit = cashProfit - (commissionType === "standard" ? salespersonCommission : agencyCommission);
 
   return {
@@ -4032,6 +4103,7 @@ function recomputeSavedQuoteAfterRebate(row: Record<string, unknown>, rebate: nu
     agencyCommissionGst,
     agencyCommissionInc: agencyCommission + agencyCommissionGst,
     salespersonCommissionRate,
+    salespersonGstRegistered,
     salespersonCommission,
     salespersonCommissionGst,
     salespersonCommissionInc: salespersonCommission + salespersonCommissionGst,
@@ -4863,6 +4935,13 @@ export default async function AdminUsersPage({
               <label htmlFor="salespersonCommissionRate">Salesperson commission (%)</label>
               <input id="salespersonCommissionRate" name="salespersonCommissionRate" type="number" min="0" max="100" step="0.1" placeholder="Default" />
             </div>
+            <div>
+              <input type="hidden" name="salespersonGstRegistered" value="0" />
+              <label className="checkbox-pill" htmlFor="salespersonGstRegistered">
+                <input id="salespersonGstRegistered" name="salespersonGstRegistered" type="checkbox" value="1" defaultChecked />
+                GST registered for commission
+              </label>
+            </div>
             <button className="orange" type="submit">
               Add user
             </button>
@@ -4979,6 +5058,13 @@ export default async function AdminUsersPage({
                               : formatRate(approvedUser.salesperson_commission_rate_override)
                           }
                         />
+                      </div>
+                      <div>
+                        <input type="hidden" name="salespersonGstRegistered" value="0" />
+                        <label className="checkbox-pill" htmlFor={`user-salespersonGstRegistered-${approvedUser.email}`}>
+                          <input id={`user-salespersonGstRegistered-${approvedUser.email}`} name="salespersonGstRegistered" type="checkbox" value="1" defaultChecked={approvedUser.salesperson_gst_registered !== false} />
+                          GST registered for commission
+                        </label>
                       </div>
                       <p className="help form-full-width">Use business default to inherit the commission plan. Leave a percentage blank to use its business rate; an entered percentage overrides that rate.</p>
                       <button className="orange" type="submit" disabled={isSelf}>
@@ -5114,7 +5200,7 @@ export default async function AdminUsersPage({
             </div>
             <div className="won-mobile-filter-summary-grid">
               <div><span>Agency outstanding</span><strong data-mobile-summary-agency-outstanding>{formatMoney(0)}</strong></div>
-              <div><span>Commission ready to pay</span><strong data-mobile-summary-sales-outstanding>{formatMoney(0)}</strong></div>
+              <div><span>Commission unpaid</span><strong data-mobile-summary-sales-outstanding>{formatMoney(0)}</strong></div>
               <div className="agency-profit-metric"><span>Agency profit inc GST</span><strong data-mobile-summary-agency-profit>{formatMoney(0)}</strong></div>
             </div>
           </section>

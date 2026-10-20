@@ -45,6 +45,7 @@ type CalculatorUserContext = {
   commissionType: string;
   agencyCommissionRate: number;
   salespersonCommissionRate: number;
+  salespersonGstRegistered: boolean;
   canManageUsers: boolean;
   currentUserCanManageUsers: boolean;
   canSeeCommissionDetails: boolean;
@@ -64,6 +65,7 @@ type ApprovedUser = {
   commission_type_override?: string | null;
   agency_commission_rate_override?: number | null;
   salesperson_commission_rate_override?: number | null;
+  salesperson_gst_registered?: boolean;
 };
 
 type Business = {
@@ -162,6 +164,10 @@ function stripSensitiveQuoteFields(value: unknown): unknown {
   const output: Record<string, unknown> = {};
   for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
     const lowerKey = key.toLowerCase();
+    if (lowerKey === "salespersoncommissioninc" && value && "wonAt" in value && value.wonAt) {
+      output[key] = item;
+      continue;
+    }
     if (
       lowerKey.includes("commission") ||
       lowerKey.includes("profit") ||
@@ -896,6 +902,13 @@ async function getApprovedUser(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   email: string,
 ) {
+  const withGst = await supabase
+    .from("approved_users")
+    .select("email, display_name, role, business_id, is_locked, commission_type_override, agency_commission_rate_override, salesperson_commission_rate_override, salesperson_gst_registered")
+    .eq("email", email)
+    .maybeSingle();
+  if (!withGst.error) return withGst;
+
   const upgraded = await supabase
     .from("approved_users")
     .select(
@@ -1146,6 +1159,7 @@ export async function GET(request: Request) {
       commissionType,
       agencyCommissionRate,
       salespersonCommissionRate,
+      salespersonGstRegistered: viewedUser.salesperson_gst_registered !== false,
       canManageUsers: effectiveCanManageUsers,
       currentUserCanManageUsers: canManage,
       canSeeCommissionDetails: useAdminVisibility || canSeeCommissionDetails(contextRole),

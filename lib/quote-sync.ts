@@ -92,6 +92,31 @@ function serializeLikeStorage(value: SyncRecord[], existing: unknown, incoming: 
     : value;
 }
 
+function preserveWonCommission(existing: SyncRecord | undefined, next: SyncRecord) {
+  if (!existing?.wonAt || existing.wonAt !== next.wonAt) return next;
+  // Financial changes to locked jobs use the explicit admin actions, not autosave.
+  const output = { ...next };
+  const fields = [
+    "commissionType", "commissionModelOn", "commissionRate", "agencyCommissionRate",
+    "agencyCommission", "agencyCommissionGst", "agencyCommissionInc",
+    "salespersonCommissionRate", "salespersonGstRegistered", "salespersonCommission",
+    "salespersonCommissionGst", "salespersonCommissionInc", "agencyProfitAfterSalesInc",
+    "commission", "commissionGst", "commissionInc",
+  ];
+  for (const key of fields) {
+    if (key in existing) output[key] = existing[key];
+  }
+  if (existing.state && typeof existing.state === "object" && !Array.isArray(existing.state)) {
+    const state = { ...(next.state && typeof next.state === "object" && !Array.isArray(next.state) ? next.state as SyncRecord : {}) };
+    const priorState = existing.state as SyncRecord;
+    for (const key of fields) {
+      if (key in priorState) state[key] = priorState[key];
+    }
+    output.state = state;
+  }
+  return output;
+}
+
 function mergeRecordCollection(
   existingValue: unknown,
   incomingValue: unknown,
@@ -120,7 +145,7 @@ function mergeRecordCollection(
       existingRecord && recordVersion(existingRecord, kind) >= recordVersion(incomingRecord, kind)
         ? existingRecord
         : incomingRecord;
-    merged.push(winner);
+    merged.push(kind === "rows" ? preserveWonCommission(existingRecord, winner) : winner);
     seen.add(id);
   }
 

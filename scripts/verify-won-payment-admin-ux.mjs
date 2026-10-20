@@ -24,6 +24,11 @@ const checks = [
   [admin.includes('className="won-payment-line"'), "two payment lines"],
   [admin.includes('data-mobile-summary-agency-outstanding'), "agency outstanding total"],
   [admin.includes('data-mobile-summary-sales-outstanding'), "sales commission outstanding total"],
+  [admin.includes('<span>Commission unpaid</span>'), "unpaid commission summary label"],
+  [!admin.includes('Commission ready to pay'), "unpaid totals are not labelled ready to pay"],
+  [admin.includes('data-payment-commission-to-pay={option.paidInAt && !option.paidOutAt ? "true" : "false"}'), "readiness filter still requires agency receipt"],
+  [admin.includes('"Salesperson commission payable"'), "registration-neutral commission export label"],
+  [!admin.includes('Salesperson commission inc GST'), "exports do not assume salesperson GST registration"],
   [admin.includes('data-mobile-summary-agency-profit'), "agency profit total"],
   [admin.includes('function bulkEligibleCards(mode, cards)'), "client bulk eligibility filter"],
   [admin.includes('mode === "payment_requested") return cards.filter'), "client requested-payment skip filter"],
@@ -88,6 +93,56 @@ const scriptNode = syntax.statements.find(node => ts.isFunctionDeclaration(node)
 const scriptScope = {};
 vm.runInNewContext(ts.transpileModule(scriptNode.getText(syntax), { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText, scriptScope);
 const scriptAst = ts.createSourceFile('won-runtime.js', scriptScope.wonExportScript(), ts.ScriptTarget.Latest, true);
+const summaryFunctions = [];
+function visitSummary(node) {
+  if (ts.isFunctionDeclaration(node) && ['updateSelectedTotals', 'updateMobileFilterSummary'].includes(node.name?.text)) summaryFunctions.push(node.getText(scriptAst));
+  ts.forEachChild(node, visitSummary);
+}
+visitSummary(scriptAst);
+assert.equal(summaryFunctions.length, 2);
+const card = (received, paid, sales, agency = 1000) => ({
+  getAttribute: name => ({
+    'data-payment-paid-in': received ? 'true' : 'false',
+    'data-payment-paid-out': paid ? 'true' : 'false',
+    'data-payment-commission-to-pay': received && !paid ? 'true' : 'false',
+    'data-won-sales-total': String(sales),
+    'data-won-agency-total': String(agency),
+    'data-won-agency-profit-total': '500',
+  })[name] || '',
+});
+let summaryCards = [];
+const selectedTotals = {};
+const summaryNodes = Object.fromEntries(['context', 'quotes', 'agency-outstanding', 'sales-outstanding', 'agency-profit'].map(name => [`[data-mobile-summary-${name}]`, {}]));
+const totalsScope = {
+  selectedWonCards: () => summaryCards,
+  numberFromCard: (item, name) => Number(item.getAttribute(name) || 0),
+  currency: value => '$' + value.toFixed(2),
+  matchesWonSearch: () => true, cardMatchesPaymentFilters: () => true,
+  document: {
+    querySelectorAll: selector => selector === '.won-card' ? summaryCards : [selectedTotals],
+    querySelector: selector => summaryNodes[selector],
+  },
+};
+vm.runInNewContext(summaryFunctions.join('\n'), totalsScope);
+for (const [cards, unpaid, agencyOutstanding] of [
+  [[card(false, false, 500)], 500, 1000],
+  [[card(true, false, 600)], 600, 0],
+  [[card(false, true, 700)], 0, 1000],
+  [[card(true, true, 800)], 0, 0],
+  [[card(false, false, 500), card(true, false, 600), card(false, true, 700), card(true, true, 800)], 1100, 2000],
+  [[...Array.from({ length: 5 }, () => card(false, false, 500)), ...Array.from({ length: 13 }, () => card(true, true, 800))], 2500, 5000],
+]) {
+  summaryCards = cards;
+  totalsScope.updateSelectedTotals();
+  totalsScope.updateMobileFilterSummary([], ['all'], '');
+  assert.ok(selectedTotals.textContent.includes(`Commission unpaid $${unpaid.toFixed(2)}`), 'Selected total includes every unpaid commission and excludes every payout');
+  assert.ok(selectedTotals.textContent.includes(`Agency outstanding $${agencyOutstanding.toFixed(2)}`));
+  assert.equal(summaryNodes['[data-mobile-summary-sales-outstanding]'].textContent, '$' + unpaid.toFixed(2), 'Overall total agrees with selected unpaid commission before and after agency receipt');
+  assert.equal(summaryNodes['[data-mobile-summary-agency-outstanding]'].textContent, '$' + agencyOutstanding.toFixed(2));
+}
+summaryCards = [];
+totalsScope.updateSelectedTotals();
+assert.equal(selectedTotals.hidden, true);
 const dockFunctions = [];
 function visit(node) {
   if (ts.isFunctionDeclaration(node) && ['updateWonSelectionDock', 'updateWonDockSpacing', 'handleWonKeydown', 'handleWonSubmit', 'setWonSectionLoading'].includes(node.name?.text)) dockFunctions.push(node.getText(scriptAst));

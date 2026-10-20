@@ -3,11 +3,15 @@ create table if not exists public.approved_users (
   email text not null unique,
   role text not null default 'user' check (role in ('admin', 'user')),
   is_locked boolean not null default false,
+  salesperson_gst_registered boolean not null default true,
   created_at timestamptz not null default now()
 );
 
 alter table public.approved_users
   add column if not exists is_locked boolean not null default false;
+
+alter table public.approved_users
+  add column if not exists salesperson_gst_registered boolean not null default true;
 
 alter table public.approved_users
   add column if not exists last_active_at timestamptz;
