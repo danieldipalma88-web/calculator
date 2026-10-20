@@ -2771,22 +2771,18 @@ function wonOptionRowsFingerprint(option: WonOption) {
       normalizeWonOptionText(row.size),
       normalizeWonOptionText(row.model),
       normalizeWonOptionText(row.install),
-      row.finalInc.toFixed(2),
-      row.rebate.toFixed(2),
-      row.agencyCommissionInc.toFixed(2),
-      row.salespersonCommissionInc.toFixed(2),
-      row.netProfit.toFixed(2),
     ].join("~"))
     .sort();
   return rows.length
     ? rows.join("|")
-    : `${option.systemCount}|${option.customerTotal.toFixed(2)}|${option.rebateTotal.toFixed(2)}`;
+    : String(option.systemCount);
 }
 
 function duplicateWonOptionKey(option: WonOption) {
   return [
     option.userEmail.toLowerCase(),
     option.optionId,
+    option.wonAt,
     normalizeWonOptionText(option.optionName),
     wonOptionRowsFingerprint(option),
   ].join("::");

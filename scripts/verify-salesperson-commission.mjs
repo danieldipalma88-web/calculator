@@ -106,4 +106,21 @@ assert.equal(stalePayment.writes,0,'An in-flight payment save must not overwrite
 const noVersion = client(null);
 assert.equal(await casSandbox.saveWonCalculatorSnapshot(noVersion,'email','test',{},null),'');
 assert.equal(noVersion.writes,1);
+const dedupe = {CURRENT_WON_SOURCE_ID:'current'};
+for (const name of ['normalizeWonOptionText','wonOptionRowsFingerprint','duplicateWonOptionKey','wonOptionSourcePriority','paymentStatusPriority','preferDuplicateWonOption','canonicalWonOptions']) {
+  const fn = adminAst.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text===name);
+  vm.runInNewContext(ts.transpile(fn.getText(adminAst),{target:ts.ScriptTarget.ES2020}),dedupe);
+}
+const ownerJob = {userEmail:'sales@test',dataOwnerEmail:'sales@test',sourceId:'current',optionId:'stable-id',wonAt:'2026-10-13',optionName:'Job',paymentStatus:'unpaid',rows:[{
+  type:'Split',brand:'Brand',series:'Series',size:'5kW',model:'OUT/IN',install:'New',finalInc:2000,rebate:500,agencyCommissionInc:300,salespersonCommissionInc:130,netProfit:800,
+}]};
+const adminCopy = {...ownerJob,dataOwnerEmail:'admin@test',rows:[{...ownerJob.rows[0],salespersonCommissionInc:114}]};
+for (const input of [[ownerJob,adminCopy],[adminCopy,ownerJob]]) {
+  const canonical = dedupe.canonicalWonOptions(input);
+  assert.equal(canonical.length,1,'Changing commission must not duplicate the same won job');
+  assert.equal(canonical[0].dataOwnerEmail,ownerJob.dataOwnerEmail,'The owner snapshot must win over an older admin copy');
+  assert.equal(canonical[0].rows[0].salespersonCommissionInc,130);
+}
+assert.equal(dedupe.canonicalWonOptions([ownerJob,{...ownerJob,wonAt:'2026-10-14'}]).length,2,'Separate win events must stay separate');
+assert.equal(dedupe.canonicalWonOptions([ownerJob,{...ownerJob,rows:[{...ownerJob.rows[0],model:'DIFFERENT'}]}]).length,2,'Different equipment must not collapse');
 console.log('Salesperson GST, locked-job commission history and stale-tab safeguards verified.');
