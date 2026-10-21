@@ -12,6 +12,19 @@ const OPTION_COLLECTION_STORAGE_KEYS = new Set([
   "QuoteOptionDefsV1",
 ]);
 
+const MANAGED_PRICE_STORAGE_KEYS = new Set([
+  "installerManagedPricesV1",
+  "greenEnergyManagedPricesV1",
+  "ManagedPricesV1",
+]);
+
+const SHARED_SPLIT_PRICE_CORRECTIONS: Record<string, [number, number]> = {
+  DXC28ZRAWDXK28ZRAWF1: [0, 2200],
+  DXC33ZRAWDXK33ZRAWF1: [0, 2750],
+  WRC080DSWRE080DS: [1725.64, 1705],
+  WRC090DSWRE090DS: [2003.14, 2255],
+};
+
 type SyncRecord = Record<string, unknown>;
 type TombstoneMap = Record<string, number>;
 type TombstoneLedger = { rows: TombstoneMap; options: TombstoneMap };
@@ -23,6 +36,26 @@ function parseStoredJson(value: unknown) {
   } catch {
     return null;
   }
+}
+
+function correctStaleManagedPrices(value: unknown) {
+  const parsed = parseStoredJson(value);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return value;
+  const prices = { ...(parsed as Record<string, unknown>) };
+  let changed = false;
+  for (const [key, entry] of Object.entries(prices)) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+    const item = entry as Record<string, unknown>;
+    const model = String(item.model || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const correction = SHARED_SPLIT_PRICE_CORRECTIONS[model];
+    if (!correction || !["number", "string"].includes(typeof item.unitPriceInc)) continue;
+    const current = Number(item.unitPriceInc);
+    if (!Number.isFinite(current) || Math.abs(current - correction[0]) > 0.01) continue;
+    // Old open calculators must not restore a superseded shared catalogue price.
+    prices[key] = { ...item, unitPriceInc: correction[1] };
+    changed = true;
+  }
+  return changed ? (typeof value === "string" ? JSON.stringify(prices) : prices) : value;
 }
 
 function parseStoredArray(value: unknown): SyncRecord[] | null {
@@ -203,7 +236,7 @@ export function mergeCalculatorData(existing: unknown, incoming: unknown) {
     const existingHasData = storedValueHasData(merged[key]);
     const incomingHasData = storedValueHasData(value);
     if (!incomingHasData && existingHasData) continue;
-    merged[key] = value;
+    merged[key] = MANAGED_PRICE_STORAGE_KEYS.has(key) ? correctStaleManagedPrices(value) : value;
   }
 
   if (

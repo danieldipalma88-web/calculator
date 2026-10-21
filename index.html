@@ -3943,8 +3943,8 @@ SPLIT_PRODUCTS.push(
   {"brand":"Actron Air","capacity":"5.0kW","capacityNum":5.05,"unitPriceInc":1219.99,"model":"WRC-050DS / WRE-050DS","rebate":0.0,"series":"Serene DS"},
   {"brand":"Actron Air","capacity":"6.0kW","capacityNum":6.0,"unitPriceInc":1296.28,"model":"WRC-060DS / WRE-060DS","rebate":0.0,"series":"Serene DS"},
   {"brand":"Actron Air","capacity":"7.2kW","capacityNum":7.2,"unitPriceInc":1446.63,"model":"WRC-072DS / WRE-072DS","rebate":0.0,"series":"Serene DS"},
-  {"brand":"Actron Air","capacity":"8.0kW","capacityNum":8.0,"unitPriceInc":1725.64,"model":"WRC-080DS / WRE-080DS","rebate":0.0,"series":"Serene DS"},
-  {"brand":"Actron Air","capacity":"9.0kW","capacityNum":9.0,"unitPriceInc":2003.14,"model":"WRC-090DS / WRE-090DS","rebate":0.0,"series":"Serene DS"}
+  {"brand":"Actron Air","capacity":"8.0kW","capacityNum":8.0,"unitPriceInc":1705.00,"model":"WRC-080DS / WRE-080DS","rebate":0.0,"series":"Serene DS"},
+  {"brand":"Actron Air","capacity":"9.0kW","capacityNum":9.0,"unitPriceInc":2255.00,"model":"WRC-090DS / WRE-090DS","rebate":0.0,"series":"Serene DS"}
 );
 SPLIT_PRODUCTS.push(
   {"brand":"Midea","capacity":"2.0kW","capacityNum":2.0,"unitPriceInc":546.70,"model":"MFEZ20VA-W/MFEZ20VA-N","rebate":0.0,"series":"Athena"},
@@ -4135,14 +4135,14 @@ SPLIT_PRODUCTS.push(
   {"brand":"Daikin","capacity":"5.0kW","capacityNum":5.0,"unitPriceInc":0.0,"priceIncGst":0.0,"model":"RXM50YFVMA / FVXM50YVMA","rebate":0.0,"series":"Floor Standing","phase":"Single","nswOnly":true},
   {"brand":"Daikin","capacity":"6.0kW","capacityNum":6.0,"unitPriceInc":0.0,"priceIncGst":0.0,"model":"RXM60YFVMA / FVXM60YVMA","rebate":0.0,"series":"Floor Standing","phase":"Single","nswOnly":true},
   {"brand":"Daikin","capacity":"6.7kW","capacityNum":6.7,"unitPriceInc":0.0,"priceIncGst":0.0,"model":"RXM71YFVMA / FVXM71YVMA","rebate":0.0,"series":"Floor Standing","phase":"Single","nswOnly":true},
-  {"brand":"Mitsubishi Heavy Industries","capacity":"8.0kW","capacityNum":8.0,"unitPriceInc":0.0,"priceIncGst":0.0,"model":"DXC28ZRA-W / DXK28ZRA-WF1","rebate":0.0,"series":"Bronte","phase":"Single","nswOnly":true}
+  {"brand":"Mitsubishi Heavy Industries","capacity":"8.0kW","capacityNum":8.0,"unitPriceInc":2200.00,"priceIncGst":2200.00,"model":"DXC28ZRA-W / DXK28ZRA-WF1","rebate":0.0,"series":"Bronte","phase":"Single","nswOnly":true}
 );
 SPLIT_PRODUCTS.push(
   {"brand":"Daikin","capacity":"2.5kW","capacityNum":2.5,"unitPriceInc":0.0,"priceIncGst":0.0,"model":"RXM25AVMA / FTXM25AVMA","rebate":0.0,"series":"Alira X - A Series","phase":"Single","nswOnly":true},
   {"brand":"Daikin","capacity":"4.6kW","capacityNum":4.6,"unitPriceInc":0.0,"priceIncGst":0.0,"model":"RXM46AVMA / FTXM46AVMA","rebate":0.0,"series":"Alira X - A Series","phase":"Single","nswOnly":true},
   {"brand":"Daikin","capacity":"5.0kW","capacityNum":5.0,"unitPriceInc":0.0,"priceIncGst":0.0,"model":"RXV50AVMA / FTXV50AVMA","rebate":0.0,"series":"Cora - A Series","phase":"Single","nswOnly":true},
   {"brand":"Mitsubishi Heavy Industries","capacity":"6.3kW","capacityNum":6.3,"unitPriceInc":0.0,"priceIncGst":0.0,"model":"DXC21ZRA-W / DXK21ZRA-WF1","rebate":0.0,"series":"Bronte","phase":"Single","nswOnly":true},
-  {"brand":"Mitsubishi Heavy Industries","capacity":"9.5kW","capacityNum":9.5,"unitPriceInc":0.0,"priceIncGst":0.0,"model":"DXC33ZRA-W / DXK33ZRA-WF1","rebate":0.0,"series":"Bronte","phase":"Single","nswOnly":true},
+  {"brand":"Mitsubishi Heavy Industries","capacity":"9.5kW","capacityNum":9.5,"unitPriceInc":2750.00,"priceIncGst":2750.00,"model":"DXC33ZRA-W / DXK33ZRA-WF1","rebate":0.0,"series":"Bronte","phase":"Single","nswOnly":true},
   {"brand":"Fujitsu General","capacity":"5.0kW","capacityNum":5.0,"unitPriceInc":0.0,"priceIncGst":0.0,"model":"AOTH18KNTA/ASTH18KNTA","rebate":0.0,"series":"Comfort","nswOnly":true},
   {"brand":"Hisense","capacity":"5.1kW","capacityNum":5.1,"unitPriceInc":0.0,"priceIncGst":0.0,"model":"HAWH18KR","rebate":0.0,"series":"X5","phase":"Single","nswOnly":true},
   {"brand":"Carrier","capacity":"2.05kW","capacityNum":2.05,"unitPriceInc":0.0,"priceIncGst":0.0,"model":"38QAF020N8/42QAF020N8","rebate":0.0,"series":"Azure","phase":"Single","nswOnly":true}
@@ -4693,6 +4693,10 @@ const INSTALL_ADDONS=[
 ];
 const PRICE_STORAGE_KEY='installerManagedPricesV1';
 const MANAGED_PRICE_DEFAULT_MIGRATIONS=[
+  {type:'split',model:'DXC28ZRA-W / DXK28ZRA-WF1',oldUnitPriceInc:0,newUnitPriceInc:2200},
+  {type:'split',model:'DXC33ZRA-W / DXK33ZRA-WF1',oldUnitPriceInc:0,newUnitPriceInc:2750},
+  {type:'split',model:'WRC-080DS / WRE-080DS',oldUnitPriceInc:1725.64,newUnitPriceInc:1705},
+  {type:'split',model:'WRC-090DS / WRE-090DS',oldUnitPriceInc:2003.14,newUnitPriceInc:2255},
   {type:'ducted',model:'CRV25BT / EVV25BS',oldUnitPriceInc:0,newUnitPriceInc:9608.50},
   {type:'split',model:'RXM20YVMA / FTXM20YVMA',oldUnitPriceInc:890,newUnitPriceInc:830},
   {type:'split',model:'RXM25YVMA / FTXM25YVMA',oldUnitPriceInc:930,newUnitPriceInc:880},

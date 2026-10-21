@@ -41,8 +41,9 @@ for (const [brand, series, model, capacity] of expected) {
   const product = matches[0];
   assert.equal(product.series, series);
   assert.equal(product.capacityNum, capacity);
-  assert.equal(product.unitPriceInc, 0, "These catalogue additions must not introduce pricing.");
-  assert.equal(product.priceIncGst, 0);
+  const expectedPrice = model === "DXC28ZRA-W / DXK28ZRA-WF1" ? 2200 : 0;
+  assert.equal(product.unitPriceInc, expectedPrice, "Catalogue pricing must match the approved price.");
+  assert.equal(product.priceIncGst, expectedPrice);
   assert.equal(product.rebate, 0, "Rebates must come from the live calculation, not a static estimate.");
   assert.equal(product.nswOnly, true);
   assert.equal(product.phase, "Single");
