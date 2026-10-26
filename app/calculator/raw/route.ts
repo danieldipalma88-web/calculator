@@ -397,10 +397,11 @@ function injectCloudStorageSync(
   data: Record<string, unknown>,
   userContext: CalculatorUserContext,
 ) {
-  const syncUrl =
+  let syncUrl =
     userContext.viewingEmail && userContext.viewingEmail !== userContext.email
       ? `/api/calculator-data?as=${encodeURIComponent(userContext.viewingEmail)}${userContext.businessId ? `&businessId=${encodeURIComponent(userContext.businessId)}` : ""}`
       : `/api/calculator-data${userContext.businessId ? `?businessId=${encodeURIComponent(userContext.businessId)}` : ""}`;
+  if (userContext.isPreviewMode) syncUrl += `${syncUrl.includes("?") ? "&" : "?"}preview=1`;
   const sanitizedData = sanitizeCalculatorData(data, userContext);
   const bootstrap = `
 <script>
@@ -462,6 +463,8 @@ function injectCloudStorageSync(
     return status;
   }
   function setCloudSaveStatus(message, tone){
+    window.__calculatorCloudSaveState = {message:message || '', tone:tone || 'idle'};
+    window.dispatchEvent(new Event('calculator-cloud-save-status'));
     var status = ensureCloudSaveStatus();
     if (!status) return;
     clearTimeout(cloudSaveHideTimer);
@@ -708,6 +711,31 @@ function injectCloudStorageSync(
     syncRetryTimer = null;
     sendPendingSnapshot();
     return confirmation;
+  };
+  window.__calculatorQuoteRequest = async function(kind, payload){
+    if (kind !== 'quoteEdit' && kind !== 'quoteCopy') throw new Error('Unsupported quote action.');
+    await window.__calculatorFlushCloudSave(20000);
+    var controller = new AbortController();
+    var timeout = setTimeout(function(){ controller.abort(); }, 15000);
+    setCloudSaveStatus('Saving...', 'saving');
+    try {
+      var response = await fetch(calculatorSyncUrl, {
+        method:'PUT', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({[kind]:payload}), signal:controller.signal
+      });
+      var result = await response.json().catch(function(){ return {}; });
+      if (!response.ok) {
+        var error = new Error(result.error || 'The quote could not be saved.');
+        error.status = response.status;
+        throw error;
+      }
+      setCloudSaveStatus('Saved', 'saved');
+      return result;
+    } catch(error) {
+      setCloudSaveStatus('Quote save not confirmed', 'error');
+      if (error.name === 'AbortError') throw new Error('The save could not be confirmed. Retry to check the same save without creating a duplicate.');
+      throw error;
+    } finally { clearTimeout(timeout); }
   };
   function scheduleSync(force){
     if (syncing) return;

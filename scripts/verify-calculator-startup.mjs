@@ -142,7 +142,7 @@ assert.match(
 );
 assert.match(
   calculatorUi,
-  /function openDrawer\(\)\{ensureSecondaryStartup\(\);/,
+  /function openDrawer\(\)\{\s*ensureSecondaryStartup\(\);/,
   "Opening quotes must initialize deferred quote history immediately.",
 );
 assert.match(

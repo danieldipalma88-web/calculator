@@ -12,6 +12,13 @@ const OPTION_COLLECTION_STORAGE_KEYS = new Set([
   "QuoteOptionDefsV1",
 ]);
 
+const IMMUTABLE_COLLECTION_STORAGE_KEYS = new Set([
+  "installerSavedQuoteSetsV1",
+  "greenEnergySavedQuoteSetsV1",
+  "SavedQuoteSetsV1",
+  "installerQuoteLibraryCopyReceiptsV1",
+]);
+
 const MANAGED_PRICE_STORAGE_KEYS = new Set([
   "installerManagedPricesV1",
   "greenEnergyManagedPricesV1",
@@ -150,11 +157,30 @@ function preserveWonCommission(existing: SyncRecord | undefined, next: SyncRecor
   return output;
 }
 
+function mergeImmutableBackups(existingValue: unknown, incomingValue: unknown) {
+  const incoming = parseStoredJson(incomingValue);
+  if (!Array.isArray(incoming)) return undefined;
+  const prior = parseStoredJson(existingValue);
+  const existing: unknown[] = Array.isArray(prior) ? prior : [];
+  const ids = new Set(existing.map((entry) => entry && typeof entry === "object"
+    ? String((entry as SyncRecord).id || "") : "").filter(Boolean));
+  const merged = [...existing];
+  for (const entry of incoming) {
+    const id = entry && typeof entry === "object" ? String((entry as SyncRecord).id || "") : "";
+    if (id ? ids.has(id) : merged.some((priorEntry) => JSON.stringify(priorEntry) === JSON.stringify(entry))) continue;
+    merged.push(entry);
+    if (id) ids.add(id);
+  }
+  return typeof existingValue === "string" || typeof incomingValue === "string"
+    ? JSON.stringify(merged) : merged;
+}
+
 function mergeRecordCollection(
   existingValue: unknown,
   incomingValue: unknown,
   kind: "rows" | "options",
   tombstones: TombstoneLedger,
+  wonOptionIds: Set<string> = new Set(),
 ) {
   const incoming = parseStoredArray(incomingValue);
   if (!incoming) return undefined;
@@ -190,7 +216,8 @@ function mergeRecordCollection(
   const deletions = kind === "rows" ? tombstones.rows : tombstones.options;
   const filtered = merged.filter((record) => {
     const id = String(record.id || "");
-    return !id || !deletions[id] || recordVersion(record, kind) > deletions[id];
+    const lockedByParent = kind === "rows" && wonOptionIds.has(String(record.optionId || ""));
+    return !!record.wonAt || lockedByParent || !id || !deletions[id] || recordVersion(record, kind) > deletions[id];
   });
 
   return serializeLikeStorage(filtered, existingValue, incomingValue);
@@ -219,16 +246,36 @@ export function mergeCalculatorData(existing: unknown, incoming: unknown) {
     next[QUOTE_SYNC_TOMBSTONES_STORAGE_KEY],
   );
   const merged = { ...current };
+  // Resolve parent winners before row tombstones, independent of snapshot key order.
+  const optionWinners = new Map<string, SyncRecord>();
+  for (const key of OPTION_COLLECTION_STORAGE_KEYS) {
+    const collection = mergeRecordCollection(current[key], key in next ? next[key] : current[key], "options", tombstones);
+    const options = parseStoredArray(collection === undefined ? current[key] : collection) || [];
+    for (const option of options) {
+      const id = String(option.id || "");
+      if (!id) continue;
+      const prior = optionWinners.get(id);
+      const version = recordVersion(option, "options");
+      if (!prior || version > recordVersion(prior, "options") ||
+          (version === recordVersion(prior, "options") && option.wonAt)) optionWinners.set(id, option);
+    }
+  }
+  const wonOptionIds = new Set([...optionWinners].filter(([, option]) => !!option.wonAt).map(([id]) => id));
 
   for (const [key, value] of Object.entries(next)) {
     if (key === QUOTE_SYNC_TOMBSTONES_STORAGE_KEY) continue;
+    if (IMMUTABLE_COLLECTION_STORAGE_KEYS.has(key)) {
+      const backups = mergeImmutableBackups(current[key], value);
+      if (backups !== undefined) merged[key] = backups;
+      continue;
+    }
     const kind = QUOTE_COLLECTION_STORAGE_KEYS.has(key)
       ? "rows"
       : OPTION_COLLECTION_STORAGE_KEYS.has(key)
         ? "options"
         : null;
     if (kind) {
-      const collection = mergeRecordCollection(current[key], value, kind, tombstones);
+      const collection = mergeRecordCollection(current[key], value, kind, tombstones, wonOptionIds);
       if (collection !== undefined) merged[key] = collection;
       continue;
     }

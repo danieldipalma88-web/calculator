@@ -3383,6 +3383,111 @@ body.guidanceModalOpen{overflow:hidden}
   .portraitOnlyNotice{display:flex}
   .wrap,.floatingActionBar,.drawerOverlay,.quoteDrawer,.quoteActionNotice,.quoteNameModal{visibility:hidden!important;pointer-events:none!important}
 }
+.quoteLibrary.quoteDrawer{width:min(1120px,100vw);padding:0;background:#fff;overscroll-behavior:contain}
+.quoteLibrary [hidden]{display:none!important}
+.quoteLibrary button,.quoteLibrary input,.quoteLibrary select,.quoteLibrary details{border-radius:8px;letter-spacing:0}
+.quoteLibrary button{min-height:42px;font-size:13px}
+.quoteLibraryHeader{position:sticky;top:0;z-index:3;padding:22px 24px 16px;background:#fff;border-bottom:1px solid var(--line)}
+.quoteLibraryTitleRow,.quoteLibraryHeaderActions,.quoteLibraryDetailActions,.quoteLibraryListMeta,.quoteLibraryPagination,.quoteLibraryDetailHeading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.quoteLibraryTitleRow h2{font-size:24px;margin:0;letter-spacing:0}
+.quoteLibrarySaveStatus{font-size:12px;color:#4c626c;display:block;margin-top:5px}
+.quoteLibrarySaveStatus[data-tone="error"],.quoteLibrarySaveStatus[data-tone="retrying"]{color:#9a3412}
+.quoteLibraryClose{font-size:25px!important;width:42px;padding:0;flex-shrink:0}
+.quoteLibraryFilters{display:grid;grid-template-columns:minmax(200px,1fr) 180px 200px;align-items:end;gap:12px;margin-top:18px}
+.quoteLibraryFilters label{font-size:11px;margin-bottom:6px}
+.quoteLibraryFilters input,.quoteLibraryFilters select{height:44px;margin:0}
+.quoteLibraryStatusTabs{display:flex;gap:4px;grid-column:1/-1}
+.quoteLibraryStatusTabs button{min-width:68px;background:#f0f4f5;color:#344454}
+.quoteLibraryStatusTabs button[aria-pressed="true"]{background:#0e7771;color:white}
+.quoteLibraryContent{padding:18px 24px 24px;min-width:0}
+.quoteLibraryListMeta{font-size:12px;color:#526679;margin-bottom:12px}
+.quoteLibraryList{border-top:1px solid var(--line)}
+.quoteLibraryRow{display:grid;width:100%;grid-template-columns:minmax(0,1fr) 130px 130px 22px;gap:14px;align-items:center;text-align:left;border:0;border-bottom:1px solid var(--line);border-radius:0!important;padding:17px 6px;background:#fff;color:#182332;box-shadow:none}
+.quoteLibraryRow:hover{background:#f3faf8;transform:none;box-shadow:none}
+.quoteLibraryRow:focus-visible{outline:3px solid #0e7771;outline-offset:-3px}
+.quoteLibraryRow strong{display:block;font-size:15px;overflow-wrap:anywhere}
+.quoteLibraryRow small{display:block;font-size:12px;font-weight:500;color:#5a6c7b;margin-top:6px;line-height:1.5;overflow-wrap:anywhere}
+.quoteLibraryRowPrice{text-align:right;font-variant-numeric:tabular-nums}
+.quoteLibraryBadge{display:inline-block;font-size:11px;font-weight:700;background:#edf3f5;color:#405467;padding:5px 8px;border-radius:4px}
+.quoteLibraryBadge.won{color:#126434;background:#e3f8e9}
+.quoteLibraryBadge.backup{color:#915b00;background:#fff4db}
+.quoteLibraryPagination{justify-content:center;margin:20px 0 0;font-size:12px}
+.quoteLibraryEmpty{padding:44px 12px;text-align:center;color:#526679}
+.quoteLibraryEmpty h3{color:#182332;font-size:18px}
+.quoteLibraryAdvanced{margin:0 24px 24px;padding:14px 0;border-top:1px solid var(--line)}
+.quoteLibraryAdvanced summary{cursor:pointer;font-size:13px;font-weight:700;color:#526679;min-height:32px}
+.quoteLibraryAdvanced h3{font-size:15px;margin:20px 0 12px}
+.quoteLibraryAdvancedFields{display:flex;align-items:end;gap:12px;margin-bottom:12px}
+.quoteLibraryAdvancedFields>div{flex:1;min-width:0}
+.quoteLibraryAdvancedFields button{flex-shrink:0}
+.quoteLibraryBack{padding:6px 0!important;min-height:40px;background:transparent;color:#0e7771;box-shadow:none;border:0;text-align:left}
+.quoteLibraryDetailHeading{align-items:flex-start;margin:10px 0 16px}
+.quoteLibraryDetailHeading h3{font-size:22px;line-height:1.35;margin:0 0 8px;overflow-wrap:anywhere}
+.quoteLibraryDetailHeading p{font-size:13px;margin:0;color:#526679;line-height:1.6;overflow-wrap:anywhere}
+.quoteLibraryDetailTotal{flex-shrink:0;text-align:right}
+.quoteLibraryDetailTotal strong{font-size:24px;font-variant-numeric:tabular-nums;display:block}
+.quoteLibraryDetailTotal span{font-size:11px;color:#526679}
+.quoteLibraryDetailActions{justify-content:flex-start;flex-wrap:wrap;padding-bottom:18px;border-bottom:1px solid var(--line)}
+.quoteLibraryMore{position:relative;margin-left:auto}
+.quoteLibraryMore>summary{display:flex;align-items:center;justify-content:center;list-style:none;background:#eef3f6;border-radius:8px;min-width:44px;min-height:42px;cursor:pointer;font-weight:800;font-size:20px}
+.quoteLibraryMore>summary::-webkit-details-marker{display:none}
+.quoteLibraryMoreMenu{position:absolute;right:0;top:48px;z-index:4;min-width:220px;background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px #142b3c1f;padding:6px;display:grid;gap:3px}
+.quoteLibraryMoreMenu button{text-align:left;background:#fff;color:#1a2e3a;box-shadow:none}
+.quoteLibraryMoreMenu button:hover{background:#f2f6f7}
+.quoteLibraryMoreMenu button.danger{color:#a62525}
+.quoteLibraryFeedback{font-size:13px;color:#0e7771;min-height:20px;margin:10px 0;overflow-wrap:anywhere}
+.quoteLibrarySystem{padding:20px 0;border-bottom:1px solid var(--line)}
+.quoteLibrarySystemHead{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.quoteLibrarySystemHead h4{font-size:15px;margin:0 0 7px}
+.quoteLibrarySystemHead p{font-size:12px;color:#526679;margin:4px 0;overflow-wrap:anywhere;line-height:1.5}
+.quoteLibrarySystemHead>strong{flex-shrink:0;font-variant-numeric:tabular-nums}
+.quoteLibrarySystemActions{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+.quoteLibrarySystem details{margin-top:14px}
+.quoteLibrarySystem summary,.quoteLibraryFinancial summary{cursor:pointer;font-size:13px;color:#526679;font-weight:700;min-height:35px;padding:7px 0}
+.quoteLibraryMetrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;padding:14px 0;margin:0}
+.quoteLibraryMetrics dt{font-size:11px;color:#526679;line-height:1.5}
+.quoteLibraryMetrics dd{font-size:14px;font-weight:700;margin:4px 0 0;overflow-wrap:anywhere}
+.quoteLibraryFinancial{margin-top:20px}
+.quoteLibraryEditForm{background:#f3f8f7;padding:16px;margin-top:14px;border-radius:8px}
+.quoteLibraryEditForm h4{margin:0 0 14px;font-size:15px}
+.quoteLibraryEditFields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.quoteLibraryEditFields label{font-size:11px}
+.quoteLibraryLabour{display:flex;align-items:center;gap:10px;margin:16px 0 0;text-transform:none;letter-spacing:0;line-height:1.4}
+.quoteLibraryLabour input{flex:0 0 20px;width:20px;height:20px;padding:0;accent-color:var(--primary)}
+.quoteLibrary h2,.quoteLibrary h3,.quoteLibrary h4{letter-spacing:0}
+.quoteLibraryEditForm .hint{margin:12px 0;line-height:1.5}
+.quoteLibraryEditForm .quoteLibraryDetailActions{border:0;padding:4px 0 0}
+.quoteLibraryWarning{background:#fff8e9;color:#815000;border-left:3px solid #e7ac32;padding:12px;font-size:13px;line-height:1.6;margin:14px 0}
+@media(max-width:700px){
+  .quoteLibrary.quoteDrawer{width:100%;max-width:100%;left:0;right:0;padding:0 0 env(safe-area-inset-bottom,0px)}
+  .quoteLibraryHeader{padding:16px 14px 12px}
+  .quoteLibraryTitleRow h2{font-size:21px}
+  .quoteLibrary button,.quoteLibrary summary{min-height:44px}
+  .quoteLibraryClose{width:44px}
+  .quoteLibraryFilters{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;margin-top:14px}
+  .quoteLibrarySearch{grid-column:1/-1}
+  .quoteLibraryContent{padding:12px 14px 20px}
+  .quoteLibraryRow{grid-template-columns:minmax(0,1fr) auto;gap:10px;padding:16px 0}
+  .quoteLibraryRowStatus{grid-column:1;grid-row:2}
+  .quoteLibraryRowPrice{grid-column:2;grid-row:1}
+  .quoteLibraryRowChevron{display:none}
+  .quoteLibraryAdvanced{margin:0 14px 20px}
+  .quoteLibraryAdvancedFields{align-items:stretch;flex-direction:column}
+  .quoteLibraryDetailHeading{flex-wrap:wrap;gap:12px}
+  .quoteLibraryDetailHeading h3{font-size:21px}
+  .quoteLibraryDetailTotal{text-align:left}
+  .quoteLibraryDetailTotal strong{font-size:22px}
+  .quoteLibraryDetailActions{gap:8px;position:relative}
+  .quoteLibraryDetailActions>button{flex:1;min-width:100px}
+  .quoteLibraryMore{margin-left:0;position:static}
+  .quoteLibraryMoreMenu{left:0;right:0;top:100%;min-width:0;max-width:none}
+  .quoteLibraryMetrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .quoteLibrarySystemHead{gap:8px}
+  .quoteLibrarySystemActions button{flex:1}
+  .quoteLibraryEditFields{grid-template-columns:minmax(0,1fr)}
+  .quoteLibraryHeaderActions{gap:8px}
+  .quoteLibraryHeaderActions button{padding:10px 12px}
+}
 </style>
 <!-- Version: Option groups -->
 </head>
@@ -3744,54 +3849,22 @@ body.guidanceModalOpen{overflow:hidden}
 <div id="multiSplitPriceSaveModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="multiSplitPriceSaveTitle" aria-describedby="multiSplitPriceSaveDescription" onclick="if(event.target===this)finishMultiSplitPriceEdit(false)"><div class="quoteNameModalCard"><div class="kicker">Multi-head equipment price</div><h2 id="multiSplitPriceSaveTitle">Save this price to the unit?</h2><p id="multiSplitPriceSaveDescription">The entered price is already being used for this quote. You can also save it as this business's price for the selected model.</p><div class="multiSplitPriceSaveSummary"><strong id="multiSplitPriceSaveModel">Selected model</strong><span id="multiSplitPriceSaveAmount">$0.00 inc GST</span></div><div id="multiSplitPriceSaveStatus" class="modelRequestStatus" role="status" aria-live="polite"></div><div class="quoteNameModalActions"><button id="multiSplitPriceUseOnce" class="secondary" type="button" onclick="finishMultiSplitPriceEdit(false)">Use for this quote only</button><button id="multiSplitPriceSaveAccount" class="green" type="button" onclick="finishMultiSplitPriceEdit(true)">Save to this business</button></div></div></div>
 <div class="portraitOnlyNotice" aria-live="polite"><div><strong>Use portrait view</strong><span>Rotate your phone upright to continue quoting.</span></div></div>
 <div id="overlay" class="drawerOverlay" onclick="closeAllDrawers()"></div>
-<div id="drawer" class="quoteDrawer quoteBuilderDrawer"><div class="drawerHead"><div><div class="kicker">Quote builder</div><h2 style="margin:4px 0">View quotes</h2><div class="sub drawerIntro">Compare split, ducted and multi-head quotes. Quotes save automatically to your calculator profile. Use Save Quote to keep a named snapshot.</div><div class="quoteExportField" style="margin-top:14px;max-width:420px"><label>Quote / customer export name</label><input id="quoteExportName" placeholder="Example: Ash Macquarie Links" oninput="saveQuoteExportName()"></div></div><div class="actions"><button class="orange" onclick="saveCurrentQuoteSet()">Save Quote</button><button class="secondary" onclick="downloadCsv()">Download CSV</button><button class="danger" onclick="clearQuotes()">Clear</button><button class="secondary" onclick="closeDrawer()">Close</button></div></div>
-  <div class="drawerFloatingActions"><button class="orange" onclick="saveCurrentQuoteSet()">Save Quote</button><button class="secondary" onclick="closeDrawer()">Close</button></div>
-  <div class="totalsManager" style="margin-top:14px">
-    <div class="drawerHead" style="margin-bottom:10px;align-items:flex-end">
-      <div><div class="kicker">Saved quote sets</div><h3 style="margin:4px 0 0">Save and reload full quote snapshots</h3><div class="sub">Saved quote sets remain in this browser until deleted.</div></div>
-      <div class="actions" style="margin-top:0"><button class="orange" onclick="saveCurrentQuoteSet()">Save Quote</button></div>
+<div id="drawer" class="quoteDrawer quoteBuilderDrawer quoteLibrary" role="dialog" aria-modal="true" aria-labelledby="quoteLibraryTitle">
+  <div class="quoteLibraryHeader">
+    <div class="quoteLibraryTitleRow"><div><h2 id="quoteLibraryTitle" tabindex="-1">Quotes</h2><span id="quoteLibrarySaveStatus" class="quoteLibrarySaveStatus" role="status">Saved on this device</span></div><div class="quoteLibraryHeaderActions"><button class="orange" type="button" onclick="newLibraryQuote()">New quote</button><button class="secondary quoteLibraryClose" type="button" title="Close quotes" aria-label="Close quotes" onclick="closeDrawer()">&times;</button></div></div>
+    <div id="quoteLibraryFilters" class="quoteLibraryFilters">
+      <div class="quoteLibrarySearch"><label for="quoteLibrarySearch">Search quotes</label><input id="quoteLibrarySearch" type="search" placeholder="Customer, model, address or postcode" autocomplete="off" oninput="filterQuoteLibrary()"></div>
+      <div><label for="quoteLibrarySort">Sort by</label><select id="quoteLibrarySort" onchange="filterQuoteLibrary()"><option value="recent">Recently updated</option><option value="name">Customer A-Z</option><option value="value">Highest value</option></select></div>
+      <div id="quoteLibraryBusinessField" hidden><label for="quoteLibraryBusiness">Business</label><select id="quoteLibraryBusiness" onchange="filterQuoteLibrary()"><option value="all">All businesses</option></select></div>
+      <div class="quoteLibraryStatusTabs" role="group" aria-label="Quote status"><button type="button" class="secondary" data-quote-status="open" aria-pressed="true" onclick="setQuoteLibraryStatus('open')">Open</button><button type="button" class="secondary" data-quote-status="won" aria-pressed="false" onclick="setQuoteLibraryStatus('won')">Won</button><button type="button" class="secondary" data-quote-status="all" aria-pressed="false" onclick="setQuoteLibraryStatus('all')">All</button></div>
     </div>
-    <div class="row2">
-      <div><label>Save name</label><input id="savedQuoteName" placeholder="Example: Ash - Quote Set A"></div>
-      <div><label>Saved quotes</label><select id="savedQuoteSelect" onchange="onSavedQuoteSelectionChange()"></select></div>
-    </div>
-    <div class="actions" style="margin-top:10px">
-      <button class="secondary" onclick="loadSelectedSavedQuote()">Load Selected</button>
-      <button class="danger" onclick="deleteSelectedSavedQuote()">Delete Selected</button>
-    </div>
-    <div class="hint" id="savedQuoteStatus">No saved quote sets yet.</div>
   </div>
-  <div class="totalsManager">
-    <div class="drawerHead" style="margin-bottom:10px;align-items:flex-end">
-      <div><div class="kicker">Quote totals manager</div><h3 style="margin:4px 0 0">Distribute totals across saved quotes</h3><div class="sub">Enter a total and apply it evenly across every saved quote. Customer inc, labour, materials and misc distribute across all rows. Power only distributes across split and multi-head rows.</div></div>
-      <div class="actions" style="margin-top:0"><button class="secondary" onclick="fillCurrentQuoteTotals()">Load current totals</button><button class="orange" onclick="applyEvenDistribution()">Apply even distribution</button></div>
-    </div>
-    <div class="totalsGrid">
-      <div><label>Total customer inc GST</label><input id="distCustomerTotal" type="number" step="0.01" placeholder="eg 12000"></div>
-      <div><label>Total labour ex GST</label><input id="distLabourTotal" type="number" step="0.01" placeholder="eg 1500"></div>
-      <div><label>Total materials inc GST</label><input id="distMaterialsTotal" type="number" step="0.01" placeholder="eg 600"></div>
-      <div><label>Total misc inc GST</label><input id="distMiscTotal" type="number" step="0.01" placeholder="eg 300"></div>
-      <div><label>Total power ex GST</label><input id="distPowerTotal" type="number" step="0.01" placeholder="eg 500"></div>
-    </div>
-    <div class="hint" id="distHint">Add quote systems first, then load current totals or type in new totals. Recalculates commission and installer net profit automatically.</div>
-    <div class="miniTotal"><span>Rows affected</span><strong id="distRowsAffected">0</strong></div>
-  </div>
-  <div class="card quoteGroupsCard" style="box-shadow:none;margin:14px 0;border-radius:18px">
-    <div class="drawerHead" style="margin-bottom:10px;align-items:flex-end">
-      <div>
-        <div class="kicker">Quote groups</div>
-        <h3 style="margin:4px 0 0">Build customer quotes</h3>
-        <div class="sub">Each quote can contain one or more systems. Use this for packages such as three split systems in one quote, then compare it with another quote.</div>
-      </div>
-      <div class="actions" style="margin-top:0"><button class="secondary" onclick="createNewOption(true)">+ New Quote</button></div>
-    </div>
-    <div class="optionControls">
-      <div><label for="drawerAddOptionSelectSearchInput">Add current system to</label><select id="drawerAddOptionSelect" onchange="onOptionSelectionChange(this.value)"></select></div>
-      <button class="orange" onclick="addToQuote()">Add System</button>
-    </div>
-    <div id="optionGroups" class="optionCards"></div>
-    <div class="tableWrap" style="margin-top:14px"><table><thead><tr><th colspan="6">Overall quote builder totals</th></tr></thead><tbody id="quoteTotalsBody"><tr><td>No quotes added yet.</td></tr></tbody></table></div>
-  </div>
+  <div id="quoteLibraryContent" class="quoteLibraryContent"></div>
+  <details id="quoteLibraryAdvanced" class="quoteLibraryAdvanced"><summary>Advanced</summary>
+    <h3>Quote backups</h3><div class="quoteLibraryAdvancedFields"><div><label for="savedQuoteName">Backup name</label><input id="savedQuoteName" placeholder="Optional backup name"></div><button class="secondary" type="button" onclick="saveCurrentQuoteSet()">Back up all quotes</button></div>
+    <div class="quoteLibraryAdvancedFields"><div><label for="savedQuoteSelect">Existing backups</label><select id="savedQuoteSelect" onchange="onSavedQuoteSelectionChange()"></select></div><button class="secondary" type="button" onclick="loadSelectedSavedQuote()">View backup</button></div><p id="savedQuoteStatus" class="hint" role="status"></p>
+    <h3>Internal CSV export</h3><div class="quoteLibraryAdvancedFields"><div><label for="quoteLibraryExportScope">Include</label><select id="quoteLibraryExportScope"><option value="visible">Filtered quotes</option><option value="all">All working quotes</option></select></div><button class="secondary" type="button" onclick="exportQuoteLibrary()">Export internal CSV</button></div><p class="hint">Includes internal costs and financial details available to your account.</p>
+  </details>
 </div>
 <div id="wonJobsDrawer" class="quoteDrawer wonJobsDrawer">
   <div class="drawerHead">
@@ -10052,7 +10125,14 @@ function renderQuotes(){
 }
 function removeQuote(i){quotes.splice(i,1); persistQuotes(); renderQuotes();}
 function clearQuotes(){quotes=[]; persistQuotes(); renderQuotes();}
-function openDrawer(){ensureSecondaryStartup(); $('drawer').classList.add('open'); $('overlay').classList.add('open'); syncOverlayState();}
+function openDrawer(){
+  ensureSecondaryStartup();
+  quoteLibraryReturnFocus=document.activeElement;
+  $('drawer').classList.add('open');
+  renderQuoteLibrary();
+  syncOverlayState();
+  $('quoteLibrarySearch')?.focus({preventScroll:true});
+}
 function closeDrawer(){$('drawer').classList.remove('open'); if(!$('priceDrawer').classList.contains('open') && !$('certDrawer').classList.contains('open')) $('overlay').classList.remove('open')}
 function parseManagedIndexFromKey(key,expectedType){
   const parts=String(key||'').split('|');
@@ -10317,16 +10397,16 @@ function formatSavedQuoteTime(ts){
 }
 function onSavedQuoteSelectionChange(){
   const selected=selectedSavedQuote();
-  if(!selected){setSavedQuoteStatus('No saved quote set selected.',true); return;}
+  if(!selected){setSavedQuoteStatus('No backup selected.',true); return;}
   const count=Array.isArray(selected.quotes)?selected.quotes.length:0;
-  setSavedQuoteStatus(`Selected: ${selected.name} (${count} row${count===1?'':'s'})`,false);
+  setSavedQuoteStatus(`Selected backup: ${selected.name} (${count} system${count===1?'':'s'})`,false);
 }
 function renderSavedQuoteSets(){
   const sel=$('savedQuoteSelect');
   if(!sel) return;
   if(!savedQuoteSets.length){
-    sel.innerHTML='<option value="">No saved quote sets</option>';
-    setSavedQuoteStatus('No saved quote sets yet.',false);
+    sel.innerHTML='<option value="">No backups</option>';
+    setSavedQuoteStatus('No backups yet.',false);
     return;
   }
   const current=sel.value;
@@ -10340,13 +10420,11 @@ function renderSavedQuoteSets(){
   updateWonJobsCount();
 }
 function defaultSavedQuoteName(){
-  const base=(($('savedQuoteName')&&$('savedQuoteName').value.trim()) || ($('quoteExportName')&&$('quoteExportName').value.trim()) || ($('customer')&&$('customer').value.trim()) || '');
-  if(base) return base;
-  return `Saved Quote ${new Date().toLocaleString('en-AU')}`;
+  return String($('savedQuoteName')?.value||'').trim() || 'Quote backup '+new Date().toLocaleString('en-AU');
 }
 function saveCurrentQuoteSet(){
   ensureSecondaryStartup();
-  if(!quotes.length){setSavedQuoteStatus('Add at least one quote row before saving a quote set.',true); return;}
+  if(!quotes.length){setSavedQuoteStatus('Add at least one system before creating a backup.',true); return;}
   const name=defaultSavedQuoteName();
   const snapshot={
     id:`saved_quote_${Date.now()}_${Math.floor(Math.random()*1000)}`,
@@ -10361,12 +10439,11 @@ function saveCurrentQuoteSet(){
     date:(($('date')&&$('date').value)||'')
   };
   savedQuoteSets.unshift(snapshot);
-  if(savedQuoteSets.length>100) savedQuoteSets=savedQuoteSets.slice(0,100);
   persistSavedQuoteSets();
   renderSavedQuoteSets();
   const sel=$('savedQuoteSelect'); if(sel) sel.value=snapshot.id;
   if($('savedQuoteName')) $('savedQuoteName').value=name;
-  setSavedQuoteStatus(`Saved quote set "${name}".`,false);
+  setSavedQuoteStatus(`Backed up all working quotes as "${name}".`,false);
 }
 function selectedSavedQuote(){
   const sel=$('savedQuoteSelect');
@@ -10375,38 +10452,15 @@ function selectedSavedQuote(){
 }
 function loadSelectedSavedQuote(){
   const selected=selectedSavedQuote();
-  if(!selected){setSavedQuoteStatus('Select a saved quote set first.',true); return;}
-  if(quotes.length && !confirm(`Load "${selected.name}" and replace current working quote rows?`)) return;
-  recordQuoteSyncDeletions(quotes,quoteOptionDefs);
-  const loadedRows=cloneObj(Array.isArray(selected.quotes)?selected.quotes:[]);
-  const loadedDefs=cloneObj(Array.isArray(selected.optionDefs)&&selected.optionDefs.length?selected.optionDefs:[{id:'option_1',name:'Quote 1'}]);
-  const now=Date.now();
-  const optionIdMap=new Map();
-  quoteOptionDefs=loadedDefs.map((def,index)=>{
-    const newId=`option_${now}_${index}_${Math.floor(Math.random()*100000)}`;
-    optionIdMap.set(String(def.id||'option_1'),newId);
-    return {...def,id:newId,syncUpdatedAt:now+index};
-  });
-  quotes=loadedRows.map((q,i)=>{
-    const oldOptionId=String(q.optionId||'option_1');
-    let optionId=optionIdMap.get(oldOptionId);
-    if(!optionId){
-      optionId=`option_${now}_extra_${optionIdMap.size}_${Math.floor(Math.random()*100000)}`;
-      optionIdMap.set(oldOptionId,optionId);
-      quoteOptionDefs.push({id:optionId,name:String(q.optionName||'Quote'),syncUpdatedAt:now+quoteOptionDefs.length});
-    }
-    return {...q,id:`quote_${now}_${i}_${Math.floor(Math.random()*100000)}`,optionId,timestamp:now+i,syncUpdatedAt:now+i};
-  });
-  recommendedOptionId=String(optionIdMap.get(String(selected.recommendedOptionId||''))||'');
-  if($('quoteExportName')) $('quoteExportName').value=String(selected.quoteExportName||'');
-  if($('customer') && selected.customer!==undefined) $('customer').value=String(selected.customer||'');
-  if($('address') && selected.address!==undefined) $('address').value=String(selected.address||'');
-  if($('date') && selected.date!==undefined) $('date').value=String(selected.date||'');
-  saveQuoteExportName();
-  persistOptionDefs();
-  persistQuotes();
-  renderQuotes();
-  setSavedQuoteStatus(`Loaded quote set "${selected.name}".`,false);
+  if(!selected){setSavedQuoteStatus('Select a backup first.',true);return;}
+  if(!discardQuoteLibraryEdit()) return;
+  quoteLibraryView.backupId=String(selected.id);
+  quoteLibraryView.selectedId='';
+  quoteLibraryView.page=1;
+  quoteLibraryView.status='all';
+  if($('quoteLibrarySearch')) $('quoteLibrarySearch').value='';
+  if($('quoteLibraryBusiness')) $('quoteLibraryBusiness').value='all';
+  renderQuoteLibrary();
 }
 function deleteSelectedSavedQuote(){
   const selected=selectedSavedQuote();
@@ -11209,7 +11263,7 @@ function renameOption(id,value){
 function deleteOptionGroup(id){
   const name=optionNameById(id);
   if(!assertOptionEditable(id)) return;
-  if(!confirm('Delete '+name+' and all systems inside it?')) return;
+  if(!confirm('Permanently delete '+name+' and all systems inside it? This cannot be undone. Other customer quotes and backups are kept.')) return;
   recordQuoteSyncDeletions(quotes.filter(q=>q.optionId===id),quoteOptionDefs.filter(o=>o.id===id));
   quotes=quotes.filter(q=>q.optionId!==id);
   quoteOptionDefs=quoteOptionDefs.filter(o=>o.id!==id);
@@ -11369,19 +11423,17 @@ function updateWonJobsCount(){
 }
 function viewWonCurrentOption(encodedId){
   const id=decodeURIComponent(encodedId||'');
-  if(id) syncAddOptionSelects(id);
-  renderCurrentOptionPanel();
   closeWonJobsDrawer();
   openDrawer();
+  openLibraryQuote(encodeURIComponent(id));
 }
 function loadWonSavedQuote(encodedId){
   const id=decodeURIComponent(encodedId||'');
-  const sel=$('savedQuoteSelect');
-  if(!id || !sel){openDrawer();return;}
-  sel.value=id;
   closeWonJobsDrawer();
-  loadSelectedSavedQuote();
   openDrawer();
+  const sel=$('savedQuoteSelect');
+  if(sel) sel.value=id;
+  loadSelectedSavedQuote();
 }
 function renderWonJobs(){
   const jobs=collectWonJobs();
@@ -11707,10 +11759,380 @@ async function copyCurrentQuoteInfo(){
     quoteInfoFeedbackTimer=setTimeout(()=>updateCopyQuoteInfoButton(currentOptionSelection().rows),2500);
   }
 }
-function renderCurrentOptionPanel(){
+let quoteLibraryView={status:'open',page:1,selectedId:'',backupId:'',listScroll:0};
+let quoteLibraryReturnFocus=null;
+let quoteLibraryEdit=null;
+let quoteLibraryBusy=false;
+let pendingQuoteLibraryRemoval=null;
+const QUOTE_LIBRARY_PAGE_SIZE=20;
+function quoteLibraryArg(value){return htmlEscape(encodeURIComponent(String(value||'')).replace(/'/g,'%27'));}
+function quoteLibraryTime(value){
+  const n=Number(value);
+  if(Number.isFinite(n)&&n>0) return n;
+  const parsed=Date.parse(String(value||''));
+  return Number.isFinite(parsed)?parsed:0;
+}
+function quoteLibraryBusiness(rows){
+  const records=rows.map(row=>({id:String(row.state?.businessId||''),name:String(row.state?.businessName||'')}));
+  if(!records.length||records.some(item=>!item.id&&!item.name)) return {key:'unassigned',name:'Business not recorded'};
+  const keys=[...new Set(records.map(item=>item.id?'id:'+item.id:'name:'+item.name))];
+  if(keys.length!==1) return {key:'mixed',name:'Multiple businesses'};
+  const names=[...new Set(records.map(item=>item.name).filter(Boolean))];
+  const name=names.length===1?names[0]:(records[0].id===String(calculatorUserContext().businessId||'')?activeBusinessName():'Business name not recorded');
+  return {key:keys[0],name};
+}
+function quoteLibraryGroupData(defs,rows){
+  const byId=new Map();
+  const definitions=(Array.isArray(defs)?defs:[]).map(def=>({...def}));
+  (Array.isArray(rows)?rows:[]).forEach(row=>{
+    const id=String(row.optionId||'legacy-unassigned');
+    if(!byId.has(id)) byId.set(id,[]);
+    byId.get(id).push(row);
+    if(!definitions.some(def=>String(def.id)===id)) definitions.push({id,name:row.optionName||'Unnamed quote'});
+  });
+  return definitions.map(def=>{
+    const items=byId.get(String(def.id))||[];
+    const business=quoteLibraryBusiness(items);
+    const updated=Math.max(quoteLibraryTime(def.syncUpdatedAt),quoteLibraryTime(def.wonAt),...items.map(row=>quoteLibraryTime(row.syncUpdatedAt||row.timestamp)),0);
+    const won=!!def.wonAt||items.some(row=>!!row.wonAt);
+    const search=[def.name,def.id,business.name,def.installationAddress,def.wonInstallationAddress,...items.flatMap(row=>[row.model,row.brand,row.series,row.size,row.postcode,row.state?.postcode,row.state?.ess?.postcode,row.state?.address,...(row.state?.indoorHeads||[]).map(head=>head.model)])].filter(Boolean).join(' ').toLocaleLowerCase();
+    return {def,rows:items,business,updated,won,total:items.reduce((sum,row)=>sum+(Number(row.finalInc)||0),0),search};
+  });
+}
+function quoteLibraryGroups(){
+  const backup=savedQuoteSets.find(item=>String(item.id)===quoteLibraryView.backupId);
+  return quoteLibraryGroupData(backup?backup.optionDefs:quoteOptionDefs,backup?backup.quotes:quotes);
+}
+function selectQuoteLibraryGroups(groups,filters){
+  const words=String(filters.query||'').trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
+  return groups.filter(group=>(filters.status==='all'||(filters.status==='won'?group.won:!group.won))&&(filters.business==='all'||group.business.key===filters.business)&&words.every(word=>group.search.includes(word))).sort((a,b)=>{
+    if(filters.sort==='name') return String(a.def.name||'').localeCompare(String(b.def.name||''));
+    if(filters.sort==='value') return b.total-a.total||b.updated-a.updated;
+    return b.updated-a.updated||String(a.def.name||'').localeCompare(String(b.def.name||''));
+  });
+}
+function filteredQuoteLibraryGroups(){
+  return selectQuoteLibraryGroups(quoteLibraryGroups(),{query:$('quoteLibrarySearch')?.value,status:quoteLibraryView.backupId?'all':quoteLibraryView.status,business:$('quoteLibraryBusiness')?.value||'all',sort:$('quoteLibrarySort')?.value||'recent'});
+}
+function quoteLibraryDate(timestamp){return timestamp?new Date(timestamp).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'}):'Date not recorded';}
+function quoteLibraryMetric(label,value){return '<div><dt>'+htmlEscape(label)+'</dt><dd>'+htmlEscape(value)+'</dd></div>';}
+function quoteLibraryGroupStatus(group){return '<span class="quoteLibraryBadge'+(group.won?' won':'')+'">'+(group.won?'Won':'Open')+'</span>';}
+function selectedQuoteLibraryGroup(){return quoteLibraryGroups().find(group=>String(group.def.id)===quoteLibraryView.selectedId)||null;}
+function filterQuoteLibrary(){quoteLibraryView.page=1;renderQuoteLibrary();}
+function setQuoteLibraryStatus(status){quoteLibraryView.status=status;filterQuoteLibrary();}
+function setQuoteLibraryPage(page){quoteLibraryView.page=Math.max(1,Number(page)||1);renderQuoteLibrary();$('drawer').scrollTop=0;$('quoteLibraryContent')?.focus({preventScroll:true});}
+function discardQuoteLibraryEdit(){
+  if(quoteLibraryBusy) return false;
+  if(quoteLibraryEdit&&!confirm('Discard the unsaved system edits?')) return false;
+  quoteLibraryEdit=null;
+  return true;
+}
+function openLibraryQuote(encodedId){
+  if(!discardQuoteLibraryEdit()) return;
+  quoteLibraryView.listScroll=$('drawer')?.scrollTop||0;
+  quoteLibraryView.selectedId=decodeURIComponent(encodedId||'');
+  renderQuoteLibrary();
+  $('drawer').scrollTop=0;
+  $('quoteLibraryDetailTitle')?.focus({preventScroll:true});
+}
+function backToQuoteLibrary(){
+  if(!discardQuoteLibraryEdit()) return;
+  const detailId=quoteLibraryView.selectedId;
+  quoteLibraryView.selectedId='';
+  if(!detailId) quoteLibraryView.backupId='';
+  renderQuoteLibrary();
+  $('drawer').scrollTop=quoteLibraryView.listScroll;
+  Array.from(document.querySelectorAll('[data-library-quote-id]')).find(el=>el.dataset.libraryQuoteId===detailId)?.focus({preventScroll:true});
+}
+function newLibraryQuote(){
+  if(!discardQuoteLibraryEdit()) return;
+  if(currentQuoteTotalsEditing){alert('Save or cancel the current quote total edits first.');return;}
+  openQuoteNameModal({mode:'libraryCreate',selectIt:true});
+}
+function libraryQuoteAction(action){
+  if(!discardQuoteLibraryEdit()) return;
+  const group=selectedQuoteLibraryGroup();
+  if(!group||quoteLibraryView.backupId) return;
+  if(action==='copy') return openLibraryCopyName();
+  if(group.won) return;
+  if(action==='rename') openRenameQuoteModal(group.def.id);
+  if(action==='won') markOptionWon(group.def.id);
+  if(action==='delete') deleteOptionGroup(group.def.id);
+}
+function updateQuoteLibrarySaveStatus(){
+  const label=$('quoteLibrarySaveStatus');
+  if(!label) return;
+  const cloud=window.__calculatorCloudSaveState;
+  const fallback=$('cloudSaveStatus');
+  const tone=cloud?.tone||fallback?.dataset.tone||'idle';
+  const text=cloud?.message||fallback?.textContent||'';
+  label.dataset.tone=tone;
+  label.textContent=tone==='error'?'Could not save - your changes are still on this device':tone==='retrying'?'Offline or unavailable - retrying save':tone==='saving'?'Saving...':window.__calculatorFlushCloudSave?'Saved':'Saved on this device';
+  label.title=text;
+}
+function renderQuoteLibrary(){
+  const container=$('quoteLibraryContent');
+  if(!container) return;
+  updateQuoteLibrarySaveStatus();
+  const groups=quoteLibraryGroups();
+  const businessSelect=$('quoteLibraryBusiness');
+  if(businessSelect){
+    const selected=businessSelect.value||'all';
+    const businesses=new Map(groups.map(group=>[group.business.key,group.business.name]));
+    businessSelect.innerHTML='<option value="all">All businesses</option>'+Array.from(businesses).sort((a,b)=>a[1].localeCompare(b[1])).map(([key,name])=>'<option value="'+htmlEscape(key)+'">'+htmlEscape(name)+'</option>').join('');
+    businessSelect.value=businesses.has(selected)?selected:'all';
+    $('quoteLibraryBusinessField').hidden=businesses.size<2;
+  }
+  document.querySelectorAll('[data-quote-status]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.quoteStatus===quoteLibraryView.status)));
+  const group=groups.find(item=>String(item.def.id)===quoteLibraryView.selectedId);
+  $('quoteLibraryFilters').hidden=!!group;
+  $('quoteLibraryAdvanced').hidden=!!group||!!quoteLibraryView.backupId;
+  if(group){
+    if(quoteLibraryEdit) return;
+    container.innerHTML=quoteLibraryDetailHtml(group);
+    return;
+  }
+  quoteLibraryView.selectedId='';
+  const filtered=filteredQuoteLibraryGroups();
+  const pages=Math.max(1,Math.ceil(filtered.length/QUOTE_LIBRARY_PAGE_SIZE));
+  quoteLibraryView.page=Math.min(quoteLibraryView.page,pages);
+  const start=(quoteLibraryView.page-1)*QUOTE_LIBRARY_PAGE_SIZE;
+  const page=filtered.slice(start,start+QUOTE_LIBRARY_PAGE_SIZE);
+  const backup=savedQuoteSets.find(item=>String(item.id)===quoteLibraryView.backupId);
+  const backupIntro=backup?'<button class="quoteLibraryBack" onclick="backToQuoteLibrary()">&larr; Back to working quotes</button><div class="quoteLibraryWarning"><strong>Backup: '+htmlEscape(backup.name)+'</strong><br>Read-only snapshot. Your working quotes are unchanged.</div>':'';
+  const rows=page.map(item=>'<button class="quoteLibraryRow" data-library-quote-id="'+htmlEscape(item.def.id)+'" onclick="openLibraryQuote(\''+quoteLibraryArg(item.def.id)+'\')"><span><strong>'+htmlEscape(item.def.name||'Unnamed quote')+'</strong><small>'+htmlEscape(item.business.name)+' &middot; '+item.rows.length+' system'+(item.rows.length===1?'':'s')+'</small></span><span class="quoteLibraryRowStatus">'+quoteLibraryGroupStatus(item)+'<small>'+htmlEscape(quoteLibraryDate(item.updated))+'</small></span><span class="quoteLibraryRowPrice"><strong>'+money(item.total)+'</strong><small>inc GST</small></span><span class="quoteLibraryRowChevron" aria-hidden="true">&rsaquo;</span></button>').join('');
+  const empty='<div class="quoteLibraryEmpty"><h3>No matching quotes</h3><p>Try another search or select All.</p><button class="secondary" onclick="resetQuoteLibraryFilters()">Reset filters</button></div>';
+  container.innerHTML=backupIntro+'<div class="quoteLibraryListMeta" role="status"><span>'+filtered.length+' quote'+(filtered.length===1?'':'s')+(filtered.length!==groups.length?' of '+groups.length:'')+'</span><span>'+(filtered.length?'Showing '+(start+1)+'-'+Math.min(start+page.length,filtered.length):'')+'</span></div><div class="quoteLibraryList">'+(rows||empty)+'</div>'+(pages>1?'<div class="quoteLibraryPagination"><button class="secondary" title="Previous page" aria-label="Previous page" onclick="setQuoteLibraryPage('+(quoteLibraryView.page-1)+')"'+(quoteLibraryView.page===1?' disabled':'')+'>&larr;</button><span>Page '+quoteLibraryView.page+' of '+pages+'</span><button class="secondary" title="Next page" aria-label="Next page" onclick="setQuoteLibraryPage('+(quoteLibraryView.page+1)+')"'+(quoteLibraryView.page===pages?' disabled':'')+'>&rarr;</button></div>':'');
+}
+function resetQuoteLibraryFilters(){
+  $('quoteLibrarySearch').value='';$('quoteLibraryBusiness').value='all';quoteLibraryView.status='all';filterQuoteLibrary();
+}
+function quoteLibraryStoredAmount(rows,key){
+  if(rows.some(row=>row[key]===undefined||row[key]===null||row[key]===''||!Number.isFinite(Number(row[key])))) return 'Unavailable';
+  return money(rows.reduce((total,row)=>total+Number(row[key]),0));
+}
+function quoteLibraryFinancialHtml(rows){
+  const t=groupTotals(rows);
+  let html=quoteLibraryMetric('Equipment inc GST',money(t.unit))+quoteLibraryMetric('Labour ex GST',money(t.labour))+quoteLibraryMetric('Materials inc GST',money(t.materials))+quoteLibraryMetric('Misc inc GST',money(t.misc))+quoteLibraryMetric('Power / electrical ex GST',money(t.power));
+  if(rowsShowRebates(rows)) html+=quoteLibraryMetric('Saved rebate',money(t.rebate));
+  if(canSeeProfitDetails()) html+=quoteLibraryMetric('Agency commission inc GST',money(t.commission));
+  if(canSeeProfitDetails()||canSeeSalespersonCommission()) html+=quoteLibraryMetric('Salesperson commission payable',quoteLibraryStoredAmount(rows,'salespersonCommissionInc'))+quoteLibraryMetric('Installer profit ex GST',quoteLibraryStoredAmount(rows,'netProfit'));
+  if(canSeeAgencyProfit()) html+=quoteLibraryMetric('Agency profit inc GST',money(t.agencyProfitAfterSales));
+  return '<dl class="quoteLibraryMetrics">'+html+'</dl>';
+}
+function quoteLibraryDetailHtml(group){
+  const backup=!!quoteLibraryView.backupId;
+  const priceError=quoteRowsMissingPriceModels(group.rows).length>0;
+  const copyError=currentQuoteInfoError(group.rows);
+  const lock=backup||group.won;
+  const actions=backup?'<button class="secondary" onclick="openLibraryCopyName()">Copy to a new open quote</button>':'<button id="quoteLibraryCopyBtn" class="secondary" onclick="copyLibraryQuoteInfo()"'+(copyError?' disabled title="'+htmlEscape(copyError)+'"':'')+'>Copy quote info</button>'+(!lock?'<button class="orange" onclick="addSystemFromLibrary()">Add system</button><button class="green" onclick="libraryQuoteAction(\'won\')"'+(!group.rows.length||priceError?' disabled':'')+'>Mark won</button>':'');
+  const more=backup?'':'<details class="quoteLibraryMore"><summary aria-label="More quote actions" title="More quote actions">&hellip;</summary><div class="quoteLibraryMoreMenu">'+(!lock?'<button onclick="libraryQuoteAction(\'rename\')">Rename quote</button>':'')+'<button onclick="libraryQuoteAction(\'copy\')"'+(!group.rows.length?' disabled':'')+'>Copy to a new quote</button>'+(!lock?'<button onclick="adjustLibraryQuoteTotals()"'+(!group.rows.length?' disabled':'')+'>Adjust quote totals</button>':'')+'<button onclick="exportQuoteLibrary(\'selected\')">Export internal CSV</button>'+(!lock?'<button class="danger" onclick="libraryQuoteAction(\'delete\')">Delete quote</button>':'')+'</div></details>';
+  const systems=group.rows.map((row,index)=>{
+    const rowArg=quoteLibraryArg(row.id);
+    const support=quoteInfoSupport(quoteInfoProduct(row));
+    const postcode=row.postcode||row.state?.postcode||row.state?.ess?.postcode||'';
+    const extra=quoteInfoExtras(row);
+    return '<article class="quoteLibrarySystem"><div class="quoteLibrarySystemHead"><div><h4>'+htmlEscape([row.brand,row.size,row.series].filter(Boolean).join(' '))+'</h4><p>'+htmlEscape(row.model)+'</p><p>'+htmlEscape([row.type,row.install,postcode?'Postcode '+postcode:''].filter(Boolean).join(' | '))+'</p></div><strong>'+money(row.finalInc)+'</strong></div>'+(!lock?'<div class="quoteLibrarySystemActions"><button class="secondary" onclick="editLibrarySystem(\''+rowArg+'\')"'+(!row.id?' disabled':'')+'>Edit system</button><button class="secondary" onclick="removeLibrarySystem(\''+rowArg+'\')"'+(!row.id?' disabled':'')+'>Remove</button></div>':'')+'<div id="quoteLibraryEdit-'+index+'"></div><details><summary>System details &amp; costs</summary><dl class="quoteLibraryMetrics">'+quoteLibraryMetric('Wi-Fi',support.wifi)+quoteLibraryMetric('Warranty',support.warranty)+quoteLibraryMetric('Installation labour',quoteLabourTreatment(row)==='Retained'?'In-house team':'External subcontractor')+(extra.length?quoteLibraryMetric('Extras',extra.join('; ')):'')+'</dl>'+quoteLibraryFinancialHtml([row])+'</details></article>';
+  }).join('');
+  return '<button class="quoteLibraryBack" onclick="backToQuoteLibrary()">&larr; Back to quotes</button><div class="quoteLibraryDetailHeading"><div><h3 id="quoteLibraryDetailTitle" tabindex="-1">'+htmlEscape(group.def.name||'Unnamed quote')+'</h3><p>'+htmlEscape(group.business.name)+' &middot; '+group.rows.length+' system'+(group.rows.length===1?'':'s')+'</p><p>Updated '+htmlEscape(quoteLibraryDate(group.updated))+' &middot; '+(backup?'<span class="quoteLibraryBadge backup">Backup</span>':quoteLibraryGroupStatus(group))+'</p></div><div class="quoteLibraryDetailTotal"><strong>'+money(group.total)+'</strong><span>Customer total inc GST</span></div></div><div class="quoteLibraryDetailActions">'+actions+more+'</div><p id="quoteLibraryFeedback" class="quoteLibraryFeedback" role="status">'+htmlEscape(copyError||'')+'</p>'+(backup?'<div class="quoteLibraryWarning">Read-only backup. Copying creates a separate open quote and leaves the original unchanged.</div>':group.won?'<div class="quoteLibraryWarning">Won quote. Prices, rebates and payment records are locked.</div>':'')+(systems||'<div class="quoteLibraryEmpty">No systems added yet.</div>')+'<details class="quoteLibraryFinancial"><summary>Quote costs &amp; profit</summary>'+quoteLibraryFinancialHtml(group.rows)+'</details>';
+}
+function buildQuoteLibraryCsv(groups,permissions){
+  const showRebates=groups.some(group=>rowsShowRebates(group.rows));
+  const heads=['Customer','Business','Status','System type','Brand','Series','Size','Model','Install','Customer inc GST',...(showRebates?['Rebate']:[]),'Equipment inc GST','Labour ex GST','Labour treatment','Materials inc GST','Misc inc GST','Power / electrical ex GST'];
+  if(permissions.private) heads.push('Agency commission inc GST');
+  if(permissions.private||permissions.sales) heads.push('Salesperson commission payable','Installer profit ex GST');
+  if(permissions.agency) heads.push('Agency profit inc GST');
+  const lines=groups.flatMap(group=>group.rows.map(row=>{
+    const cells=[group.def.name,group.business.name,group.won?'Won':'Open',row.type,row.brand,row.series||'',row.size,row.model,row.install,row.finalInc,...(showRebates?[rowShowsRebate(row)?row.rebate:'']:[]),row.unitInc,row.labour,quoteLabourTreatment(row),savedMaterialsInc(row),savedMiscInc(row),savedPowerOrElectricianEx(row)];
+    if(permissions.private) cells.push(row.commissionInc);
+    if(permissions.private||permissions.sales) cells.push(row.salespersonCommissionInc,row.netProfit);
+    if(permissions.agency) cells.push(agencyProfitAfterSalesInc(row.agencyCommissionInc??row.commissionInc,row.salespersonCommissionInc,row.commissionType));
+    return cells;
+  }));
+  const cell=value=>{
+    let text=String(value??'');
+    if(typeof value==='string'&&/^[\s]*[=+@-]/.test(text)) text="'"+text;
+    return '"'+text.replaceAll('"','""')+'"';
+  };
+  return [heads,...lines].map(row=>row.map(cell).join(',')).join('\r\n');
+}
+function exportQuoteLibrary(scope){
+  const selected=selectedQuoteLibraryGroup();
+  const mode=scope||$('quoteLibraryExportScope')?.value||'visible';
+  const groups=mode==='selected'?(selected?[selected]:[]):mode==='all'?quoteLibraryGroupData(quoteOptionDefs,quotes):filteredQuoteLibraryGroups();
+  if(!groups.some(group=>group.rows.length)){showQuoteActionNotice('There are no systems to export.');return;}
+  const csv=buildQuoteLibraryCsv(groups,{private:canSeeProfitDetails(),sales:canSeeSalespersonCommission(),agency:canSeeAgencyProfit()});
+  const blob=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  const link=document.createElement('a');link.href=blob;link.download='internal-quotes-'+cleanFileName(mode==='selected'?selected.def.name:mode)+'-'+new Date().toLocaleDateString('en-CA')+'.csv';link.click();
+  setTimeout(()=>URL.revokeObjectURL(blob),1000);
+}
+async function copyLibraryQuoteInfo(){
+  const group=selectedQuoteLibraryGroup();
+  if(!group) return;
+  const error=currentQuoteInfoError(group.rows);
+  const status=$('quoteLibraryFeedback'),button=$('quoteLibraryCopyBtn');
+  if(error){if(status) status.textContent=error;return;}
+  const text=buildCurrentQuoteInfo(group.def,group.rows);
+  if(button){button.disabled=true;button.textContent='Copying...';}
+  let timeout;
+  try{
+    await Promise.race([navigator.clipboard?.writeText?navigator.clipboard.writeText(text).catch(()=>fallbackCopyQuoteInfo(text)):Promise.resolve(fallbackCopyQuoteInfo(text)),new Promise((_,reject)=>{timeout=setTimeout(()=>reject(new Error('Clipboard unavailable')),5000);})]);
+    if(status) status.textContent='Copied. Ready to paste into ChatGPT.';
+  }catch(e){if(status) status.textContent='Could not copy. Please allow clipboard access and try again.';}
+  finally{clearTimeout(timeout);if(button){button.disabled=false;button.textContent='Copy quote info';}}
+}
+function selectLibraryQuoteInCalculator(){
+  const group=selectedQuoteLibraryGroup();
+  if(!group||quoteLibraryView.backupId||!discardQuoteLibraryEdit()) return null;
+  if(currentQuoteTotalsEditing){alert('Save or cancel the current quote total edits first.');return null;}
+  onOptionSelectionChange(String(group.def.id));
+  return group;
+}
+function addSystemFromLibrary(){
+  const group=selectLibraryQuoteInCalculator();
+  if(!group||!assertOptionEditable(group.def.id)) return;
+  closeDrawer();
+  document.querySelector('.wrap')?.scrollIntoView({behavior:'smooth',block:'start'});
+  showQuoteActionNotice('Adding to '+group.def.name+'. Your selected system has not changed.');
+}
+function adjustLibraryQuoteTotals(){
+  const group=selectLibraryQuoteInCalculator();
+  if(!group||!assertOptionEditable(group.def.id)) return;
+  closeDrawer();
+  beginCurrentQuoteTotalsEdit();
+  $('currentOptionTitle')?.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function removeLibrarySystem(encodedId){
+  if(quoteLibraryView.backupId||!discardQuoteLibraryEdit()) return;
+  const id=decodeURIComponent(encodedId||'');
+  const index=quotes.findIndex(row=>String(row.id||'')===id&&String(row.optionId)===quoteLibraryView.selectedId);
+  if(index>=0) requestRemoveCurrentQuoteSystem(index);
+}
+function quoteLibraryPriceCandidate(original,values){
+  const row=JSON.parse(JSON.stringify(original));
+  for(const key of ['finalInc','unitInc','labour','materialsInc','miscInc','powerCost']){
+    if(key==='unitInc'&&/multi[-_ ]?(head|split)/i.test(String(original.state?.systemType||original.type||''))) continue;
+    const value=values[key];
+    const amount=Number(value);
+    if(value===''||value===null||!Number.isFinite(amount)||amount<0||amount>100000000||(key==='unitInc'&&amount<=0)) throw new Error(key==='unitInc'?'Enter an equipment price greater than zero.':'Enter valid, non-negative amounts in every price field.');
+    row[key]=Math.round((amount+Number.EPSILON)*100)/100;
+  }
+  row.labourTreatment=values.external?'Expense':'Retained';
+  return row;
+}
+function editLibrarySystem(encodedId){
+  if(!discardQuoteLibraryEdit()||quoteLibraryView.backupId) return;
+  if(currentQuoteTotalsEditing){showQuoteActionNotice('Save or cancel the current quote total edits first.');return;}
+  const group=selectedQuoteLibraryGroup();
+  const id=decodeURIComponent(encodedId||'');
+  const index=group?.rows.findIndex(row=>String(row.id)===id)??-1;
+  if(!group||group.won||index<0||quotes.filter(row=>String(row.id)===id).length!==1) return;
+  if(typeof window.__calculatorQuoteRequest!=='function'){showQuoteActionNotice('Editing saved systems is available in the online calculator.');return;}
+  renderQuoteLibrary();
+  const original=JSON.parse(JSON.stringify(group.rows[index]));
+  const multi=/multi[-_ ]?(head|split)/i.test(String(original.state?.systemType||original.type||''));
+  quoteLibraryEdit={rowId:id,optionId:String(group.def.id),expectedRow:original,saveId:'',payload:''};
+  const fields=[['finalInc','Customer price inc GST',original.finalInc],['unitInc','Equipment inc GST',original.unitInc],['labour','Labour ex GST (including extras)',original.labour],['materialsInc','Materials inc GST (including extras)',savedMaterialsInc(original)],['miscInc','Misc inc GST',savedMiscInc(original)],['powerCost','Power / electrical ex GST',savedPowerOrElectricianEx(original)]];
+  $('quoteLibraryEdit-'+index).innerHTML='<form id="quoteLibraryEditForm" class="quoteLibraryEditForm" onsubmit="event.preventDefault();saveLibrarySystem()"><h4>Edit saved pricing</h4><div class="quoteLibraryEditFields">'+fields.map(([key,label,value])=>'<label>'+label+'<input id="quoteEdit-'+key+'" type="number" inputmode="decimal" min="'+(key==='unitInc'?'0.01':'0')+'" max="100000000" step="0.01" required value="'+htmlEscape(value??'')+'"></label>').join('')+'</div><label class="quoteLibraryLabour"><input id="quoteEdit-external" type="checkbox"'+(quoteLabourTreatment(original)==='Expense'?' checked':'')+'> External subcontractor completes installation</label><p class="hint">Model, postcode, installation type and saved rebate stay unchanged. Changes apply only to this system in this quote.</p><p id="quoteLibraryEditStatus" role="status"></p><div class="quoteLibraryDetailActions"><button class="orange" type="submit">Save changes</button><button class="secondary" type="button" onclick="cancelLibrarySystemEdit()">Cancel</button></div></form>';
+  $('quoteEdit-finalInc').focus();
+  if(multi){$('quoteEdit-unitInc').readOnly=true;$('quoteEdit-unitInc').title='Total of saved outdoor and indoor unit prices';}
+}
+function cancelLibrarySystemEdit(){if(discardQuoteLibraryEdit()) renderQuoteLibrary();}
+function quoteLibraryRefreshSavedViews(){
+  // Refresh displays without normalizing or repricing other saved quotes.
+  renderQuoteLibrary();
+  const count=quoteLibraryGroupData(quoteOptionDefs,quotes).filter(group=>group.rows.length).length;
+  ['quoteCount','multiQuoteCount'].forEach(id=>{if($(id)) $(id).textContent=String(count);});
+  const options=quoteOptionDefs.map(def=>'<option value="'+htmlEscape(def.id)+'">'+htmlEscape(def.name)+'</option>').join('');
+  QUOTE_SEARCH_SELECT_IDS.forEach(id=>{
+    const select=$(id);if(!select) return;
+    const selected=select.value;select.innerHTML=options;
+    if(quoteOptionDefs.some(def=>def.id===selected)) select.value=selected;
+    syncQuoteSearchPickerDisplay(id);
+  });
+  if(currentQuoteTotalsEditing) return;
+  const selector=multiSplitViewActive()?($('multiAddOptionSelect')||$('addOptionSelect')):$('addOptionSelect');
+  const def=quoteOptionDefs.find(item=>item.id===selector?.value)||quoteOptionDefs[0]||{id:'',name:'No quote selected'};
+  const rows=quotes.map((row,index)=>({...row,_index:index})).filter(row=>row.optionId===def.id);
+  const wonAt=def.wonAt||rows.find(row=>row.wonAt)?.wonAt;
+  const viewDef=wonAt?{...def,wonAt}:def;
+  ['mainOptionName','multiMainOptionName'].forEach(id=>{if($(id)) $(id).textContent=def.name;});
+  renderCurrentOptionPanel({def:viewDef,rows});
+}
+async function saveLibrarySystem(){
+  const edit=quoteLibraryEdit;
+  if(!edit||quoteLibraryBusy) return;
+  const status=$('quoteLibraryEditStatus');
+  const form=$('quoteLibraryEditForm');
+  const current=quotes.find(row=>String(row.id)===edit.rowId);
+  if(!current||current.wonAt||optionIsWon(edit.optionId)||JSON.stringify(current)!==JSON.stringify(edit.expectedRow)){
+    status.textContent='This system changed while you were editing. Cancel and review it before making changes.';return;
+  }
+  try{
+    const values=Object.fromEntries(['finalInc','unitInc','labour','materialsInc','miscInc','powerCost'].map(key=>[key,$('quoteEdit-'+key).value]));
+    const row=quoteLibraryPriceCandidate(edit.expectedRow,{...values,external:$('quoteEdit-external').checked});
+    const signature=JSON.stringify(row);
+    if(edit.payload!==signature){edit.saveId=newWonAddressSessionToken();edit.payload=signature;}
+    quoteLibraryBusy=true;
+    form.querySelectorAll('input,button').forEach(el=>el.disabled=true);
+    status.textContent='Saving changes...';
+    const result=await window.__calculatorQuoteRequest('quoteEdit',{rowId:edit.rowId,optionId:edit.optionId,expectedRow:edit.expectedRow,row,saveId:edit.saveId});
+    if(!result?.row||result.row.id!==edit.rowId||result.row.optionId!==edit.optionId) throw new Error('The saved system could not be verified. Please retry.');
+    const next=quotes.map(item=>String(item.id)===edit.rowId?result.row:item);
+    localStorage.setItem(QUOTE_STORAGE_KEY,JSON.stringify(next));
+    quotes=next;
+    quoteLibraryEdit=null;
+    quoteLibraryRefreshSavedViews();
+    showQuoteActionNotice('System updated. Other quotes and the saved rebate are unchanged.');
+  }catch(error){
+    status.textContent=error?.status===409?'This quote has changed in another session. Your edits were not applied. Open the calculator in a new tab to load the latest saved version.':error.message||'Could not confirm the save. Your edits are still here; please retry.';
+  }finally{
+    quoteLibraryBusy=false;
+    form?.querySelectorAll('input,button').forEach(el=>el.disabled=false);
+  }
+}
+let quoteLibraryCopyRequest=null;
+function openLibraryCopyName(){
+  if(!discardQuoteLibraryEdit()) return;
+  if(currentQuoteTotalsEditing){showQuoteActionNotice('Save or cancel the current quote total edits first.');return;}
+  const group=selectedQuoteLibraryGroup();
+  if(!group?.rows.length) return;
+  if(typeof window.__calculatorQuoteRequest!=='function'){showQuoteActionNotice('Copying quotes is available in the online calculator.');return;}
+  quoteLibraryCopyRequest={optionId:String(group.def.id),...(quoteLibraryView.backupId?{backupId:quoteLibraryView.backupId}:{}),saveId:newWonAddressSessionToken()};
+  openQuoteNameModal({mode:'libraryCopy',targetId:group.def.id,initialName:group.def.name+' Copy'});
+}
+async function commitLibraryQuoteCopy(name){
+  if(quoteLibraryBusy||!quoteLibraryCopyRequest) return;
+  const request=quoteLibraryCopyRequest;
+  if(request.name&&request.name!==name){$('quoteNameModalInput').value=request.name;return;}
+  request.name=name;
+  const hint=$('quoteNameModalHint');
+  const input=$('quoteNameModalInput'),button=$('quoteNameModalSubmit');
+  quoteLibraryBusy=true;
+  input.readOnly=true;button.disabled=true;button.textContent='Saving copy...';
+  hint.style.display='block';hint.textContent='Saving a separate open quote...';
+  try{
+    const result=await window.__calculatorQuoteRequest('quoteCopy',request);
+    if(!result?.def?.id||!Array.isArray(result.rows)||!result.rows.length||result.rows.some(row=>!row.id||row.optionId!==result.def.id)) throw new Error('The saved copy could not be verified. Please retry.');
+    const nextDefs=quoteOptionDefs.some(def=>def.id===result.def.id)?quoteOptionDefs:quoteOptionDefs.concat(result.def);
+    const nextRows=quotes.concat(result.rows.filter(row=>!quotes.some(existing=>existing.id===row.id)));
+    localStorage.setItem(OPTION_DEFS_STORAGE_KEY,JSON.stringify(nextDefs));
+    localStorage.setItem(QUOTE_STORAGE_KEY,JSON.stringify(nextRows));
+    quoteOptionDefs=nextDefs;quotes=nextRows;
+    quoteLibraryBusy=false;closeQuoteNameModal();quoteLibraryCopyRequest=null;
+    quoteLibraryView.backupId='';quoteLibraryView.selectedId=String(result.def.id);
+    quoteLibraryRefreshSavedViews();
+    showQuoteActionNotice('New open quote saved. The original quote is unchanged.');
+  }catch(error){
+    hint.textContent=error.message||'The save could not be confirmed. Retry to check the same copy.';
+  }finally{
+    quoteLibraryBusy=false;button.disabled=false;button.textContent='Save copy';
+  }
+}
+function renderCurrentOptionPanel(savedSelection){
   const title=$('currentOptionTitle'), summary=$('currentOptionSummary'), body=$('currentOptionBody');
   if(!title || !summary || !body) return;
-  const {def,rows}=currentOptionSelection();
+  const {def,rows}=savedSelection||currentOptionSelection();
   updateCopyQuoteInfoButton(rows);
   updateCurrentOptionWonButton(def,rows);
   const isWon=!!def.wonAt;
@@ -11841,11 +12263,11 @@ function openQuoteNameModal(config){
     addKind:settings.addKind||pendingQuoteAddKind,
     selectIt:settings.selectIt!==false
   };
-  const content=mode==='create'
+  const content=(mode==='create'||mode==='libraryCreate')
     ? {kicker:'New quote',title:'Who is this quote for?',description:'Enter the customer name to create and select the new quote.',submit:'Create Quote'}
     : (mode==='rename'
       ? {kicker:'Quote details',title:'Rename quote',description:'Update the customer name shown throughout this quote.',submit:'Save Name'}
-      : (mode==='duplicate'
+      : (mode==='duplicate'||mode==='libraryCopy'
         ? {kicker:'Duplicate quote',title:'Name the copied quote',description:'Confirm or update the customer name for this copy.',submit:'Duplicate Quote'}
         : {kicker:'Name this quote',title:'Who is this quote for?',description:'Enter the customer name before adding the first system.',submit:'Add to Quote'}));
   if(kicker) kicker.textContent=content.kicker;
@@ -11854,6 +12276,7 @@ function openQuoteNameModal(config){
   if(submit) submit.textContent=content.submit;
   if(hint){hint.textContent='';hint.style.display='none';}
   input.value=String(settings.initialName||'');
+  input.readOnly=false;
   updateQuoteNameModalSubmitState();
   modal.classList.add('open');
   setTimeout(()=>{input.focus();if(input.value) input.select();},0);
@@ -11869,12 +12292,14 @@ function updateQuoteNameModalSubmitState(){
   if(submit) submit.disabled=!String(input&&input.value||'').trim();
 }
 function closeQuoteNameModal(){
+  if(quoteLibraryBusy) return;
   const modal=$('quoteNameModal');
   if(modal) modal.classList.remove('open');
   pendingQuoteAddKind='';
   quoteNameModalContext={mode:'',targetId:'',addKind:'',selectIt:true};
 }
 function confirmQuoteNameModal(){
+  if(quoteLibraryBusy) return;
   const input=$('quoteNameModalInput');
   const hint=$('quoteNameModalHint');
   const name=String(input&&input.value||'').trim();
@@ -11884,7 +12309,14 @@ function confirmQuoteNameModal(){
     return;
   }
   const context={...quoteNameModalContext};
+  if(context.mode==='libraryCopy') return commitLibraryQuoteCopy(name);
   closeQuoteNameModal();
+  if(context.mode==='libraryCreate'){
+    const created=createNewOptionNow(name,context.selectIt);
+    quoteLibraryView.backupId='';
+    openLibraryQuote(encodeURIComponent(created.id));
+    return;
+  }
   if(context.mode==='create') return createNewOptionNow(name,context.selectIt);
   if(context.mode==='rename') return renameOption(context.targetId,name);
   if(context.mode==='duplicate') return duplicateOptionGroupNow(context.targetId,name);
@@ -11902,26 +12334,38 @@ function toggleCurrentQuoteMobileDetails(index){
   button.textContent=show?'Hide details':'Details';
 }
 function requestRemoveCurrentQuoteSystem(index){
-  const q=quotes[index];
-  if(!q) return;
-  if(optionIsWon(q.optionId)){alert('This quote is marked as won and locked. Ask Daniel to unlock it before removing systems.');return;}
-  pendingCurrentQuoteRemoveIndex=index;
-  const systemLabel=[q.brand,q.size].filter(Boolean).join(' ')||'this system';
-  const quoteName=optionNameById(q.optionId);
+  const row=quotes[index];
+  if(!row) return;
+  if(row.wonAt||optionIsWon(row.optionId)){alert('This quote is marked as won and locked. Ask Daniel to unlock it before removing systems.');return;}
+  const def=quoteOptionDefs.find(item=>item.id===row.optionId);
+  if(!row.id||quotes.filter(item=>item.id===row.id).length!==1){alert('This older system cannot be identified safely. It has not been removed.');return;}
+  pendingQuoteLibraryRemoval={id:String(row.id),optionId:row.optionId,row:JSON.stringify(row),def:JSON.stringify(def)};
+  const label=[row.brand,row.size].filter(Boolean).join(' ')||'this system';
   const message=$('removeSystemModalMessage');
-  if(message) message.textContent=`Remove ${systemLabel} from ${quoteName}? It will no longer be included in the quote totals.`;
-  const modal=$('removeSystemModal');
-  if(modal) modal.classList.add('open');
+  if(message) message.textContent='Permanently remove '+label+' from '+optionNameById(row.optionId)+'? This cannot be undone. Other systems and quotes are kept.';
+  $('removeSystemModal')?.classList.add('open');
 }
 function closeRemoveSystemModal(){
-  const modal=$('removeSystemModal');
-  if(modal) modal.classList.remove('open');
-  pendingCurrentQuoteRemoveIndex=-1;
+  $('removeSystemModal')?.classList.remove('open');
+  pendingQuoteLibraryRemoval=null;
 }
 function confirmRemoveCurrentQuoteSystem(){
-  const index=pendingCurrentQuoteRemoveIndex;
+  const pending=pendingQuoteLibraryRemoval;
   closeRemoveSystemModal();
-  if(index>=0) removeQuote(index);
+  if(!pending) return;
+  const matches=quotes.filter(row=>String(row.id)===pending.id);
+  const row=matches[0];
+  const def=quoteOptionDefs.find(item=>item.id===pending.optionId);
+  if(matches.length!==1||!row||row.wonAt||def?.wonAt||JSON.stringify(row)!==pending.row||JSON.stringify(def)!==pending.def){
+    showQuoteActionNotice('This system changed or is locked. Nothing was removed.');
+    return;
+  }
+  recordQuoteSyncDeletions([row],[]);
+  quotes.splice(quotes.indexOf(row),1);
+  currentQuoteTotalsEditing=false;
+  persistQuotes();
+  renderQuotes();
+  showQuoteActionNotice('System removed. Other quotes are unchanged.');
 }
 function multiSplitQuoteReadiness(){
   const totals=multiSplitEquipmentTotals();
@@ -12097,34 +12541,20 @@ function renderQuotes(){
   }
   renderCurrentOptionPanel();
   updateWonJobsCount();
+  const libraryCount=quoteLibraryGroupData(quoteOptionDefs,quotes).filter(group=>group.rows.length).length;
+  if($('quoteCount')) $('quoteCount').textContent=String(libraryCount);
+  if($('multiQuoteCount')) $('multiQuoteCount').textContent=String(libraryCount);
+  if(drawerIsOpen('drawer')) renderQuoteLibrary();
 }
 function removeQuote(i){
-  const q=quotes[i];
-  if(q&&optionIsWon(q.optionId)){alert('This quote is marked as won and locked. Ask Daniel to unlock it before removing systems.');return;}
-  if(q) recordQuoteSyncDeletions([q],[]);
-  quotes.splice(i,1); currentQuoteTotalsEditing=false; persistQuotes(); renderQuotes();
+  requestRemoveCurrentQuoteSystem(i);
 }
 function clearQuotes(){
-  if(quoteOptionDefs.some(def=>def.wonAt&&quotes.some(q=>q.optionId===def.id))){alert('Won quotes are locked. Unlock them before clearing the quote builder.');return;}
-  recordQuoteSyncDeletions(quotes,quoteOptionDefs);
-  const syncUpdatedAt=Date.now();
-  quotes=[]; quoteOptionDefs=[{id:'option_'+syncUpdatedAt,name:'Quote 1',syncUpdatedAt}]; recommendedOptionId=''; currentQuoteTotalsEditing=false; persistOptionDefs(); persistQuotes(); renderQuotes();
+  showQuoteActionNotice('Open a customer quote to remove a system or delete that quote. Other quotes are kept.');
 }
 function refreshRecommendedOptions(){}
 function downloadCsv(){
-  const quoteName=($('quoteExportName') && $('quoteExportName').value.trim()) || ($('customer') && $('customer').value.trim()) || 'Quote Builder';
-  const showPrivate=canSeeProfitDetails();
-  const showLimitedSales=!showPrivate&&canSeeSalespersonCommission();
-  const showAgencyProfitExport=canSeeAgencyProfit();
-  const showExportRebates=rowsShowRebates(quotes);
-  const heads=['Quote Name','Quote','Type','Brand','Series','Size','Model','Install','Customer inc'].concat(showExportRebates?['Rebate']:[],['Unit inc','Labour ex','Installer Labour','Materials inc','Power']).concat(showPrivate?['Agency Comm inc','Salesperson Comm payable'].concat(showAgencyProfitExport?['Agency Profit After Salesperson Commission inc GST']:[],['Installer Profit ex']):(showLimitedSales?['Salesperson commission','Installer Profit ex']:[]));
-  const rows=[];
-  optionGroups().forEach(g=>g.rows.forEach(r=>{
-    const materialsInc=savedMaterialsInc(r); const power=savedPowerOrElectricianEx(r);
-    rows.push([quoteName,g.def.name,r.type,r.brand,r.series||'',r.size,r.model,r.install,r.finalInc].concat(showExportRebates?[r.rebate]:[],[r.unitInc,r.labour,quoteLabourTreatment(r),materialsInc,power]).concat(showPrivate?[r.commissionInc,r.salespersonCommissionInc].concat(showAgencyProfitExport?[agencyProfitAfterSalesInc(r.agencyCommissionInc??r.commissionInc,r.salespersonCommissionInc,r.commissionType)]:[],[r.netProfit]):(showLimitedSales?[r.salespersonCommissionInc,r.netProfit]:[])));
-  }));
-  const csv=[heads,...rows].map(row=>row.map(v=>'"'+String(v).replaceAll('"','""')+'"').join(',')).join('\n');
-  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download='installer-quote-'+cleanFileName(quoteName)+'.csv'; a.click();
+  exportQuoteLibrary();
 }
 
 function downloadTxt(){
@@ -12216,7 +12646,12 @@ function syncOverlayState(){
   overlay.classList.toggle('open',open);
   document.body.classList.toggle('drawerOpen',open);
 }
-function closeDrawer(){const el=$('drawer'); if(el) el.classList.remove('open'); syncOverlayState();}
+function closeDrawer(){
+  if(!discardQuoteLibraryEdit()) return;
+  const el=$('drawer'); if(el) el.classList.remove('open');
+  syncOverlayState();
+  if(quoteLibraryReturnFocus?.isConnected) quoteLibraryReturnFocus.focus({preventScroll:true});
+}
 function closePriceDrawer(){
   const el=$('priceDrawer');
   const wasOpen=el?.classList.contains('open');
@@ -12226,7 +12661,11 @@ function closePriceDrawer(){
 }
 function closeCertDrawer(){const el=$('certDrawer'); if(el) el.classList.remove('open'); syncOverlayState();}
 function closeProposalDrawer(){const el=$('proposalDrawer'); if(el) el.classList.remove('open'); syncOverlayState();}
-function closeAllDrawers(){['drawer','priceDrawer','certDrawer','proposalDrawer','wonJobsDrawer'].forEach(id=>{const el=$(id); if(el) el.classList.remove('open');}); syncOverlayState();}
+function closeAllDrawers(){
+  if(drawerIsOpen('drawer')&&!discardQuoteLibraryEdit()) return;
+  ['drawer','priceDrawer','certDrawer','proposalDrawer','wonJobsDrawer'].forEach(id=>{const el=$(id); if(el) el.classList.remove('open');});
+  syncOverlayState();
+}
 function proposalTodayRef(){
   const d=new Date();
   const pad=n=>String(n).padStart(2,'0');
@@ -12746,6 +13185,18 @@ if(multiFinalInput){
   if(!input) return;
   input.addEventListener('input',()=>saveCommissionRateFromInput(type));
   input.addEventListener('change',()=>saveCommissionRateFromInput(type));
+});
+window.addEventListener('calculator-cloud-save-status',updateQuoteLibrarySaveStatus);
+document.addEventListener('keydown',event=>{
+  const library=$('drawer');
+  if(!library?.classList.contains('open')||document.querySelector('.quoteNameModal.open')) return;
+  if(event.key==='Escape'){event.preventDefault();closeDrawer();return;}
+  if(event.key==='Tab'){
+    const controls=Array.from(library.querySelectorAll('button,input,select,summary,[tabindex="0"]')).filter(el=>!el.disabled&&el.getClientRects().length);
+    const first=controls[0],last=controls[controls.length-1],active=document.activeElement;
+    if(event.shiftKey&&(active===first||!library.contains(active))){event.preventDefault();last?.focus();}
+    else if(!event.shiftKey&&(active===last||!library.contains(active))){event.preventDefault();first?.focus();}
+  }
 });
 document.addEventListener('keydown',event=>{
   const priceDrawer=$('priceDrawer');

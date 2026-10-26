@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { canManageUsers, isOwnerEmail } from "../../../lib/admin";
+import { canManageUsers, canSeeCommissionDetails, canSeeProfitDetails, isOwnerEmail } from "../../../lib/admin";
 import {
   CERTIFICATE_VALUES_STORAGE_KEYS,
   PLATFORM_CERTIFICATE_VALUES_ID,
@@ -8,6 +8,7 @@ import {
   type PlatformCertificateValuesRow,
 } from "../../../lib/certificate-values";
 import { mergeCalculatorData } from "../../../lib/quote-sync";
+import { applyQuoteLibraryCopy, applyQuoteLibraryEdit, quoteLibraryResponseRow, quoteLibraryVisibleRow } from "../../../lib/quote-library-edit";
 import {
   DCCEEW_CONTRACT_RATE,
   DCCEEW_ELIGIBLE_POSTCODES,
@@ -62,6 +63,28 @@ function targetEmailFromRequest(request: Request, currentEmail: string, canManag
   const { searchParams } = new URL(request.url);
   const targetEmail = String(searchParams.get("as") || "").trim().toLowerCase();
   return canManage && targetEmail ? targetEmail : currentEmail;
+}
+
+async function mutationFinancialsVisible(
+  request: Request,
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  currentEmail: string,
+  viewingEmail: string,
+  approvedUser: ApprovedCalculatorUser,
+) {
+  const canManage = canManageUsers(currentEmail, approvedUser.role);
+  const previewAsViewedUser = canManage && new URL(request.url).searchParams.get("preview") === "1" && viewingEmail !== currentEmail;
+  const target = viewingEmail === currentEmail ? { data: approvedUser, error: null }
+    : await currentApprovedUser(supabase, viewingEmail);
+  if (target.error) return { error: "Unable to verify viewed profile visibility", status: 503 };
+  const contextRole = String((target.data || approvedUser).role || "user");
+  const useAdminVisibility = (isOwnerEmail(currentEmail) || approvedUser.role === "admin") && !previewAsViewedUser;
+  return {
+    visible: (useAdminVisibility || canSeeCommissionDetails(contextRole)) &&
+      (useAdminVisibility || canSeeProfitDetails(contextRole)),
+    // Match the raw bootstrap's approved-profile display capability, not its private-field projection.
+    canSeeSalespersonCommission: true,
+  };
 }
 
 function storedValueHasData(value: unknown) {
@@ -290,6 +313,10 @@ async function saveMergedUserData(
   authenticatedUserId: string,
   incomingData: Record<string, unknown>,
   requireExistingProfile: boolean,
+  quoteEdit?: unknown,
+  financialsVisible = false,
+  quoteCopy?: unknown,
+  canSeeSalespersonCommission = false,
 ) {
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const byEmail = await supabase
@@ -312,6 +339,9 @@ async function saveMergedUserData(
     }
 
     if (!existing) {
+      if (quoteEdit !== undefined || quoteCopy !== undefined) {
+        return { error: "This saved quote no longer exists. Reopen your quotes before editing.", status: 409 };
+      }
       if (requireExistingProfile) {
         return {
           error: "That user has not opened the calculator yet, so there is no saved calculator profile to update.",
@@ -329,7 +359,7 @@ async function saveMergedUserData(
         };
       }
 
-      const inserted = await supabase.from("user_calculator_data").upsert({
+      const inserted = await supabase.from("user_calculator_data").insert({
         user_id: authenticatedUserId,
         email: targetEmail,
         data: mergedData,
@@ -339,11 +369,27 @@ async function saveMergedUserData(
       continue;
     }
 
-    if (!calculatorDataHasData(incomingData) && calculatorDataHasData(existing.data)) {
+    if (quoteEdit === undefined && quoteCopy === undefined && !calculatorDataHasData(incomingData) && calculatorDataHasData(existing.data)) {
       return { ok: true, skipped: "empty_snapshot_ignored" };
     }
 
-    const mergedData = mergeCalculatorData(existing.data, incomingData);
+    let mergedData = mergeCalculatorData(existing.data, incomingData);
+    let editedRow: Record<string, unknown> | undefined;
+    let copiedQuote: { def: Record<string, unknown>; rows: Record<string, unknown>[] } | undefined;
+    if (quoteEdit !== undefined) {
+      const originalCheck = applyQuoteLibraryEdit(existing.data, quoteEdit, financialsVisible);
+      if ("error" in originalCheck) return originalCheck;
+      const edit = applyQuoteLibraryEdit(mergedData, quoteEdit, financialsVisible);
+      if ("error" in edit) return edit;
+      mergedData = edit.data;
+      editedRow = edit.row;
+    }
+    if (quoteCopy !== undefined) {
+      const copy = applyQuoteLibraryCopy(existing.data, quoteCopy);
+      if ("error" in copy) return copy;
+      mergedData = copy.data;
+      copiedQuote = copy;
+    }
     const wonValidation = validateNewWonJobTransitions(existing.data, mergedData);
     if (!wonValidation.valid) {
       return {
@@ -353,7 +399,8 @@ async function saveMergedUserData(
       };
     }
 
-    const nextUpdatedAt = new Date().toISOString();
+    // Advance even for same-millisecond saves so another request's CAS cannot reuse this version.
+    const nextUpdatedAt = new Date(Math.max(Date.now(), (Date.parse(existing.updated_at || "") || 0) + 1)).toISOString();
     let update = supabase
       .from("user_calculator_data")
       .update({
@@ -368,7 +415,13 @@ async function saveMergedUserData(
     const saved = await update.select("user_id");
 
     if (saved.error) return { error: saved.error.message, status: 500 };
-    if (saved.data?.length) return { ok: true };
+    if (saved.data?.length) {
+      if (copiedQuote) return {
+        ok: true, def: quoteLibraryVisibleRow(copiedQuote.def, financialsVisible),
+        rows: copiedQuote.rows.map((row) => quoteLibraryResponseRow(row, financialsVisible, canSeeSalespersonCommission)),
+      };
+      return editedRow ? { ok: true, row: quoteLibraryResponseRow(editedRow, financialsVisible, canSeeSalespersonCommission) } : { ok: true };
+    }
   }
 
   return {
@@ -525,6 +578,16 @@ async function saveCalculatorData(request: Request) {
   );
   const businessId = await resolveBusinessId(request, supabase, viewingEmail, canManage, approvedUser);
   const body = await request.json().catch(() => null);
+  const quoteEdit = body && Object.prototype.hasOwnProperty.call(body, "quoteEdit") ? body.quoteEdit : undefined;
+  const quoteCopy = body && Object.prototype.hasOwnProperty.call(body, "quoteCopy") ? body.quoteCopy : undefined;
+  if ((quoteEdit !== undefined || quoteCopy !== undefined) &&
+      ((quoteEdit !== undefined && quoteCopy !== undefined) || (body.data && Object.keys(body.data).length))) {
+    return NextResponse.json({ error: "Send quote edits and copies separately from each other and calculator snapshots." }, { status: 422 });
+  }
+  const visibility = quoteEdit !== undefined || quoteCopy !== undefined
+    ? await mutationFinancialsVisible(request, supabase, currentEmail, viewingEmail, approvedUser)
+    : { visible: false, canSeeSalespersonCommission: false };
+  if ("error" in visibility) return NextResponse.json({ error: visibility.error }, { status: visibility.status });
   const rawCalculatorData = body && typeof body.data === "object" ? body.data : {};
   const canEditManagedRebates = isOwnerEmail(viewingEmail);
   const calculatorData = sanitizeIncomingCalculatorData(
@@ -562,6 +625,10 @@ async function saveCalculatorData(request: Request) {
     user.id,
     userData,
     viewingEmail !== currentEmail,
+    quoteEdit,
+    visibility.visible,
+    quoteCopy,
+    visibility.canSeeSalespersonCommission,
   );
   if ("error" in userSave) {
     return NextResponse.json(
