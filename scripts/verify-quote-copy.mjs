@@ -20,7 +20,7 @@ const context = {
   money:n=>'$'+n.toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2}),
   groupTotals:rows=>({customer:rows.reduce((n,r)=>n+Number(r.finalInc),0)}),
 };
-const names = ['normalizeLookup','finiteMoneyNumber','quoteNeedsCustomerName','hasPositiveUnitPrice','uniquePriceModels','isMultiHeadQuoteType','quoteRowMissingPriceModels','quoteRowsMissingPriceModels','quoteStateDisablesRebates','installAddonDisplayLabel','quoteInfoText','quoteInfoSupport','quoteInfoProduct','quoteInfoExtras','currentQuoteInfoError','buildCurrentQuoteInfo','updateCopyQuoteInfoButton','fallbackCopyQuoteInfo','copyCurrentQuoteInfo'];
+const names = ['normalizeLookup','finiteMoneyNumber','quoteNeedsCustomerName','hasPositiveUnitPrice','uniquePriceModels','isMultiHeadQuoteType','quoteRowMissingPriceModels','quoteRowsMissingPriceModels','quoteStateDisablesRebates','installAddonDisplayLabel','quoteInfoText','quoteInfoSupport','quoteInfoProduct','quoteInfoExtras','currentQuoteInfoError','quoteInfoBusiness','buildCurrentQuoteInfo','updateCopyQuoteInfoButton','fallbackCopyQuoteInfo','copyCurrentQuoteInfo'];
 vm.createContext(context);
 vm.runInContext('let currentQuoteTotalsEditing=false; let quoteInfoCopyBusy=false; let quoteInfoFeedbackTimer=null;\n'+names.map(n=>{assert.ok(functions.has(n),n);return functions.get(n);}).join('\n'),context);
 
@@ -52,7 +52,15 @@ assert.doesNotMatch(noRebate,/quoted rebate is already reflected/);
 for(const finalInc of [NaN,Infinity,-1,null,'',undefined]) assert.match(context.currentQuoteInfoError([{...row,finalInc}]),/customer total/);
 assert.match(context.currentQuoteInfoError([{...row,unitInc:0}]),/equipment prices/);
 assert.match(context.currentQuoteInfoError([]),/Add a system/);
-assert.match(context.currentQuoteInfoError([{...row,state:{...row.state,businessId:'other'}}]),/matching business/);
+assert.equal(context.currentQuoteInfoError([{...row,state:{...row.state,businessId:'legacy'}}]),'','Already-authorised selected rows are not owned by the pricing selector');
+assert.equal(context.quoteInfoBusiness([row]),'Example Air');
+const historic={...row,state:{...row.state,businessId:'historic',businessName:'Historic Air'}};
+assert.equal(context.quoteInfoBusiness([historic]),'Historic Air','Preserve an unambiguous saved business instead of relabelling it');
+for(const rows of [[row,historic],[{...row,state:{}}],[{...historic,state:{...historic.state,businessName:''}}],[historic,{...historic,state:{...historic.state,businessName:'Different Air'}}]]){
+  assert.match(context.quoteInfoBusiness(rows),/^Unconfirmed/,'Mixed, missing or conflicting business details must not be guessed');
+  const prompt=context.buildCurrentQuoteInfo({name:'Taylor'},rows);
+  assert.doesNotMatch(prompt,/Business: Example Air|Business: Historic Air|Business: Different Air/);
+}
 vm.runInContext('currentQuoteTotalsEditing=true',context);
 assert.match(context.currentQuoteInfoError([row]),/Save or cancel/);
 vm.runInContext('currentQuoteTotalsEditing=false',context);

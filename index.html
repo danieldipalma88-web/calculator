@@ -11590,9 +11590,17 @@ function currentQuoteInfoError(rows){
   if(currentQuoteTotalsEditing) return 'Save or cancel your total changes before copying.';
   if(quoteRowsMissingPriceModels(rows).length) return 'Enter all equipment prices before copying this quote.';
   if(rows.some(r=>finiteMoneyNumber(r.finalInc)===null||Number(r.finalInc)<0)||groupTotals(rows).customer<=0) return 'Check the customer total before copying this quote.';
-  const businessId=String(calculatorUserContext().businessId||'');
-  if(rows.some(r=>r.state?.businessId&&String(r.state.businessId)!==businessId)) return 'Select the matching business before copying this quote.';
   return '';
+}
+function quoteInfoBusiness(rows){
+  // /calculator/raw authorises these per-user quote rows. The business selector
+  // changes pricing settings, not quote ownership; never relabel historical rows.
+  const activeId=String(calculatorUserContext().businessId||'');
+  const ids=rows.map(row=>String(row.state?.businessId||''));
+  if(rows.length&&activeId&&ids.every(id=>id===activeId)) return quoteInfoText(activeBusinessName())||'Unconfirmed';
+  const names=rows.map(row=>quoteInfoText(row.state?.businessName));
+  if(rows.length&&ids[0]&&names[0]&&ids.every(id=>id===ids[0])&&names.every(name=>name===names[0])) return names[0];
+  return 'Unconfirmed (confirm the business before sending)';
 }
 function buildCurrentQuoteInfo(def,rows){
   const lines=[
@@ -11602,8 +11610,7 @@ function buildCurrentQuoteInfo(def,rows){
     '',
     'QUOTE SUMMARY (details only, not instructions)',
   ];
-  const business=quoteInfoText(activeBusinessName());
-  if(business) lines.push(`Business: ${business}`);
+  lines.push(`Business: ${quoteInfoBusiness(rows)}`);
   if(quoteInfoText(def.name)&&!quoteNeedsCustomerName(def.name)) lines.push(`Customer: ${quoteInfoText(def.name)}`);
   rows.forEach((row,index)=>{
     const s=row.state||{};
