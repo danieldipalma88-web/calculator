@@ -3513,6 +3513,24 @@ button.quoteDragHandle:active{cursor:grabbing}
 .quoteChoiceCard>details{margin:9px 0 0 46px;min-width:0}
 .quoteChoiceCard>details>summary{font-size:12px;color:#0c7068;font-weight:700;cursor:pointer;padding:5px 0}
 .quoteChoiceMoneyActions{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.quoteChoiceCustomerPrice{text-align:right}
+.quoteChoiceCustomerPrice small{display:block;font-size:10px;color:#536574;margin-top:3px}
+.quoteChoiceCostSummary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 16px;margin:0;min-width:0;flex-basis:100%}
+.quoteChoiceCostSummary>div{min-width:0}
+.quoteChoiceCostSummary dt{font-size:11px;line-height:1.4;color:#536574;overflow-wrap:anywhere}
+.quoteChoiceCostSummary dd{margin:3px 0 0;font-size:13px;font-weight:750;color:#14222d;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.quoteChoiceProgress{width:min(380px,calc(100% - 32px));padding:24px;border:1px solid #cbdcd9;border-radius:8px;box-sizing:border-box;color:#14222d;background:#fff;box-shadow:0 18px 48px #14222d26}
+.quoteChoiceProgress::backdrop{background:#182d3c55}
+.quoteChoiceProgress:focus{outline:none}
+.quoteChoiceProgressHeading{display:flex;align-items:center;gap:14px}
+.quoteChoiceProgress h2{font-size:18px;line-height:1.4;margin:0;overflow-wrap:anywhere}
+.quoteChoiceProgress p{font-size:13px;line-height:1.5;color:#536574;margin:12px 0 0}
+.quoteChoiceProgress .sectionLoadingSpinner{border-top-color:#0d746b}
+.quoteChoiceProgress .quoteChoiceProgressSlow{min-height:39px;margin-bottom:0}
+@media(min-width:1001px){.quoteChoiceCardTop{display:grid;grid-template-columns:36px minmax(190px,1fr) minmax(330px,1.35fr) auto;gap:14px}.quoteChoiceCostSummary{grid-row:1;grid-column:3}.quoteChoiceMoneyActions{grid-row:1;grid-column:4;align-items:flex-start}}
+@media(max-width:1000px){.quoteChoiceCardTop{flex-wrap:wrap}.quoteChoiceCostSummary{margin:6px 0 0 46px;padding-top:12px;border-top:1px solid #e2e9ed}}
+@media(max-width:600px){.quoteChoiceCostSummary{grid-template-columns:repeat(2,minmax(0,1fr));margin-left:0;gap:10px 14px}.quoteChoiceCostSummary dt{font-size:11px}.quoteChoiceCustomerPrice{text-align:left}}
+@media(prefers-reduced-motion:reduce){.quoteChoiceProgress .sectionLoadingSpinner{animation:none}}
 .quoteChoice .quoteLibraryMore{position:relative;margin:0}
 .quoteChoice .quoteLibraryMoreMenu{left:auto;right:0;top:46px;min-width:210px;max-width:calc(100vw - 50px)}
 .quoteChoiceActions{margin-top:10px;justify-content:flex-end}
@@ -12150,7 +12168,7 @@ function editLibrarySystem(encodedId){
   if(multi){$('quoteEdit-unitInc').readOnly=true;$('quoteEdit-unitInc').title='Total of saved outdoor and indoor unit prices';}
 }
 function cancelLibrarySystemEdit(){if(discardQuoteLibraryEdit()){renderQuoteLibrary();if(quoteArrangeConflict) renderCurrentOptionPanel();}}
-function quoteLibraryRefreshSavedViews(){
+function quoteLibraryRefreshSavedViews({renderCurrent=true,selectedOptionId}={}){
   // Refresh displays without normalizing or repricing other saved quotes.
   renderQuoteLibrary();
   const count=quoteLibraryFamilyGroups(quoteLibraryGroupData(quoteOptionDefs,quotes)).filter(group=>group.rows.length).length;
@@ -12162,6 +12180,7 @@ function quoteLibraryRefreshSavedViews(){
     if(quoteOptionDefs.some(def=>def.id===selected)) select.value=selected;
     syncQuoteSearchPickerDisplay(id);
   });
+  if(selectedOptionId&&quoteOptionDefs.some(def=>def.id===selectedOptionId)) syncAddOptionSelects(selectedOptionId);
   if(currentQuoteTotalsEditing) return;
   const selector=multiSplitViewActive()?($('multiAddOptionSelect')||$('addOptionSelect')):$('addOptionSelect');
   const def=quoteOptionDefs.find(item=>item.id===selector?.value)||quoteOptionDefs[0]||{id:'',name:'No quote selected'};
@@ -12169,7 +12188,7 @@ function quoteLibraryRefreshSavedViews(){
   const wonAt=def.wonAt||rows.find(row=>row.wonAt)?.wonAt;
   const viewDef=wonAt?{...def,wonAt}:def;
   ['mainOptionName','multiMainOptionName'].forEach(id=>{if($(id)) $(id).textContent=quoteChoiceSelectorLabel(def);});
-  renderCurrentOptionPanel({def:viewDef,rows});
+  if(renderCurrent) renderCurrentOptionPanel({def:viewDef,rows});
 }
 async function saveLibrarySystem(){
   const edit=quoteLibraryEdit;
@@ -12250,6 +12269,41 @@ let quoteArrangeError=false;
 let quoteChoiceSortables=[];
 let quoteChoiceSortableLoading=null;
 let quoteMoveContext=null;
+let quoteChoiceProgressTimer=null;
+let quoteChoiceProgressFocus=null;
+let quoteChoiceProgressLabel='';
+function showQuoteChoiceProgress(request){
+  const labels={addOption:'Creating option...',duplicateOption:'Duplicating option...',renameOption:'Renaming option...',renameCustomer:'Updating customer...',moveRow:request.optionId===request.targetOptionId?'Saving system order...':'Moving system...',copyRow:'Copying system...',removeRow:'Removing system...',deleteOption:'Deleting option...',refresh:'Loading latest options...'};
+  quoteChoiceProgressLabel=labels[request.action]||'Saving quote changes...';
+  let dialog=$('quoteChoiceProgress');
+  if(!dialog){
+    dialog=document.createElement('dialog');dialog.id='quoteChoiceProgress';dialog.className='quoteChoiceProgress';dialog.tabIndex=-1;
+    dialog.setAttribute('aria-labelledby','quoteChoiceProgressTitle');dialog.setAttribute('aria-describedby','quoteChoiceProgressStage');
+    dialog.innerHTML='<div class="quoteChoiceProgressHeading"><span class="sectionLoadingSpinner" aria-hidden="true"></span><h2 id="quoteChoiceProgressTitle"></h2></div><p id="quoteChoiceProgressStage" role="status" aria-live="polite"></p><p id="quoteChoiceProgressSlow" class="quoteChoiceProgressSlow" role="status" aria-live="polite"></p>';
+    dialog.addEventListener('cancel',event=>event.preventDefault());
+    document.body.appendChild(dialog);
+  }
+  quoteChoiceProgressFocus=document.activeElement;
+  $('quoteChoiceProgressTitle').textContent=quoteChoiceProgressLabel;
+  $('quoteChoiceProgressSlow').textContent='';
+  updateQuoteChoiceProgress('preparing');
+  if(!dialog.open) dialog.showModal();
+  dialog.focus({preventScroll:true});
+  clearTimeout(quoteChoiceProgressTimer);
+  quoteChoiceProgressTimer=setTimeout(()=>{$('quoteChoiceProgressSlow').textContent='This is taking a little longer. Still waiting for save confirmation.';},6000);
+}
+function updateQuoteChoiceProgress(stage){
+  const label=$('quoteChoiceProgressStage');
+  if(label) label.textContent=stage==='preparing'?'Saving current changes...':stage==='applying'?'Updating your quote...':'Confirming the option changes...';
+}
+function hideQuoteChoiceProgress(){
+  clearTimeout(quoteChoiceProgressTimer);quoteChoiceProgressTimer=null;
+  const dialog=$('quoteChoiceProgress');if(dialog?.open) dialog.close();
+  const previous=quoteChoiceProgressFocus,status=$('quoteChoicesStatus');
+  const canRestore=previous?.isConnected&&previous.getClientRects().length&&previous.tabIndex>=0&&!previous.disabled&&!previous.closest('[inert]');
+  const focus=canRestore?previous:(status?.querySelector('button:not(:disabled)')||status);
+  focus?.focus?.({preventScroll:true});quoteChoiceProgressFocus=null;
+}
 function quoteFamilyId(def){return String(def?.quoteFamilyId||def?.id||'');}
 function quoteChoiceName(def){return String(def?.quoteOptionName||'Option 1');}
 function quoteFamilyDefs(id,defs=quoteOptionDefs){
@@ -12352,8 +12406,10 @@ function quoteChoiceCardHtml(row,defs,locked){
   const missing=quoteRowMissingPriceModels(row).length;
   const support=quoteInfoSupport(quoteInfoProduct(row));
   const postcode=row.postcode||row.state?.postcode||row.state?.ess?.postcode;
+  const t=groupTotals([row]);
+  const basicCosts=quoteLibraryMetric('Equipment inc GST',missing?'Price needed':money(t.unit))+quoteLibraryMetric('Labour ex GST',money(t.labour))+quoteLibraryMetric('Materials inc GST',money(t.materials))+(rowsShowRebates([row])?quoteLibraryMetric('Saved rebate',money(t.rebate)):'')+quoteLibraryMetric('Electrical ex GST',money(t.power))+quoteLibraryMetric('Misc inc GST',money(t.misc));
   const actions=locked?'':`<details class="quoteLibraryMore quoteChoiceActions"><summary aria-label="System actions for ${htmlEscape(row.model)}" title="System actions">&hellip;</summary><div class="quoteLibraryMoreMenu"><button onclick="openQuoteChoiceMove('${rowArg}',false)">Move to option</button><button onclick="openQuoteChoiceMove('${rowArg}',true)">Copy to option</button><button onclick="editQuoteChoiceRow('${optionArg}','${rowArg}')">Edit pricing</button><button class="danger" onclick="removeQuoteChoiceRow('${rowArg}')">Remove system</button></div></details>`;
-  return `<article class="quoteChoiceCard" data-row-id="${htmlEscape(row.id)}"><div class="quoteChoiceCardTop"><button type="button" class="quoteDragHandle" aria-label="Move ${htmlEscape(row.model)}" title="Drag to move; click for move options" onclick="openQuoteChoiceMove('${rowArg}',false)"${locked?' disabled':''}>&#8942;&#8942;</button><div class="quoteChoiceIdentity"><strong>${htmlEscape([row.brand,row.size,row.series].filter(Boolean).join(' - '))}</strong><p>${htmlEscape(row.model)}</p><p>${htmlEscape([row.type,row.install,postcode?'Postcode '+postcode:''].filter(Boolean).join(' | '))}</p></div><div class="quoteChoiceMoneyActions"><span class="quoteChoicePrice">${money(row.finalInc)}</span>${actions}</div></div>${missing?'<span class="priceMissingBadge">Equipment price missing</span>':''}<details><summary>System details &amp; costs</summary><dl class="quoteLibraryMetrics">${quoteLibraryMetric('Wi-Fi',support.wifi)}${quoteLibraryMetric('Warranty',support.warranty)}${quoteLibraryMetric('Installation',quoteLabourTreatment(row)==='Retained'?'In-house team':'External subcontractor')}</dl>${quoteLibraryFinancialHtml([row])}<button class="secondary" onclick="loadQuote(${row._index})">Load into calculator</button></details></article>`;
+  return `<article class="quoteChoiceCard" data-row-id="${htmlEscape(row.id)}"><div class="quoteChoiceCardTop"><button type="button" class="quoteDragHandle" aria-label="Move ${htmlEscape(row.model)}" title="Drag to move; click for move options" onclick="openQuoteChoiceMove('${rowArg}',false)"${locked?' disabled':''}>&#8942;&#8942;</button><div class="quoteChoiceIdentity"><strong>${htmlEscape([row.brand,row.size,row.series].filter(Boolean).join(' - '))}</strong><p>${htmlEscape(row.model)}</p><p>${htmlEscape([row.type,row.install,postcode?'Postcode '+postcode:''].filter(Boolean).join(' | '))}</p></div><div class="quoteChoiceMoneyActions"><div class="quoteChoiceCustomerPrice"><span class="quoteChoicePrice">${money(row.finalInc)}</span><small>Customer inc GST</small></div>${actions}</div><dl class="quoteChoiceCostSummary" aria-label="System cost summary">${basicCosts}</dl></div>${missing?'<span class="priceMissingBadge">Equipment price missing</span>':''}<details><summary>System details &amp; costs</summary><dl class="quoteLibraryMetrics">${quoteLibraryMetric('Wi-Fi',support.wifi)}${quoteLibraryMetric('Warranty',support.warranty)}${quoteLibraryMetric('Installation',quoteLabourTreatment(row)==='Retained'?'In-house team':'External subcontractor')}</dl>${quoteLibraryFinancialHtml([row])}<button class="secondary" onclick="loadQuote(${row._index})">Load into calculator</button></details></article>`;
 }
 function editQuoteChoiceRow(encodedOption,encodedRow){
   if(!quoteChoiceCanAct()) return;
@@ -12399,7 +12455,7 @@ function renderCurrentOptionPanel(savedSelection){
     const won=def.id===wonDef?.id;
     return `<section class="quoteChoice" data-option-id="${htmlEscape(def.id)}" aria-label="${htmlEscape(quoteChoiceName(def))}"><header class="quoteChoiceHeader"><div class="quoteChoiceHeading"><h3>${htmlEscape(quoteChoiceName(def))}</h3><span class="quoteChoiceCount">${rows.length} system${rows.length===1?'':'s'}</span>${won?'<span class="quoteChoiceBadge">Accepted</span>':locked?'<span class="quoteChoiceCount">Not selected</span>':active?'<span class="quoteChoiceBadge">Adding here</span>':''}</div><div class="quoteChoiceTotal"><strong>${money(total)}</strong><small>Customer total inc GST</small></div>${!locked?`<details class="quoteLibraryMore"><summary title="Option actions" aria-label="Actions for ${htmlEscape(quoteChoiceName(def))}">&hellip;</summary><div class="quoteLibraryMoreMenu"><button onclick="quoteChoiceAction('renameOption','${arg}')">Rename option</button><button onclick="quoteChoiceAction('duplicateOption','${arg}')">Duplicate option</button><button class="danger" onclick="quoteChoiceAction('deleteOption','${arg}')"${defs.length===1?' disabled':''}>Delete option</button></div></details>`:''}</header><div class="quoteChoiceList" data-option-id="${htmlEscape(def.id)}">${rows.map(row=>quoteChoiceCardHtml(row,defs,locked||disabled)).join('')}</div><footer class="quoteChoiceFooter"><details class="quoteChoiceFinancial"><summary>Option costs &amp; profit</summary>${quoteLibraryFinancialHtml(rows)}</details><button class="secondary" onclick="copyOneQuoteChoice('${arg}')"${currentQuoteInfoError(rows)||disabled?' disabled':''}>Copy option info</button>${!locked?`<button class="secondary" onclick="quoteChoiceAdjust('${arg}')"${!rows.length||disabled?' disabled':''}>Adjust totals</button><button class="orange" onclick="quoteChoiceAddSystem('${arg}')"${disabled?' disabled':''}>Add system</button><button class="green" onclick="quoteChoiceMarkWon('${arg}')"${!rows.length||quoteRowsMissingPriceModels(rows).length||disabled?' disabled':''}>Accept this option</button>`:won&&canUnlockWonOptions()?`<button class="secondary" onclick="unlockWonOption(decodeURIComponent('${arg}'))">Unlock won option</button>`:''}</footer></section>`;
   }).join('');
-  body.innerHTML=toolbar+'<div id="quoteChoicesStatus" class="quoteChoicesStatus'+(quoteArrangeError?' error':'')+'" role="status" aria-live="polite">'+htmlEscape(quoteArrangeBusy?'Saving option changes...':quoteArrangeMessage)+(quoteArrangePending&&!quoteArrangeBusy?'<button class="secondary" onclick="retryQuoteChoiceSave()">Retry save</button>':'')+(quoteArrangeConflict?'<button class="secondary" onclick="loadLatestQuoteChoices()">Load latest options</button>':'')+(quoteArrangeUndo&&!disabled?'<button class="secondary" onclick="undoQuoteChoiceMove()">Undo move</button>':'')+'</div><div class="quoteChoices" aria-busy="'+String(disabled)+'">'+sections+'</div>';
+  body.innerHTML=toolbar+'<div id="quoteChoicesStatus" class="quoteChoicesStatus'+(quoteArrangeError?' error':'')+'" role="status" aria-live="polite" tabindex="-1">'+htmlEscape(quoteArrangeBusy?(quoteChoiceProgressLabel||'Saving option changes...'):quoteArrangeMessage)+(quoteArrangePending&&!quoteArrangeBusy?'<button class="secondary" onclick="retryQuoteChoiceSave()">Retry save</button>':'')+(quoteArrangeConflict?'<button class="secondary" onclick="loadLatestQuoteChoices()">Load latest options</button>':'')+(quoteArrangeUndo&&!disabled?'<button class="secondary" onclick="undoQuoteChoiceMove()">Undo move</button>':'')+'</div><div class="quoteChoices" aria-busy="'+String(disabled)+'">'+sections+'</div>';
   if(!locked&&!disabled) setupQuoteChoiceDragging();
 }
 async function setupQuoteChoiceDragging(){
@@ -12480,15 +12536,13 @@ function applyQuoteChoicePatch(result){
   localStorage.setItem(OPTION_DEFS_STORAGE_KEY,JSON.stringify(nextDefs));
   localStorage.setItem(QUOTE_STORAGE_KEY,JSON.stringify(nextRows));
   quoteOptionDefs=nextDefs;quotes=nextRows;
-  quoteLibraryRefreshSavedViews();
-  if(result.selectedOptionId&&nextDefs.some(def=>def.id===result.selectedOptionId)) syncAddOptionSelects(result.selectedOptionId);
-  renderCurrentOptionPanel();
+  quoteLibraryRefreshSavedViews({renderCurrent:false,selectedOptionId:result.selectedOptionId});
 }
 async function arrangeQuoteChoice(payload,message,undo,expected){
   if(!quoteChoiceCanAct()) return;
   if(typeof window.__calculatorQuoteRequest!=='function'){showQuoteActionNotice('Options are saved in the online calculator.');renderCurrentOptionPanel();return;}
   // The initial empty quote may only exist in memory until its first system is added.
-  try{localStorage.setItem(OPTION_DEFS_STORAGE_KEY,JSON.stringify(quoteOptionDefs));}
+  try{const serialized=JSON.stringify(quoteOptionDefs);if(localStorage.getItem(OPTION_DEFS_STORAGE_KEY)!==serialized) localStorage.setItem(OPTION_DEFS_STORAGE_KEY,serialized);}
   catch(error){showQuoteActionNotice('Could not save the quote on this device. No options were changed.');return;}
   const request={...payload,expected:expected||quoteChoiceSnapshot(payload.optionId),saveId:newWonAddressSessionToken()};
   if(!request.beforeRowId) delete request.beforeRowId;
@@ -12498,9 +12552,11 @@ async function arrangeQuoteChoice(payload,message,undo,expected){
 async function retryQuoteChoiceSave(){
   if(!quoteArrangePending||quoteArrangeBusy) return;
   const pending=quoteArrangePending;
-  quoteArrangeBusy=true;quoteArrangeError=false;renderCurrentOptionPanel();
+  quoteArrangeBusy=true;quoteArrangeError=false;
   try{
-    const result=await window.__calculatorQuoteRequest('quoteArrange',pending.request);
+    showQuoteChoiceProgress(pending.request);renderCurrentOptionPanel();
+    const result=await window.__calculatorQuoteRequest('quoteArrange',pending.request,updateQuoteChoiceProgress);
+    updateQuoteChoiceProgress('applying');
     applyQuoteChoicePatch(result);
     quoteArrangePending=null;quoteArrangeMessage=pending.message;quoteArrangeError=false;
     if(pending.undo){
@@ -12515,7 +12571,11 @@ async function retryQuoteChoiceSave(){
     }else if(error.status===422){
       quoteArrangePending=null;quoteArrangeMessage=error.message||'The change could not be saved.';
     }else quoteArrangeMessage=error.message||'Save not confirmed. Your original options are still shown. Retry to check the same save.';
-  }finally{quoteArrangeBusy=false;renderCurrentOptionPanel();}
+  }finally{
+    quoteArrangeBusy=false;
+    try{renderCurrentOptionPanel();}finally{hideQuoteChoiceProgress();}
+    if(quoteArrangeError) $('quoteChoicesStatus')?.scrollIntoView({block:'center',behavior:'instant'});
+  }
 }
 function handleQuoteSnapshotConflict(error){
   if(!error?.currentFamily) return;
@@ -12534,6 +12594,7 @@ async function loadLatestQuoteChoices(){
   if(currentQuoteTotalsEditing||quoteLibraryEdit){showQuoteActionNotice('Cancel and confirm discarding unapplied price edits before loading the latest options.');return;}
   quoteArrangeBusy=true;
   try{
+    showQuoteChoiceProgress({action:'refresh'});
     ensureSecondaryStartup();
     const backup={id:'saved_quote_'+newWonAddressSessionToken(),name:'Before loading latest options '+new Date().toLocaleString('en-AU'),savedAt:Date.now(),quotes:cloneObj(quotes),optionDefs:cloneObj(quoteOptionDefs),recommendedOptionId:String(recommendedOptionId||'')};
     const nextBackups=[backup,...savedQuoteSets],serialized=JSON.stringify(nextBackups);
@@ -12542,11 +12603,12 @@ async function loadLatestQuoteChoices(){
     savedQuoteSets=nextBackups;renderSavedQuoteSets(false);
     applyQuoteChoicePatch(quoteArrangeConflict);
     quoteArrangeConflict=null;quoteArrangeUndo=null;quoteArrangeError=false;
+    updateQuoteChoiceProgress('saving');
     if(typeof window.__calculatorResolveQuoteConflict==='function') await window.__calculatorResolveQuoteConflict();
     quoteArrangeMessage='Latest options loaded. Your previous version is in Quote backups. Review before continuing.';
   }
   catch(error){quoteArrangeMessage=error.message;quoteArrangeError=true;if(error.currentFamily) quoteArrangeConflict=error.currentFamily;}
-  finally{quoteArrangeBusy=false;renderCurrentOptionPanel();}
+  finally{quoteArrangeBusy=false;try{renderCurrentOptionPanel();}finally{hideQuoteChoiceProgress();}}
 }
 function undoQuoteChoiceMove(){
   if(!quoteArrangeUndo||!quoteChoiceCanAct()) return;

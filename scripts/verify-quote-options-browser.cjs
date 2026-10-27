@@ -11,9 +11,11 @@ const output=process.env.QUOTE_OPTIONS_SCREENSHOTS;
   const wrapper=raw.slice(raw.indexOf('  window.__calculatorQuoteRequest ='),raw.indexOf('  function scheduleSync(force)'));
   const browser=await chromium.launch({headless:true});
   try{
-    for(const width of [1440,390,320]){
+    for(const width of process.env.QUOTE_OPTIONS_WIDTHS?process.env.QUOTE_OPTIONS_WIDTHS.split(',').map(Number):[1440,390,320]){
       const page=await browser.newPage({viewport:{width,height:width===1440?1050:844},hasTouch:width!==1440});
       let data={},loseResponse=false;
+      let responseGate=Promise.resolve(),releaseResponse;
+      const holdResponse=()=>{responseGate=new Promise(resolve=>{releaseResponse=()=>{responseGate=Promise.resolve();resolve();};});};
       const requests=[],errors=[];
       page.on('pageerror',error=>errors.push(error.message));
       await page.route('**/*',async route=>{
@@ -24,6 +26,7 @@ const output=process.env.QUOTE_OPTIONS_SCREENSHOTS;
           const request=route.request().postDataJSON();requests.push(request);
           const result=applyQuoteArrange(data,request.quoteArrange,true);
           if(result.data)data=result.data;
+          await responseGate;
           if(loseResponse){loseResponse=false;return route.fulfill({status:503,json:{error:'Test response lost after save'}});}
           const {data:ignored,...response}=result;
           return route.fulfill({status:result.status||200,json:response});
@@ -44,15 +47,40 @@ const output=process.env.QUOTE_OPTIONS_SCREENSHOTS;
       data=await page.evaluate(()=>({installerMasterQuoteLogV1:JSON.stringify(quotes),installerQuoteOptionDefsV1:JSON.stringify(quoteOptionDefs)}));
       const original=structuredClone(data);
       await page.addScriptTag({content:"var calculatorSyncUrl='/api/calculator-data';window.__calculatorFlushCloudSave=async()=>({ok:true});function setCloudSaveStatus(){}\n"+wrapper});
-      await page.locator('#currentOptionTitle').evaluate(el=>el.scrollIntoView({block:'start'}));
+      await page.locator('#currentOptionTitle').evaluate(el=>el.scrollIntoView({block:'start',behavior:'instant'}));
       assert.equal(await page.locator('.quoteChoice').count(),1);
+      const costSummary=page.locator('[data-row-id="system-0"] .quoteChoiceCostSummary');
+      assert.equal(await costSummary.isVisible(),true);
+      assert.deepEqual(await costSummary.locator('dt').allTextContents(),['Equipment inc GST','Labour ex GST','Materials inc GST','Saved rebate','Electrical ex GST','Misc inc GST']);
+      assert.deepEqual(await costSummary.locator('dd').allTextContents(),['$1,100.00','$500.00','$200.00','$500.00','$0.00','$0.00']);
+      assert.equal(await page.locator('[data-row-id="system-0"] > details').getAttribute('open'),null,'Basic costs do not require expansion');
+      await page.evaluate(()=>{window.__calculatorFlushCloudSave=()=>new Promise(resolve=>{window.releaseTestFlush=resolve;});});
+      holdResponse();
       await page.locator('#currentOptionBody').getByRole('button',{name:'+ Add option',exact:true}).click();
       await page.locator('#quoteNameModalInput').fill('Rinnai alternative');
       await page.locator('#quoteNameModalSubmit').click();
+      await page.locator('#quoteChoiceProgress[open]').waitFor();
+      assert.equal(await page.locator('#quoteChoiceProgressTitle').innerText(),'Creating option...');
+      assert.equal(await page.locator('#quoteChoiceProgressStage').innerText(),'Saving current changes...');
+      assert.equal(requests.length,0,'Option request waits for durable quote save');
+      await page.keyboard.press('Escape');
+      assert.equal(await page.locator('#quoteChoiceProgress').isVisible(),true,'Escape cannot hide an in-flight save');
+      await page.evaluate(()=>{window.releaseTestFlush({ok:true});window.__calculatorFlushCloudSave=async()=>({ok:true});});
+      await page.waitForFunction(()=>$('quoteChoiceProgressStage').textContent==='Confirming the option changes...');
+      assert.equal(await page.locator('.quoteChoice').count(),1,'New option is not displayed as saved prematurely');
+      const progressBox=await page.locator('#quoteChoiceProgress').boundingBox();
+      assert.ok(progressBox.x>=0&&progressBox.y>=0&&progressBox.x+progressBox.width<=width+1,'Progress dialog fits the viewport');
+      if(width===1440)await page.locator('#quoteChoiceProgressSlow').getByText('This is taking a little longer. Still waiting for save confirmation.',{exact:true}).waitFor();
+      if(output){fs.mkdirSync(output,{recursive:true});await page.screenshot({path:path.join(output,'quote-options-saving-'+width+'.png'),animations:'disabled'});}
+      releaseResponse();
       await page.waitForFunction(()=>!quoteArrangeBusy&&!quoteArrangePending);
+      assert.equal(await page.locator('#quoteChoiceProgress').isVisible(),false);
+      assert.equal(await page.evaluate(()=>document.activeElement?.id),'quoteChoicesStatus','Successful name dialog save restores visible focus');
+      assert.equal(await page.evaluate(()=>quoteChoiceProgressTimer),null,'Slow-save timer is cleared');
       assert.equal(await page.locator('.quoteChoice').count(),2);
       const second=await page.evaluate(()=>quoteOptionDefs.find(def=>def.quoteOptionName==='Rinnai alternative').id);
       assert.equal(await page.locator('#addOptionSelect').inputValue(),second);
+      assert.match(await page.locator('#mainOptionName').innerText(),/Taylor Smith.*Rinnai alternative/);
       assert.match(await page.locator('#addOptionSelect option:checked').innerText(),/Taylor Smith.*Rinnai alternative/);
       assert.match(await page.locator('#addOptionSelect').evaluate(el=>el.closest('.quoteSearchPicker').querySelector('.quoteSearchInput').value),/Taylor Smith.*Rinnai alternative/,'Visible custom picker names the destination option');
       const picker=page.locator('.quoteSearchPicker').filter({has:page.locator('#addOptionSelect')});
@@ -75,10 +103,25 @@ const output=process.env.QUOTE_OPTIONS_SCREENSHOTS;
       await page.getByRole('button',{name:'Undo move',exact:true}).click();
       await page.waitForFunction(()=>!quoteArrangeBusy&&!quoteArrangePending);
       assert.equal(await page.evaluate(()=>quotes.find(row=>row.id==='system-1').optionId),'customer-a');
+      // Failure before the mutation must release the modal and retain the exact retry request.
+      const requestsBeforeFlushFailure=requests.length;
+      await page.evaluate(id=>{
+        window.__calculatorFlushCloudSave=async()=>{throw new Error('Test pending changes could not be saved');};
+        quoteChoiceAction('renameOption',quoteLibraryArg(id));
+      },second);
+      await page.locator('#quoteNameModalSubmit').click();
+      await page.getByRole('button',{name:'Retry save',exact:true}).waitFor();
+      assert.equal(await page.locator('#quoteChoiceProgress').isVisible(),false);
+      assert.equal(await page.evaluate(()=>document.activeElement?.textContent),'Retry save','Failed name dialog save focuses its recovery action');
+      assert.equal(requests.length,requestsBeforeFlushFailure);
+      await page.evaluate(()=>{window.__calculatorFlushCloudSave=async()=>({ok:true});});
+      await page.getByRole('button',{name:'Retry save',exact:true}).click();
+      await page.waitForFunction(()=>!quoteArrangeBusy&&!quoteArrangePending);
       // Lost response retry must create only one option and keep the same idempotency key.
       loseResponse=true;
       await page.evaluate(()=>quoteChoiceAction('duplicateOption',quoteLibraryArg('customer-a')));
       await page.getByRole('button',{name:'Retry save',exact:true}).waitFor();
+      assert.equal(await page.locator('#quoteChoiceProgress').isVisible(),false,'Lost response must release progress and expose retry');
       const countAfterSave=JSON.parse(data.installerQuoteOptionDefsV1).length;
       await page.getByRole('button',{name:'Retry save',exact:true}).click();
       await page.waitForFunction(()=>!quoteArrangeBusy&&!quoteArrangePending);
@@ -110,17 +153,29 @@ const output=process.env.QUOTE_OPTIONS_SCREENSHOTS;
       assert.equal(await page.locator('.quoteChoiceTabs button[aria-pressed]').count(),3);
       await page.getByRole('button',{name:'View / arrange options',exact:true}).click();
       await page.locator('#drawer').evaluate(el=>Promise.all(el.getAnimations().map(animation=>animation.finished)));
-      await page.locator('#currentOptionTitle').evaluate(el=>el.scrollIntoView({block:'start'}));
+      await page.locator('#currentOptionTitle').evaluate(el=>el.scrollIntoView({block:'start',behavior:'instant'}));
       await page.waitForFunction(()=>!!window.Sortable&&quoteChoiceSortables.length===3);
       const overflow=await page.evaluate(()=>({page:document.documentElement.scrollWidth,viewport:innerWidth,body:$('currentOptionBody').scrollWidth,client:$('currentOptionBody').clientWidth}));
       assert.ok(overflow.page<=overflow.viewport+1,JSON.stringify(overflow));assert.ok(overflow.body<=overflow.client+1,JSON.stringify(overflow));
-      if(output){fs.mkdirSync(output,{recursive:true});await page.screenshot({path:path.join(output,'quote-options-'+width+'.png'),animations:'disabled'});}
+      if(output){
+        fs.mkdirSync(output,{recursive:true});
+        await page.screenshot({path:path.join(output,'quote-options-'+width+'.png'),animations:'disabled'});
+        await page.locator('[data-row-id="system-0"]').screenshot({path:path.join(output,'quote-system-costs-'+width+'.png'),animations:'disabled'});
+      }
+      if(width===1440){
+        await page.setViewportSize({width:1024,height:1050});
+        await page.locator('#currentOptionTitle').evaluate(el=>el.scrollIntoView({block:'start',behavior:'instant'}));
+        assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true,'Compact desktop has no horizontal overflow');
+        if(output)await page.screenshot({path:path.join(output,'quote-options-1024.png'),animations:'disabled'});
+        await page.setViewportSize({width,height:1050});
+      }
       // Drive the actual library with pointer/touch input, not a synthetic callback.
-      await page.locator('[data-row-id="system-0"]').evaluate(el=>el.scrollIntoView({block:'start'}));
+      holdResponse();
+      await page.locator('[data-row-id="system-0"]').evaluate(el=>el.scrollIntoView({block:'start',behavior:'instant'}));
       const handle=await page.locator('[data-row-id="system-0"] .quoteDragHandle').boundingBox();
       const below=await page.locator('[data-row-id="system-1"]').boundingBox();
       const from={x:handle.x+handle.width/2,y:handle.y+handle.height/2};
-      const to={x:from.x,y:below.y+below.height-10};
+      const to={x:from.x,y:below.y+below.height/2+10};
       if(width===1440){
         await page.mouse.move(from.x,from.y);await page.mouse.down();
         await page.mouse.move(from.x+10,from.y+10,{steps:3});
@@ -135,19 +190,32 @@ const output=process.env.QUOTE_OPTIONS_SCREENSHOTS;
         }
         await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await cdp.detach();
       }
+      await page.locator('#quoteChoiceProgress[open]').waitFor({timeout:5000}).catch(async error=>{
+        console.error('Drag diagnostic',JSON.stringify({width,from,to,handle,below,state:await page.evaluate(()=>({busy:quoteArrangeBusy,message:quoteArrangeMessage,rows:quoteChoiceRows('customer-a').map(row=>row.id),scrollY,viewport:innerHeight,dragging:document.body.classList.contains('quoteChoicesDragging')}))}));
+        if(output)await page.screenshot({path:path.join(output,'quote-options-drag-failure-'+width+'.png')});
+        throw error;
+      });
+      assert.equal(await page.locator('#quoteChoiceProgressTitle').innerText(),'Saving system order...');
+      releaseResponse();
       await page.waitForFunction(()=>quoteChoiceRows('customer-a')[0].id==='system-1'&&!quoteArrangeBusy);
       assert.equal(JSON.parse(data.installerMasterQuoteLogV1).find(row=>row.id==='system-1').quotePosition,0,'Actual drag reordered and persisted');
       await page.getByRole('button',{name:'Undo move',exact:true}).click();
       await page.waitForFunction(()=>quoteChoiceRows('customer-a')[0].id==='system-0'&&!quoteArrangeBusy);
       if(width===1440){
+        holdResponse();
         await page.setViewportSize({width,height:1800});
-        await page.locator('[data-row-id="system-0"]').evaluate(el=>el.scrollIntoView({block:'start'}));
+        await page.locator('[data-row-id="system-0"]').evaluate(el=>el.scrollIntoView({block:'start',behavior:'instant'}));
         const source=await page.locator('[data-row-id="system-0"] .quoteDragHandle').boundingBox();
         const destination=await page.locator('.quoteChoiceList[data-option-id="'+second+'"]').boundingBox();
         await page.mouse.move(source.x+18,source.y+20);await page.mouse.down();
         await page.mouse.move(source.x+25,source.y+30,{steps:3});
-        await page.mouse.move(destination.x+destination.width/2,destination.y+destination.height-5,{steps:30});
+        await page.mouse.move(destination.x+destination.width/2,destination.y+destination.height/2,{steps:30});
+        await page.mouse.move(destination.x+destination.width/2+2,destination.y+destination.height/2+2);
+        await page.waitForFunction(id=>document.querySelector('.quoteChoiceList[data-option-id="'+id+'"] [data-row-id="system-0"]'),second);
         await page.mouse.up();
+        await page.locator('#quoteChoiceProgress[open]').waitFor();
+        assert.equal(await page.locator('#quoteChoiceProgressTitle').innerText(),'Moving system...');
+        releaseResponse();
         await page.waitForFunction(id=>quotes.find(row=>row.id==='system-0').optionId===id&&!quoteArrangeBusy,second);
         assert.equal(JSON.parse(data.installerMasterQuoteLogV1).find(row=>row.id==='system-0').optionId,second,'Cross-option drag persisted');
         await page.getByRole('button',{name:'Undo move',exact:true}).click();
@@ -173,6 +241,7 @@ const output=process.env.QUOTE_OPTIONS_SCREENSHOTS;
       await page.getByRole('button',{name:'Load latest options',exact:true}).click();
       await page.waitForFunction(()=>!quoteArrangeBusy);
       await page.evaluate(()=>{quotes.find(row=>row.id==='system-0').unitInc=0;renderCurrentOptionPanel();});
+      assert.equal(await page.locator('[data-row-id="system-0"] .quoteChoiceCostSummary dd').first().innerText(),'Price needed');
       assert.equal(await page.locator('section[data-option-id="customer-a"]').getByRole('button',{name:'Accept this option',exact:true}).isEnabled(),false,'Missing equipment price cannot be accepted');
       await page.evaluate(id=>{
         quotes.find(row=>row.id==='system-0').unitInc=1100;

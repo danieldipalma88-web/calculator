@@ -726,9 +726,12 @@ function injectCloudStorageSync(
     syncRetryTimer = null;
     return window.__calculatorFlushCloudSave(20000);
   };
-  window.__calculatorQuoteRequest = async function(kind, payload){
+  window.__calculatorQuoteRequest = async function(kind, payload, onProgress){
     if (kind !== 'quoteEdit' && kind !== 'quoteCopy' && kind !== 'quoteArrange') throw new Error('Unsupported quote action.');
+    function progress(stage){ if (typeof onProgress === 'function') { try { onProgress(stage); } catch(e) {} } }
+    progress('preparing');
     await window.__calculatorFlushCloudSave(20000);
+    progress('saving');
     var controller = new AbortController();
     var timeout = setTimeout(function(){ controller.abort(); }, 15000);
     setCloudSaveStatus('Saving...', 'saving');
