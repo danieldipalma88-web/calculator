@@ -38,7 +38,7 @@ Object.assign(context,{
   savedMaterialsInc:row=>row.materialsInc,savedMiscInc:row=>row.miscInc,
   savedPowerOrElectricianEx:row=>row.powerCost,agencyProfitAfterSalesInc:()=>555,
 });
-vm.runInContext(functions.get('buildQuoteLibraryCsv'),context);
+vm.runInContext(functions.get('quoteChoiceName')+'\n'+functions.get('buildQuoteLibraryCsv'),context);
 const exportGroup={def:{name:'=UNSAFE()'},business:{name:'Example Air'},won:false,rows:[{
   model:'OUT / IN',finalInc:3300,unitInc:1100,rebate:500,labour:400,materialsInc:100,
   commissionInc:999,salespersonCommissionInc:123,netProfit:456,

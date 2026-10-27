@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import vm from "node:vm";
 import ts from "typescript";
 import { mergeCalculatorData } from "../lib/quote-sync.ts";
+import { applyStoredQuoteAdminUnlocks, quoteFamilySnapshotViolation, quoteFamilySnapshotConflict, quoteFamilyUnlockRequested } from "../lib/quote-family.ts";
 import { applyQuoteLibraryCopy, applyQuoteLibraryEdit, quoteLibraryResponseRow, quoteLibraryVisibleRow } from "../lib/quote-library-edit.ts";
 import { canManageUsers, canSeeCommissionDetails, canSeeProfitDetails, isOwnerEmail } from "../lib/admin.ts";
 
@@ -248,7 +249,7 @@ for (const [userContext, expectedUrl] of [
 }
 assert.ok(raw.includes("var calculatorSyncUrl = ${safeScriptJson(syncUrl)};"));
 const ast = ts.createSourceFile("route.ts", api, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
-const context = { mergeCalculatorData, applyQuoteLibraryCopy, applyQuoteLibraryEdit, quoteLibraryResponseRow, quoteLibraryVisibleRow,
+const context = { mergeCalculatorData, applyStoredQuoteAdminUnlocks, quoteFamilySnapshotViolation, quoteFamilySnapshotConflict, quoteFamilyUnlockRequested, applyQuoteLibraryCopy, applyQuoteLibraryEdit, quoteLibraryResponseRow, quoteLibraryVisibleRow,
   validateNewWonJobTransitions: () => ({ valid: true }), wonJobValidationMessage: () => "Invalid won job",
 };
 for (const name of ["storedValueHasData", "calculatorDataHasData", "saveMergedUserData"]) {
@@ -331,7 +332,7 @@ assert.equal(JSON.parse(normalSave.stored.data[rowsKey])[0].finalInc, 4400);
 assert.match(api, /if \(approvedUser\.is_locked\)/);
 assert.match(api, /const viewingEmail = targetEmailFromRequest/);
 assert.match(api, /sanitizeIncomingCalculatorData\(/);
-assert.match(api, /Send quote edits and copies separately from each other and calculator snapshots/);
+assert.match(api, /Send quote mutations separately from each other and calculator snapshots/);
 
 function endpointHarness({ role = "admin", targetRole = "user", email = "admin@example.test", targetError = null, initial = data } = {}) {
   const db = profile(initial);

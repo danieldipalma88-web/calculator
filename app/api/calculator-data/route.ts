@@ -9,6 +9,9 @@ import {
 } from "../../../lib/certificate-values";
 import { mergeCalculatorData } from "../../../lib/quote-sync";
 import { applyQuoteLibraryCopy, applyQuoteLibraryEdit, quoteLibraryResponseRow, quoteLibraryVisibleRow } from "../../../lib/quote-library-edit";
+import { applyQuoteArrange } from "../../../lib/quote-arrange";
+import { applyStoredQuoteAdminUnlocks, quoteFamilySnapshotConflict, quoteFamilyUnlockRequested } from "../../../lib/quote-family";
+import { visibleCalculatorData } from "../../../lib/quote-data-visibility";
 import {
   DCCEEW_CONTRACT_RATE,
   DCCEEW_ELIGIBLE_POSTCODES,
@@ -84,6 +87,7 @@ async function mutationFinancialsVisible(
       (useAdminVisibility || canSeeProfitDetails(contextRole)),
     // Match the raw bootstrap's approved-profile display capability, not its private-field projection.
     canSeeSalespersonCommission: true,
+    canUnlockWon: useAdminVisibility,
   };
 }
 
@@ -317,6 +321,8 @@ async function saveMergedUserData(
   financialsVisible = false,
   quoteCopy?: unknown,
   canSeeSalespersonCommission = false,
+  quoteArrange?: unknown,
+  canUnlockWon = false,
 ) {
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const byEmail = await supabase
@@ -339,7 +345,7 @@ async function saveMergedUserData(
     }
 
     if (!existing) {
-      if (quoteEdit !== undefined || quoteCopy !== undefined) {
+      if (quoteEdit !== undefined || quoteCopy !== undefined || quoteArrange !== undefined) {
         return { error: "This saved quote no longer exists. Reopen your quotes before editing.", status: 409 };
       }
       if (requireExistingProfile) {
@@ -369,13 +375,33 @@ async function saveMergedUserData(
       continue;
     }
 
-    if (quoteEdit === undefined && quoteCopy === undefined && !calculatorDataHasData(incomingData) && calculatorDataHasData(existing.data)) {
+    existing = { ...existing, data: applyStoredQuoteAdminUnlocks(existing.data) };
+    if (quoteEdit === undefined && quoteCopy === undefined && quoteArrange === undefined && !calculatorDataHasData(incomingData) && calculatorDataHasData(existing.data)) {
       return { ok: true, skipped: "empty_snapshot_ignored" };
     }
 
+    const familyConflict = quoteFamilySnapshotConflict((existing.data || {}) as Record<string, unknown>, incomingData);
+    if (familyConflict) {
+      return { error: "A quote option changed, was removed, or is locked. Back up your local quotes and load the latest options before saving.",
+        status: 409, code: "QUOTE_OPTION_CONFLICT", currentFamily: { ...familyConflict,
+          defs: familyConflict.defs.map((def) => quoteLibraryVisibleRow(def, financialsVisible)),
+          rows: familyConflict.rows.map((row) => quoteLibraryResponseRow(row, financialsVisible, canSeeSalespersonCommission)),
+        } };
+    }
     let mergedData = mergeCalculatorData(existing.data, incomingData);
     let editedRow: Record<string, unknown> | undefined;
     let copiedQuote: { def: Record<string, unknown>; rows: Record<string, unknown>[] } | undefined;
+    let arrangedQuote: Extract<ReturnType<typeof applyQuoteArrange>, { data: unknown }> | undefined;
+    if (quoteArrange !== undefined) {
+      const arranged = applyQuoteArrange(existing.data, quoteArrange, financialsVisible);
+      if ("error" in arranged) return { ...arranged, currentFamily: arranged.currentFamily ? {
+        ...arranged.currentFamily,
+        defs: arranged.currentFamily.defs.map((def) => quoteLibraryVisibleRow(def, financialsVisible)),
+        rows: arranged.currentFamily.rows.map((row) => quoteLibraryResponseRow(row, financialsVisible, canSeeSalespersonCommission)),
+      } : undefined };
+      mergedData = arranged.data;
+      arrangedQuote = arranged;
+    }
     if (quoteEdit !== undefined) {
       const originalCheck = applyQuoteLibraryEdit(existing.data, quoteEdit, financialsVisible);
       if ("error" in originalCheck) return originalCheck;
@@ -389,6 +415,9 @@ async function saveMergedUserData(
       if ("error" in copy) return copy;
       mergedData = copy.data;
       copiedQuote = copy;
+    }
+    if (!canUnlockWon && quoteFamilyUnlockRequested((existing.data || {}) as Record<string, unknown>, mergedData)) {
+      return { error: "Only an authorised platform administrator can unlock a won quote.", status: 403 };
     }
     const wonValidation = validateNewWonJobTransitions(existing.data, mergedData);
     if (!wonValidation.valid) {
@@ -416,6 +445,11 @@ async function saveMergedUserData(
 
     if (saved.error) return { error: saved.error.message, status: 500 };
     if (saved.data?.length) {
+      if (arrangedQuote) return { ok: true, selectedOptionId: arrangedQuote.selectedOptionId,
+        defs: arrangedQuote.defs.map((def) => quoteLibraryVisibleRow(def, financialsVisible)),
+        rows: arrangedQuote.rows.map((row) => quoteLibraryResponseRow(row, financialsVisible, canSeeSalespersonCommission)),
+        removedOptionIds: arrangedQuote.removedOptionIds, removedRowIds: arrangedQuote.removedRowIds,
+      };
       if (copiedQuote) return {
         ok: true, def: quoteLibraryVisibleRow(copiedQuote.def, financialsVisible),
         rows: copiedQuote.rows.map((row) => quoteLibraryResponseRow(row, financialsVisible, canSeeSalespersonCommission)),
@@ -460,6 +494,8 @@ export async function GET(request: Request) {
   );
   const businessId = await resolveBusinessId(request, supabase, viewingEmail, canManage, approvedUser);
   const settingsOnly = new URL(request.url).searchParams.get("mode") === "rebate-settings";
+  const visibility = await mutationFinancialsVisible(request, supabase, currentEmail, viewingEmail, approvedUser);
+  if ("error" in visibility) return NextResponse.json({ error: visibility.error }, { status: visibility.status });
   let userData: Record<string, unknown> = {};
   if (!settingsOnly) {
     const byEmail = await supabase
@@ -535,10 +571,10 @@ export async function GET(request: Request) {
         postcodes: DCCEEW_ELIGIBLE_POSTCODES,
         productKeys: DCCEEW_ELIGIBLE_PRODUCT_KEYS,
       },
-      data: settingsOnly ? settingsData : {
-        ...stripCertificateValueKeys(userData),
+      data: visibleCalculatorData(settingsOnly ? settingsData : {
+        ...stripCertificateValueKeys(applyStoredQuoteAdminUnlocks(userData)),
         ...authoritativeBusinessData,
-      },
+      }, visibility.visible, visibility.canSeeSalespersonCommission),
     },
     {
       headers: {
@@ -580,13 +616,12 @@ async function saveCalculatorData(request: Request) {
   const body = await request.json().catch(() => null);
   const quoteEdit = body && Object.prototype.hasOwnProperty.call(body, "quoteEdit") ? body.quoteEdit : undefined;
   const quoteCopy = body && Object.prototype.hasOwnProperty.call(body, "quoteCopy") ? body.quoteCopy : undefined;
-  if ((quoteEdit !== undefined || quoteCopy !== undefined) &&
-      ((quoteEdit !== undefined && quoteCopy !== undefined) || (body.data && Object.keys(body.data).length))) {
-    return NextResponse.json({ error: "Send quote edits and copies separately from each other and calculator snapshots." }, { status: 422 });
+  const quoteArrange = body && Object.prototype.hasOwnProperty.call(body, "quoteArrange") ? body.quoteArrange : undefined;
+  if ([quoteEdit, quoteCopy, quoteArrange].filter((value) => value !== undefined).length > 0 &&
+      ([quoteEdit, quoteCopy, quoteArrange].filter((value) => value !== undefined).length > 1 || (body.data && Object.keys(body.data).length))) {
+    return NextResponse.json({ error: "Send quote mutations separately from each other and calculator snapshots." }, { status: 422 });
   }
-  const visibility = quoteEdit !== undefined || quoteCopy !== undefined
-    ? await mutationFinancialsVisible(request, supabase, currentEmail, viewingEmail, approvedUser)
-    : { visible: false, canSeeSalespersonCommission: false };
+  const visibility = await mutationFinancialsVisible(request, supabase, currentEmail, viewingEmail, approvedUser);
   if ("error" in visibility) return NextResponse.json({ error: visibility.error }, { status: visibility.status });
   const rawCalculatorData = body && typeof body.data === "object" ? body.data : {};
   const canEditManagedRebates = isOwnerEmail(viewingEmail);
@@ -629,10 +664,13 @@ async function saveCalculatorData(request: Request) {
     visibility.visible,
     quoteCopy,
     visibility.canSeeSalespersonCommission,
+    quoteArrange,
+    visibility.canUnlockWon,
   );
   if ("error" in userSave) {
     return NextResponse.json(
-      { error: userSave.error, code: "code" in userSave ? userSave.code : undefined },
+      { error: userSave.error, code: "code" in userSave ? userSave.code : undefined,
+        currentFamily: "currentFamily" in userSave ? userSave.currentFamily : undefined },
       { status: userSave.status },
     );
   }

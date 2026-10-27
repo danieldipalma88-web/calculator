@@ -21,6 +21,8 @@ import {
   DCCEEW_ELIGIBLE_PRODUCT_KEYS,
 } from "../../../lib/dcceew-contract-data";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
+import { visibleCalculatorData } from "../../../lib/quote-data-visibility";
+import { applyStoredQuoteAdminUnlocks } from "../../../lib/quote-family";
 
 const calculatorHtmlPromise = readFile(
   path.join(process.cwd(), "index.html"),
@@ -185,31 +187,9 @@ function sanitizeCalculatorData(
   data: Record<string, unknown>,
   userContext: CalculatorUserContext,
 ) {
-  if (userContext.canSeeCommissionDetails && userContext.canSeeProfitDetails) return data;
-
-  const sanitized: Record<string, unknown> = { ...data };
-  [
-    "installerCommissionSettingsV1",
-    "CommissionSettingsV1",
-    "installerMasterQuoteLogV1",
-    "MasterQuoteLogV1",
-    "installerSavedQuoteSetsV1",
-    "SavedQuoteSetsV1",
-  ].forEach((key) => {
-    if (!(key in sanitized)) return;
-    if (key.toLowerCase().includes("commission")) {
-      delete sanitized[key];
-      return;
-    }
-    try {
-      const parsed = JSON.parse(String(sanitized[key] || "null"));
-      sanitized[key] = JSON.stringify(stripSensitiveQuoteFields(parsed));
-    } catch {
-      delete sanitized[key];
-    }
-  });
-
-  return sanitized;
+  return visibleCalculatorData(data,
+    userContext.canSeeCommissionDetails && userContext.canSeeProfitDetails,
+    userContext.canSeeSalespersonCommission === true);
 }
 
 function stripAccountManagedRebateOverrides(data: Record<string, unknown>) {
@@ -308,6 +288,7 @@ function wonAdminUnlockRecords(data: Record<string, unknown>) {
 }
 
 function applyWonAdminUnlocks(data: Record<string, unknown>) {
+  data = applyStoredQuoteAdminUnlocks(data);
   const unlockRecords = wonAdminUnlockRecords(data);
   if (!unlockRecords.length) return data;
 
@@ -422,6 +403,8 @@ function injectCloudStorageSync(
   var syncRetryTimer = null;
   var cloudSaveHideTimer = null;
   var cloudSaveWaiters = [];
+  var quoteConflictError = null;
+  window.__calculatorQuoteConflict = null;
   var saveRequestTimeoutMs = 12000;
   var certificateRefreshInFlight = false;
   var certificateRefreshIntervalMs = 60000;
@@ -639,8 +622,22 @@ function injectCloudStorageSync(
       cloudSaveWaiters.push(waiter);
     });
   }
+  function pauseQuoteConflict(error){
+    quoteConflictError = error;
+    pendingSnapshot = null;
+    clearTimeout(timer);
+    timer = null;
+    clearTimeout(syncRetryTimer);
+    syncRetryTimer = null;
+    var waiters = cloudSaveWaiters;
+    cloudSaveWaiters = [];
+    waiters.forEach(function(waiter){ clearTimeout(waiter.timeout); waiter.reject(error); });
+    window.__calculatorQuoteConflict = {code:error.code, status:error.status, message:error.message, currentFamily:error.currentFamily};
+    setCloudSaveStatus('Quote options need review', 'error');
+    window.dispatchEvent(new CustomEvent('calculator-quote-conflict', {detail:error}));
+  }
   function sendPendingSnapshot(){
-    if (syncRequestInFlight || !pendingSnapshot) return;
+    if (quoteConflictError || syncRequestInFlight || !pendingSnapshot) return;
     clearTimeout(syncRetryTimer);
     syncRetryTimer = null;
     var request = pendingSnapshot;
@@ -661,7 +658,9 @@ function injectCloudStorageSync(
         if (response.ok) return result;
         var error = new Error(result && result.error ? result.error : 'Calculator sync failed');
         error.status = response.status;
-        error.permanent = response.status >= 400 && response.status < 500 && response.status !== 409 && response.status !== 429;
+        error.code = result.code;
+        error.currentFamily = result.currentFamily;
+        error.permanent = response.status >= 400 && response.status < 500 && response.status !== 409 && response.status !== 429 || error.code === 'QUOTE_OPTION_CONFLICT';
         throw error;
       });
     }).then(function(){
@@ -670,7 +669,9 @@ function injectCloudStorageSync(
       settleCloudSaveWaiters(request.json, null);
       setCloudSaveStatus(pendingSnapshot ? 'Saving...' : 'Saved', pendingSnapshot ? 'saving' : 'saved');
     }).catch(function(error){
-      if (error && error.permanent) {
+      if (error && error.code === 'QUOTE_OPTION_CONFLICT') {
+        pauseQuoteConflict(error);
+      } else if (error && error.permanent) {
         settleCloudSaveWaiters(request.json, error);
         setCloudSaveStatus(pendingSnapshot ? 'Saving...' : 'Save failed', pendingSnapshot ? 'saving' : 'error');
       } else {
@@ -683,10 +684,11 @@ function injectCloudStorageSync(
       if (requestTimeout) clearTimeout(requestTimeout);
       syncRequestInFlight = false;
       inFlightSnapshotJson = '';
-      if (pendingSnapshot && !syncRetryTimer) sendPendingSnapshot();
+      if (!quoteConflictError && pendingSnapshot && !syncRetryTimer) sendPendingSnapshot();
     });
   }
   function writeSnapshot(force){
+    if (quoteConflictError) return;
     var data = snapshot();
     var nextJson = JSON.stringify(data);
     if (!force) {
@@ -700,6 +702,7 @@ function injectCloudStorageSync(
     sendPendingSnapshot();
   }
   window.__calculatorFlushCloudSave = function(timeoutMs){
+    if (quoteConflictError) return Promise.reject(quoteConflictError);
     var data = snapshot();
     var nextJson = JSON.stringify(data);
     if (!syncRequestInFlight && !pendingSnapshot && nextJson === lastSnapshotJson) {
@@ -712,8 +715,19 @@ function injectCloudStorageSync(
     sendPendingSnapshot();
     return confirmation;
   };
+  window.__calculatorResolveQuoteConflict = function(){
+    if (!quoteConflictError) return window.__calculatorFlushCloudSave(20000);
+    quoteConflictError = null;
+    window.__calculatorQuoteConflict = null;
+    pendingSnapshot = null;
+    clearTimeout(timer);
+    timer = null;
+    clearTimeout(syncRetryTimer);
+    syncRetryTimer = null;
+    return window.__calculatorFlushCloudSave(20000);
+  };
   window.__calculatorQuoteRequest = async function(kind, payload){
-    if (kind !== 'quoteEdit' && kind !== 'quoteCopy') throw new Error('Unsupported quote action.');
+    if (kind !== 'quoteEdit' && kind !== 'quoteCopy' && kind !== 'quoteArrange') throw new Error('Unsupported quote action.');
     await window.__calculatorFlushCloudSave(20000);
     var controller = new AbortController();
     var timeout = setTimeout(function(){ controller.abort(); }, 15000);
@@ -727,6 +741,8 @@ function injectCloudStorageSync(
       if (!response.ok) {
         var error = new Error(result.error || 'The quote could not be saved.');
         error.status = response.status;
+        error.code = result.code;
+        error.currentFamily = result.currentFamily;
         throw error;
       }
       setCloudSaveStatus('Saved', 'saved');
@@ -738,7 +754,7 @@ function injectCloudStorageSync(
     } finally { clearTimeout(timeout); }
   };
   function scheduleSync(force){
-    if (syncing) return;
+    if (syncing || quoteConflictError) return;
     clearTimeout(timer);
     timer = setTimeout(function(){
       writeSnapshot(!!force);
@@ -908,6 +924,7 @@ function injectCloudStorageSync(
       if (document.visibilityState === 'visible') refreshAuthoritativeCertificateValues();
     });
     window.addEventListener('beforeunload', function(){
+      if (quoteConflictError) return;
       try {
         navigator.sendBeacon(calculatorSyncUrl, new Blob([JSON.stringify({data: snapshot()})], {type: 'application/json'}));
       } catch(e) {}

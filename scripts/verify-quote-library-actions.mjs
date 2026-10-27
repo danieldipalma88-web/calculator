@@ -14,6 +14,7 @@ function setup(names){
     recordQuoteSyncDeletions:(rows,defs)=>ctx.deletions.push({rows:rows.map(r=>r.id),defs:defs.map(d=>d.id)}),
     confirm:()=>true,alert:m=>ctx.alerts.push(m),cloneObj:o=>structuredClone(o),defaultSavedQuoteName:()=> 'Backup',optionNameById:id=>id,
     optionIsWon:id=>ctx.quoteOptionDefs.some(d=>d.id===id&&d.wonAt),assertOptionEditable:id=>!ctx.quoteOptionDefs.some(d=>d.id===id&&d.wonAt),
+    optionDefById:id=>ctx.quoteOptionDefs.find(d=>d.id===id),
   };
   vm.createContext(ctx);vm.runInContext(names.map(name=>{assert.ok(fns.has(name),name);return fns.get(name);}).join('\n'),ctx);return ctx;
 }

@@ -1,4 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
+// @ts-ignore Explicit TS extension is required by the direct Node regression runners.
+import { applyStoredQuoteAdminUnlocks, copyQuoteWithoutLifecycle, quoteFamilyLocked, QUOTE_FAMILY_FIELDS, QUOTE_ROW_FIELDS } from "./quote-family.ts";
 
 type Row = Record<string, unknown>;
 
@@ -38,16 +40,20 @@ function canonical(value: unknown): string {
 
 export function quoteLibraryVisibleRow(value: Row, financialsVisible: boolean): Row {
   if (financialsVisible) return value;
-  function strip(item: unknown): unknown {
-    if (Array.isArray(item)) return item.map(strip);
+  function strip(item: unknown, root = false): unknown {
+    if (Array.isArray(item)) return item.map((entry) => strip(entry));
+    if (typeof item === "string") {
+      const parsed = parse(item);
+      if (object(parsed) || Array.isArray(parsed)) return JSON.stringify(strip(parsed));
+    }
     if (!object(item)) return item;
     return Object.fromEntries(Object.entries(item).filter(([key]) => {
       const lower = key.toLowerCase();
-      if (lower === "salespersoncommissioninc" && item.wonAt) return true;
-      return !lower.includes("commission") && !lower.includes("profit") && lower !== "margin";
+      if (root && lower === "salespersoncommissioninc" && item.wonAt) return true;
+      return !lower.includes("commission") && !lower.includes("profit") && !lower.includes("margin");
     }).map(([key, entry]) => [key, strip(entry)]));
   }
-  return strip(value) as Row;
+  return strip(value, true) as Row;
 }
 
 export function quoteLibraryResponseRow(value: Row, financialsVisible: boolean, canSeeSalespersonCommission: boolean): Row {
@@ -166,14 +172,14 @@ export function applyQuoteLibraryEdit(
       typeof request.optionId !== "string" || !request.optionId ||
       !object(request.expectedRow) || !object(request.row)) return invalid("A complete original row and candidate row are required.");
   if (Object.keys(request).some((key) => !["rowId", "optionId", "expectedRow", "row", "saveId"].includes(key))) return invalid("Unknown quote edit field.");
-  const data = object(storedData) ? storedData : {};
+  const data = applyStoredQuoteAdminUnlocks(storedData);
   const matches = ROW_KEYS.flatMap((key) => records(data[key]).filter((row) => row.id === request.rowId).map((row) => ({ key, row })));
   if (!matches.length) return conflict();
   const current = matches[0].row;
   if (current.state !== undefined && !object(current.state)) return invalid("This quote has invalid saved state.");
   if (matches.some(({ row }) => canonical(row) !== canonical(current)) || current.optionId !== request.optionId) return conflict();
   const defs = OPTION_KEYS.flatMap((key) => records(data[key])).filter((def) => def.id === request.optionId);
-  if (!defs.length || current.wonAt || defs.some((def) => def.wonAt)) return conflict();
+  if (!defs.length || quoteFamilyLocked(data, request.optionId)) return conflict();
   const tombstones = parse(data.installerQuoteSyncTombstonesV1);
   if (object(tombstones) && ["rows", "options"].some((kind) => {
     const ledger = tombstones[kind];
@@ -245,20 +251,14 @@ function copyCollection(data: Row, key: string): Row[] | null {
 }
 
 function copyWithoutLifecycle(record: Row): Row {
-  const lifecycleKeys = new Set([
-    "wonAt", "wonByEmail", "wonByName", "wonSourceId", "wonState",
-    "paymentRequestedAt", "paymentRequestedByEmail", "agencyPaidInAt", "agencyPaidInByEmail",
-    "paidInAt", "paidInByEmail", "salespersonPaidOutAt", "salespersonPaidOutByEmail", "paidOutAt", "paidOutByEmail",
-    "paymentResetAt", "paymentResetByEmail", "unlockedAt", "unlockedByEmail", "resetAt", "resetByEmail", "resetWonAt",
-    "paymentStatus", "agencyPaymentStatus", "salespersonPaymentEvidence", "commissionPaidAt", "commissionPaymentId",
+  const detachedCustomerKeys = new Set([
     "installationAddress", "installationLatitude", "installationLongitude", "proposedInstallationDate",
     "googlePlaceId", "googleAddressComponents", "googleAddressSelectedAt",
-    "archivedAt", "archivedByEmail", "archivedByName", "archived",
-    "quoteLibraryEditSaveId", "quoteLibraryEditFingerprint", "quoteLibraryEditVersion", "quoteLibraryCopySaveId",
   ]);
-  const copy = JSON.parse(JSON.stringify(record)) as Row;
+  const copy = copyQuoteWithoutLifecycle(JSON.parse(JSON.stringify(record)) as Row);
   for (const target of [copy, ...(object(copy.state) ? [copy.state] : [])]) {
-    for (const key of lifecycleKeys) delete target[key];
+    for (const key of detachedCustomerKeys) delete target[key];
+    for (const key of [...QUOTE_FAMILY_FIELDS, ...QUOTE_ROW_FIELDS]) delete target[key];
   }
   return copy;
 }
@@ -270,7 +270,7 @@ export function applyQuoteLibraryCopy(storedData: unknown, request: unknown, now
       (request.backupId !== undefined && (typeof request.backupId !== "string" || !request.backupId)) ||
       Object.keys(request).some((key) => !["optionId", "backupId", "name", "saveId"].includes(key))) return invalid("A source quote, name and unique saveId are required.");
   if (!object(storedData)) return conflict();
-  const data = storedData;
+  const data = applyStoredQuoteAdminUnlocks(storedData);
   const receipts = copyCollection(data, COPY_RECEIPTS_KEY);
   if (!receipts) return invalid("Saved copy receipts are malformed; no quote was copied.");
   const fingerprint = createHash("sha256").update(canonical({ optionId: request.optionId, backupId: request.backupId, name: request.name.trim() })).digest("hex");
@@ -334,14 +334,24 @@ export function applyQuoteLibraryCopy(storedData: unknown, request: unknown, now
   const optionId = `option_${randomUUID()}`;
   const name = request.name.trim();
   const def: Row = { ...(copyWithoutLifecycle(defs[0]) as Row), id: optionId, name, syncUpdatedAt: now };
-  const rows = [...uniqueRows.values()].map((source, index) => ({
+  const orderedSources = [...uniqueRows.values()].map((source, index) => ({ source, index })).sort((a, b) => {
+    const position = (row: Row) => typeof row.quotePosition === "number" && Number.isFinite(row.quotePosition) ? row.quotePosition : Number.POSITIVE_INFINITY;
+    return position(a.source) - position(b.source) || a.index - b.index;
+  });
+  const rows = orderedSources.map(({ source }, index) => ({
     ...(copyWithoutLifecycle(source) as Row), id: `quote_${randomUUID()}`, optionId, optionName: name,
     timestamp: now + index, syncUpdatedAt: now + index,
   }));
   const next = { ...data };
   const serialize = (original: unknown, values: Row[]) => typeof original === "string" || original === undefined ? JSON.stringify(values) : values;
-  next[targetDefsKey] = serialize(data[targetDefsKey], [...targetDefs, def]);
-  next[targetRowsKey] = serialize(data[targetRowsKey], [...targetRows, ...rows]);
+  for (const [keys, fallback, additions] of [[OPTION_KEYS, targetDefsKey, [def]], [ROW_KEYS, targetRowsKey, rows]] as const) {
+    const activeKeys = keys.filter((key) => key in data);
+    for (const key of activeKeys.length ? activeKeys : [fallback]) {
+      const entries = copyCollection(data, key);
+      if (!entries) return invalid("Saved quote aliases are malformed; no quote was copied.");
+      next[key] = serialize(data[key], [...entries, ...additions]);
+    }
+  }
   next[COPY_RECEIPTS_KEY] = serialize(data[COPY_RECEIPTS_KEY], [...receipts, { id: request.saveId, fingerprint, optionId, rowIds: rows.map((row) => row.id) }]);
   return { data: next, def, rows };
 }

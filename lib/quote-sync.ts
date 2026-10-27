@@ -1,3 +1,6 @@
+// @ts-ignore Explicit TS extension is required by the direct Node regression runners.
+import { applyStoredQuoteAdminUnlocks, cohereQuoteFamilyAliases, fenceQuoteFamilySnapshot } from "./quote-family.ts";
+
 export const QUOTE_SYNC_TOMBSTONES_STORAGE_KEY = "installerQuoteSyncTombstonesV1";
 
 const QUOTE_COLLECTION_STORAGE_KEYS = new Set([
@@ -236,11 +239,10 @@ function storedValueHasData(value: unknown) {
 }
 
 export function mergeCalculatorData(existing: unknown, incoming: unknown) {
-  const current: Record<string, unknown> =
-    existing && typeof existing === "object" ? { ...(existing as Record<string, unknown>) } : {};
+  const current = applyStoredQuoteAdminUnlocks(existing);
   if (!incoming || typeof incoming !== "object") return current;
 
-  const next = incoming as Record<string, unknown>;
+  const next = fenceQuoteFamilySnapshot(current, incoming as Record<string, unknown>);
   const tombstones = mergeTombstones(
     current[QUOTE_SYNC_TOMBSTONES_STORAGE_KEY],
     next[QUOTE_SYNC_TOMBSTONES_STORAGE_KEY],
@@ -295,5 +297,5 @@ export function mergeCalculatorData(existing: unknown, incoming: unknown) {
     merged[QUOTE_SYNC_TOMBSTONES_STORAGE_KEY] = JSON.stringify(tombstones);
   }
 
-  return merged;
+  return cohereQuoteFamilyAliases(applyStoredQuoteAdminUnlocks(merged, current));
 }

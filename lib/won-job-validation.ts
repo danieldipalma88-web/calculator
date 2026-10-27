@@ -1,3 +1,6 @@
+// @ts-ignore Explicit TS extension is required by the direct Node regression runners.
+import { QUOTE_DEF_KEYS, QUOTE_ROW_KEYS, applyStoredQuoteAdminUnlocks, quoteFamilyId, quoteObject, quoteRecords } from "./quote-family.ts";
+
 const OPTION_COLLECTION_STORAGE_KEYS = [
   "installerQuoteOptionDefsV1",
   "greenEnergyQuoteOptionDefsV1",
@@ -31,6 +34,7 @@ export type WonJobValidationResult =
       optionName: string;
       missingFields: string[];
       missingPriceModels: string[];
+      familyConflict?: boolean;
     };
 
 function recordText(record: StoredRecord, key: string) {
@@ -188,8 +192,30 @@ export function validateNewWonJobTransitions(
   existingData: unknown,
   candidateData: unknown,
 ): WonJobValidationResult {
+  candidateData = applyStoredQuoteAdminUnlocks(candidateData, existingData);
+  existingData = applyStoredQuoteAdminUnlocks(existingData);
   const existingJobs = wonJobsFromCalculatorData(existingData);
   const candidateJobs = wonJobsFromCalculatorData(candidateData);
+
+  const data = quoteObject(candidateData) ? candidateData : {};
+  const existing = quoteObject(existingData) ? existingData : {};
+  const families = new Map<string, string>();
+  // Include the stored mapping as defense against row-only/definition-only writes.
+  for (const source of [existing, data]) for (const key of QUOTE_DEF_KEYS) for (const def of quoteRecords(source[key])) {
+    if (def.quoteFamilyId || !families.has(String(def.id))) families.set(String(def.id), quoteFamilyId(def));
+  }
+  const wonByFamily = new Map<string, Set<string>>();
+  for (const sourceKeys of [QUOTE_DEF_KEYS, QUOTE_ROW_KEYS]) for (const key of sourceKeys) for (const record of quoteRecords(data[key])) {
+    if (!record.wonAt) continue;
+    const id = String(sourceKeys === QUOTE_DEF_KEYS ? record.id || "" : record.optionId || "");
+    if (!id) continue;
+    const family = families.get(id) || id;
+    const ids = wonByFamily.get(family) || new Set<string>();
+    ids.add(id);
+    wonByFamily.set(family, ids);
+    if (ids.size > 1) return { valid: false, optionId: id, optionName: candidateJobs.get(id)?.name || "Quote",
+      missingFields: [], missingPriceModels: [], familyConflict: true };
+  }
 
   for (const candidate of candidateJobs.values()) {
     const existingWonAt = existingJobs.get(candidate.id)?.wonAt;
@@ -220,6 +246,7 @@ export function validateNewWonJobTransitions(
 }
 
 export function wonJobValidationMessage(result: Exclude<WonJobValidationResult, { valid: true }>) {
+  if (result.familyConflict) return `${result.optionName} cannot be marked as won. Only one option in a customer quote can be won. Unlock the chosen option first.`;
   const requirements: string[] = [];
   if (result.missingFields.length) {
     requirements.push("Add a Google-verified installation address and a proposed installation date.");

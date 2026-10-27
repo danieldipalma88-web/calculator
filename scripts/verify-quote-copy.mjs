@@ -105,6 +105,6 @@ await context.copyCurrentQuoteInfo();
 assert.match(status.textContent,/Could not copy/);
 assert.equal(button.disabled,false,'Hung clipboard must clear loading');
 vm.runInContext('clearTimeout(quoteInfoFeedbackTimer)',context);
-assert.match(functions.get('renderCurrentOptionPanel'),/updateCopyQuoteInfoButton\(rows\)/);
+assert.match(functions.get('renderCurrentOptionPanel'),/updateCopyQuoteInfoButton\(selected.rows\)/);
 assert.doesNotMatch(functions.get('copyCurrentQuoteInfo'),/persist|fetch\(|sendEmail|calculate\(/);
 console.log('Quote copy: privacy, selected totals, exact metadata, multi-heads, unknowns, missing prices and clipboard failures passed.');

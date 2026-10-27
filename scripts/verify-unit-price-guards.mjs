@@ -31,7 +31,9 @@ assert.match(functionSource("addStandardSystemToQuoteNow"), /standardQuotePriceR
 assert.match(functionSource("multiSplitQuoteReadiness"), /multiSplitMissingPriceModels\(totals\)/);
 assert.match(functionSource("markOptionWon"), /quoteRowsMissingPriceModels\(rows\)/);
 assert.match(functionSource("completeOptionWon"), /quoteRowsMissingPriceModels\(targetRows\)/);
-assert.match(functionSource("renderCurrentOptionPanel"), /priceIncompleteNotice/);
+assert.match(functionSource("renderCurrentOptionTotalsPanel"), /priceIncompleteNotice/);
+assert.match(functionSource("renderCurrentOptionPanel"), /quoteRowsMissingPriceModels\(rows\)\.length\|\|disabled\?' disabled'/);
+assert.match(functionSource("quoteChoiceCardHtml"), /priceMissingBadge/);
 assert.match(functionSource("updateQuotePriceValidationUi"), /syncFinalPriceInputAvailability\('finalInc',standardMissing/);
 assert.doesNotMatch(functionSource("updateQuotePriceValidationUi"), /priceMissingProduct/);
 assert.match(functionSource("render"), /pricingReady=hasPositiveUnitPrice\(x\.unitInc\)/);
