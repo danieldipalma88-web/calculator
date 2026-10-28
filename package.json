@@ -32,6 +32,7 @@
     "verify:gree-catalogue": "node scripts/verify-gree-catalogue.mjs",
     "verify:kaden-catalogue": "node scripts/verify-kaden-catalogue.mjs",
     "verify:hitachi-catalogue": "node --experimental-strip-types scripts/verify-hitachi-catalogue.mjs",
+    "verify:temperzone-catalogue": "node --experimental-strip-types scripts/verify-temperzone-catalogue.mjs",
     "verify:daikin-floor-mhi-bronte-catalogue": "node --experimental-strip-types scripts/verify-daikin-floor-mhi-bronte-catalogue.mjs",
     "verify:requested-model-catalogue": "node --experimental-strip-types scripts/verify-requested-model-catalogue.mjs",
     "verify:mitsubishi-electric-ducted-catalogue": "node scripts/verify-mitsubishi-electric-ducted-catalogue.mjs",

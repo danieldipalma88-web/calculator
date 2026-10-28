@@ -4392,6 +4392,15 @@ const MITSUBISHI_ELECTRIC_NSW_DUCTED_PRODUCTS = [
   {"brand":"Mitsubishi Electric","series":"PEA-M LAA Large Capacity Power Inverter","size":20.0,"phase":"Three","model":"PUZ-ZM200YKA-A / PEA-M200LAA","priceIncGst":0.0,"rebate":0.0,"capacity":"20.0kW","capacityNum":20.0,"unitPriceInc":0.0,"nswOnly":true}
 ];
 DUCTED_PRODUCTS.push(...MITSUBISHI_ELECTRIC_NSW_DUCTED_PRODUCTS);
+// Exact Australian GEMS pairings; controller details come from the supplied package specification.
+const TEMPERZONE_NSW_DUCTED_PRODUCTS=[
+  {brand:'Temperzone',series:'Templite R32',size:8.5,phase:'Single',model:'OSAT 85RLSFH / ISDT 85LY',priceIncGst:0,rebate:0,capacity:'8.5kW',capacityNum:8.5,unitPriceInc:0,nswOnly:true},
+  {brand:'Temperzone',series:'Templite R32',size:10,phase:'Single',model:'OSAT 100RLSFH / ISDT 100LY',priceIncGst:0,rebate:0,capacity:'10.0kW',capacityNum:10,unitPriceInc:0,nswOnly:true},
+  {brand:'Temperzone',series:'Templite R32',size:13,phase:'Single',model:'OSAT 130RLSFH / ISDT 130LY',priceIncGst:0,rebate:0,capacity:'13.0kW',capacityNum:13,unitPriceInc:0,nswOnly:true},
+  {brand:'Temperzone',series:'Templite R32',size:14.5,phase:'Single',model:'OSAT 145RLSFH / ISDT 145LY',priceIncGst:0,rebate:0,capacity:'14.5kW',capacityNum:14.5,unitPriceInc:0,nswOnly:true},
+  {brand:'Temperzone',series:'Templite R32',size:16,phase:'Single',model:'OSAT 160RLSFH / ISDT 160LY',priceIncGst:0,rebate:0,capacity:'16.0kW',capacityNum:16,unitPriceInc:0,nswOnly:true}
+].map(product=>({...product,refrigerant:'R32',controllerModel:'TZT 04',controllerIncluded:true,controllerCableMetres:8}));
+DUCTED_PRODUCTS.push(...TEMPERZONE_NSW_DUCTED_PRODUCTS);
 DUCTED_PRODUCTS.push(
   {"brand":"Midea","series":"Vesta","size":7.0,"phase":"Single","model":"UCMI70OC/DUCMI70IC","priceIncGst":1584.00,"rebate":0.0,"capacity":"7.0kW","capacityNum":7.0,"unitPriceInc":1584.00},
   {"brand":"Midea","series":"Vesta","size":9.0,"phase":"Single","model":"UCMI90OC/DUCMI90IC","priceIncGst":2061.40,"rebate":0.0,"capacity":"9.0kW","capacityNum":9.0,"unitPriceInc":2061.40},
@@ -4665,6 +4674,7 @@ ANDOS_DUCTED_PRODUCTS.push(
   andosAccessoryInc("Hisense", "Touchscreen Coloured Wi-Fi Controller", "HACZ01", 308.00),
   andosAccessoryInc("Hisense", "Standard Wired Controller", "HACW02", 93.50)
 );
+ANDOS_DUCTED_PRODUCTS.push(...TEMPERZONE_NSW_DUCTED_PRODUCTS.map(product=>({...product})));
 const PRODUCT_SUPPORT_DEFAULT={wifiStatus:'unknown',wifiLabel:'Wi-Fi TBC',warrantyYears:null,warrantyLabel:'Warranty TBC',originLabel:'Origin TBC'};
 const BRAND_ORIGIN_LABELS={
   'Actron':'Australian',
@@ -4684,6 +4694,7 @@ const BRAND_ORIGIN_LABELS={
   'Braemar':'Australian',
   'Rinnai':'Japanese',
   'TCL':'Chinese',
+  'Temperzone':'New Zealand',
   'Toshiba':'Thailand',
   'Carrier':'American',
   'Samsung':'South Korean'
@@ -4731,6 +4742,7 @@ const SPLIT_PRODUCT_SUPPORT=[
   {brand:'Braemar',series:'Innov-aire',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi available on specific models',warrantyYears:5,warrantyLabel:'5 yrs warranty'}}
 ];
 const DUCTED_PRODUCT_SUPPORT=[
+  {brand:'Temperzone',series:'Templite R32',details:{wifiStatus:'unknown',wifiLabel:'Wi-Fi unconfirmed',warrantyYears:5,warrantyLabel:'5 yrs parts & labour (conditions apply)'}},
   {brand:'Rinnai',series:'DRCi R32 (15kW nominal)',details:{wifiStatus:'included',wifiLabel:'Wi-Fi enabled controller included',warrantyYears:7,warrantyLabel:'7 yrs limited warranty'}},
   {brand:'Samsung',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi kit sold separately',warrantyYears:5,warrantyLabel:'5 yrs parts & labour'}},
   {brand:'Mitsubishi Electric',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional interface',warrantyYears:5,warrantyLabel:'5 yrs parts & labour'}},
@@ -4763,6 +4775,7 @@ const ANDOS_SPLIT_PRODUCT_SUPPORT=[
   {brand:'Hisense',series:'Eros R32 / X3 Series Wall Mounted',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:7,warrantyLabel:'5 yrs standard / 7 yrs promo if eligible',originLabel:'Chinese'}}
 ];
 const ANDOS_DUCTED_PRODUCT_SUPPORT=[
+  {brand:'Temperzone',series:'Templite R32',details:{wifiStatus:'unknown',wifiLabel:'Wi-Fi unconfirmed',warrantyYears:5,warrantyLabel:'5 yrs parts & labour (conditions apply)'}},
   {brand:'Actron',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional controller',warrantyYears:5,warrantyLabel:'5 yrs warranty',originLabel:'Australian'}},
   {brand:'Daikin',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional Airbase',warrantyYears:5,warrantyLabel:'5 yrs warranty',originLabel:'Japanese'}},
   {brand:'Mitsubishi Electric',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional controller',warrantyYears:5,warrantyLabel:'5 yrs warranty',originLabel:'Japanese'}},
