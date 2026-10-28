@@ -10,6 +10,7 @@ import { validateNewWonJobTransitions, wonJobValidationMessage } from '../lib/wo
 import { canManageUsers, canSeeCommissionDetails, canSeeProfitDetails, isOwnerEmail } from '../lib/admin.ts';
 import { visibleCalculatorData } from '../lib/quote-data-visibility.ts';
 import { CERTIFICATE_VALUES_STORAGE_KEYS, PLATFORM_CERTIFICATE_VALUES_ID, overlayPlatformCertificateValues, platformCertificateValuesFromRow } from '../lib/certificate-values.ts';
+import { validatedBusinessConfigurationData, withoutBusinessConfiguration } from '../lib/business-calculator-configuration.ts';
 
 const clone = value => structuredClone(value);
 const parse = value => typeof value === 'string' ? JSON.parse(value) : value;
@@ -522,6 +523,7 @@ function readEndpoint({ role = 'user', targetRole = 'user', locked = false, appr
     } }; return query;
   } };
   const sandbox = { URL, canManageUsers, isOwnerEmail, canSeeCommissionDetails, canSeeProfitDetails, visibleCalculatorData, applyStoredQuoteAdminUnlocks,
+    validatedBusinessConfigurationData, withoutBusinessConfiguration,
     CERTIFICATE_VALUES_STORAGE_KEYS, PLATFORM_CERTIFICATE_VALUES_ID, overlayPlatformCertificateValues, platformCertificateValuesFromRow,
     DCCEEW_CONTRACT_RATE: 30, DCCEEW_ELIGIBLE_POSTCODES: [], DCCEEW_ELIGIBLE_PRODUCT_KEYS: [],
     NextResponse: { json: (body, options) => ({ body, status: options?.status ?? 200 }) }, createSupabaseServerClient: async () => db,

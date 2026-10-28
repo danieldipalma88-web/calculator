@@ -411,6 +411,7 @@ function injectCloudStorageSync(
   var cloudSaveHideTimer = null;
   var cloudSaveWaiters = [];
   var quoteConflictError = null;
+  var quoteArrangeAttempt = null;
   window.__calculatorQuoteConflict = null;
   var saveRequestTimeoutMs = 12000;
   var certificateRefreshInFlight = false;
@@ -634,7 +635,7 @@ function injectCloudStorageSync(
       };
       waiter.timeout = setTimeout(function(){
         cloudSaveWaiters = cloudSaveWaiters.filter(function(candidate){ return candidate !== waiter; });
-        reject(new Error('The won quote could not be confirmed as saved. Check your connection and try again.'));
+        reject(new Error('Current changes could not be confirmed as saved. Check your connection and retry.'));
       }, Math.max(Number(timeoutMs) || 20000, saveRequestTimeoutMs + 1000));
       cloudSaveWaiters.push(waiter);
     });
@@ -654,7 +655,7 @@ function injectCloudStorageSync(
     window.dispatchEvent(new CustomEvent('calculator-quote-conflict', {detail:error}));
   }
   function sendPendingSnapshot(){
-    if (quoteConflictError || syncRequestInFlight || !pendingSnapshot) return;
+    if (quoteConflictError || quoteArrangeAttempt || syncRequestInFlight || !pendingSnapshot) return;
     clearTimeout(syncRetryTimer);
     syncRetryTimer = null;
     var request = pendingSnapshot;
@@ -705,7 +706,7 @@ function injectCloudStorageSync(
     });
   }
   function writeSnapshot(force){
-    if (quoteConflictError) return;
+    if (quoteConflictError || quoteArrangeAttempt) return;
     var data = snapshot();
     var nextJson = JSON.stringify(data);
     if (!force) {
@@ -720,6 +721,7 @@ function injectCloudStorageSync(
   }
   window.__calculatorFlushCloudSave = function(timeoutMs){
     if (quoteConflictError) return Promise.reject(quoteConflictError);
+    if (quoteArrangeAttempt) return Promise.reject(new Error('Confirm the pending option change before saving more changes.'));
     var data = snapshot();
     var nextJson = JSON.stringify(data);
     if (!syncRequestInFlight && !pendingSnapshot && nextJson === lastSnapshotJson) {
@@ -745,9 +747,16 @@ function injectCloudStorageSync(
   };
   window.__calculatorQuoteRequest = async function(kind, payload, onProgress){
     if (kind !== 'quoteEdit' && kind !== 'quoteCopy' && kind !== 'quoteArrange') throw new Error('Unsupported quote action.');
+    var arrangement = kind === 'quoteArrange';
+    var payloadJson = JSON.stringify(payload);
+    var retryArrange = arrangement && quoteArrangeAttempt && quoteArrangeAttempt.payloadJson === payloadJson && !quoteArrangeAttempt.inFlight;
+    if (quoteArrangeAttempt && !retryArrange) throw new Error('Confirm the pending option change before starting another request.');
     function progress(stage){ if (typeof onProgress === 'function') { try { onProgress(stage); } catch(e) {} } }
     progress('preparing');
-    await window.__calculatorFlushCloudSave(20000);
+    // Retrying an uncertain move must reach its receipt, not first flush the old layout.
+    if (!retryArrange) await window.__calculatorFlushCloudSave(20000);
+    if (!retryArrange && quoteArrangeAttempt) throw new Error('Confirm the pending option change before starting another request.');
+    if (arrangement) quoteArrangeAttempt = {payloadJson:payloadJson, saveId:JSON.parse(payloadJson).saveId, inFlight:true, validResponse:false};
     progress('saving');
     var controller = new AbortController();
     var timeout = setTimeout(function(){ controller.abort(); }, 15000);
@@ -755,7 +764,7 @@ function injectCloudStorageSync(
     try {
       var response = await fetch(calculatorSyncUrl, {
         method:'PUT', headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({[kind]:payload, businessConfigurationRevision:businessConfigurationRevision}), signal:controller.signal
+        body:JSON.stringify({[kind]:JSON.parse(payloadJson), businessConfigurationRevision:businessConfigurationRevision}), signal:controller.signal
       });
       var result = await response.json().catch(function(){ return {}; });
       if (!response.ok) {
@@ -765,16 +774,39 @@ function injectCloudStorageSync(
         error.currentFamily = result.currentFamily;
         throw error;
       }
+      if (arrangement) {
+        var validRecords = function(records, rows){
+          return Array.isArray(records) && records.every(function(record){ return record && typeof record.id === 'string' && record.id && (!rows || typeof record.optionId === 'string' && record.optionId); }) && new Set(records.map(function(record){ return record.id; })).size === records.length;
+        };
+        if (!validRecords(result.defs, false) || !validRecords(result.rows, true) ||
+            !Array.isArray(result.removedOptionIds) || !result.removedOptionIds.every(function(id){ return typeof id === 'string'; }) ||
+            !Array.isArray(result.removedRowIds) || !result.removedRowIds.every(function(id){ return typeof id === 'string'; })) {
+          throw new Error('The saved options could not be verified. Retry to confirm the same save.');
+        }
+      }
+      if (arrangement) quoteArrangeAttempt.validResponse = true;
       setCloudSaveStatus('Saved', 'saved');
       return result;
     } catch(error) {
+      if (arrangement && error.status >= 400 && error.status < 500 && error.status !== 408 && error.status !== 429) quoteArrangeAttempt = null;
       setCloudSaveStatus('Quote save not confirmed', 'error');
       if (error.name === 'AbortError') throw new Error('The save could not be confirmed. Retry to check the same save without creating a duplicate.');
       throw error;
-    } finally { clearTimeout(timeout); }
+    } finally {
+      clearTimeout(timeout);
+      if (quoteArrangeAttempt) quoteArrangeAttempt.inFlight = false;
+      else scheduleSync();
+    }
+  };
+  window.__calculatorAcknowledgeQuoteArrange = function(saveId){
+    if (!quoteArrangeAttempt || typeof saveId !== 'string' || !saveId || quoteArrangeAttempt.saveId !== saveId ||
+        quoteArrangeAttempt.inFlight || !quoteArrangeAttempt.validResponse) return false;
+    quoteArrangeAttempt = null;
+    scheduleSync();
+    return true;
   };
   function scheduleSync(force){
-    if (syncing || quoteConflictError) return;
+    if (syncing || quoteConflictError || quoteArrangeAttempt) return;
     clearTimeout(timer);
     timer = setTimeout(function(){
       writeSnapshot(!!force);
@@ -946,7 +978,7 @@ function injectCloudStorageSync(
       if (document.visibilityState === 'visible') refreshAuthoritativeCertificateValues();
     });
     window.addEventListener('beforeunload', function(){
-      if (quoteConflictError) return;
+      if (quoteConflictError || quoteArrangeAttempt) return;
       try {
         navigator.sendBeacon(calculatorSyncUrl, new Blob([JSON.stringify({data: snapshot(), businessConfigurationRevision: businessConfigurationRevision})], {type: 'application/json'}));
       } catch(e) {}

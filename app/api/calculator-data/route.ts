@@ -425,7 +425,8 @@ async function saveMergedUserData(
       return { ok: true, skipped: "empty_snapshot_ignored" };
     }
 
-    const familyConflict = quoteFamilySnapshotConflict((existing.data || {}) as Record<string, unknown>, incomingData);
+    const hasSnapshot = Object.keys(incomingData).length > 0;
+    const familyConflict = hasSnapshot ? quoteFamilySnapshotConflict((existing.data || {}) as Record<string, unknown>, incomingData) : null;
     if (familyConflict) {
       return { error: "A quote option changed, was removed, or is locked. Back up your local quotes and load the latest options before saving.",
         status: 409, code: "QUOTE_OPTION_CONFLICT", currentFamily: { ...familyConflict,
@@ -433,7 +434,7 @@ async function saveMergedUserData(
           rows: familyConflict.rows.map((row) => quoteLibraryResponseRow(row, financialsVisible, canSeeSalespersonCommission)),
         } };
     }
-    let mergedData = mergeCalculatorData(existing.data, incomingData);
+    let mergedData = hasSnapshot ? mergeCalculatorData(existing.data, incomingData) : existing.data as Record<string, unknown>;
     let editedRow: Record<string, unknown> | undefined;
     let copiedQuote: { def: Record<string, unknown>; rows: Record<string, unknown>[] } | undefined;
     let arrangedQuote: Extract<ReturnType<typeof applyQuoteArrange>, { data: unknown }> | undefined;
@@ -473,6 +474,13 @@ async function saveMergedUserData(
       };
     }
 
+    const arrangementResponse = arrangedQuote ? { ok: true, selectedOptionId: arrangedQuote.selectedOptionId,
+      defs: arrangedQuote.defs.map((def) => quoteLibraryVisibleRow(def, financialsVisible)),
+      rows: arrangedQuote.rows.map((row) => quoteLibraryResponseRow(row, financialsVisible, canSeeSalespersonCommission)),
+      removedOptionIds: arrangedQuote.removedOptionIds, removedRowIds: arrangedQuote.removedRowIds,
+    } : null;
+    if (arrangedQuote?.replayed) return arrangementResponse!;
+
     // Advance even for same-millisecond saves so another request's CAS cannot reuse this version.
     const nextUpdatedAt = new Date(Math.max(Date.now(), (Date.parse(existing.updated_at || "") || 0) + 1)).toISOString();
     let update = supabase
@@ -490,11 +498,7 @@ async function saveMergedUserData(
 
     if (saved.error) return { error: saved.error.message, status: 500 };
     if (saved.data?.length) {
-      if (arrangedQuote) return { ok: true, selectedOptionId: arrangedQuote.selectedOptionId,
-        defs: arrangedQuote.defs.map((def) => quoteLibraryVisibleRow(def, financialsVisible)),
-        rows: arrangedQuote.rows.map((row) => quoteLibraryResponseRow(row, financialsVisible, canSeeSalespersonCommission)),
-        removedOptionIds: arrangedQuote.removedOptionIds, removedRowIds: arrangedQuote.removedRowIds,
-      };
+      if (arrangementResponse) return arrangementResponse;
       if (copiedQuote) return {
         ok: true, def: quoteLibraryVisibleRow(copiedQuote.def, financialsVisible),
         rows: copiedQuote.rows.map((row) => quoteLibraryResponseRow(row, financialsVisible, canSeeSalespersonCommission)),

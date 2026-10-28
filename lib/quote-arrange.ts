@@ -5,7 +5,7 @@ import { quoteLibraryVisibleRow } from "./quote-library-edit.ts";
 import { QUOTE_ARRANGEMENT_KEY, QUOTE_DEF_KEYS, QUOTE_ROW_KEYS, applyStoredQuoteAdminUnlocks, copyQuoteWithoutLifecycle, quoteCanonical, quoteFamilyId, quoteFamilyLocked, quoteObject, quoteParse, quoteSerialize, type QuoteRecord } from "./quote-family.ts";
 
 type Patch = { defs: QuoteRecord[]; rows: QuoteRecord[]; removedOptionIds: string[]; removedRowIds: string[]; selectedOptionId: string };
-export type QuoteArrangeResult = ({ data: QuoteRecord } & Patch) | { error: string; status: 409 | 422; currentFamily?: Patch };
+export type QuoteArrangeResult = ({ data: QuoteRecord; replayed?: true } & Patch) | { error: string; status: 409 | 422; currentFamily?: Patch };
 const conflict = (): QuoteArrangeResult => ({ error: "This quote family changed, was removed, or is locked. Reopen it before arranging.", status: 409 });
 const invalid = (error: string): QuoteArrangeResult => ({ error, status: 422 });
 const actions = ["addOption", "renameOption", "renameCustomer", "duplicateOption", "moveRow", "copyRow", "removeRow", "deleteOption"];
@@ -107,7 +107,7 @@ function arrange(storedData: unknown, request: unknown, financialsVisible: boole
         patch.rows.some((row) => hash(row) !== rowHashes[String(row.id)]) ||
         patch.removedOptionIds.some((id) => defs.some((def) => def.id === id)) ||
         patch.removedRowIds.some((id) => rows.some((row) => row.id === id))) return conflict();
-    return { data, ...patch };
+    return { data, ...patch, replayed: true };
   }
   const source = defs.find((def) => def.id === request.optionId) ||
     (["addOption", "renameCustomer"].includes(action) ? defs.find((def) => def.quoteFamilyId === request.optionId) : undefined);

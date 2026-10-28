@@ -3495,6 +3495,22 @@ body.guidanceModalOpen{overflow:hidden}
 .quoteChoiceHeader{justify-content:space-between;margin-bottom:12px}
 .quoteChoiceHeading{display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0}
 .quoteChoiceHeading h3{font-size:18px;margin:0;overflow-wrap:anywhere}
+.quoteChoice[data-selected="true"]{border-top-color:#0d746b}
+button.quoteChoiceSelect{display:flex;align-items:center;gap:8px;flex-wrap:wrap;max-width:100%;min-height:44px;padding:7px 10px;margin:-7px -10px;background:transparent;color:#14222d;border:1px solid transparent;border-radius:6px;box-shadow:none;text-align:left;letter-spacing:0}
+button.quoteChoiceSelect:hover{background:#f0f8f6;transform:none;box-shadow:none}
+button.quoteChoiceSelect:focus-visible{outline:2px solid #0d746b;outline-offset:3px}
+.quoteChoiceSelectName{font-size:18px;font-weight:750;overflow-wrap:anywhere}
+.quoteChoiceSelect .quoteChoiceCount{font-weight:500}
+.quoteChoiceSelect[aria-pressed="false"] .quoteChoiceBadge{background:#eef3f6;color:#315a60}
+.quoteChoiceHeadlineNumbers{display:flex;align-items:center;gap:18px;margin-left:auto;min-width:0;flex-wrap:wrap}
+.quoteChoiceProfit{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 18px;margin:0;padding-left:18px;border-left:1px solid #d6e1e5;min-width:0}
+.quoteChoiceProfit>div{min-width:0}
+.quoteChoiceProfit dt{font-size:11px;line-height:1.5;color:#536574}
+.quoteChoiceProfit dd{font-size:16px;line-height:1.5;font-weight:750;margin:2px 0 0;color:#0c6655;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.quoteChoiceProfit dd[data-negative="true"]{color:#a52b18}
+.quoteChoiceProfitNotice{font-size:12px;color:#815000;margin:0}
+button.quoteChoiceRemove{min-height:40px;padding:8px 10px;border:1px solid #ebcccc;border-radius:6px;background:#fff;color:#a62525;box-shadow:none;font-size:12px}
+button.quoteChoiceRemove:hover{background:#fff3f3;transform:none;box-shadow:none}
 .quoteChoiceTotal{text-align:right;margin-left:auto;flex-shrink:0}
 .quoteChoiceTotal strong{display:block;font-size:21px;color:#101828;font-variant-numeric:tabular-nums}
 .quoteChoiceTotal small,.quoteChoiceCount{font-size:12px;color:#536574}
@@ -3515,6 +3531,7 @@ button.quoteDragHandle:active{cursor:grabbing}
 .quoteChoiceMoneyActions{display:flex;align-items:center;gap:10px;flex-shrink:0}
 .quoteChoiceCustomerPrice{text-align:right}
 .quoteChoiceCustomerPrice small{display:block;font-size:10px;color:#536574;margin-top:3px}
+.quoteChoiceSystemButtons{display:flex;gap:6px;align-items:center}
 .quoteChoiceCostSummary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 16px;margin:0;min-width:0;flex-basis:100%}
 .quoteChoiceCostSummary>div{min-width:0}
 .quoteChoiceCostSummary dt{font-size:11px;line-height:1.4;color:#536574;overflow-wrap:anywhere}
@@ -3552,6 +3569,8 @@ button.quoteDragHandle:active{cursor:grabbing}
 .quoteChoiceTabs button[aria-pressed="true"]{background:#0d746b;color:#fff}
 @media(min-width:761px){#standardCurrentOptionSection{margin-bottom:72px}}
 @media(max-width:600px){.quoteChoiceHeader{gap:7px}.quoteChoiceHeading{flex-basis:100%}.quoteChoiceTotal{margin-left:0;text-align:left}.quoteChoiceTotal strong{font-size:19px}.quoteChoiceCard{padding:10px}.quoteChoiceCardTop{flex-wrap:wrap;gap:8px}.quoteChoiceIdentity{flex-basis:calc(100% - 44px)}.quoteChoiceMoneyActions{margin-left:44px;flex:1;justify-content:space-between}.quoteChoiceCard>details{margin-left:0}.quoteChoiceHeader>.quoteLibraryMore{margin-left:auto}.quoteChoiceFooter{justify-content:flex-start}.quoteChoiceFooter details{flex-basis:100%}.quoteChoicesToolbar{align-items:flex-start}}
+@media(max-width:1100px){.quoteChoiceHeadlineNumbers{flex:1 1 100%;margin:8px 0 0;justify-content:space-between}.quoteChoiceHeader>.quoteLibraryMore{align-self:flex-start}.quoteChoiceProfit{flex:1}}
+@media(max-width:600px){.quoteChoiceHeadlineNumbers{gap:12px}.quoteChoiceProfit{flex-basis:100%;grid-template-columns:repeat(2,minmax(0,1fr));padding:10px 0 0;border-left:0;border-top:1px solid #e2e9ed;gap:10px 14px}.quoteChoiceProfit dd{font-size:15px}.quoteChoiceHeader>.quoteLibraryMore{order:-1;margin-left:auto}.quoteChoiceHeading{flex:1;max-width:calc(100% - 54px);order:-2}.quoteChoiceSystemButtons>button{min-height:44px}.quoteChoiceSelect{margin:0;padding:5px 0;gap:6px}.quoteChoiceSelectName{font-size:17px}.quoteChoiceMoneyActions{margin-left:0;flex-basis:100%}}
 @media(prefers-reduced-motion:reduce){.quoteChoiceList{transition:none}}
 </style>
 <!-- Version: Option groups -->
@@ -3896,7 +3915,7 @@ button.quoteDragHandle:active{cursor:grabbing}
   <div class="currentOptionPanel card" id="standardCurrentOptionSection">
     <div class="currentOptionHead">
       <div><div class="kicker">Current quote</div><h2 id="currentOptionTitle">Quote 1</h2><div class="sub" id="currentOptionSummary">Add systems to the selected quote to build the customer quote.</div></div>
-      <div class="actions"><button id="copyQuoteInfoBtn" class="secondary" type="button" onclick="copyCurrentQuoteInfo()" aria-describedby="copyQuoteInfoStatus" disabled>Copy quote info</button><button class="secondary" type="button" onclick="openDrawer()">View Quotes</button><button class="green" type="button" onclick="openWonJobsDrawer()">Won Jobs (<span data-won-jobs-count>0</span>)</button><button id="currentOptionWonBtn" class="secondary" type="button" onclick="toggleCurrentOptionWon()">Mark won</button></div>
+      <div class="actions"><button id="copyQuoteInfoBtn" class="secondary" type="button" onclick="copyAllQuoteChoices()" aria-describedby="copyQuoteInfoStatus" disabled>Copy quote info</button><button class="secondary" type="button" onclick="openDrawer()">View Quotes</button><button class="green" type="button" onclick="openWonJobsDrawer()">Won Jobs (<span data-won-jobs-count>0</span>)</button><button id="currentOptionWonBtn" class="secondary" type="button" onclick="toggleCurrentOptionWon()">Mark won</button></div>
     </div>
     <div id="copyQuoteInfoStatus" class="tiny" role="status" aria-live="polite"></div>
     <div id="currentOptionBody"></div>
@@ -11324,11 +11343,10 @@ function onOptionSelectionChange(value){
   currentOptionEditMessage='';
   syncAddOptionSelects(value);
   updateMainOptionNameInput();
-  renderCurrentOptionPanel();
-  updateWonJobsCount();
+  if(!refreshQuoteChoiceDestination(value)) renderCurrentOptionPanel();
 }
 function updateMainOptionNameInput(){
-  ensureOptionDefs();
+  if(!quoteOptionDefs.length) ensureOptionDefs();
   const selector=$('addOptionSelect')||$('multiAddOptionSelect')||$('drawerAddOptionSelect');
   const id=selector&&selector.value?selector.value:quoteOptionDefs[0].id;
   ['mainOptionName','multiMainOptionName'].forEach(displayId=>{
@@ -11357,7 +11375,7 @@ function renderOptionSelectors(){
   refreshRecommendedOptions();
 }
 function currentAddOptionId(){
-  ensureOptionDefs();
+  if(!quoteOptionDefs.length) ensureOptionDefs();
   const el=multiSplitViewActive()?($('multiAddOptionSelect')||$('addOptionSelect')||$('drawerAddOptionSelect')):($('addOptionSelect')||$('multiAddOptionSelect')||$('drawerAddOptionSelect'));
   const id=el&&el.value?el.value:quoteOptionDefs[0].id;
   syncAddOptionSelects(id);
@@ -11632,7 +11650,7 @@ function optionRebateTotalHtml(value,rows){return rowsShowRebates(rows)?`<span>R
 function quoteTotalsRebateCells(value,rows){return rowsShowRebates(rows)?`<td>Total rebate</td><td class="money">${money(value)}</td>`:'';}
 function quoteLabourTreatment(r){return r.labourTreatment || (quoteUsesPowerCost(r) ? 'Retained' : 'Expense');}
 function currentOptionSelection(){
-  ensureOptionDefs();
+  if(!quoteOptionDefs.length) ensureOptionDefs();
   const id=currentAddOptionId();
   const def=quoteOptionDefs.find(o=>o.id===id)||quoteOptionDefs[0]||{id:'option_1',name:'Quote 1'};
   const rows=quoteChoiceRows(def.id);
@@ -12387,6 +12405,39 @@ function quoteChoiceSelect(id){
   onOptionSelectionChange(id);
   return true;
 }
+function selectQuoteChoiceDestination(encodedId){
+  const id=decodeURIComponent(encodedId);
+  if(!quoteChoiceCanAct()||!optionDefById(id)||!assertOptionEditable(id)) return;
+  onOptionSelectionChange(id);
+}
+function refreshQuoteChoiceDestination(id){
+  const body=$('currentOptionBody'),def=optionDefById(id);
+  if(!body||!def||currentQuoteTotalsEditing||quoteArrangeBusy||quoteArrangePending||quoteArrangeConflict) return false;
+  const sections=[...body.querySelectorAll('section.quoteChoice')],defs=quoteFamilyDefs(id);
+  if(sections.length!==defs.length||sections.some(section=>!defs.some(item=>item.id===section.dataset.optionId))) return false;
+  if(quoteFamilyIsLocked(id)) return false;
+  sections.forEach(section=>{
+    const active=section.dataset.optionId===id;
+    section.dataset.selected=String(active);
+    const button=section.querySelector('.quoteChoiceSelect');
+    if(button){button.setAttribute('aria-pressed',String(active));button.querySelector('.quoteChoiceBadge').textContent=active?'Adding here':'Add here';}
+  });
+  $('currentOptionSummary').textContent=defs.length+' option'+(defs.length===1?'':'s')+' | Adding systems to '+quoteChoiceName(def);
+  updateCopyQuoteChoicesButton();
+  return true;
+}
+function quoteChoiceProfitHtml(rows){
+  const privateVisible=canSeeProfitDetails()||canSeeSalespersonCommission(),agencyVisible=canSeeAgencyProfit();
+  if(!privateVisible&&!agencyVisible) return '';
+  if(quoteRowsMissingPriceModels(rows).length) return '<p class="quoteChoiceProfitNotice">Enter equipment prices to see profit.</p>';
+  const metric=(label,value)=>'<div><dt>'+htmlEscape(label)+'</dt><dd'+(value.startsWith('-')?' data-negative="true"':'')+'>'+htmlEscape(value)+'</dd></div>';
+  let html=privateVisible?metric('Installer profit ex GST',quoteLibraryStoredAmount(rows,'netProfit'))+metric('Salesperson commission payable',quoteLibraryStoredAmount(rows,'salespersonCommissionInc')):'';
+  if(agencyVisible){
+    const complete=rows.every(row=>[row.agencyCommissionInc??row.commissionInc,row.salespersonCommissionInc].every(value=>value!==undefined&&value!==null&&value!==''&&Number.isFinite(Number(value))));
+    html+=metric('Agency profit inc GST',complete?money(groupTotals(rows).agencyProfitAfterSales):'Unavailable');
+  }
+  return '<dl class="quoteChoiceProfit" aria-label="Option profit breakdown">'+html+'</dl>';
+}
 async function copyQuoteChoiceText(text){
   let timer;
   try{
@@ -12413,9 +12464,23 @@ function buildAllQuoteChoicesInfo(defs){
 }
 function copyAllQuoteChoices(){
   if(!quoteChoiceCanAct()) return;
-  const defs=quoteFamilyDefs(currentAddOptionId());
-  for(const def of defs){const error=currentQuoteInfoError(quoteChoiceRows(def.id));if(error){showQuoteActionNotice(quoteChoiceName(def)+': '+error);return;}}
+  const defs=quoteChoiceCopyDefs(),error=quoteChoiceCopyError(defs);
+  if(error){showQuoteActionNotice(error);return;}
   return copyQuoteChoiceText(buildAllQuoteChoicesInfo(defs));
+}
+function quoteChoiceCopyDefs(){return quoteFamilyDefs(currentAddOptionId()).filter(def=>quoteChoiceRows(def.id).length);}
+function quoteChoiceCopyError(defs){
+  if(!defs.length) return 'Add a system to copy quote info.';
+  for(const def of defs){const error=currentQuoteInfoError(quoteChoiceRows(def.id));if(error) return quoteChoiceName(def)+': '+error;}
+  return '';
+}
+function updateCopyQuoteChoicesButton(){
+  const button=$('copyQuoteInfoBtn');if(!button) return;
+  const error=quoteChoiceCopyError(quoteChoiceCopyDefs());
+  button.textContent='Copy quote info';
+  button.title=error||'Copy all options for a customer email and text message';
+  button.disabled=!!error||quoteArrangeBusy||!!quoteArrangePending||!!quoteArrangeConflict||currentQuoteTotalsEditing||!!quoteLibraryEdit;
+  if($('copyQuoteInfoStatus')) $('copyQuoteInfoStatus').textContent=error;
 }
 function quoteChoiceAddSystem(encodedId){
   const id=decodeURIComponent(encodedId);
@@ -12462,7 +12527,7 @@ function quoteChoiceCardHtml(row,defs,locked){
   const postcode=row.postcode||row.state?.postcode||row.state?.ess?.postcode;
   const t=groupTotals([row]);
   const basicCosts=quoteLibraryMetric('Equipment inc GST',missing?'Price needed':money(t.unit))+quoteLibraryMetric('Labour ex GST',money(t.labour))+quoteLibraryMetric('Materials inc GST',money(t.materials))+(rowsShowRebates([row])?quoteLibraryMetric('Saved rebate',money(t.rebate)):'')+quoteLibraryMetric('Electrical ex GST',money(t.power))+quoteLibraryMetric('Misc inc GST',money(t.misc));
-  const actions=locked?'':`<details class="quoteLibraryMore quoteChoiceActions"><summary aria-label="System actions for ${htmlEscape(row.model)}" title="System actions">&hellip;</summary><div class="quoteLibraryMoreMenu"><button onclick="openQuoteChoiceMove('${rowArg}',false)">Move to option</button><button onclick="openQuoteChoiceMove('${rowArg}',true)">Copy to option</button><button onclick="editQuoteChoiceRow('${optionArg}','${rowArg}')">Edit pricing</button><button class="danger" onclick="removeQuoteChoiceRow('${rowArg}')">Remove system</button></div></details>`;
+  const actions=locked?'':`<div class="quoteChoiceSystemButtons"><button type="button" class="quoteChoiceRemove" title="Remove ${htmlEscape(row.model)}" aria-label="Remove system ${htmlEscape(row.model)}" onclick="removeQuoteChoiceRow('${rowArg}')">Remove</button><details class="quoteLibraryMore quoteChoiceActions"><summary aria-label="System actions for ${htmlEscape(row.model)}" title="System actions">&hellip;</summary><div class="quoteLibraryMoreMenu"><button onclick="openQuoteChoiceMove('${rowArg}',false)">Move to option</button><button onclick="openQuoteChoiceMove('${rowArg}',true)">Copy to option</button><button onclick="editQuoteChoiceRow('${optionArg}','${rowArg}')">Edit pricing</button></div></details></div>`;
   return `<article class="quoteChoiceCard" data-row-id="${htmlEscape(row.id)}"><div class="quoteChoiceCardTop"><button type="button" class="quoteDragHandle" aria-label="Move ${htmlEscape(row.model)}" title="Drag to move; click for move options" onclick="openQuoteChoiceMove('${rowArg}',false)"${locked?' disabled':''}>&#8942;&#8942;</button><div class="quoteChoiceIdentity"><strong>${htmlEscape([row.brand,row.size,row.series].filter(Boolean).join(' - '))}</strong><p>${htmlEscape(row.model)}</p><p>${htmlEscape([row.type,row.install,postcode?'Postcode '+postcode:''].filter(Boolean).join(' | '))}</p></div><div class="quoteChoiceMoneyActions"><div class="quoteChoiceCustomerPrice"><span class="quoteChoicePrice">${money(row.finalInc)}</span><small>Customer inc GST</small></div>${actions}</div><dl class="quoteChoiceCostSummary" aria-label="System cost summary">${basicCosts}</dl></div>${missing?'<span class="priceMissingBadge">Equipment price missing</span>':''}<details><summary>System details &amp; costs</summary><dl class="quoteLibraryMetrics">${quoteLibraryMetric('Wi-Fi',support.wifi)}${quoteLibraryMetric('Warranty',support.warranty)}${quoteLibraryMetric('Installation',quoteLabourTreatment(row)==='Retained'?'In-house team':'External subcontractor')}</dl>${quoteLibraryFinancialHtml([row])}<button class="secondary" onclick="loadQuote(${row._index})">Load into calculator</button></details></article>`;
 }
 function editQuoteChoiceRow(encodedOption,encodedRow){
@@ -12499,15 +12564,16 @@ function renderCurrentOptionPanel(savedSelection){
   const wonDef=defs.find(def=>def.wonAt||quotes.some(row=>row.optionId===def.id&&row.wonAt));
   const locked=!!wonDef;
   const disabled=quoteArrangeBusy||!!quoteArrangePending||!!quoteArrangeConflict;
-  updateCopyQuoteInfoButton(selected.rows);
-  const topCopy=$('copyQuoteInfoBtn');if(topCopy){topCopy.textContent='Copy selected option';topCopy.disabled=disabled||!!currentQuoteInfoError(selected.rows);}
+  updateCopyQuoteChoicesButton();
   const wonButton=$('currentOptionWonBtn');if(wonButton) wonButton.hidden=true;
-  const toolbar=`<div class="quoteChoicesToolbar">${locked?'<p>Accepted: '+htmlEscape(quoteChoiceName(wonDef))+'</p>':''}<div class="actions"><button class="secondary" onclick="copyAllQuoteChoices()"${disabled?' disabled':''}>Copy all options</button>${!locked?`<button class="orange" onclick="quoteChoiceAction('addOption','${quoteLibraryArg(selected.def.id)}')"${disabled?' disabled':''}>+ Add option</button>`:''}</div></div>`;
+  const toolbar=`<div class="quoteChoicesToolbar">${locked?'<p>Accepted: '+htmlEscape(quoteChoiceName(wonDef))+'</p>':''}<div class="actions">${!locked?`<button class="orange" onclick="quoteChoiceAction('addOption','${quoteLibraryArg(selected.def.id)}')"${disabled?' disabled':''}>+ Add option</button>`:''}</div></div>`;
   const sections=defs.map(def=>{
     const rows=quoteChoiceRows(def.id),arg=quoteLibraryArg(def.id),active=def.id===selected.def.id;
     const total=groupTotals(rows).customer;
     const won=def.id===wonDef?.id;
-    return `<section class="quoteChoice" data-option-id="${htmlEscape(def.id)}" aria-label="${htmlEscape(quoteChoiceName(def))}"><header class="quoteChoiceHeader"><div class="quoteChoiceHeading"><h3>${htmlEscape(quoteChoiceName(def))}</h3><span class="quoteChoiceCount">${rows.length} system${rows.length===1?'':'s'}</span>${won?'<span class="quoteChoiceBadge">Accepted</span>':locked?'<span class="quoteChoiceCount">Not selected</span>':active?'<span class="quoteChoiceBadge">Adding here</span>':''}</div><div class="quoteChoiceTotal"><strong>${money(total)}</strong><small>Customer total inc GST</small></div>${!locked?`<details class="quoteLibraryMore"><summary title="Option actions" aria-label="Actions for ${htmlEscape(quoteChoiceName(def))}">&hellip;</summary><div class="quoteLibraryMoreMenu"><button onclick="quoteChoiceAction('renameOption','${arg}')">Rename option</button><button onclick="quoteChoiceAction('duplicateOption','${arg}')">Duplicate option</button><button class="danger" onclick="quoteChoiceAction('deleteOption','${arg}')"${defs.length===1?' disabled':''}>Delete option</button></div></details>`:''}</header><div class="quoteChoiceList" data-option-id="${htmlEscape(def.id)}">${rows.map(row=>quoteChoiceCardHtml(row,defs,locked||disabled)).join('')}</div><footer class="quoteChoiceFooter"><details class="quoteChoiceFinancial"><summary>Option costs &amp; profit</summary>${quoteLibraryFinancialHtml(rows)}</details><button class="secondary" onclick="copyOneQuoteChoice('${arg}')"${currentQuoteInfoError(rows)||disabled?' disabled':''}>Copy option info</button>${!locked?`<button class="secondary" onclick="quoteChoiceAdjust('${arg}')"${!rows.length||disabled?' disabled':''}>Adjust totals</button><button class="orange" onclick="quoteChoiceAddSystem('${arg}')"${disabled?' disabled':''}>Add system</button><button class="green" onclick="quoteChoiceMarkWon('${arg}')"${!rows.length||quoteRowsMissingPriceModels(rows).length||disabled?' disabled':''}>Accept this option</button>`:won&&canUnlockWonOptions()?`<button class="secondary" onclick="unlockWonOption(decodeURIComponent('${arg}'))">Unlock won option</button>`:''}</footer></section>`;
+    const name=htmlEscape(quoteChoiceName(def)),count=rows.length+' system'+(rows.length===1?'':'s');
+    const heading=locked?`<h3>${name}</h3><span class="quoteChoiceCount">${count}</span><span class="quoteChoiceBadge">${won?'Accepted':'Not selected'}</span>`:`<h3><button type="button" class="quoteChoiceSelect" aria-pressed="${active}" title="Add new systems to ${name}" onclick="selectQuoteChoiceDestination('${arg}')"${disabled?' disabled':''}><span class="quoteChoiceSelectName">${name}</span><span class="quoteChoiceCount">${count}</span><span class="quoteChoiceBadge">${active?'Adding here':'Add here'}</span></button></h3>`;
+    return `<section class="quoteChoice" data-option-id="${htmlEscape(def.id)}" data-selected="${active}" aria-label="${name}"><header class="quoteChoiceHeader"><div class="quoteChoiceHeading">${heading}</div><div class="quoteChoiceHeadlineNumbers"><div class="quoteChoiceTotal"><strong>${money(total)}</strong><small>Customer total inc GST</small></div>${quoteChoiceProfitHtml(rows)}</div>${!locked?`<details class="quoteLibraryMore"><summary title="Option actions" aria-label="Actions for ${name}">&hellip;</summary><div class="quoteLibraryMoreMenu"><button onclick="quoteChoiceAction('renameOption','${arg}')">Rename option</button><button onclick="quoteChoiceAction('duplicateOption','${arg}')">Duplicate option</button><button class="danger" onclick="quoteChoiceAction('deleteOption','${arg}')"${defs.length===1?' disabled':''}>Delete option</button></div></details>`:''}</header><div class="quoteChoiceList" data-option-id="${htmlEscape(def.id)}">${rows.map(row=>quoteChoiceCardHtml(row,defs,locked||disabled)).join('')}</div><footer class="quoteChoiceFooter"><details class="quoteChoiceFinancial"><summary>Option costs &amp; profit</summary>${quoteLibraryFinancialHtml(rows)}</details><button class="secondary" onclick="copyOneQuoteChoice('${arg}')"${currentQuoteInfoError(rows)||disabled?' disabled':''}>Copy option info</button>${!locked?`<button class="secondary" onclick="quoteChoiceAdjust('${arg}')"${!rows.length||disabled?' disabled':''}>Adjust totals</button><button class="orange" onclick="quoteChoiceAddSystem('${arg}')"${disabled?' disabled':''}>Add system</button><button class="green" onclick="quoteChoiceMarkWon('${arg}')"${!rows.length||quoteRowsMissingPriceModels(rows).length||disabled?' disabled':''}>Accept this option</button>`:won&&canUnlockWonOptions()?`<button class="secondary" onclick="unlockWonOption(decodeURIComponent('${arg}'))">Unlock won option</button>`:''}</footer></section>`;
   }).join('');
   body.innerHTML=toolbar+'<div id="quoteChoicesStatus" class="quoteChoicesStatus'+(quoteArrangeError?' error':'')+'" role="status" aria-live="polite" tabindex="-1">'+htmlEscape(quoteArrangeBusy?(quoteChoiceProgressLabel||'Saving option changes...'):quoteArrangeMessage)+(quoteArrangePending&&!quoteArrangeBusy?'<button class="secondary" onclick="retryQuoteChoiceSave()">Retry save</button>':'')+(quoteArrangeConflict?'<button class="secondary" onclick="loadLatestQuoteChoices()">Load latest options</button>':'')+(quoteArrangeUndo&&!disabled?'<button class="secondary" onclick="undoQuoteChoiceMove()">Undo move</button>':'')+'</div><div class="quoteChoices" aria-busy="'+String(disabled)+'">'+sections+'</div>';
   if(!locked&&!disabled) setupQuoteChoiceDragging();
@@ -12612,6 +12678,7 @@ async function retryQuoteChoiceSave(){
     const result=await window.__calculatorQuoteRequest('quoteArrange',pending.request,updateQuoteChoiceProgress);
     updateQuoteChoiceProgress('applying');
     applyQuoteChoicePatch(result);
+    if(typeof window.__calculatorAcknowledgeQuoteArrange==='function') window.__calculatorAcknowledgeQuoteArrange(pending.request.saveId);
     quoteArrangePending=null;quoteArrangeMessage=pending.message;quoteArrangeError=false;
     if(pending.undo){
       const moved=quotes.find(row=>row.id===pending.undo.rowId);
@@ -12673,7 +12740,7 @@ function renderCurrentOptionTotalsPanel(savedSelection){
   const title=$('currentOptionTitle'), summary=$('currentOptionSummary'), body=$('currentOptionBody');
   if(!title || !summary || !body) return;
   const {def,rows}=savedSelection||currentOptionSelection();
-  updateCopyQuoteInfoButton(rows);
+  updateCopyQuoteChoicesButton();
   updateCurrentOptionWonButton(def,rows);
   const isWon=!!def.wonAt;
   title.textContent=def.name;
