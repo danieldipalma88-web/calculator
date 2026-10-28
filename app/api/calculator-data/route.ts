@@ -22,6 +22,7 @@ import {
   wonJobValidationMessage,
 } from "../../../lib/won-job-validation";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
+import { revisionGuardedBusinessSnapshot, validatedBusinessConfigurationData, withoutBusinessConfiguration } from "../../../lib/business-calculator-configuration";
 
 const MANAGED_PRICE_STORAGE_KEYS = [
   "installerManagedPricesV1",
@@ -36,6 +37,7 @@ const WON_OPTION_ADMIN_STATE_STORAGE_KEYS = [
 ];
 
 const BUSINESS_SHARED_STORAGE_KEYS = new Set([
+  "installerBusinessConfigurationV1",
   "installerManagedPricesV1",
   "greenEnergyManagedPricesV1",
   "ManagedPricesV1",
@@ -173,7 +175,7 @@ function sanitizeIncomingCalculatorData(
   canEditManagedRebates: boolean,
 ) {
   const sanitized: Record<string, unknown> =
-    incoming && typeof incoming === "object" ? { ...(incoming as Record<string, unknown>) } : {};
+    withoutBusinessConfiguration(incoming && typeof incoming === "object" ? incoming as Record<string, unknown> : {});
 
   if (canEditManagedRebates) return sanitized;
 
@@ -310,6 +312,49 @@ type ExistingCalculatorData = {
   data: unknown;
   updated_at: string | null;
 };
+
+async function saveMergedBusinessData(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  businessId: string,
+  incoming: Record<string, unknown>,
+  incomingRevision: unknown,
+  canEditManagedRebates: boolean,
+) {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const existingBusiness = await supabase
+      .from("business_calculator_data")
+      .select("data, updated_at")
+      .eq("business_id", businessId)
+      .maybeSingle();
+    if (existingBusiness.error) return { error: "Unable to verify current business settings", status: 503 };
+    const existing = existingBusiness.data;
+    const revisionSafe = revisionGuardedBusinessSnapshot(existing?.data, incoming, incomingRevision, businessId);
+    const safe = canEditManagedRebates ? revisionSafe : preserveBusinessManagedRebates(existing?.data, revisionSafe);
+    if (!Object.keys(safe).length) return { ok: true };
+    const merged = mergeCalculatorData(existing?.data, safe);
+    if (!existing) {
+      const inserted = await supabase.from("business_calculator_data").insert({
+        business_id: businessId, data: merged, updated_at: new Date().toISOString(),
+      });
+      if (inserted.error?.code === "23505") continue;
+      if (inserted.error) return { error: inserted.error.message, status: 500 };
+      return { ok: true };
+    }
+    const previousTime = existing.updated_at === null ? 0 : Date.parse(existing.updated_at);
+    if (!Number.isFinite(previousTime)) return { error: "Unable to verify business settings version", status: 503 };
+    // Match the exact server timestamp, including sub-milliseconds; never reuse a read version.
+    const updatedAt = new Date(Math.max(Date.now(), previousTime + 1)).toISOString();
+    let update = supabase.from("business_calculator_data")
+      .update({ data: merged, updated_at: updatedAt })
+      .eq("business_id", businessId);
+    update = existing.updated_at === null ? update.is("updated_at", null) : update.eq("updated_at", existing.updated_at);
+    const saved = await update.select("business_id");
+    if (saved.error) return { error: saved.error.message, status: 500 };
+    if (saved.data?.length) return { ok: true };
+    // A concurrent import/save won. Reread before recomputing both the guard and merge.
+  }
+  return { error: "Business settings changed during save. Please retry.", status: 409 };
+}
 
 async function saveMergedUserData(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
@@ -552,10 +597,10 @@ export async function GET(request: Request) {
     : platformCertificateValuesFromRow(
         platformResult.data as PlatformCertificateValuesRow | null,
       );
-  const authoritativeBusinessData = overlayPlatformCertificateValues(
+  const authoritativeBusinessData = validatedBusinessConfigurationData(overlayPlatformCertificateValues(
     businessData,
     platformValues,
-  );
+  ), businessId);
   const settingsData: Record<string, unknown> = {};
   if (settingsOnly) {
     for (const key of CERTIFICATE_VALUES_STORAGE_KEYS) {
@@ -572,7 +617,7 @@ export async function GET(request: Request) {
         productKeys: DCCEEW_ELIGIBLE_PRODUCT_KEYS,
       },
       data: visibleCalculatorData(settingsOnly ? settingsData : {
-        ...stripCertificateValueKeys(applyStoredQuoteAdminUnlocks(userData)),
+        ...withoutBusinessConfiguration(stripCertificateValueKeys(applyStoredQuoteAdminUnlocks(userData))),
         ...authoritativeBusinessData,
       }, visibility.visible, visibility.canSeeSalespersonCommission),
     },
@@ -633,24 +678,11 @@ async function saveCalculatorData(request: Request) {
   const incomingBusinessHasData = calculatorDataHasData(businessData);
 
   if (businessId && incomingBusinessHasData) {
-    const existingBusiness = await supabase
-      .from("business_calculator_data")
-      .select("data")
-      .eq("business_id", businessId)
-      .maybeSingle();
-
-    const safeBusinessData = canEditManagedRebates
-      ? businessData
-      : preserveBusinessManagedRebates(existingBusiness.data?.data, businessData);
-    const mergedBusinessData = mergeCalculatorData(existingBusiness.data?.data, safeBusinessData);
-    const businessSave = await supabase.from("business_calculator_data").upsert({
-      business_id: businessId,
-      data: mergedBusinessData,
-      updated_at: new Date().toISOString(),
-    });
-
-    if (businessSave.error) {
-      return NextResponse.json({ error: businessSave.error.message }, { status: 500 });
+    const businessSave = await saveMergedBusinessData(
+      supabase, businessId, businessData, body?.businessConfigurationRevision, canEditManagedRebates,
+    );
+    if ("error" in businessSave) {
+      return NextResponse.json({ error: businessSave.error }, { status: businessSave.status });
     }
   }
 

@@ -23,6 +23,7 @@ import {
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
 import { visibleCalculatorData } from "../../../lib/quote-data-visibility";
 import { applyStoredQuoteAdminUnlocks } from "../../../lib/quote-family";
+import { BUSINESS_CONFIGURATION_STORAGE_KEY, validateBusinessCalculatorConfiguration, validatedBusinessConfigurationData, withoutBusinessConfiguration } from "../../../lib/business-calculator-configuration";
 
 const calculatorHtmlPromise = readFile(
   path.join(process.cwd(), "index.html"),
@@ -151,6 +152,7 @@ const SAVED_QUOTE_SET_STORAGE_KEYS = [
 const CURRENT_WON_SOURCE_ID = "current";
 
 const BUSINESS_SHARED_STORAGE_KEYS = new Set([
+  "installerBusinessConfigurationV1",
   "installerManagedPricesV1",
   "greenEnergyManagedPricesV1",
   "ManagedPricesV1",
@@ -384,11 +386,16 @@ function injectCloudStorageSync(
       : `/api/calculator-data${userContext.businessId ? `?businessId=${encodeURIComponent(userContext.businessId)}` : ""}`;
   if (userContext.isPreviewMode) syncUrl += `${syncUrl.includes("?") ? "&" : "?"}preview=1`;
   const sanitizedData = sanitizeCalculatorData(data, userContext);
+  const loadedConfiguration = validateBusinessCalculatorConfiguration(sanitizedData[BUSINESS_CONFIGURATION_STORAGE_KEY], userContext.businessId);
   const bootstrap = `
 <script>
 (function(){
   var cloudData = ${safeScriptJson(sanitizedData)};
   var calculatorUser = ${safeScriptJson(userContext)};
+  var businessConfigurationKey = ${safeScriptJson(BUSINESS_CONFIGURATION_STORAGE_KEY)};
+  var loadedBusinessConfiguration = ${safeScriptJson(loadedConfiguration ? JSON.stringify(loadedConfiguration) : null)};
+  var businessConfigurationRevision = ${safeScriptJson(loadedConfiguration?.revision ?? null)};
+  Object.defineProperty(window, '__calculatorLoadedBusinessConfiguration', {value:loadedBusinessConfiguration});
   var calculatorSyncUrl = ${safeScriptJson(syncUrl)};
   var calculatorSettingsUrl = calculatorSyncUrl + (calculatorSyncUrl.indexOf('?') >= 0 ? '&' : '?') + 'mode=rebate-settings';
   var profileStorageKey = '__calculatorProfileEmail';
@@ -429,6 +436,7 @@ function injectCloudStorageSync(
     productKeys: DCCEEW_ELIGIBLE_PRODUCT_KEYS,
   })};
   window.CALCULATOR_USER = calculatorUser;
+  window.validateBusinessCalculatorConfiguration = ${validateBusinessCalculatorConfiguration.toString()};
   window.__calculatorTrustedManagedPriceKeys = trustedManagedPriceKeys;
   function ensureCloudSaveStatus(){
     var existing = document.getElementById('cloudSaveStatus');
@@ -476,6 +484,15 @@ function injectCloudStorageSync(
         if (isAppStorageKey(key)) output[key] = localStorage.getItem(key);
       }
     } catch (e) {}
+    // Another tab's localStorage changes cannot upgrade this page's import provenance.
+    if (loadedBusinessConfiguration !== null) output[businessConfigurationKey] = loadedBusinessConfiguration;
+    else delete output[businessConfigurationKey];
+    if (loadedBusinessConfiguration !== null && typeof window.calculatorBusinessSnapshotData === 'function') {
+      // A current page must not launder an old tab's storage values under its newer revision.
+      ['greenEnergyManagedPricesV1', 'ManagedPricesV1', 'greenEnergyDefaultCostRulesV1', 'DefaultCostRulesV1'].forEach(function(key){ delete output[key]; });
+      var businessValues = window.calculatorBusinessSnapshotData();
+      Object.keys(businessValues).forEach(function(key){ output[key] = businessValues[key]; });
+    }
     return output;
   }
   function storedValueHasData(value){
@@ -650,7 +667,7 @@ function injectCloudStorageSync(
     var fetchOptions = {
       method: 'PUT',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({data: request.data})
+      body: JSON.stringify({data: request.data, businessConfigurationRevision: businessConfigurationRevision})
     };
     if (controller) fetchOptions.signal = controller.signal;
     fetch(calculatorSyncUrl, fetchOptions).then(function(response){
@@ -738,7 +755,7 @@ function injectCloudStorageSync(
     try {
       var response = await fetch(calculatorSyncUrl, {
         method:'PUT', headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({[kind]:payload}), signal:controller.signal
+        body:JSON.stringify({[kind]:payload, businessConfigurationRevision:businessConfigurationRevision}), signal:controller.signal
       });
       var result = await response.json().catch(function(){ return {}; });
       if (!response.ok) {
@@ -881,6 +898,8 @@ function injectCloudStorageSync(
     syncing = true;
     var existingProfile = localStorage.getItem(profileStorageKey) || '';
     if (existingProfile && profileEmail && existingProfile !== profileEmail) clearAppStorage();
+    // Configuration is authoritative business data, never a local/account fallback.
+    localStorage.removeItem(${safeScriptJson(BUSINESS_CONFIGURATION_STORAGE_KEY)});
     stripLocalCertificateRates();
     stripLocalManagedRebateOverrides();
     Object.keys(cloudData || {}).forEach(function(key){
@@ -929,7 +948,7 @@ function injectCloudStorageSync(
     window.addEventListener('beforeunload', function(){
       if (quoteConflictError) return;
       try {
-        navigator.sendBeacon(calculatorSyncUrl, new Blob([JSON.stringify({data: snapshot()})], {type: 'application/json'}));
+        navigator.sendBeacon(calculatorSyncUrl, new Blob([JSON.stringify({data: snapshot(), businessConfigurationRevision: businessConfigurationRevision})], {type: 'application/json'}));
       } catch(e) {}
     });
     if (typeof shouldBackfillCloud !== 'undefined' && shouldBackfillCloud) {
@@ -1106,10 +1125,10 @@ async function getSavedCalculatorData(
     : platformCertificateValuesFromRow(
         platformResult.data as PlatformCertificateValuesRow | null,
       );
-  businessData = overlayPlatformCertificateValues(businessData, platformValues);
+  businessData = validatedBusinessConfigurationData(overlayPlatformCertificateValues(businessData, platformValues), businessId);
 
   const unlockedUserData = applyWonAdminUnlocks(userData);
-  const cleanedUserData = stripCertificateValueKeys(unlockedUserData);
+  const cleanedUserData = withoutBusinessConfiguration(stripCertificateValueKeys(unlockedUserData));
   const data = { ...cleanedUserData, ...sharedBusinessDataFromUserData(cleanedUserData), ...businessData };
   return { data, businessData };
 }

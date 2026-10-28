@@ -4890,6 +4890,7 @@ const SAVED_QUOTES_STORAGE_KEY='installerSavedQuoteSetsV1';
 const ESS_SETTINGS_STORAGE_KEY='installerEssSettingsV1';
 const CERT_VALUES_STORAGE_KEY='installerCertificateValuesV1';
 const DEFAULT_COST_STORAGE_KEY='installerDefaultCostRulesV1';
+const BUSINESS_CONFIGURATION_STORAGE_KEY='installerBusinessConfigurationV1';
 const COMMISSION_SETTINGS_STORAGE_KEY='installerCommissionSettingsV1';
 const ESS_ESTIMATOR_API='https://estimator-sfg-rac-prd.energy.nsw.gov.au';
 const ESS_CALCULATE_API='https://of-sfg-rac-prd.energy.nsw.gov.au/calculate';
@@ -4998,11 +4999,36 @@ function activeProducts(list){return list.filter(p=>!p.deprecated);}
 function businessCatalogSlug(name){return String(name||'').toLowerCase().replace(/[^a-z0-9]/g,'');}
 function activeBusinessName(){return String(calculatorUserContext().businessName||'');}
 function activeCatalogKey(){return businessCatalogSlug(activeBusinessName()).includes('andosair')?'andos':'default';}
-function productListFor(type){
+let businessConfigurationCache={businessId:null,raw:null,value:null,products:[]};
+function activeBusinessConfiguration(){
+  const businessId=calculatorUserContext().businessId||null;
+  const raw=Object.prototype.hasOwnProperty.call(window,'__calculatorLoadedBusinessConfiguration')?window.__calculatorLoadedBusinessConfiguration:localStorage.getItem(BUSINESS_CONFIGURATION_STORAGE_KEY);
+  if(businessConfigurationCache.businessId!==businessId || businessConfigurationCache.raw!==raw){
+    const validate=window.validateBusinessCalculatorConfiguration;
+    const value=typeof validate==='function'?validate(raw,businessId):null;
+    businessConfigurationCache={businessId,raw,value,products:value?value.products.map(p=>({...p,capacity:p.capacityLabel||`${p.capacityNum}kW`,unitPriceInc:0,priceIncGst:0,rebate:0})):[]};
+  }
+  return businessConfigurationCache.value;
+}
+function mergeBusinessProducts(type,list){
+  if(!activeBusinessConfiguration()) return list;
+  const identity=p=>JSON.stringify([type,String(p.brand||'').trim().toLowerCase(),String(p.model||'').trim().toLowerCase(),p.phase||'Single']);
+  const seen=new Set(list.map(identity));
+  const extras=businessConfigurationCache.products.filter(p=>{
+    if(p.type!==type || (activeBusinessState()!=='NSW' && p.nswOnly===true)) return false;
+    const key=identity(p);
+    if(seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  return extras.length?list.concat(extras):list;
+}
+function baseProductListFor(type){
   if(activeCatalogKey()==='andos') return type==='ducted'?ANDOS_DUCTED_PRODUCTS:ANDOS_SPLIT_PRODUCTS;
   const list=type==='ducted'?DUCTED_PRODUCTS:SPLIT_PRODUCTS;
   return activeBusinessState()==='NSW'?list:list.filter(product=>product.nswOnly!==true);
 }
+function productListFor(type){return mergeBusinessProducts(type,baseProductListFor(type));}
 function data(){return activeProducts(productListFor(systemType))};
 function roleUsesPricedCatalogueOnly(){
   const role=String(calculatorUserContext().role||'').trim().toLowerCase();
@@ -7458,7 +7484,10 @@ function onProductChange(options){
   refreshLiveRebateForCurrentProduct();
   refreshBestValueIndicator();
 }
-function cloneDefaultCostRules(){return DEFAULT_COST_RULES.map(r=>({...r}));}
+function cloneDefaultCostRules(){
+  const configuration=activeBusinessConfiguration();
+  return (configuration?configuration.defaultCostRules:DEFAULT_COST_RULES).map(r=>({...r,...(typeof r.range==='object'?{range:{...r.range}}:{})}));
+}
 function activeDefaultCostRules(){return defaultCostRules.length?defaultCostRules:cloneDefaultCostRules();}
 function normalizeDefaultCostRule(saved,base){
   const rule={...base};
@@ -7466,7 +7495,7 @@ function normalizeDefaultCostRule(saved,base){
     const n=Number(saved&&saved[field]);
     if(Number.isFinite(n) && n>=0) rule[field]=n;
   });
-  if(base.system==='split' && rule.power===250) rule.power=500;
+  if(!activeBusinessConfiguration() && base.system==='split' && rule.power===250) rule.power=500;
   return rule;
 }
 function loadDefaultCostRules(){
@@ -7478,7 +7507,7 @@ function loadDefaultCostRules(){
   }catch(e){stored=[];}
   const byId={};
   stored.forEach(rule=>{if(rule&&rule.id) byId[rule.id]=rule;});
-  defaultCostRules=DEFAULT_COST_RULES.map(base=>normalizeDefaultCostRule(byId[base.id],base));
+  defaultCostRules=cloneDefaultCostRules().map(base=>normalizeDefaultCostRule(byId[base.id],base));
   persistDefaultCostRules();
 }
 function persistDefaultCostRules(){
@@ -7486,7 +7515,18 @@ function persistDefaultCostRules(){
     localStorage.setItem(DEFAULT_COST_STORAGE_KEY, JSON.stringify(activeDefaultCostRules().map(r=>({id:r.id,labour:r.labour,materials:r.materials,power:r.power}))));
   }catch(e){}
 }
+function calculatorBusinessSnapshotData(){
+  return {
+    [PRICE_STORAGE_KEY]:JSON.stringify(priceLocks),
+    [DEFAULT_COST_STORAGE_KEY]:JSON.stringify(activeDefaultCostRules().map(r=>({id:r.id,labour:r.labour,materials:r.materials,power:r.power})))
+  };
+}
 function capacityInDefaultRange(range,c){
+  if(range && typeof range==='object'){
+    return Number.isFinite(c) && c>0 && c<=65 &&
+      (range.min===undefined || (range.minExclusive?c>range.min:c>=range.min)) &&
+      (range.max===undefined || (range.maxExclusive?c<range.max:c<=range.max));
+  }
   if(range==='lte35') return c<=3.5;
   if(range==='gt35_lt6') return c>3.5 && c<6;
   if(range==='gte6') return c>=6;
@@ -7499,14 +7539,15 @@ function capacityInDefaultRange(range,c){
 function defaultCostRuleFor(type,install,c){
   return activeDefaultCostRules().find(r=>r.system===type && r.install===install && capacityInDefaultRange(r.range,c))||null;
 }
-function currentDefaultCostRule(){const p=product(); return p?defaultCostRuleFor(systemType,installType,cap(p)):null;}
+function defaultCostCapacity(p){return p && p.defaultCostCapacityNum || cap(p);}
+function currentDefaultCostRule(){const p=product(); return p?defaultCostRuleFor(systemType,installType,defaultCostCapacity(p)):null;}
 function splitMaterials(c){const r=defaultCostRuleFor('split',installType,c); return r?Number(r.materials)||0:0;}
 function ductedMaterials(c){const r=defaultCostRuleFor('ducted',installType,c); return r?Number(r.materials)||0:0;}
 function ductedLabour(c){const r=defaultCostRuleFor('ducted',installType,c); return r?Number(r.labour)||0:0;}
 function defaultLabour(c){const r=defaultCostRuleFor(systemType,installType,c); return r?Number(r.labour)||0:0;}
 function defaultPowerOrElectrician(c){const r=defaultCostRuleFor(systemType,installType,c); return r?Number(r.power)||0:0;}
 function applyDefaults(){
-  const p=product(), c=cap(p);
+  const p=product(), c=defaultCostCapacity(p);
   const rule=currentDefaultCostRule();
   if(systemType==='split'){
     $('labour').value=(rule?rule.labour:defaultLabour(c)).toFixed(2);

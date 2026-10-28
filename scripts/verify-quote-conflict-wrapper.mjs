@@ -2,11 +2,12 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
+import { configurationModule } from './verify-business-configuration.mjs';
 
 const raw = fs.readFileSync(new URL('../app/calculator/raw/route.ts', import.meta.url), 'utf8');
 const ast = ts.createSourceFile('raw.ts', raw, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
 const generators = ast.statements.filter(node => ts.isFunctionDeclaration(node) && ['safeScriptJson', 'injectCloudStorageSync'].includes(node.name?.text));
-const generator = { sanitizeCalculatorData: data => data, DCCEEW_CONTRACT_RATE: 30, DCCEEW_ELIGIBLE_POSTCODES: [], DCCEEW_ELIGIBLE_PRODUCT_KEYS: [] };
+const generator = { ...configurationModule, sanitizeCalculatorData: data => data, DCCEEW_CONTRACT_RATE: 30, DCCEEW_ELIGIBLE_POSTCODES: [], DCCEEW_ELIGIBLE_PRODUCT_KEYS: [] };
 vm.runInNewContext(ts.transpileModule(generators.map(node => node.getText(ast)).join('\n'), { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText, generator);
 const tick = () => new Promise(resolve => setImmediate(resolve));
 const plain = value => JSON.parse(JSON.stringify(value));

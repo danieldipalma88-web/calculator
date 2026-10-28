@@ -28,7 +28,7 @@ function loadTs(filename) {
       if (specifier.endsWith("/supabase/server")) return { createSupabaseServerClient: async () => activeClient };
       if (specifier.endsWith(".json")) return require(path.resolve(path.dirname(filename), specifier));
       return specifier.startsWith(".")
-        ? loadTs(path.resolve(path.dirname(filename), `${specifier}.ts`))
+        ? loadTs(path.resolve(path.dirname(filename), specifier.endsWith(".ts") ? specifier : `${specifier}.ts`))
         : require(specifier);
     },
   }, { filename });
@@ -214,7 +214,7 @@ console.log(`API passed: ${cases} full/lightweight parity cases; normal queries 
 const sourceFile = ts.createSourceFile(rawPath, raw, ts.ScriptTarget.Latest, true);
 const functions = sourceFile.statements.filter((node) => ts.isFunctionDeclaration(node) && ["safeScriptJson", "injectCloudStorageSync"].includes(node.name?.text));
 assert.equal(functions.length, 2);
-const generator = { ...contract, sanitizeCalculatorData: (data) => data };
+const generator = { ...contract, ...loadTs(path.join(root, "lib/business-calculator-configuration.ts")), sanitizeCalculatorData: (data) => data };
 vm.runInNewContext(ts.transpileModule(functions.map((node) => node.getText(sourceFile)).join("\n"), {
   compilerOptions: { target: ts.ScriptTarget.ES2020 },
 }).outputText, generator);
@@ -230,12 +230,13 @@ function browser(context = {}, hidden = false) {
   let timerId = 0;
   let fetchImpl = async () => ({ ok: true, json: async () => normal.light.body });
   const sandbox = {
-    AbortController, Blob, performance: { now: () => 0 },
+    AbortController, Blob, Event, performance: { now: () => 0 },
     setTimeout: (fn, ms) => { const id = ++timerId; timeouts.set(id, { fn, ms }); return id; },
     clearTimeout: (id) => timeouts.delete(id),
     setInterval: (fn, ms) => { const id = ++timerId; intervals.set(id, { fn, ms }); return id; },
     window: {
       addEventListener: (name, fn) => windowEvents.set(name, fn),
+      dispatchEvent: (event) => windowEvents.get(event.type)?.(event),
       applyAuthoritativeRebateSettings: (...args) => applied.push(plain(args)),
     },
     document: {
