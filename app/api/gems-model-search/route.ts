@@ -10,10 +10,13 @@ import {
 } from "../../../lib/gems-model-search";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 const responseHeaders = {
   "Cache-Control": "public, max-age=0, s-maxage=3600, stale-while-revalidate=86400",
 };
+// Keep the shared brand inventory cached, not individual search misses.
+const modelSearchHeaders = { "Cache-Control": "no-store" };
 
 const brandFields = ["Brand", "SubmitStatus", "Availability Status", "Sold_in"];
 const modelFields = [
@@ -79,6 +82,41 @@ function distinctMappedModels(records: Record<string, unknown>[]) {
       seen.add(key);
       return true;
     });
+}
+
+function matchesModelQuery(model: string, rawQuery: string) {
+  if (normalizeGemsModelQuery(model).includes(normalizeGemsModelQuery(rawQuery))) return true;
+  const parts = (value: string) => value.split(/[\/\s,;+]+/).map(normalizeGemsModelQuery).filter(Boolean);
+  const requested = parts(rawQuery);
+  const registered = parts(model);
+  // Accept either indoor/outdoor order, but only within the same registered pair.
+  return requested.length === 2 && registered.length === 2 && (
+    (registered[0].includes(requested[0]) && registered[1].includes(requested[1])) ||
+    (registered[0].includes(requested[1]) && registered[1].includes(requested[0]))
+  );
+}
+
+function matchingModels(records: Record<string, unknown>[], brand: string, rawQuery: string) {
+  const query = normalizeGemsModelQuery(rawQuery);
+  const seen = new Set<string>();
+  return records
+    .filter(isEligibleAustralianGemsRecord)
+    .map(mapGemsModelSearchItem)
+    .filter((item): item is NonNullable<typeof item> => Boolean(item))
+    .filter((item) => {
+      if (normalizeGemsModelQuery(item.brand) !== normalizeGemsModelQuery(brand)) return false;
+      if (!matchesModelQuery(item.model, rawQuery)) return false;
+      const key = `${item.brand.toUpperCase()}|${normalizeGemsModelQuery(item.model)}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) => {
+      const prefixDiff = Number(!normalizeGemsModelQuery(a.model).startsWith(query))
+        - Number(!normalizeGemsModelQuery(b.model).startsWith(query));
+      return prefixDiff || a.model.localeCompare(b.model);
+    })
+    .slice(0, 30);
 }
 
 export async function GET(request: NextRequest) {
@@ -157,36 +195,21 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const records = await fetchGemsDatastoreRecords({
+    const inventoryOptions = {
       brand,
       fields: modelFields,
       limit: 10_000,
       revalidateSeconds: 3_600,
-    });
-    const seen = new Set<string>();
-    const models = records
-      .filter(isEligibleAustralianGemsRecord)
-      .map(mapGemsModelSearchItem)
-      .filter((item): item is NonNullable<typeof item> => Boolean(item))
-      .filter((item) => {
-        if (normalizeGemsModelQuery(item.brand) !== normalizeGemsModelQuery(brand)) return false;
-        if (!normalizeGemsModelQuery(item.model).includes(query)) return false;
-        const key = `${item.brand.toUpperCase()}|${normalizeGemsModelQuery(item.model)}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      })
-      .sort((a, b) => {
-        const aModel = normalizeGemsModelQuery(a.model);
-        const bModel = normalizeGemsModelQuery(b.model);
-        const prefixDiff = Number(!aModel.startsWith(query)) - Number(!bModel.startsWith(query));
-        return prefixDiff || a.model.localeCompare(b.model);
-      })
-      .slice(0, 30);
-
-    return NextResponse.json({ models }, { headers: responseHeaders });
+    };
+    const records = await fetchGemsDatastoreRecords(inventoryOptions);
+    let models = matchingModels(records, brand, rawQuery);
+    if (!models.length) {
+      const freshRecords = await fetchGemsDatastoreRecords({ ...inventoryOptions, revalidateSeconds: 0 });
+      models = matchingModels(freshRecords, brand, rawQuery);
+    }
+    return NextResponse.json({ models }, { headers: modelSearchHeaders });
   } catch (error) {
     const message = error instanceof Error ? error.message : "GEMS registry search failed";
-    return NextResponse.json({ error: message }, { status: 503 });
+    return NextResponse.json({ error: message }, { status: 503, headers: modelSearchHeaders });
   }
 }

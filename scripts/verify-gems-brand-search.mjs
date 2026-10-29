@@ -19,7 +19,7 @@ vm.runInNewContext(ts.transpileModule(routeSource, { compilerOptions: { module: 
 const { GET } = module.exports;
 const queryRoute = async (query) => {
   const response = await GET({ nextUrl: new URL(`https://calculator.example/api/gems-model-search?${query}`) });
-  return { status: response.status, ...await response.json() };
+  return { status: response.status, cacheControl: response.headers.get("cache-control"), ...await response.json() };
 };
 const variant = (model, overrides = {}) => ({
   Brand: "Rinnai", Model_No: model, SubmitStatus: "Approved", "Availability Status": "Available", Sold_in: "Australia",
@@ -38,10 +38,14 @@ const records = [
 const originalFetch = globalThis.fetch;
 const requests = [];
 let unavailable = false;
+let cachedRecords = records;
+let freshRecords = records;
+let freshUnavailable = false;
 globalThis.fetch = async (url, options) => {
   requests.push({ url: new URL(url), options });
   if (unavailable) throw new Error("GEMS fixture unavailable");
-  return Response.json({ success: true, result: { records } });
+  if (options.next.revalidate === 0 && freshUnavailable) throw new Error("Fresh GEMS fixture unavailable");
+  return Response.json({ success: true, result: { records: options.next.revalidate === 0 ? freshRecords : cachedRecords } });
 };
 try {
   for (const query of [legacy, "donsr15b1 - dinlr15b1", "DINLR15B1", "DONSR15B1"]) {
@@ -70,12 +74,43 @@ try {
   assert.ok(inventories.length >= 6);
   assert.ok(inventories.every((item) => /LOWER\("Brand"\) = LOWER\('/.test(item.url.searchParams.get("sql"))));
   assert.ok(inventories.every((item) => item.url.searchParams.get("sql").includes('"SubmitStatus" = \'Approved\'') && item.url.searchParams.get("sql").includes('"Availability Status" = \'Available\'')));
-  assert.ok(inventories.every((item) => item.options.next.revalidate === 3_600));
+  assert.ok(inventories.every((item) => [0, 3_600].includes(item.options.next.revalidate)));
+  assert.equal(inventories.filter((item) => item.options.next.revalidate === 0).length, 1, "Only a missing search should recheck fresh data.");
   await gems.fetchGemsDatastoreRecords({ brand: "Rinnai' OR 1=1 --", fields: ["Brand"], limit: 5, revalidateSeconds: 3_600 });
   assert.ok(requests.at(-1).url.searchParams.get("sql").includes("LOWER('Rinnai'' OR 1=1 --')"), "Brand SQL literals must be escaped.");
   await gems.fetchGemsDatastoreRecords({ query: legacy, limit: 25, revalidateSeconds: 3_600 });
   assert.ok(requests.at(-1).url.pathname.endsWith("datastore_search"));
   assert.equal(requests.at(-1).url.searchParams.get("q"), legacy, "Metadata queries must preserve their existing paired identifiers.");
+
+  const alira = ["20", "25", "35", "46", "50", "60", "71"].map((size) => variant(`RXM${size}AVMA / FTXM${size}AVMA`, { Brand: "DAIKIN" }));
+  cachedRecords = freshRecords = alira;
+  for (const model of alira) {
+    const [outdoor, indoor] = model.Model_No.split(" / ");
+    for (const query of [model.Model_No, `${indoor} / ${outdoor}`, `${indoor} ${outdoor}`, outdoor, indoor, model.Model_No.toLowerCase()]) {
+      const before = requests.length;
+      const result = await queryRoute(`brand=Daikin&q=${encodeURIComponent(query)}`);
+      assert.equal(result.status, 200);
+      assert.equal(result.cacheControl, "no-store");
+      assert.equal(result.models.length, 1);
+      assert.equal(result.models[0].model, model.Model_No, `Keep canonical register pairing for ${query}`);
+      assert.equal(requests.length - before, 1, "Successful cached searches need no fresh fetch.");
+    }
+  }
+  assert.equal((await queryRoute("brand=Daikin&q=RXM35AVMA%20%2F%20FTXM50AVMA")).models.length, 0, "Never combine indoor and outdoor models from separate registrations.");
+  cachedRecords = [];
+  const refreshed = await queryRoute("brand=Daikin&q=RXM35AVMA%20%2F%20FTXM35AVMA");
+  assert.equal(refreshed.models[0].model, "RXM35AVMA / FTXM35AVMA", "An empty cached inventory must not hide a freshly registered model.");
+  assert.equal(requests.at(-1).options.next.revalidate, 0);
+  assert.equal(refreshed.cacheControl, "no-store");
+  freshRecords = [variant("RXM35AVMA / FTXM35AVMA", { Brand: "DAIKIN", SubmitStatus: "Pending" })];
+  const excluded = await queryRoute("brand=Daikin&q=RXM35AVMA");
+  assert.equal(excluded.models.length, 0, "Fresh rechecks must retain registration eligibility filters.");
+  assert.equal(excluded.cacheControl, "no-store", "Negative responses must not stay cached at the edge.");
+  freshUnavailable = true;
+  const failedRefresh = await queryRoute("brand=Daikin&q=RXM35AVMA");
+  assert.equal(failedRefresh.status, 503, "A failed fresh recheck is an outage, not proof of no matching model.");
+  assert.ok(failedRefresh.error);
+  assert.equal(failedRefresh.cacheControl, "no-store");
   unavailable = true;
   assert.equal((await queryRoute("brand=Rinnai&q=DONSR15B1")).status, 503);
 } finally {

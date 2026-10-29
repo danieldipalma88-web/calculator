@@ -4852,6 +4852,8 @@ let allModelsSelected=null;
 let allModelsSearchRows=[];
 let allModelsSearchTimer=null;
 let allModelsSearchRequestSeq=0;
+let allModelsSearchController=null;
+const ALL_MODELS_SEARCH_TIMEOUT_MS=55000;
 let allModelsActiveResultIndex=-1;
 let allModelsInstallType='new';
 let allModelsCalculationRequestSeq=0;
@@ -8075,6 +8077,17 @@ function setAllModelsSearchBusy(busy){
   if($('allModelsSearchSpinner')) $('allModelsSearchSpinner').classList.toggle('hidden',!busy);
   if($('allModelsSearch')) $('allModelsSearch').setAttribute('aria-busy',busy?'true':'false');
 }
+function cancelAllModelsSearch(clearRows=true){
+  allModelsSearchRequestSeq++;
+  clearTimeout(allModelsSearchTimer);
+  allModelsSearchTimer=null;
+  if(allModelsSearchController){allModelsSearchController.abort();allModelsSearchController=null;}
+  setAllModelsSearchBusy(false);
+  if(clearRows){
+    allModelsSearchRows=[];
+    allModelsActiveResultIndex=-1;
+  }
+}
 function resetAllModelsResult(message){
   allModelsCalculationRequestSeq++;
   const button=$('allModelsCalculateBtn');
@@ -8455,6 +8468,7 @@ function renderAllModelsSelected(){
 function selectAllModelsResult(index){
   const selected=allModelsSearchRows[Number(index)];
   if(!selected) return;
+  cancelAllModelsSearch(false);
   const selectedModel=normalizeLookup(selected.model);
   if(MULTI_SPLIT_OUTDOORS.some(row=>brandsEquivalent(row.brand,selected.brand)&&[row.model,row.rebateModel].filter(Boolean).some(model=>normalizeLookup(model)===selectedModel))) selected.multiHead=true;
   allModelsSelected=selected;
@@ -8482,11 +8496,8 @@ async function loadAllModelsBrands(){
   }
 }
 function onAllModelsBrandChange(){
-  allModelsSearchRequestSeq++;
-  clearTimeout(allModelsSearchTimer);
+  cancelAllModelsSearch();
   allModelsSelected=null;
-  allModelsSearchRows=[];
-  allModelsActiveResultIndex=-1;
   if($('allModelsSearch')){
     $('allModelsSearch').value='';
     $('allModelsSearch').focus();
@@ -8496,39 +8507,60 @@ function onAllModelsBrandChange(){
   resetAllModelsResult('Type a model number to begin.');
 }
 async function searchAllModelsNow(){
+  allModelsSearchTimer=null;
   const brand=String(($('allModelsBrand')&&$('allModelsBrand').value)||'').trim();
   const rawQuery=String(($('allModelsSearch')&&$('allModelsSearch').value)||'').trim();
   const query=normalizeLookup(rawQuery);
-  const requestId=++allModelsSearchRequestSeq;
-  if(!brand){renderAllModelsSearchResults('Select a brand first.');return;}
+  if(!brand){cancelAllModelsSearch();renderAllModelsSearchResults('Select a brand first.');return;}
   if(query.length<2){
+    cancelAllModelsSearch();
     if(query.length) renderAllModelsSearchResults('Enter at least two model characters.');
     else allModelsSearchOpen(false);
     return;
   }
+  const requestId=++allModelsSearchRequestSeq;
+  const controller=new AbortController();
+  allModelsSearchController=controller;
+  let timedOut=false;
+  const timeoutId=setTimeout(()=>{timedOut=true;controller.abort();},ALL_MODELS_SEARCH_TIMEOUT_MS);
   setAllModelsSearchBusy(true);
   renderAllModelsSearchResults('Searching the GEMS register...');
   try{
-    const payload=await fetchJson(`/api/gems-model-search?brand=${encodeURIComponent(brand)}&q=${encodeURIComponent(rawQuery)}`);
+    const response=await fetch(`/api/gems-model-search?brand=${encodeURIComponent(brand)}&q=${encodeURIComponent(rawQuery)}`,{signal:controller.signal});
+    if(!response.ok) throw new Error(`HTTP ${response.status}`);
+    const payload=await response.json();
+    if(!payload||!Array.isArray(payload.models)) throw new Error('The GEMS search returned an invalid response. Please try again.');
     if(requestId!==allModelsSearchRequestSeq) return;
-    allModelsSearchRows=Array.isArray(payload&&payload.models)?payload.models:[];
+    allModelsSearchRows=payload.models;
     allModelsActiveResultIndex=allModelsSearchRows.length?0:-1;
     renderAllModelsSearchResults();
   }catch(error){
     if(requestId!==allModelsSearchRequestSeq) return;
     allModelsSearchRows=[];
-    renderAllModelsSearchResults(`Search unavailable. ${String(error&&error.message||'Please try again.')}`);
+    allModelsActiveResultIndex=-1;
+    renderAllModelsSearchResults(timedOut?'Search timed out after 55 seconds. Please try again.':`Search unavailable. ${String(error&&error.message||'Please try again.')}`);
   }finally{
-    if(requestId===allModelsSearchRequestSeq) setAllModelsSearchBusy(false);
+    clearTimeout(timeoutId);
+    if(requestId===allModelsSearchRequestSeq){
+      if(allModelsSearchController===controller) allModelsSearchController=null;
+      setAllModelsSearchBusy(false);
+    }
   }
 }
 function scheduleAllModelsSearch(){
-  clearTimeout(allModelsSearchTimer);
+  cancelAllModelsSearch();
   if(allModelsSelected&&$('allModelsSearch')&&$('allModelsSearch').value!==allModelsSelected.model){
     allModelsSelected=null;
     renderAllModelsSelected();
     resetAllModelsResult('Select a matching registered model before calculating.');
   }
+  const query=normalizeLookup(($('allModelsSearch')&&$('allModelsSearch').value)||'');
+  const brand=String(($('allModelsBrand')&&$('allModelsBrand').value)||'').trim();
+  if(!brand){renderAllModelsSearchResults('Select a brand first.');return;}
+  if(!query){allModelsSearchOpen(false);return;}
+  if(query.length<2){renderAllModelsSearchResults('Enter at least two model characters.');return;}
+  setAllModelsSearchBusy(true);
+  renderAllModelsSearchResults('Searching the GEMS register...');
   allModelsSearchTimer=setTimeout(searchAllModelsNow,250);
 }
 function moveAllModelsSearchHighlight(step){
