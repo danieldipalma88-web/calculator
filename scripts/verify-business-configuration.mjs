@@ -315,8 +315,9 @@ export async function verify() {
     filteredHarness.context.window.CALCULATOR_USER.businessName = businessName;
     assert.equal(filteredHarness.productListFor("split").filter(p => p.model.startsWith("PRIVATE-")).some(p => p.nswOnly === true), false, businessName);
     assert.equal(filteredHarness.productListFor("split").filter(p => p.model.startsWith("PRIVATE-")).length, 8);
+    for (const type of ["split", "ducted"]) assert.equal(filteredHarness.productListFor(type).some(p => p.nswOnly === true), false, `${businessName}: shared and private NSW-only models stay out of QLD`);
   }
-  assert.match(declaration("baseProductListFor"), /if\(activeCatalogKey\(\)==='andos'\) return type==='ducted'\?ANDOS_DUCTED_PRODUCTS:ANDOS_SPLIT_PRODUCTS;/);
+  assert.match(declaration("baseProductListFor"), /if\(activeCatalogKey\(\)==='andos'\)\{\s*const list=type==='ducted'\?ANDOS_DUCTED_PRODUCTS:ANDOS_SPLIT_PRODUCTS;\s*return activeBusinessState\(\)==='NSW'\?list:list\.filter\(product=>product\.nswOnly!==true\);/);
   const { revisionGuardedBusinessSnapshot: guard, withoutBusinessConfiguration, validatedBusinessConfigurationData } = configurationModule;
   const fields = ["installerManagedPricesV1", "greenEnergyManagedPricesV1", "ManagedPricesV1", "installerDefaultCostRulesV1", "greenEnergyDefaultCostRulesV1", "DefaultCostRulesV1"];
   const incoming = Object.fromEntries(fields.map(field => [field, '[{"old":true}]'])); incoming[key] = json;
