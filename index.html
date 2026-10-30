@@ -4301,7 +4301,7 @@ SPLIT_PRODUCTS.push(
 SPLIT_PRODUCTS.push(
   {"brand":"Daikin","capacity":"2.5kW","capacityNum":2.5,"unitPriceInc":0.0,"priceIncGst":0.0,"model":"RXM25AVMA / FTXM25AVMA","rebate":0.0,"series":"Alira X - A Series","phase":"Single","nswOnly":true},
   {"brand":"Daikin","capacity":"4.6kW","capacityNum":4.6,"unitPriceInc":0.0,"priceIncGst":0.0,"model":"RXM46AVMA / FTXM46AVMA","rebate":0.0,"series":"Alira X - A Series","phase":"Single","nswOnly":true},
-  {"brand":"Daikin","capacity":"5.0kW","capacityNum":5.0,"unitPriceInc":0.0,"priceIncGst":0.0,"model":"RXV50AVMA / FTXV50AVMA","rebate":0.0,"series":"Cora - A Series","phase":"Single","nswOnly":true},
+  {"brand":"Daikin","capacity":"5.0kW","capacityNum":5.0,"unitPriceInc":1420.0,"priceIncGst":1420.0,"model":"RXV50AVMA / FTXV50AVMA","rebate":0.0,"series":"Cora - A Series","phase":"Single","nswOnly":true},
   {"brand":"Mitsubishi Heavy Industries","capacity":"6.3kW","capacityNum":6.3,"unitPriceInc":0.0,"priceIncGst":0.0,"model":"DXC21ZRA-W / DXK21ZRA-WF1","rebate":0.0,"series":"Bronte","phase":"Single","nswOnly":true},
   {"brand":"Mitsubishi Heavy Industries","capacity":"9.5kW","capacityNum":9.5,"unitPriceInc":2750.00,"priceIncGst":2750.00,"model":"DXC33ZRA-W / DXK33ZRA-WF1","rebate":0.0,"series":"Bronte","phase":"Single","nswOnly":true},
   {"brand":"Fujitsu General","capacity":"5.0kW","capacityNum":5.0,"unitPriceInc":0.0,"priceIncGst":0.0,"model":"AOTH18KNTA/ASTH18KNTA","rebate":0.0,"series":"Comfort","nswOnly":true},
@@ -4318,7 +4318,7 @@ SPLIT_PRODUCTS.push(
 );
 SPLIT_PRODUCTS.push(
   {"brand":"Daikin","capacity":"2.0kW","capacityNum":2.0,"unitPriceInc":0.0,"priceIncGst":0.0,"model":"RXV20AVMA / FTXV20AVMA","rebate":0.0,"series":"Cora - A Series","phase":"Single","nswOnly":true},
-  {"brand":"Daikin","capacity":"2.5kW","capacityNum":2.5,"unitPriceInc":0.0,"priceIncGst":0.0,"model":"RXV25AVMA / FTXV25AVMA","rebate":0.0,"series":"Cora - A Series","phase":"Single","nswOnly":true},
+  {"brand":"Daikin","capacity":"2.5kW","capacityNum":2.5,"unitPriceInc":850.0,"priceIncGst":850.0,"model":"RXV25AVMA / FTXV25AVMA","rebate":0.0,"series":"Cora - A Series","phase":"Single","nswOnly":true},
   {"brand":"Daikin","capacity":"3.5kW","capacityNum":3.5,"unitPriceInc":0.0,"priceIncGst":0.0,"model":"RXV35AVMA / FTXV35AVMA","rebate":0.0,"series":"Cora - A Series","phase":"Single","nswOnly":true},
   {"brand":"Daikin","capacity":"4.6kW","capacityNum":4.6,"unitPriceInc":0.0,"priceIncGst":0.0,"model":"RXV46AVMA / FTXV46AVMA","rebate":0.0,"series":"Cora - A Series","phase":"Single","nswOnly":true},
   {"brand":"Daikin","capacity":"6.0kW","capacityNum":6.0,"unitPriceInc":0.0,"priceIncGst":0.0,"model":"RXV60AVMA / FTXV60AVMA","rebate":0.0,"series":"Cora - A Series","phase":"Single","nswOnly":true},
@@ -4889,6 +4889,8 @@ const INSTALL_ADDONS=[
 ];
 const PRICE_STORAGE_KEY='installerManagedPricesV1';
 const MANAGED_PRICE_DEFAULT_MIGRATIONS=[
+  {type:'split',model:'RXV25AVMA / FTXV25AVMA',oldUnitPriceInc:0,newUnitPriceInc:850},
+  {type:'split',model:'RXV50AVMA / FTXV50AVMA',oldUnitPriceInc:0,newUnitPriceInc:1420},
   {type:'split',model:'DXC28ZRA-W / DXK28ZRA-WF1',oldUnitPriceInc:0,newUnitPriceInc:2200},
   {type:'split',model:'DXC33ZRA-W / DXK33ZRA-WF1',oldUnitPriceInc:0,newUnitPriceInc:2750},
   {type:'split',model:'WRC-080DS / WRE-080DS',oldUnitPriceInc:1725.64,newUnitPriceInc:1705},

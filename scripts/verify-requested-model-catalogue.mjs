@@ -60,7 +60,7 @@ for (const [brand, series, model, capacity, phase, status] of expectedSplit) {
   if (phase) assert.equal(product.phase, phase, `${model} phase`);
   if (status === "new") {
     assert.equal(product.nswOnly, true, `${model} must be NSW-only.`);
-    const expectedPrice = model === "DXC33ZRA-W / DXK33ZRA-WF1" ? 2750 : 0;
+    const expectedPrice = model === "DXC33ZRA-W / DXK33ZRA-WF1" ? 2750 : model === "RXV50AVMA / FTXV50AVMA" ? 1420 : 0;
     assert.equal(product.unitPriceInc, expectedPrice, `${model} must match approved pricing.`);
     assert.equal(product.priceIncGst, expectedPrice, `${model} must match approved GST-inclusive pricing.`);
     assert.equal(product.rebate, 0, `${model} must not have a static rebate.`);

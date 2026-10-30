@@ -32,6 +32,8 @@ const approved = [
   ["Rinnai", "PX Series", 8, "HONRPX80/HINRPX80M", 1550, 1550, 7],
   ["Actron Air", "Serene DS", 8, "WRC-080DS / WRE-080DS", 1725.64, currencyFromExGst(1550), 5],
   ["Actron Air", "Serene DS", 9, "WRC-090DS / WRE-090DS", 2003.14, currencyFromExGst(2050), 5],
+  ["Daikin", "Cora - A Series", 2.5, "RXV25AVMA / FTXV25AVMA", 0, 850, 5],
+  ["Daikin", "Cora - A Series", 5, "RXV50AVMA / FTXV50AVMA", 0, 1420, 5],
 ];
 
 for (const [brand, series, capacity, model, oldPrice, newPrice, warranty] of approved) {
@@ -43,7 +45,7 @@ for (const [brand, series, capacity, model, oldPrice, newPrice, warranty] of app
   assert.equal(product.capacityNum, capacity);
   assert.equal(product.unitPriceInc, newPrice);
   if ("priceIncGst" in product) assert.equal(product.priceIncGst, newPrice);
-  assert.equal(product.wifiStatus, "included");
+  assert.equal(product.wifiStatus, brand === "Daikin" ? "optional" : "included");
   assert.equal(product.warrantyYears, warranty);
 
   const item = { type: "split", p: product };
@@ -84,4 +86,4 @@ for (const [model, price] of [
 ]) {
   assert.equal(sandbox.products.find((p) => p.model === model)?.unitPriceInc, price, `${model} must be unchanged.`);
 }
-console.log("Five shared split prices, GST, identity, support and safe default migrations verified.");
+console.log("Seven shared split prices, GST, identity, support and safe default migrations verified.");

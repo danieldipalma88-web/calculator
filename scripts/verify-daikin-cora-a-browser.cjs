@@ -39,10 +39,11 @@ const models = ['20', '25', '35', '46', '50', '60', '71'].map(size => `RXV${size
           const index = await page.evaluate(value => data().findIndex(row => row.model === value), model);
           assert.ok(index >= 0, `${business}: ${model} is selectable`);
           await page.locator('#product').selectOption(String(index));
-          assert.equal(await page.locator('#unitPriceInc').inputValue(), '0.00');
+          const price = model.includes('RXV25AVMA') ? 850 : model.includes('RXV50AVMA') ? 1420 : 0;
+          assert.equal(await page.locator('#unitPriceInc').inputValue(), price.toFixed(2));
           assert.equal(await page.locator('#wifiMeta').innerText(), 'Wi-Fi optional adaptor');
           assert.equal(await page.locator('#warrantyMeta').innerText(), '5 yrs parts & labour');
-          assert.equal(await page.evaluate(() => standardQuotePriceReadiness().ok), false, 'Zero-price quote guard blocks quote readiness');
+          assert.equal(await page.evaluate(() => standardQuotePriceReadiness().ok), price > 0, 'Only priced systems are ready to quote');
         }
       }
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true);
@@ -54,7 +55,7 @@ const models = ['20', '25', '35', '46', '50', '60', '71'].map(size => `RXV${size
         window.CALCULATOR_USER.role = 'salesperson';
         setSystem('split'); $('brand').value = 'Daikin'; populateProducts();
       });
-      assert.equal(await page.locator('#product option').filter({ hasText: 'Cora - A Series' }).count(), 0, 'Unpriced models stay hidden for salespeople');
+      assert.equal(await page.locator('#product option').filter({ hasText: 'Cora - A Series' }).count(), 2, 'Only the two priced models are visible to salespeople');
       await page.evaluate(() => {
         window.CALCULATOR_USER.role = 'admin';
         window.CALCULATOR_USER.businessOperatingState = 'QLD';

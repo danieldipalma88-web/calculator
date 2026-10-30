@@ -82,8 +82,9 @@ for (const catalogueName of ["split", "andos"]) {
     assert.equal(product.series, series);
     assert.equal(product.phase, "Single");
     assert.equal(product.nswOnly, true);
-    assert.equal(product.unitPriceInc, 0);
-    assert.equal(product.priceIncGst, 0);
+    const price = capacity === 2.5 ? 850 : capacity === 5 ? 1420 : 0;
+    assert.equal(product.unitPriceInc, price);
+    assert.equal(product.priceIncGst, price);
     assert.equal(product.rebate, 0, "No static rebate");
     assert.equal(product.wifiStatus, "optional");
     assert.equal(product.wifiLabel, "Wi-Fi optional adaptor");
