@@ -27,7 +27,7 @@
     "verify:guidance": "node scripts/verify-calculator-guidance-and-model-requests.mjs",
     "verify:price-updates": "node scripts/verify-business-price-update-tool.mjs && node scripts/verify-shared-split-prices.mjs",
     "verify:business-configuration": "node scripts/verify-business-configuration.mjs",
-    "verify:daikin-catalogue": "node scripts/verify-daikin-business-catalogue.mjs && node scripts/verify-daikin-zena-catalogue.mjs && node --experimental-strip-types scripts/verify-daikin-alira-x-catalogue.mjs",
+    "verify:daikin-catalogue": "node scripts/verify-daikin-business-catalogue.mjs && node scripts/verify-daikin-zena-catalogue.mjs && node --experimental-strip-types scripts/verify-daikin-alira-x-catalogue.mjs && node --experimental-strip-types scripts/verify-daikin-cora-a-catalogue.mjs",
     "verify:braemar-catalogue": "node scripts/verify-braemar-catalogue.mjs",
     "verify:actron-catalogue": "node scripts/verify-actron-catalogue.mjs",
     "verify:gree-catalogue": "node scripts/verify-gree-catalogue.mjs",

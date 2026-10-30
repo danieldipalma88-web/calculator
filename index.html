@@ -4316,6 +4316,14 @@ SPLIT_PRODUCTS.push(
   {"brand":"Daikin","capacity":"6.0kW","capacityNum":6.0,"unitPriceInc":0.0,"priceIncGst":0.0,"model":"RXM60AVMA / FTXM60AVMA","rebate":0.0,"series":"Alira X - A Series","phase":"Single","nswOnly":true},
   {"brand":"Daikin","capacity":"7.1kW","capacityNum":7.1,"unitPriceInc":0.0,"priceIncGst":0.0,"model":"RXM71AVMA / FTXM71AVMA","rebate":0.0,"series":"Alira X - A Series","phase":"Single","nswOnly":true}
 );
+SPLIT_PRODUCTS.push(
+  {"brand":"Daikin","capacity":"2.0kW","capacityNum":2.0,"unitPriceInc":0.0,"priceIncGst":0.0,"model":"RXV20AVMA / FTXV20AVMA","rebate":0.0,"series":"Cora - A Series","phase":"Single","nswOnly":true},
+  {"brand":"Daikin","capacity":"2.5kW","capacityNum":2.5,"unitPriceInc":0.0,"priceIncGst":0.0,"model":"RXV25AVMA / FTXV25AVMA","rebate":0.0,"series":"Cora - A Series","phase":"Single","nswOnly":true},
+  {"brand":"Daikin","capacity":"3.5kW","capacityNum":3.5,"unitPriceInc":0.0,"priceIncGst":0.0,"model":"RXV35AVMA / FTXV35AVMA","rebate":0.0,"series":"Cora - A Series","phase":"Single","nswOnly":true},
+  {"brand":"Daikin","capacity":"4.6kW","capacityNum":4.6,"unitPriceInc":0.0,"priceIncGst":0.0,"model":"RXV46AVMA / FTXV46AVMA","rebate":0.0,"series":"Cora - A Series","phase":"Single","nswOnly":true},
+  {"brand":"Daikin","capacity":"6.0kW","capacityNum":6.0,"unitPriceInc":0.0,"priceIncGst":0.0,"model":"RXV60AVMA / FTXV60AVMA","rebate":0.0,"series":"Cora - A Series","phase":"Single","nswOnly":true},
+  {"brand":"Daikin","capacity":"7.1kW","capacityNum":7.1,"unitPriceInc":0.0,"priceIncGst":0.0,"model":"RXV71AVMA / FTXV71AVMA","rebate":0.0,"series":"Cora - A Series","phase":"Single","nswOnly":true}
+);
 const DUCTED_PRODUCTS = [
   {"brand":"Mitsubishi Heavy Industries","size":7.1,"phase":"Single","model":"FDCA71VNX-W / FDU71VH","priceIncGst":2524.0,"rebate":1380.0,"capacity":"7.1kW","capacityNum":7.1,"unitPriceInc":2524.0},
   {"brand":"Mitsubishi Heavy Industries","size":10.0,"phase":"Single","model":"FDC100VNP-W / FDU100VH","priceIncGst":2464.44,"rebate":1823.5,"capacity":"10.0kW","capacityNum":10.0,"unitPriceInc":2464.44},
@@ -4690,6 +4698,7 @@ ANDOS_SPLIT_PRODUCTS.push(
 );
 ANDOS_SPLIT_PRODUCTS.push(...DAIKIN_ZENA_SPLIT_PRODUCTS.map(product=>({...product})));
 ANDOS_SPLIT_PRODUCTS.push(...SPLIT_PRODUCTS.filter(product=>product.brand==='Daikin' && product.series==='Alira X - A Series').map(product=>({...product})));
+ANDOS_SPLIT_PRODUCTS.push(...SPLIT_PRODUCTS.filter(product=>product.brand==='Daikin' && product.series==='Cora - A Series').map(product=>({...product})));
 ANDOS_DUCTED_PRODUCTS.push(
   andosDuctedInc("Actron", "Advance B", 25.0, "Three", "CRV25BT / EVV25BS", 9608.50),
   andosDuctedInc("Hisense", "Air Q Compact Ducted Hi-Nano", 8.5, "", "AUD-85UXHT-SET (AUD-85UX4RTH1 / AUW-85U4RK1)", 2158.20, "8.5kW ducted set"),
@@ -4789,6 +4798,7 @@ const DUCTED_PRODUCT_SUPPORT=[
 ];
 const ANDOS_SPLIT_PRODUCT_SUPPORT=[
   {brand:'Daikin',series:'Alira X - A Series',details:{wifiStatus:'included',wifiLabel:'Built-in Wi-Fi',warrantyYears:5,warrantyLabel:'5 yrs parts & labour',originLabel:'Japanese'}},
+  {brand:'Daikin',series:'Cora - A Series',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional adaptor',warrantyYears:5,warrantyLabel:'5 yrs parts & labour',originLabel:'Japanese'}},
   {brand:'Daikin',series:'Lite',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional adaptor',warrantyYears:5,warrantyLabel:'5 yrs warranty',originLabel:'Japanese'}},
   {brand:'Daikin',series:'Cora XL',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional adaptor',warrantyYears:5,warrantyLabel:'5 yrs warranty',originLabel:'Japanese'}},
   {brand:'Daikin',series:'Alira X XL Premium',details:{wifiStatus:'included',wifiLabel:'Wi-Fi included',warrantyYears:5,warrantyLabel:'5 yrs warranty',originLabel:'Japanese'}},

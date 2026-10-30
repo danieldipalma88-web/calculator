@@ -146,7 +146,7 @@ assert.equal(mergedMulti.maxHeads, 3, "Merging verified data must preserve the k
 assert.equal(mergedMulti.unitPriceInc, 0, "Verified merge must clear the shared catalogue price.");
 
 const publicCatalogue = await buildPublicRebateCatalogue();
-assert.equal(publicCatalogue.products.length, 461, "The regenerated public catalogue must contain 461 products.");
+assert.equal(publicCatalogue.products.length, 467, "The regenerated public catalogue must contain 467 products.");
 for (const [brand, series, model, capacity, phase] of [...expectedSplit, ...expectedDucted]) {
   const matches = publicCatalogue.products.filter((product) =>
     product.systemType === (expectedSplit.some((row) => row[0] === brand && normalize(row[2]) === normalize(model)) ? "split" : "ducted") &&
