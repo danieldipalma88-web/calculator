@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
+import { modelAutomationEnabled, processModelRequest } from "../../../lib/model-request-worker";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { canManageUsers, isOwnerEmail } from "../../../lib/admin";
 import {
@@ -8,7 +9,8 @@ import {
 
 const REQUEST_LIMIT = 5;
 const REQUEST_WINDOW_MINUTES = 15;
-const REQUEST_RECIPIENT = "daniel@electric-future.com";
+const REQUEST_RECIPIENT = "danieldipalma88@gmail.com";
+export const maxDuration = 300;
 
 type ModelRequestBody = {
   clientRequestId?: unknown;
@@ -19,6 +21,8 @@ type ModelRequestBody = {
   capacity?: unknown;
   phase?: unknown;
   notes?: unknown;
+  postcode?: unknown;
+  installType?: unknown;
 };
 
 function json(body: unknown, status = 200) {
@@ -95,13 +99,15 @@ function modelRequestEmailHtml(details: Record<string, string>) {
 async function sendModelRequestEmail(details: Record<string, string>) {
   const apiKey = String(process.env.RESEND_API_KEY || "").trim();
   if (!apiKey) throw new Error("RESEND_API_KEY is not configured");
-  const from = String(process.env.MODEL_REQUEST_FROM_EMAIL || "Rebate Portal <onboarding@resend.dev>").trim();
+  const from = String(process.env.MODEL_REQUEST_FROM_EMAIL || "").trim();
+  if (!['notifications@mail.rebateportal.com.au','Rebate Portal <notifications@mail.rebateportal.com.au>'].includes(from)) throw new Error("Branded model-request sender is not configured");
   const to = String(process.env.MODEL_REQUEST_TO_EMAIL || REQUEST_RECIPIENT).trim();
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
+      "Idempotency-Key": `model-request-review/${details.requestId}`,
     },
     body: JSON.stringify({
       from,
@@ -111,6 +117,7 @@ async function sendModelRequestEmail(details: Record<string, string>) {
       reply_to: details.requesterEmail,
     }),
     cache: "no-store",
+    signal: AbortSignal.timeout(10_000),
   });
   const result = (await response.json().catch(() => ({}))) as { id?: string; message?: string };
   if (!response.ok) throw new Error(result.message || `Resend returned ${response.status}`);
@@ -131,6 +138,10 @@ export async function POST(request: Request) {
   const capacity = text(body.capacity, 40);
   const phase = text(body.phase, 20).toLowerCase();
   const notes = text(body.notes, 600);
+  const postcode = text(body.postcode, 4);
+  const installType = text(body.installType, 20);
+  if (postcode && !/^\d{4}$/.test(postcode)) return json({ error: "Enter a four-digit postcode." }, 400);
+  if (installType && !["new", "replacement"].includes(installType)) return json({ error: "Choose new or replacement." }, 400);
   if (!validUuid(clientRequestId)) return json({ error: "Please reopen the request form and try again." }, 400);
   if (!(["split", "ducted", "multi-head"] as string[]).includes(systemType)) {
     return json({ error: "Choose a valid system type." }, 400);
@@ -148,7 +159,7 @@ export async function POST(request: Request) {
     .eq("client_request_id", clientRequestId)
     .maybeSingle();
   if (existing.data?.id) {
-    return json({ saved: true, requestId: existing.data.id, notificationStatus: existing.data.notification_status });
+    return json({ saved: true, requestId: existing.data.id, notificationStatus: existing.data.notification_status, automationQueued: modelAutomationEnabled() });
   }
 
   const since = new Date(Date.now() - REQUEST_WINDOW_MINUTES * 60_000).toISOString();
@@ -179,6 +190,8 @@ export async function POST(request: Request) {
       capacity,
       phase: systemType === "ducted" ? phase || "unknown" : "",
       notes,
+      postcode,
+      install_type: installType,
     })
     .select("id")
     .single();
@@ -199,10 +212,19 @@ export async function POST(request: Request) {
   }
 
   const requestId = String(inserted.data.id);
+  const automationQueued = modelAutomationEnabled();
+  after(async () => {
+  if (automationQueued) {
+    try {
+      const outcome = await processModelRequest(requestId);
+      if (outcome.state === "added" || outcome.state === "email_pending") return;
+    } catch (error) { console.error("[model-request] verification queued for retry", { requestId, error: error instanceof Error ? error.message : "Worker unavailable" }); }
+  }
   let notificationStatus = "sent";
   let notificationError = "";
   try {
     await sendModelRequestEmail({
+      requestId,
       systemType,
       brand,
       model,
@@ -236,6 +258,6 @@ export async function POST(request: Request) {
     })
     .eq("id", requestId)
     .eq("user_id", user.id);
-
-  return json({ saved: true, requestId, notificationStatus }, 201);
+  });
+  return json({ saved: true, requestId, automationQueued }, 201);
 }

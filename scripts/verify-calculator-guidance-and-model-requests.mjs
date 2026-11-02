@@ -30,8 +30,10 @@ assert.match(requestRoute, /approved_user_businesses/);
 assert.match(requestRoute, /REQUEST_LIMIT = 5/);
 assert.match(requestRoute, /\.eq\("client_request_id", clientRequestId\)/);
 assert.match(requestRoute, /RESEND_API_KEY/);
-assert.match(requestRoute, /daniel@electric-future\.com/);
-const insertAt = requestRoute.indexOf('.from("calculator_model_requests")\n    .insert');
+assert.match(requestRoute, /danieldipalma88@gmail\.com/);
+assert.match(requestRoute, /notifications@mail\.rebateportal\.com\.au/);
+assert.match(requestRoute, /after\(async/);
+const insertAt = requestRoute.search(/\.from\("calculator_model_requests"\)\s*\.insert/);
 const emailAt = requestRoute.indexOf("await sendModelRequestEmail");
 assert.ok(insertAt >= 0 && emailAt > insertAt, "model request must be stored before email is attempted");
 

@@ -4527,6 +4527,7 @@ export default async function AdminUsersPage({
             <h1>Platform Admin</h1>
             <p>Manage businesses, user access, won jobs and certificate prices.</p>
           </div>
+          <a className="button secondary" href="/admin/model-requests">Model requests</a>
           <a className="button secondary" href="/calculator" data-loading-label="Opening calculator...">
             Calculator
           </a>

@@ -250,6 +250,7 @@ function calculatorHarness(config) {
   vm.runInNewContext([
     mainScript.slice(mainScript.indexOf("const SPLIT_PRODUCTS ="), mainScript.indexOf("let systemType='split'")),
     `const BUSINESS_CONFIGURATION_STORAGE_KEY=${JSON.stringify(key)}; const DEFAULT_COST_STORAGE_KEY='installerDefaultCostRulesV1'; let defaultCostRules=[];`,
+    declaration("verifiedCatalogueProductCache"),declaration("withVerifiedCatalogueProducts"),declaration("BRAND_ALIASES"),declaration("normaliseBrandName"),
     ...names.map(name => declaration(name)),
     "globalThis.api={productListFor,loadDefaultCostRules,defaultCostRuleFor,cloneDefaultCostRules,activeBusinessConfiguration,defaultCostCapacity,cap,shared:()=>JSON.stringify([SPLIT_PRODUCTS,DUCTED_PRODUCTS,ANDOS_SPLIT_PRODUCTS,ANDOS_DUCTED_PRODUCTS])};",
   ].join("\n"), context);

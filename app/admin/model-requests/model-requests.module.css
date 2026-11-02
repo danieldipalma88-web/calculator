@@ -1,0 +1,58 @@
+.page { min-width: 0; margin-top: 24px; }
+.controls { display: grid; gap: 14px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
+.search { display: grid; gap: 6px; max-width: 560px; color: var(--muted); font-size: 13px; }
+.search input { width: 100%; min-width: 0; min-height: 44px; font-size: 16px; }
+.filters, .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.filters button, .actions button, .product button, .error button { min-height: 38px; max-width: 100%; padding: 7px 11px; border: 1px solid var(--line); border-radius: 5px; background: #fff; color: var(--text); font: inherit; cursor: pointer; }
+.filters button[aria-pressed="true"] { border-color: #167447; background: #eaf5ef; color: #135e3b; font-weight: 700; }
+.filters .refresh { width: 38px; padding: 0; margin-left: auto; font-size: 22px; line-height: 1; }
+.filters .refresh:disabled { opacity: .6; cursor: wait; }
+.count { margin: 14px 0 10px; color: var(--muted); font-size: 13px; }
+.list { display: grid; gap: 10px; }
+.request { min-width: 0; padding: 16px; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+.requestHead { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.identity { min-width: 0; }
+.identity h2 { margin: 0; overflow-wrap: anywhere; font-size: 18px; }
+.identity p { margin: 5px 0 0; color: var(--muted); overflow-wrap: anywhere; font-size: 13px; }
+.badge { flex: 0 0 auto; padding: 4px 8px; border-radius: 4px; background: #edf0f2; color: #3f4850; font-size: 12px; text-transform: capitalize; }
+.badge[data-state="review"] { background: #fff1d6; color: #704400; }
+.badge[data-state="added"] { background: #e8f5ee; color: #135e3b; }
+.badge[data-state="checking"], .badge[data-state="queued"] { background: #e9f0fa; color: #234c75; }
+.details, .evidence { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px 14px; margin: 16px 0 0; }
+.details div, .evidence div { min-width: 0; }
+.details dt, .evidence dt { color: var(--muted); font-size: 11px; text-transform: capitalize; }
+.details dd, .evidence dd { margin: 3px 0 0; overflow-wrap: anywhere; font-size: 13px; }
+.notes, .jobInfo, .legacy { margin: 13px 0 0; padding: 10px 12px; border-left: 3px solid #b9c5cc; background: #f6f8f9; overflow-wrap: anywhere; font-size: 13px; }
+.jobInfo { display: grid; gap: 8px; }
+.jobInfo p { margin: 0; overflow-wrap: anywhere; }
+.jobInfo details { margin: 0; }
+.jobInfo summary { cursor: pointer; font-weight: 600; }
+.evidence { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.legacy { border-left-color: #b47b18; background: #fff8e9; }
+.actions { margin-top: 14px; }
+.actions .copy { margin-right: auto; }
+.actions .close, .product .close { border-color: #c75a54; color: #8c2924; }
+.actions button:disabled, .product button:disabled { opacity: .6; cursor: wait; }
+.products { margin-top: 28px; border-top: 1px solid var(--line); }
+.loadMore { display: flex; justify-content: center; padding: 16px 0 4px; }
+.loadMore button { min-height: 40px; padding: 8px 16px; border: 1px solid var(--line); border-radius: 5px; background: #fff; color: var(--text); font: inherit; cursor: pointer; }
+.loadMore button:disabled { opacity: .6; cursor: wait; }
+.products h2 { margin: 18px 0 10px; font-size: 17px; }
+.product { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 11px 0; border-top: 1px solid var(--line); }
+.product div { min-width: 0; display: grid; gap: 4px; }
+.product strong, .product span { overflow-wrap: anywhere; }
+.product span { color: var(--muted); font-size: 12px; }
+.state { padding: 18px 0; color: var(--muted); }
+.error, .notice { padding: 10px 12px; overflow-wrap: anywhere; border-radius: 5px; }
+.error { background: #fff0ef; color: #8c2924; }
+.notice { background: #eaf5ef; color: #135e3b; }
+.error button { margin-left: 8px; }
+@media (max-width: 640px) {
+  .request { padding: 12px; }
+  .requestHead, .product { align-items: flex-start; flex-direction: column; }
+  .details { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .evidence { grid-template-columns: minmax(0, 1fr); }
+  .actions { align-items: stretch; }
+  .actions button { flex: 1 1 140px; }
+  .actions .copy { margin-right: 0; }
+}

@@ -4,6 +4,7 @@ import {
   isEligibleAustralianGemsRecord,
   mapGemsModelSearchItem,
   type GemsModelSearchItem,
+  type GemsSearchRecord,
 } from "./gems-model-search";
 import {
   DCCEEW_CONTRACT_RATE,
@@ -644,5 +645,43 @@ export async function calculateCurrentNswRebate(input: CurrentRebateInput): Prom
     prcRate: input.prcRate,
     contractApplied,
     lookupSource: source,
+  };
+}
+
+export async function calculateVerifiedGemsCertificates(
+  input: CurrentRebateInput,
+  record: GemsSearchRecord,
+): Promise<CurrentRebateResult & { registryRecord: GemsSearchRecord }> {
+  const item = mapGemsModelSearchItem(record);
+  const soldIn = String(record.Sold_in ?? record["Sold in"] ?? "");
+  const expiry = String(record.ExpDate ?? "").trim();
+  const expiryTime = Date.parse(expiry);
+  if (!item || item.brand.toUpperCase() !== input.brand.trim().toUpperCase()
+    || item.model.toUpperCase() !== input.model.trim().toUpperCase()
+    || !isEligibleAustralianGemsRecord(record)
+    || !soldIn.split(/[,;]/).some((country) => /^australia$/i.test(country.trim()))
+    || (record.ExpDate != null && (!Number.isFinite(expiryTime)
+      || new Date(expiryTime).toISOString().slice(0, 10) !== expiry
+      || expiry < new Date().toISOString().slice(0, 10)))) {
+    throw new Error("An exact active Australian GEMS registration is required");
+  }
+  if (!/^\d{4}$/.test(input.postcode) || input.postcode === "0000"
+    || (input.installType !== "new" && input.installType !== "replacement")
+    || (input.systemType !== "split" && input.systemType !== "ducted")) {
+    throw new Error("Invalid installation context for GEMS certificate verification");
+  }
+
+  // Use only the caller's validated registration, bypassing general lookup and contract pricing.
+  const climate = await resolveClimate(input.postcode);
+  const { esc, prc } = await calculateCertificates(item.metadata, climate, input);
+  return {
+    rebate: roundMoney(esc + prc),
+    esc,
+    prc,
+    escRate: 1,
+    prcRate: 1,
+    contractApplied: false,
+    lookupSource: "Exact GEMS registration + NSW formula",
+    registryRecord: record,
   };
 }

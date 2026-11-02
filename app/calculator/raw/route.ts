@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { calculatorAddedProducts, readAddedModels } from "../../../lib/model-catalogue";
 import path from "node:path";
 import { NextResponse } from "next/server";
 import {
@@ -1241,8 +1242,14 @@ export async function GET(request: Request) {
     ? canManageUsers(viewingEmail, contextRole)
     : canManage;
 
+  let additions: ReturnType<typeof calculatorAddedProducts> = [];
+  if (businessOperatingState === "NSW") {
+    try { additions = calculatorAddedProducts(await readAddedModels()); }
+    catch { console.error("Verified model additions could not be loaded"); }
+  }
+  const catalogueHtml = (await calculatorHtmlPromise).replace("<script>", `<script>window.__verifiedCatalogueAdditions=${safeScriptJson(additions)};</script>\n<script>`);
   const html = injectCloudStorageSync(
-    await calculatorHtmlPromise,
+    catalogueHtml,
     effectiveSavedData,
     {
       email: currentEmail,

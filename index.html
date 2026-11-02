@@ -3929,7 +3929,7 @@ button.quoteDragHandle:active{cursor:grabbing}
 <div id="wonDetailsModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="wonDetailsModalTitle" aria-describedby="wonDetailsModalDescription" onclick="if(event.target===this)closeWonDetailsModal()"><div class="quoteNameModalCard wonDetailsModalCard"><div class="kicker">Won job details</div><h2 id="wonDetailsModalTitle">Complete won job</h2><p id="wonDetailsModalDescription">Confirm the installation location and proposed date before locking this quote.</p><div class="wonDetailsFields"><div class="wonDetailsField"><label id="wonAddressLabel">Installation address <span class="wonRequired">Required</span></label><div id="wonAddressLookup" class="wonAddressLookup" aria-labelledby="wonAddressLabel"><div class="wonAddressLoading">Loading Google address search...</div></div><div id="wonAddressStatus" class="wonAddressStatus" role="status" aria-live="polite">A Google address selection is required.</div></div><div class="wonDetailsField"><label for="wonInstallDate">Proposed installation date <span class="wonRequired">Required</span></label><div class="wonDateControl"><input id="wonInstallDate" type="date" required onchange="updateWonDetailsSubmitState()" oninput="updateWonDetailsSubmitState()"></div></div></div><div id="wonDetailsHint" class="hint" role="status" aria-live="polite" style="display:none"></div><div class="quoteNameModalActions"><button class="secondary" type="button" onclick="closeWonDetailsModal()">Cancel</button><button id="wonDetailsSubmit" class="green" type="button" onclick="confirmWonDetails()" disabled>Mark as won</button></div></div></div>
 <div id="dcceewInfoModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="dcceewInfoModalTitle" aria-describedby="dcceewInfoModalDescription" onclick="if(event.target===this)closeDcceewInfoModal()"><div class="quoteNameModalCard dcceewInfoModalCard"><div class="kicker">DCCEEW $30 ESC contract rate</div><h2 id="dcceewInfoModalTitle">Complete every required step</h2><p id="dcceewInfoModalDescription">This job is potentially eligible because the selected postcode and product are on the approved lists.</p><div class="dcceewInfoModalIntro">The fixed $30 rate is not automatic. Complete all applicable requirements to receive it.</div><ol class="dcceewCriteria"><li>Select <strong>Yes</strong> for DCCEEW consent in Alitsy when setting up the job. This cannot be corrected after payment processing begins.</li><li>For replacement jobs, enter the existing unit's <strong>year of manufacture</strong> in the Compliance tab.</li><li>For replacement jobs, attach a clear photo of the existing indoor or outdoor unit's <strong>compliance plate</strong>.</li><li>Ensure the customer invoice clearly itemises the <strong>incentive or discount passed through to the customer</strong>.</li></ol><div class="dcceewFallbackNotice">If any required information is missing, the job will be paid at the standard market rate instead of the fixed $30 ESC rate.</div><div class="quoteNameModalActions"><button type="button" onclick="closeDcceewInfoModal()">Understood</button></div></div></div>
 <div id="calculatorGuidanceModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="calculatorGuidanceTitle" aria-describedby="calculatorGuidanceDescription"><div class="quoteNameModalCard calculatorGuidanceCard"><div class="kicker">Before you start quoting</div><h2 id="calculatorGuidanceTitle">A quick note about this calculator</h2><p id="calculatorGuidanceDescription">This quote calculator is built around the systems installers use most often.</p><div class="calculatorGuidanceIntro">Use it to check rebates, build customer quotes and understand likely profit margins. The figures below are practical starting points, not fixed guarantees.</div><div class="calculatorGuidancePoints"><div class="calculatorGuidancePoint"><span class="calculatorGuidancePointIcon" aria-hidden="true">1</span><div><strong>Products and costs</strong><span>We include a curated range of commonly installed systems, selected wholesaler pricing and common labour, materials and installation costs. Review these figures before issuing a quote.</span></div></div><div class="calculatorGuidancePoint"><span class="calculatorGuidancePointIcon" aria-hidden="true">2</span><div><strong>Missing models</strong><span>The catalogue is not exhaustive. Use <em>Request a model</em> near the product selector if a system you install is missing.</span></div></div><div class="calculatorGuidancePoint"><span class="calculatorGuidancePointIcon" aria-hidden="true">3</span><div><strong>Rebate movement</strong><span>Rebate values are indicative and can move up or down with certificate market prices and trading conditions before a claim is submitted or processed. Build enough margin into each quote to allow for movement.</span></div></div></div><label class="guidanceCheck" for="calculatorGuidanceAccepted"><input id="calculatorGuidanceAccepted" type="checkbox" onchange="updateCalculatorGuidanceState()"><span>I understand that rebate amounts and preloaded costs are estimates, may change, and should be verified before I issue a customer quote.</span></label><div id="calculatorGuidanceStatus" class="modelRequestStatus" role="status" aria-live="polite"></div><div class="quoteNameModalActions"><button id="calculatorGuidanceContinue" type="button" onclick="confirmCalculatorGuidance()" disabled>Continue to calculator</button></div></div></div>
-<div id="modelRequestModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="modelRequestTitle" aria-describedby="modelRequestDescription" onclick="if(event.target===this)closeModelRequestModal()"><div class="quoteNameModalCard modelRequestCard"><div class="kicker">Product catalogue</div><h2 id="modelRequestTitle">Request a missing model</h2><p id="modelRequestDescription">Send the product details for review. Your account, email and active business will be attached automatically.</p><div class="modelRequestGrid"><div class="modelRequestField"><label for="modelRequestSystemType">System type</label><input id="modelRequestSystemType" type="text" readonly></div><div class="modelRequestField"><label for="modelRequestBrand">Brand</label><input id="modelRequestBrand" type="text" maxlength="100" autocomplete="organization"></div><div class="modelRequestField wide"><label for="modelRequestModel">Model <span class="wonRequired">Required</span></label><input id="modelRequestModel" type="text" maxlength="180" autocomplete="off" placeholder="Outdoor / indoor model numbers"></div><div class="modelRequestField"><label for="modelRequestCapacity">Capacity</label><input id="modelRequestCapacity" type="text" maxlength="40" placeholder="Example: 7.1kW"></div><div id="modelRequestPhaseField" class="modelRequestField"><label for="modelRequestPhase">Phase</label><select id="modelRequestPhase"><option value="unknown">Not sure</option><option value="single">Single phase</option><option value="three">Three phase</option></select></div><div class="modelRequestField wide"><label for="modelRequestNotes">Notes</label><textarea id="modelRequestNotes" maxlength="600" placeholder="Series, pricing or any other useful details"></textarea></div></div><div id="modelRequestStatus" class="modelRequestStatus" role="status" aria-live="polite"></div><div class="quoteNameModalActions"><button class="secondary" type="button" onclick="closeModelRequestModal()">Cancel</button><button id="modelRequestSubmit" class="modelRequestSubmit" type="button" onclick="submitModelRequest()">Send request</button></div></div></div>
+<div id="modelRequestModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="modelRequestTitle" aria-describedby="modelRequestDescription" onclick="if(event.target===this)closeModelRequestModal()"><div class="quoteNameModalCard modelRequestCard"><div class="kicker">Product catalogue</div><h2 id="modelRequestTitle">Request a missing model</h2><p id="modelRequestDescription">Send the product details for review. Your account, email and active business will be attached automatically.</p><div class="modelRequestGrid"><div class="modelRequestField"><label for="modelRequestSystemType">System type</label><input id="modelRequestSystemType" type="text" readonly></div><div class="modelRequestField"><label for="modelRequestBrand">Brand</label><input id="modelRequestBrand" type="text" maxlength="100" autocomplete="organization"></div><div class="modelRequestField wide"><label for="modelRequestModel">Model <span class="wonRequired">Required</span></label><input id="modelRequestModel" type="text" maxlength="180" autocomplete="off" placeholder="Outdoor / indoor model numbers"></div><div class="modelRequestField"><label for="modelRequestCapacity">Capacity</label><input id="modelRequestCapacity" type="text" maxlength="40" placeholder="Example: 7.1kW"></div><div id="modelRequestPhaseField" class="modelRequestField"><label for="modelRequestPhase">Phase</label><select id="modelRequestPhase"><option value="unknown">Not sure</option><option value="single">Single phase</option><option value="three">Three phase</option></select></div><div class="modelRequestField"><label for="modelRequestPostcode">Installation postcode</label><input id="modelRequestPostcode" inputmode="numeric" maxlength="4" placeholder="Postcode"></div><div class="modelRequestField"><label for="modelRequestInstall">Installation type</label><select id="modelRequestInstall"><option value="new">New install</option><option value="replacement">Replacement</option></select></div><div class="modelRequestField wide"><label for="modelRequestNotes">Notes</label><textarea id="modelRequestNotes" maxlength="600" placeholder="Series, pricing or any other useful details"></textarea></div></div><div id="modelRequestStatus" class="modelRequestStatus" role="status" aria-live="polite"></div><div class="quoteNameModalActions"><button class="secondary" type="button" onclick="closeModelRequestModal()">Cancel</button><button id="modelRequestSubmit" class="modelRequestSubmit" type="button" onclick="submitModelRequest()">Send request</button></div></div></div>
 <div id="multiSplitPriceSaveModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="multiSplitPriceSaveTitle" aria-describedby="multiSplitPriceSaveDescription" onclick="if(event.target===this)finishMultiSplitPriceEdit(false)"><div class="quoteNameModalCard"><div class="kicker">Multi-head equipment price</div><h2 id="multiSplitPriceSaveTitle">Save this price to the unit?</h2><p id="multiSplitPriceSaveDescription">The entered price is already being used for this quote. You can also save it as this business's price for the selected model.</p><div class="multiSplitPriceSaveSummary"><strong id="multiSplitPriceSaveModel">Selected model</strong><span id="multiSplitPriceSaveAmount">$0.00 inc GST</span></div><div id="multiSplitPriceSaveStatus" class="modelRequestStatus" role="status" aria-live="polite"></div><div class="quoteNameModalActions"><button id="multiSplitPriceUseOnce" class="secondary" type="button" onclick="finishMultiSplitPriceEdit(false)">Use for this quote only</button><button id="multiSplitPriceSaveAccount" class="green" type="button" onclick="finishMultiSplitPriceEdit(true)">Save to this business</button></div></div></div>
 <div class="portraitOnlyNotice" aria-live="polite"><div><strong>Use portrait view</strong><span>Rotate your phone upright to continue quoting.</span></div></div>
 <div id="overlay" class="drawerOverlay" onclick="closeAllDrawers()"></div>
@@ -5074,7 +5074,23 @@ function baseProductListFor(type){
   const list=type==='ducted'?DUCTED_PRODUCTS:SPLIT_PRODUCTS;
   return activeBusinessState()==='NSW'?list:list.filter(product=>product.nswOnly!==true);
 }
-function productListFor(type){return mergeBusinessProducts(type,baseProductListFor(type));}
+const verifiedCatalogueProductCache=new Map();
+function withVerifiedCatalogueProducts(type,list){
+  if(activeBusinessState()!=='NSW') return list;
+  const key=activeCatalogKey()+'|'+type+'|'+(calculatorUserContext().businessId||'');
+  if(verifiedCatalogueProductCache.has(key)) return verifiedCatalogueProductCache.get(key);
+  const normal=s=>String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  const identity=p=>normal(normaliseBrandName(p.brand))+'|'+String(p.model||'').split('/').map(normal).sort().join('/');
+  const seen=new Set(list.map(identity));
+  const extra=(window.__verifiedCatalogueAdditions||[]).filter(p=>{
+    if(p.type!==type||seen.has(identity(p))) return false;
+    seen.add(identity(p)); return true;
+  });
+  const merged=extra.length?list.concat(extra):list;
+  verifiedCatalogueProductCache.set(key,merged);
+  return merged;
+}
+function productListFor(type){return withVerifiedCatalogueProducts(type,mergeBusinessProducts(type,baseProductListFor(type)));}
 function data(){return activeProducts(productListFor(systemType))};
 function roleUsesPricedCatalogueOnly(){
   const role=String(calculatorUserContext().role||'').trim().toLowerCase();
@@ -6347,6 +6363,8 @@ function openModelRequestModal(source){
   $('modelRequestCapacity').value='';
   $('modelRequestPhase').value=context.phase||'unknown';
   $('modelRequestNotes').value='';
+  $('modelRequestPostcode').value=String((source==='multi'?$('multiSplitPostcode'):$('postcode'))?.value||'');
+  $('modelRequestInstall').value=source==='multi'?($('multiSplitInstallType')?.value||'replacement'):(installType||'new');
   $('modelRequestPhaseField').classList.toggle('hidden',context.systemType!=='ducted');
   setInlineRequestStatus('modelRequestStatus','','');
   const submit=$('modelRequestSubmit');
@@ -6388,13 +6406,15 @@ async function submitModelRequest(){
         model,
         capacity:String($('modelRequestCapacity').value||'').trim(),
         phase:modelRequestSystemValue==='ducted'?$('modelRequestPhase').value:'',
-        notes:String($('modelRequestNotes').value||'').trim()
+        notes:String($('modelRequestNotes').value||'').trim(),
+        postcode:String($('modelRequestPostcode').value||'').trim(),
+        installType:$('modelRequestInstall').value
       })
     });
     const result=await response.json().catch(()=>({}));
     if(!response.ok) throw new Error(result.error||'The model request could not be sent.');
     const notificationDelayed=result.notificationStatus&&result.notificationStatus!=='sent';
-    setInlineRequestStatus('modelRequestStatus',notificationDelayed?'Request saved. The email notification is delayed, but your request has not been lost.':'Request sent. We will review the model for the calculator.',notificationDelayed?'saved':'success');
+    setInlineRequestStatus('modelRequestStatus',result.automationQueued?'Request saved. We will check the model and email you when it is available.':notificationDelayed?'Request saved. The email notification is delayed, but your request has not been lost.':'Request sent. We will review the model for the calculator.',notificationDelayed&&!result.automationQueued?'saved':'success');
     if(submit) submit.textContent='Request saved';
     const completedRequestId=modelRequestClientId;
     setTimeout(()=>{if(modelRequestClientId===completedRequestId){modelRequestSubmitting=false;closeModelRequestModal()}},1800);
@@ -9667,7 +9687,9 @@ function render(){
 
 function managedProductKey(type,index){
   const catalog=activeCatalogKey();
-  return catalog==='default'?`${type}|${index}`:`${catalog}|${type}|${index}`;
+  const addition=productListFor(type)[index]?.catalogueAdditionId;
+  const identity=addition?`verified_${addition}`:index;
+  return catalog==='default'?`${type}|${identity}`:`${catalog}|${type}|${identity}`;
 }
 function legacyProductKey(type,p){
   const key=`${type}|${p.brand}|${p.model}`;
@@ -9728,6 +9750,7 @@ function savedManagedModelNorm(saved){
   return normalizeLookup(normaliseModelName(String((saved&&saved.model)||'').trim()));
 }
 function managedStoredTypeFromKey(key){
+  if(String(key||'').includes('|verified_')) return '';
   const parts=String(key||'').split('|');
   const catalog=activeCatalogKey();
   if(catalog==='default' && parts.length===2 && (parts[0]==='split' || parts[0]==='ducted')) return parts[0];
@@ -9756,6 +9779,7 @@ function buildManagedStoredModelMap(stored,items){
 function managedIndexSavedBelongsToCurrentItem(saved,item,items){
   if(!saved || typeof saved!=='object') return false;
   const savedModel=savedManagedModelNorm(saved);
+  if(item.p.catalogueAdditionId) return savedModel===normalizeLookup(item.p.model);
   if(!savedModel) return true;
   const itemModel=normalizeLookup(item.p.model);
   if(savedModel===itemModel) return true;
@@ -9812,8 +9836,8 @@ function loadManagedPrices(){
     const legacyKey=legacyProductKey(item.type,item.p);
     const indexSaved=stored[stableKey];
     const legacyIndexSaved=legacyStored[stableKey];
-    const modelSaved=storedByModel[item.type][normalizeLookup(item.p.model)]||null;
-    const legacyModelSaved=legacyStoredByModel[item.type][normalizeLookup(item.p.model)]||null;
+    const modelSaved=item.p.catalogueAdditionId?null:(storedByModel[item.type][normalizeLookup(item.p.model)]||null);
+    const legacyModelSaved=item.p.catalogueAdditionId?null:(legacyStoredByModel[item.type][normalizeLookup(item.p.model)]||null);
     const currentSaved=(managedIndexSavedBelongsToCurrentItem(indexSaved,item,items)?indexSaved:null)||stored[legacyKey]||modelSaved||null;
     const legacySaved=(managedIndexSavedBelongsToCurrentItem(legacyIndexSaved,item,items)?legacyIndexSaved:null)||legacyStored[legacyKey]||legacyModelSaved||null;
     const saved=migrateManagedDefaultPrice(currentSaved&&legacySaved?copyManagedRebateFields(currentSaved,legacySaved,legacyTrusted&&!currentTrusted):(currentSaved||legacySaved),item);
@@ -10344,6 +10368,11 @@ function parseManagedIndexFromKey(key,expectedType){
 }
 function productLookupIndexFromState(s,list){
   if(!Array.isArray(list) || !list.length) return -1;
+  const savedAddition=String(s&&s.productManagedKey||'').split('|').find(part=>part.startsWith('verified_'));
+  if(savedAddition){
+    const id=savedAddition.slice('verified_'.length);
+    return list.findIndex(p=>p.catalogueAdditionId===id && brandsEquivalent(p.brand,String(s.brand||'')) && normalizeLookup(p.model)===normalizeLookup(s.model||''));
+  }
   const expectedType=(s && s.systemType==='ducted')?'ducted':'split';
   const brand=String((s && s.brand) || '').trim();
   const modelNorm=normalizeLookup(normaliseModelName((s && s.model) || ''));
