@@ -139,6 +139,7 @@ export function createSnapshotEndpoint(options = {}) {
   const context = {
     ...configurationModule, ...loadTsModule("lib/quote-sync.ts"), ...loadTsModule("lib/quote-family.ts"),
     ...loadTsModule("lib/quote-library-edit.ts"), ...loadTsModule("lib/won-job-validation.ts"),
+    ...loadTsModule("lib/aad-catalogue-price-defaults.ts"), aadCataloguePrices: options.aadCataloguePrices ?? null,
     exports: {},
     createSupabaseServerClient: async () => supabase,
     currentApprovedUser: async () => ({ data: { role: "user", business_id: businessA }, error: null }),
@@ -239,6 +240,37 @@ async function verifySnapshotRaces(config) {
     assert.equal(quoteOnly.state.reads, 0);
   }
   console.log("Snapshot races: paused read/import, revision cutover, insert-23505 retry, exact microsecond CAS, equal/backward clock, bounded contention, legacy bridges, PUT/POST and quote durability passed.");
+}
+async function verifyAadSnapshotRaces() {
+  const priceKey = "installerManagedPricesV1", key = "split|0";
+  const row = (value) => ({ model: "TEST-OUT / TEST-IN", unitPriceInc: value, locked: true });
+  const defaults = { systems: [{ catalogue: "default", type: "split", brand: "Fixture",
+    model: row(0).model, phase: "Single", managedKey: key, price: 100 }], multi: [] };
+  let markRead, release;
+  const read = new Promise(resolve => { markRead = resolve; });
+  const paused = new Promise(resolve => { release = resolve; });
+  const endpoint = createSnapshotEndpoint({
+    aadCataloguePrices: defaults,
+    initialBusiness: { business_id: businessA, data: { [priceKey]: JSON.stringify({ [key]: row(300) }) },
+      businesses: { operating_state: "NSW" }, updated_at: "2030-01-01T00:00:00.000Z" },
+    afterBusinessRead: async (state) => { if (state.reads === 1) { markRead(); await paused; } },
+  });
+  const stale = endpoint.request({ data: { [priceKey]: JSON.stringify({ [key]: row(300) }) } });
+  await read;
+  const edited = await endpoint.request({ data: { [priceKey]: JSON.stringify({ [key]: row(400) }) },
+    equipmentPriceEdits: { [key]: { before: 300, after: 400 } } });
+  release();
+  assert.equal(edited.status, 200);
+  assert.equal((await stale).status, 200);
+  assert.equal(JSON.parse(endpoint.state.business.data[priceKey])[key].unitPriceInc, 400);
+  const conflict = await endpoint.request({ data: { [priceKey]: JSON.stringify({ [key]: row(600) }) },
+    equipmentPriceEdits: { [key]: { before: 300, after: 600 } } });
+  assert.equal(conflict.status, 409);
+  assert.equal(conflict.body.code, "EQUIPMENT_PRICE_CONFLICT");
+  const rollback = await endpoint.request({ data: { [priceKey]: "{}" }, equipmentPriceEdits: { [key]: { before: 400, after: 0 } } });
+  assert.equal(rollback.status, 200);
+  assert.equal(JSON.parse(endpoint.state.business.data[priceKey])[key].unitPriceInc, 0, "An acknowledged last-entry rollback leaves no positive override");
+  console.log("AAD snapshot CAS: old nonzero replay retained newer explicit edit, and stale intentional edit conflicted.");
 }
 function calculatorHarness(config) {
   const storage = new Map(config ? [[key, JSON.stringify(config)]] : []);
@@ -354,6 +386,7 @@ export async function verify() {
   assert.doesNotMatch(publicSource, /installerBusinessConfigurationV1|activeBusinessConfiguration|mergeBusinessProducts/);
   for (const script of [...bootstrapHtml({ [key]: json }).matchAll(/<script>([\s\S]*?)<\/script>/g)]) assert.doesNotThrow(() => new Function(script[1]));
   await verifySnapshotRaces(config);
+  await verifyAadSnapshotRaces();
   console.log("Business configuration: validation, 17 private products, isolation, dedupe, NSW/Andos filtering, boundaries, nominal cost capacity, persistence, legacy defaults, revision guard, quote storage, visibility and bootstrap checks passed.");
 }
 if (process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url) await verify();

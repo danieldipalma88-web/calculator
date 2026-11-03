@@ -4853,6 +4853,8 @@ let finalPriceLocked=false;
 let multiFinalPriceLocked=false;
 let priceLocks={};
 let multiSplitIndoorSelections=[];
+let loadedMultiSplitPrices=new Map();
+let loadedMultiSplitPriceDestination='';
 let multiSplitTrialRequestSeq=0;
 let multiSplitRebateFresh=false;
 let multiSplitHasCalculated=false;
@@ -8833,9 +8835,16 @@ function normalizedMultiSplitManagedPriceEntry(saved,key){
 function applyManagedMultiSplitPrice(kind,row){
   const key=multiSplitManagedPriceKey(kind,row);
   const entry=key&&priceLocks[key];
-  if(!entry||typeof entry!=='object') return false;
-  const price=Number(entry.unitPriceInc);
-  if(!Number.isFinite(price)||price<0) return false;
+  const savedPrice=entry?.unitPriceInc;
+  let price=Number(savedPrice);
+  if(!hasPositiveUnitPrice(price)){
+    if(!equipmentPriceIsEmpty(savedPrice)||!equipmentPriceIsEmpty(row.unitPriceInc)||!equipmentPriceIsEmpty(row.priceIncGst)) return false;
+    const match=window.__aadCataloguePrices?.multi.find(p=>p.kind===kind && aadPriceCode(p.brand)===aadPriceCode(row.brand)
+      && aadPriceCode(p.model)===aadPriceCode(row.model) && (!p.registryOnly || row.liveRegistry===true));
+    const legacyPrice=aadLegacyMultiPrices.get(key);
+    price=match && (legacyPrice||match.price);
+    if(!hasPositiveUnitPrice(price)) return false;
+  }
   row.unitPriceInc=price;
   row.priceIncGst=price;
   return true;
@@ -8855,6 +8864,7 @@ function beginMultiSplitPriceEdit(kind,index,value){
     renderMultiSplitTrial({preserveRebate:true});
     return;
   }
+  loadedMultiSplitPrices.delete(multiSplitQuotePriceKey(kind,row));
   row.unitPriceInc=price;
   row.priceIncGst=price;
   const key=multiSplitManagedPriceKey(kind,row);
@@ -8889,6 +8899,7 @@ async function finishMultiSplitPriceEdit(saveToBusiness){
       if(onceButton){onceButton.disabled=true;onceButton.textContent='Keeping for this quote...';}
       if(pending.previousEntry) priceLocks[pending.key]=pending.previousEntry;
       else delete priceLocks[pending.key];
+      stageAadEquipmentPriceEdit(pending.key,pending.price,pending.previousEntry?.unitPriceInc,true);
       persistManagedPrices();
       try{
         if(typeof window.__calculatorFlushCloudSave!=='function') throw new Error('Cloud save confirmation is unavailable. Refresh the calculator and try again.');
@@ -8920,6 +8931,7 @@ async function finishMultiSplitPriceEdit(saveToBusiness){
   if($('multiSplitPriceSaveStatus')) $('multiSplitPriceSaveStatus').textContent='Saving this price to the active business...';
   pending.saving=true;
   pending.persistenceStarted=true;
+  stageAadEquipmentPriceEdit(pending.key,pending.previousEntry?.unitPriceInc,pending.price);
   priceLocks[pending.key]={
     locked:true,
     unitPriceInc:pending.price,
@@ -8944,18 +8956,40 @@ async function finishMultiSplitPriceEdit(saveToBusiness){
   }
 }
 function multiSplitIndoorLabel(row){
+  row=multiSplitQuotePricedRow('indoor',row);
   const note=row.note?` - ${row.note}`:'';
   return `${row.capacity} - ${row.series} - ${row.model} - ${multiSplitPriceLabel(row.unitPriceInc)}${note}`;
 }
+function multiSplitQuotePriceKey(kind,row){
+  return JSON.stringify([kind,aadPriceCode(normaliseBrandName(row.brand)),aadPriceCode(row.model)]);
+}
+function multiSplitPriceDestination(){
+  return String(($('multiAddOptionSelect')||$('addOptionSelect')||$('drawerAddOptionSelect'))?.value||'');
+}
+function multiSplitQuotePricedRow(kind,row){
+  if(!row || !loadedMultiSplitPrices.size || multiSplitPriceDestination()!==loadedMultiSplitPriceDestination) return row;
+  const saved=loadedMultiSplitPrices.get(multiSplitQuotePriceKey(kind,row));
+  return saved===undefined?row:{...row,unitPriceInc:saved,priceIncGst:saved};
+}
+function restoreMultiSplitQuotePrices(state){
+  loadedMultiSplitPrices.clear();
+  loadedMultiSplitPriceDestination=multiSplitPriceDestination();
+  const save=(kind,row,value)=>{
+    if(row?.brand && row?.model && (typeof value==='number'||typeof value==='string' && value.trim())
+      && Number.isFinite(Number(value)) && Number(value)>=0) loadedMultiSplitPrices.set(multiSplitQuotePriceKey(kind,row),Number(value));
+  };
+  save('outdoor',{brand:state.brand,model:state.outdoorModel||state.model},state.outdoorUnitPriceInc);
+  (Array.isArray(state.indoorHeads)?state.indoorHeads:[]).forEach(head=>save('indoor',{brand:head?.brand||state.brand,model:head?.model},head?.unitPriceInc));
+}
 function selectedMultiSplitIndoorItems(){
   return multiSplitIndoorSelections.map(selection=>{
-    const row=ALL_MODELS_MULTI_INDOORS[Number(selection.indoorIndex)];
+    const row=multiSplitQuotePricedRow('indoor',ALL_MODELS_MULTI_INDOORS[Number(selection.indoorIndex)]);
     const qty=Math.max(1,Math.floor(Number(selection.qty)||1));
     return row?{row,qty}:null;
   }).filter(Boolean);
 }
 function multiSplitEquipmentTotals(){
-  const outdoor=selectedMultiSplitOutdoor();
+  const outdoor=multiSplitQuotePricedRow('outdoor',selectedMultiSplitOutdoor());
   const indoorItems=selectedMultiSplitIndoorItems();
   const outdoorTotal=Number(outdoor&&outdoor.unitPriceInc)||0;
   const indoorTotal=indoorItems.reduce((sum,item)=>sum+(Number(item.row.unitPriceInc)||0)*item.qty,0);
@@ -9348,7 +9382,7 @@ function renderMultiSplitTrial(options){
         return `<option value="${index}"${selected}>${htmlEscape(multiSplitIndoorLabel(row))}</option>`;
       }).join('');
       const qty=Math.max(1,Math.floor(Number(selection.qty)||1));
-      const row=ALL_MODELS_MULTI_INDOORS[Number(selection.indoorIndex)]||ALL_MODELS_MULTI_INDOORS[compatible[0]];
+      const row=multiSplitQuotePricedRow('indoor',ALL_MODELS_MULTI_INDOORS[Number(selection.indoorIndex)]||ALL_MODELS_MULTI_INDOORS[compatible[0]]);
       const ratedCooling=Number(row&&row.ratedCoolingCapacity)||Number(row&&row.capacityNum)||0;
       const ratedHeating=Number(row&&row.ratedHeatingCapacity)||0;
       const canIncrease=!maxHeads||headCount<maxHeads;
@@ -9463,6 +9497,7 @@ async function populateMultiSplitOutdoors(options){
   }
 }
 function onMultiSplitOutdoorChange(){
+  loadedMultiSplitPrices.clear();
   const outdoor=selectedMultiSplitOutdoor();
   const compatible=multiSplitCompatibleIndoorIndexes(outdoor);
   if(!compatible.length){
@@ -9819,6 +9854,49 @@ function copyManagedRebateFields(target,source,force){
   if((force || !("rebateManual" in out)) && "rebateManual" in source) out.rebateManual=source.rebateManual;
   return out;
 }
+function aadPriceCode(value){return String(value||'').toUpperCase().replace(/\s+/g,'');}
+function equipmentPriceIsEmpty(value){
+  return value==null || (typeof value==='string' && value.trim()==='') ||
+    ((typeof value==='number' || typeof value==='string') && Number(value)===0);
+}
+const aadEffectiveSystemPrices=new WeakMap();
+const aadLegacyMultiPrices=new Map();
+const aadEquipmentPriceEdits=new Map();
+function stageAadEquipmentPriceEdit(key,before,after,replaceBefore){
+  const defaults=window.__aadCataloguePrices;
+  if(!defaults || !(defaults.systems.some(row=>row.managedKey===key)
+    || defaults.multi.some(row=>multiSplitManagedPriceKey(row.kind,row)===key))) return;
+  const prior=aadEquipmentPriceEdits.get(key);
+  aadEquipmentPriceEdits.set(key,{
+    before:prior&&!replaceBefore?prior.before:(hasPositiveUnitPrice(before)?Number(before):0),
+    after:hasPositiveUnitPrice(after)?Number(after):0
+  });
+}
+function aadEquipmentPriceEditSnapshot(){
+  return Object.fromEntries(aadEquipmentPriceEdits);
+}
+function acknowledgeAadEquipmentPriceEdits(edits){
+  for(const [key,sent] of Object.entries(edits||{})){
+    const pending=aadEquipmentPriceEdits.get(key);
+    if(!pending) continue;
+    if(pending.before===sent.before && pending.after===sent.after) aadEquipmentPriceEdits.delete(key);
+    else if(pending.before===sent.before) aadEquipmentPriceEdits.set(key,{before:sent.after,after:pending.after});
+  }
+}
+function aadSystemPrice(item,entry,saved,legacyCandidates){
+  const p=item.p;
+  if(!equipmentPriceIsEmpty(p.unitPriceInc)||!equipmentPriceIsEmpty(p.priceIncGst)||!equipmentPriceIsEmpty(entry.unitPriceInc)
+    || !equipmentPriceIsEmpty(saved?.unitPriceInc)
+    || aadPriceCode(entry.model)!==aadPriceCode(p.model)) return 0;
+  const catalog=activeCatalogKey();
+  const match=window.__aadCataloguePrices?.systems.find(row=>row.catalogue===catalog && row.type===item.type
+    && aadPriceCode(row.brand)===aadPriceCode(p.brand) && aadPriceCode(row.model)===aadPriceCode(p.model)
+    && row.phase===(p.phase||'Single'));
+  if(!hasPositiveUnitPrice(match?.price)) return 0;
+  const preserved=legacyCandidates.find(candidate=>hasPositiveUnitPrice(candidate?.unitPriceInc) &&
+    (!candidate.model || aadPriceCode(candidate.model)===aadPriceCode(p.model)));
+  return preserved?Number(preserved.unitPriceInc):match.price;
+}
 function loadManagedPrices(){
   const legacyPriceKey=legacyStorageKey('ManagedPricesV1');
   const currentRaw=localStorage.getItem(PRICE_STORAGE_KEY);
@@ -9827,10 +9905,12 @@ function loadManagedPrices(){
   const legacyTrusted=trustedManagedPriceStorageKey(legacyPriceKey);
   let stored=parseManagedPriceStorage(currentRaw!==null?currentRaw:legacyRaw);
   const legacyStored=parseManagedPriceStorage(legacyRaw);
+  const bareStored=parseManagedPriceStorage(localStorage.getItem('ManagedPricesV1'));
   const migrated={};
   const items=allManagedProducts();
   const storedByModel=buildManagedStoredModelMap(stored,items);
   const legacyStoredByModel=buildManagedStoredModelMap(legacyStored,items);
+  const bareStoredByModel=buildManagedStoredModelMap(bareStored,items);
   items.forEach(item=>{
     const stableKey=item.key;
     const legacyKey=legacyProductKey(item.type,item.p);
@@ -9842,7 +9922,14 @@ function loadManagedPrices(){
     const legacySaved=(managedIndexSavedBelongsToCurrentItem(legacyIndexSaved,item,items)?legacyIndexSaved:null)||legacyStored[legacyKey]||legacyModelSaved||null;
     const saved=migrateManagedDefaultPrice(currentSaved&&legacySaved?copyManagedRebateFields(currentSaved,legacySaved,legacyTrusted&&!currentTrusted):(currentSaved||legacySaved),item);
     const normalized=normalizeManagedPriceEntry(saved,item);
-    applyManagedEntryToProduct(item,normalized);
+    const aadPrice=aadSystemPrice(item,normalized,saved,[
+      legacySaved,
+      managedIndexSavedBelongsToCurrentItem(bareStored[stableKey],item,items)?bareStored[stableKey]:null,
+      bareStored[legacyKey], item.p.catalogueAdditionId?null:bareStoredByModel[item.type][normalizeLookup(item.p.model)]
+    ]);
+    if(aadPrice) aadEffectiveSystemPrices.set(item.p,aadPriceCode(item.p.model));
+    // Supplier prices are display and quote defaults, never saved business overrides.
+    applyManagedEntryToProduct(item,aadPrice?{...normalized,unitPriceInc:aadPrice}:normalized);
     migrated[stableKey]=normalized;
   });
   Object.entries(stored).forEach(([key,saved])=>{
@@ -9850,6 +9937,13 @@ function loadManagedPrices(){
     if(normalized) migrated[key]=normalized;
   });
   priceLocks=migrated;
+  aadLegacyMultiPrices.clear();
+  for(const alias of [legacyStored,bareStored]){
+    Object.entries(alias).forEach(([key,saved])=>{
+      const normalized=normalizedMultiSplitManagedPriceEntry(saved,key);
+      if(normalized && hasPositiveUnitPrice(normalized.unitPriceInc) && !aadLegacyMultiPrices.has(key)) aadLegacyMultiPrices.set(key,normalized.unitPriceInc);
+    });
+  }
   applyAllManagedMultiSplitPrices();
   if(currentTrusted || legacyTrusted) markTrustedManagedPriceStorageKey(PRICE_STORAGE_KEY);
   persistManagedPrices();
@@ -9929,13 +10023,19 @@ function updateManagedPrice(key,field,value){
     const model=String(value||'').trim();
     if(!model) return;
     entry.model=model;
+    if(aadEffectiveSystemPrices.has(item.p) && aadEffectiveSystemPrices.get(item.p)!==aadPriceCode(model)){
+      item.p.unitPriceInc=Number(entry.unitPriceInc)||0;
+      item.p.priceIncGst=item.p.unitPriceInc;
+      aadEffectiveSystemPrices.delete(item.p);
+    }
     item.p.model=model;
   } else {
     const n=Number(value)||0;
     if(field==='rebate' && !rebatesEnabled()) return;
     if(field==='rebate' && !canEditManagedRebates()) return;
+    if(field==='unitPriceInc') stageAadEquipmentPriceEdit(key,entry.unitPriceInc,n);
     entry[field]=n;
-    if(field==='unitPriceInc'){ item.p.unitPriceInc=n; item.p.priceIncGst=n; }
+    if(field==='unitPriceInc'){ aadEffectiveSystemPrices.delete(item.p); item.p.unitPriceInc=n; item.p.priceIncGst=n; }
     if(field==='rebate'){ item.p.rebate=n; entry.rebateManual=true; }
   }
   persistManagedPrices();
@@ -9977,7 +10077,7 @@ function renderPriceManager(){
     const locked=saved.locked!==false;
     const rebateLocked=locked || !canEditManagedRebates();
     const domKey=encodeKeyForDom(key);
-    const price=Number(saved.unitPriceInc ?? item.p.unitPriceInc ?? item.p.priceIncGst ?? 0).toFixed(2);
+    const price=Number(item.p.unitPriceInc ?? item.p.priceIncGst ?? saved.unitPriceInc ?? 0).toFixed(2);
     const rebate=Number(saved.rebate ?? item.p.rebate ?? 0).toFixed(2);
     const model=htmlEscape(String(saved.model||item.p.model||''));
     return `<tr data-key="${domKey}" class="${locked?'is-locked':''}">
@@ -10401,23 +10501,12 @@ function productLookupIndexFromState(s,list){
   return -1;
 }
 function findMultiSplitOutdoorFromState(s){
-  const directIdx=Number(s && s.outdoorIndex);
-  if(Number.isInteger(directIdx) && directIdx>=0 && directIdx<MULTI_SPLIT_OUTDOORS.length) return directIdx;
   const brand=String((s && s.brand) || '').trim();
-  const modelNorm=normalizeLookup((s && (s.outdoorModel || s.model)) || '');
-  if(brand && modelNorm){
-    const idx=MULTI_SPLIT_OUTDOORS.findIndex(row=>brandsEquivalent(row.brand,brand) && normalizeLookup(row.model)===modelNorm);
-    if(idx>=0) return idx;
-  }
-  if(modelNorm){
-    const idx=MULTI_SPLIT_OUTDOORS.findIndex(row=>normalizeLookup(row.model)===modelNorm);
-    if(idx>=0) return idx;
-  }
-  if(brand){
-    const idx=MULTI_SPLIT_OUTDOORS.findIndex(row=>brandsEquivalent(row.brand,brand));
-    if(idx>=0) return idx;
-  }
-  return MULTI_SPLIT_OUTDOORS.length?0:-1;
+  const model=aadPriceCode(s && (s.outdoorModel || s.model));
+  const matches=row=>(!brand||brandsEquivalent(row.brand,brand)) && (!model||aadPriceCode(row.model)===model);
+  const directIdx=Number(s && s.outdoorIndex);
+  if(Number.isInteger(directIdx) && MULTI_SPLIT_OUTDOORS[directIdx] && matches(MULTI_SPLIT_OUTDOORS[directIdx])) return directIdx;
+  return MULTI_SPLIT_OUTDOORS.findIndex(matches);
 }
 function normaliseMultiSplitIndoorSelections(s,outdoor){
   const compatible=multiSplitCompatibleIndoorIndexes(outdoor,{includeUnpriced:true});
@@ -10433,8 +10522,15 @@ function normaliseMultiSplitIndoorSelections(s,outdoor){
     if(indoorIndex<0) return null;
     return {indoorIndex,qty:Math.max(1,Math.floor(Number(item.qty)||1))};
   }).filter(Boolean);
-  if(fromSelections.length) return fromSelections;
   const heads=Array.isArray(s && s.indoorHeads)?s.indoorHeads:[];
+  if(heads.length && heads.every(item=>item?.model)){
+    return heads.map(item=>{
+      const indoorIndex=compatible.find(index=>aadPriceCode(ALL_MODELS_MULTI_INDOORS[index].model)===aadPriceCode(item.model)
+        && (!item.brand||brandsEquivalent(ALL_MODELS_MULTI_INDOORS[index].brand,item.brand)));
+      return indoorIndex===undefined?null:{indoorIndex,qty:Math.max(1,Math.floor(Number(item.qty)||1))};
+    }).filter(Boolean);
+  }
+  if(fromSelections.length) return fromSelections;
   const fromHeads=heads.map(item=>{
     const modelNorm=normalizeLookup(item && item.model || '');
     const capacity=Number(item && item.capacityNum)||Number(String(item && item.capacity || '').replace(/[^0-9.]/g,''));
@@ -10453,19 +10549,37 @@ async function loadMultiSplitQuote(q,s){
     return;
   }
   setMultiSplitSection();
+  loadedMultiSplitPrices.clear();
   if(s.customer!==undefined && $('customer')) $('customer').value=s.customer;
   if(s.address!==undefined && $('address')) $('address').value=s.address;
   if(s.date!==undefined && $('date')) $('date').value=s.date;
-  const outdoorIdx=findMultiSplitOutdoorFromState(s);
+  let outdoorIdx=findMultiSplitOutdoorFromState(s);
+  if(outdoorIdx<0 && s.brand && (s.outdoorModel||s.model)){
+    try {
+      mergeVerifiedMultiSplitOutdoors(canonicalMultiSplitHeadBrand(s.brand),await fetchVerifiedMultiSplitOutdoors(s.brand));
+      outdoorIdx=findMultiSplitOutdoorFromState(s);
+    } catch(error) {}
+  }
   if(outdoorIdx<0){
     setMultiSplitStatus('Could not find the saved multi-head outdoor unit in the current price list.','error');
     return;
   }
   const outdoor=MULTI_SPLIT_OUTDOORS[outdoorIdx];
+  const restoredHeads=normaliseMultiSplitIndoorSelections(s,outdoor);
+  if(Array.isArray(s.indoorHeads) && s.indoorHeads.length && s.indoorHeads.every(head=>head?.model) && restoredHeads.length!==s.indoorHeads.length){
+    setMultiSplitStatus('Could not find every saved indoor head in the current catalogue. The saved quote was not changed.','error');
+    return;
+  }
   await populateMultiSplitBrands({includeOutdoorIndex:outdoorIdx});
   if($('multiSplitBrand')) $('multiSplitBrand').value=canonicalMultiSplitHeadBrand(outdoor.brand)||outdoor.brand;
+  outdoorIdx=findMultiSplitOutdoorFromState(s);
+  if(outdoorIdx<0 || !Array.from($('multiSplitOutdoor')?.options||[]).some(option=>Number(option.value)===outdoorIdx && option.value!=='')){
+    setMultiSplitStatus('Could not restore the saved outdoor unit. The saved quote was not changed.','error');
+    return;
+  }
   if($('multiSplitOutdoor')&&Array.from($('multiSplitOutdoor').options||[]).some(option=>Number(option.value)===outdoorIdx)) $('multiSplitOutdoor').value=String(outdoorIdx);
-  multiSplitIndoorSelections=normaliseMultiSplitIndoorSelections(s,outdoor);
+  multiSplitIndoorSelections=restoredHeads;
+  restoreMultiSplitQuotePrices(s);
   syncSharedEssPostcode(String(s.postcode || (s.ess&&s.ess.postcode) || q.postcode || '').trim(),'state',true);
   if($('multiSplitInstallType')) $('multiSplitInstallType').value=s.installType==='new'?'new':'replacement';
   if($('multiLabour')) $('multiLabour').value=s.labour!==undefined?s.labour:(q.labour!==undefined?q.labour:'0');
@@ -11419,6 +11533,10 @@ function syncAddOptionSelects(value){
     if(el&&value) el.value=value;
     syncQuoteSearchPickerDisplay(id);
   });
+  if(loadedMultiSplitPrices.size && multiSplitPriceDestination()!==loadedMultiSplitPriceDestination){
+    loadedMultiSplitPrices.clear();
+    renderMultiSplitTrial({preserveRebate:true});
+  }
 }
 function onOptionSelectionChange(value){
   if(quoteArrangeBusy||quoteArrangePending||quoteArrangeConflict){
@@ -12884,7 +13002,8 @@ function renderCurrentOptionTotalsPanel(savedSelection){
   body.innerHTML=`${lockNotice}${priceNotice}${systemsTable}${totalsIntro}<div class="currentOptionSummaryGrid">${quoteMetric('Customer total inc GST','currentOptionCustomerTotal',t.customer)}${rebateMetricHtml(t.rebate,rows)}${quoteMetric('Labour ex GST','currentOptionLabourTotal',t.labour)}${quoteMetric('Materials inc GST','currentOptionMaterialsTotal',t.materials)}${quoteMetric('Misc inc GST','currentOptionMiscTotal',t.misc)}${quoteMetric('Power / electrical ex GST','currentOptionPowerTotal',t.power)}${commissionMetrics}</div>${editActions}${editStatus}`;
 }
 function currentMultiSplitState(x){
-  const outdoor=x&&x.outdoor?x.outdoor:selectedMultiSplitOutdoor();
+  const selectedOutdoor=selectedMultiSplitOutdoor();
+  const outdoor=x&&x.outdoor?x.outdoor:multiSplitQuotePricedRow('outdoor',selectedOutdoor);
   const indoorItems=x&&x.indoorItems?x.indoorItems:selectedMultiSplitIndoorItems();
   const install=selectedMultiSplitInstallType();
   return {
@@ -12903,7 +13022,7 @@ function currentMultiSplitState(x){
     capacityNum:outdoor?outdoor.capacityNum:0,
     outdoorModel:outdoor?outdoor.model:'',
     outdoorUnitPriceInc:outdoor?outdoor.unitPriceInc:0,
-    outdoorIndex:Math.max(0,MULTI_SPLIT_OUTDOORS.indexOf(outdoor)),
+    outdoorIndex:Math.max(0,MULTI_SPLIT_OUTDOORS.indexOf(selectedOutdoor)),
     indoorSelections:multiSplitIndoorSelections.map(item=>({indoorIndex:Number(item.indoorIndex),qty:Math.max(1,Math.floor(Number(item.qty)||1))})),
     indoorHeads:indoorItems.map(item=>({brand:item.row.brand,series:item.row.series,capacity:item.row.capacity,model:item.row.model,qty:item.qty,unitPriceInc:item.row.unitPriceInc,ratedCoolingCapacity:item.row.ratedCoolingCapacity,ratedHeatingCapacity:item.row.ratedHeatingCapacity})),
     connectedCapacity:x?x.connectedCapacity:multiSplitEquipmentTotals().connectedCapacity,

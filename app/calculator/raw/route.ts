@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { calculatorAddedProducts, readAddedModels } from "../../../lib/model-catalogue";
 import path from "node:path";
 import { NextResponse } from "next/server";
+import { parseAadCataloguePriceDefaults } from "../../../lib/aad-catalogue-price-defaults";
 import {
   canManageUsers,
   canSeeAgencyProfit,
@@ -30,6 +31,8 @@ const calculatorHtmlPromise = readFile(
   path.join(process.cwd(), "index.html"),
   "utf8",
 );
+
+const aadCataloguePrices = parseAadCataloguePriceDefaults(process.env.AAD_CATALOGUE_PRICE_DEFAULTS);
 
 function safeScriptJson(value: unknown) {
   return JSON.stringify(value).replace(/</g, "\\u003c");
@@ -655,11 +658,22 @@ function injectCloudStorageSync(
     setCloudSaveStatus('Quote options need review', 'error');
     window.dispatchEvent(new CustomEvent('calculator-quote-conflict', {detail:error}));
   }
+  function equipmentPriceEditsForSnapshot(data){
+    if (typeof window.aadEquipmentPriceEditSnapshot !== 'function') return {};
+    try {
+      var stored = JSON.parse(data.installerManagedPricesV1 || '{}');
+      return Object.fromEntries(Object.entries(window.aadEquipmentPriceEditSnapshot()).filter(function(pair){
+        var price = Number(stored[pair[0]] && stored[pair[0]].unitPriceInc);
+        return (Number.isFinite(price) && price > 0 ? price : 0) === pair[1].after;
+      }));
+    } catch(e) { return {}; }
+  }
   function sendPendingSnapshot(){
     if (quoteConflictError || quoteArrangeAttempt || syncRequestInFlight || !pendingSnapshot) return;
     clearTimeout(syncRetryTimer);
     syncRetryTimer = null;
     var request = pendingSnapshot;
+    var equipmentPriceEdits = equipmentPriceEditsForSnapshot(request.data);
     pendingSnapshot = null;
     syncRequestInFlight = true;
     inFlightSnapshotJson = request.json;
@@ -669,7 +683,7 @@ function injectCloudStorageSync(
     var fetchOptions = {
       method: 'PUT',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({data: request.data, businessConfigurationRevision: businessConfigurationRevision})
+      body: JSON.stringify({data: request.data, businessConfigurationRevision: businessConfigurationRevision, equipmentPriceEdits: equipmentPriceEdits})
     };
     if (controller) fetchOptions.signal = controller.signal;
     fetch(calculatorSyncUrl, fetchOptions).then(function(response){
@@ -679,10 +693,11 @@ function injectCloudStorageSync(
         error.status = response.status;
         error.code = result.code;
         error.currentFamily = result.currentFamily;
-        error.permanent = response.status >= 400 && response.status < 500 && response.status !== 409 && response.status !== 429 || error.code === 'QUOTE_OPTION_CONFLICT';
+        error.permanent = response.status >= 400 && response.status < 500 && response.status !== 409 && response.status !== 429 || error.code === 'QUOTE_OPTION_CONFLICT' || error.code === 'EQUIPMENT_PRICE_CONFLICT';
         throw error;
       });
     }).then(function(){
+      if (typeof window.acknowledgeAadEquipmentPriceEdits === 'function') window.acknowledgeAadEquipmentPriceEdits(equipmentPriceEdits);
       lastSnapshotJson = request.json;
       if (pendingSnapshot && pendingSnapshot.json === lastSnapshotJson) pendingSnapshot = null;
       settleCloudSaveWaiters(request.json, null);
@@ -692,7 +707,7 @@ function injectCloudStorageSync(
         pauseQuoteConflict(error);
       } else if (error && error.permanent) {
         settleCloudSaveWaiters(request.json, error);
-        setCloudSaveStatus(pendingSnapshot ? 'Saving...' : 'Save failed', pendingSnapshot ? 'saving' : 'error');
+        setCloudSaveStatus(pendingSnapshot ? 'Saving...' : (error.code === 'EQUIPMENT_PRICE_CONFLICT' ? error.message : 'Save failed'), pendingSnapshot ? 'saving' : 'error');
       } else {
         if (!pendingSnapshot) pendingSnapshot = request;
         setCloudSaveStatus('Retrying...', 'retrying');
@@ -710,10 +725,11 @@ function injectCloudStorageSync(
     if (quoteConflictError || quoteArrangeAttempt) return;
     var data = snapshot();
     var nextJson = JSON.stringify(data);
+    var hasPriceEdits = typeof window.aadEquipmentPriceEditSnapshot === 'function' && Object.keys(window.aadEquipmentPriceEditSnapshot()).length > 0;
     if (!force) {
       if (pendingSnapshot && nextJson === pendingSnapshot.json) return;
       if (syncRequestInFlight && !pendingSnapshot && nextJson === inFlightSnapshotJson) return;
-      if (!syncRequestInFlight && !pendingSnapshot && nextJson === lastSnapshotJson) return;
+      if (!hasPriceEdits && !syncRequestInFlight && !pendingSnapshot && nextJson === lastSnapshotJson) return;
     }
     pendingSnapshot = {data: data, json: nextJson};
     clearTimeout(syncRetryTimer);
@@ -725,7 +741,8 @@ function injectCloudStorageSync(
     if (quoteArrangeAttempt) return Promise.reject(new Error('Confirm the pending option change before saving more changes.'));
     var data = snapshot();
     var nextJson = JSON.stringify(data);
-    if (!syncRequestInFlight && !pendingSnapshot && nextJson === lastSnapshotJson) {
+    var hasPriceEdits = typeof window.aadEquipmentPriceEditSnapshot === 'function' && Object.keys(window.aadEquipmentPriceEditSnapshot()).length > 0;
+    if (!hasPriceEdits && !syncRequestInFlight && !pendingSnapshot && nextJson === lastSnapshotJson) {
       return Promise.resolve({ok:true});
     }
     var confirmation = waitForCloudSave(nextJson, timeoutMs);
@@ -981,7 +998,8 @@ function injectCloudStorageSync(
     window.addEventListener('beforeunload', function(){
       if (quoteConflictError || quoteArrangeAttempt) return;
       try {
-        navigator.sendBeacon(calculatorSyncUrl, new Blob([JSON.stringify({data: snapshot(), businessConfigurationRevision: businessConfigurationRevision})], {type: 'application/json'}));
+        var data = snapshot();
+        navigator.sendBeacon(calculatorSyncUrl, new Blob([JSON.stringify({data: data, businessConfigurationRevision: businessConfigurationRevision, equipmentPriceEdits: equipmentPriceEditsForSnapshot(data)})], {type: 'application/json'}));
       } catch(e) {}
     });
     if (typeof shouldBackfillCloud !== 'undefined' && shouldBackfillCloud) {
@@ -1247,7 +1265,8 @@ export async function GET(request: Request) {
     try { additions = calculatorAddedProducts(await readAddedModels()); }
     catch { console.error("Verified model additions could not be loaded"); }
   }
-  const catalogueHtml = (await calculatorHtmlPromise).replace("<script>", `<script>window.__verifiedCatalogueAdditions=${safeScriptJson(additions)};</script>\n<script>`);
+  const prices = business?.id && String(business.operating_state || "").trim().toUpperCase() === "NSW" ? aadCataloguePrices : null;
+  const catalogueHtml = (await calculatorHtmlPromise).replace("<script>", `<script>window.__verifiedCatalogueAdditions=${safeScriptJson(additions)};window.__aadCataloguePrices=${safeScriptJson(prices)};</script>\n<script>`);
   const html = injectCloudStorageSync(
     catalogueHtml,
     effectiveSavedData,

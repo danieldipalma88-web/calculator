@@ -3,3 +3,4 @@ recovered-data/
 .env*.local
 node_modules/
 .next/
+/outputs/aad-price-audit/

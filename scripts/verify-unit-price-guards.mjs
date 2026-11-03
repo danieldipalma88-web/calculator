@@ -99,6 +99,8 @@ assert.deepEqual(
 
 const multiPriceContext = {
   priceLocks: {},
+  aadLegacyMultiPrices: new Map(),
+  window: {},
   normalizeLookup: (value) => String(value || "").toLowerCase().replace(/[^a-z0-9]/g, ""),
   normaliseBrandName: (value) => value,
   normaliseModelName: (value) => value,
@@ -108,6 +110,9 @@ vm.runInNewContext(
     functionSource("multiSplitManagedPriceKey"),
     functionSource("isMultiSplitManagedPriceKey"),
     functionSource("normalizedMultiSplitManagedPriceEntry"),
+    functionSource("hasPositiveUnitPrice"),
+    functionSource("equipmentPriceIsEmpty"),
+    functionSource("aadPriceCode"),
     functionSource("applyManagedMultiSplitPrice"),
     "result = { multiSplitManagedPriceKey, normalizedMultiSplitManagedPriceEntry, applyManagedMultiSplitPrice };",
   ].join("\n"),

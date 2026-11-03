@@ -8,6 +8,7 @@ import {
   type PlatformCertificateValuesRow,
 } from "../../../lib/certificate-values";
 import { mergeCalculatorData } from "../../../lib/quote-sync";
+import { parseAadCataloguePriceDefaults, preserveAadTargetPrices } from "../../../lib/aad-catalogue-price-defaults";
 import { applyQuoteLibraryCopy, applyQuoteLibraryEdit, quoteLibraryResponseRow, quoteLibraryVisibleRow } from "../../../lib/quote-library-edit";
 import { applyQuoteArrange } from "../../../lib/quote-arrange";
 import { applyStoredQuoteAdminUnlocks, quoteFamilySnapshotConflict, quoteFamilyUnlockRequested } from "../../../lib/quote-family";
@@ -29,6 +30,7 @@ const MANAGED_PRICE_STORAGE_KEYS = [
   "greenEnergyManagedPricesV1",
   "ManagedPricesV1",
 ];
+const aadCataloguePrices = parseAadCataloguePriceDefaults(process.env.AAD_CATALOGUE_PRICE_DEFAULTS);
 
 const WON_OPTION_ADMIN_STATE_STORAGE_KEYS = [
   "installerWonOptionAdminStateV1",
@@ -319,19 +321,29 @@ async function saveMergedBusinessData(
   incoming: Record<string, unknown>,
   incomingRevision: unknown,
   canEditManagedRebates: boolean,
+  equipmentPriceEdits?: unknown,
 ) {
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const existingBusiness = await supabase
       .from("business_calculator_data")
-      .select("data, updated_at")
+      .select("data, updated_at, businesses(operating_state)")
       .eq("business_id", businessId)
       .maybeSingle();
     if (existingBusiness.error) return { error: "Unable to verify current business settings", status: 503 };
     const existing = existingBusiness.data;
     const revisionSafe = revisionGuardedBusinessSnapshot(existing?.data, incoming, incomingRevision, businessId);
+    if (aadCataloguePrices && equipmentPriceEdits && typeof equipmentPriceEdits === "object"
+      && Object.keys(equipmentPriceEdits).length && !Object.hasOwn(revisionSafe, MANAGED_PRICE_STORAGE_KEYS[0])) {
+      return { error: "This business price list changed. Refresh and try again.", code: "EQUIPMENT_PRICE_CONFLICT", status: 409 };
+    }
     const safe = canEditManagedRebates ? revisionSafe : preserveBusinessManagedRebates(existing?.data, revisionSafe);
     if (!Object.keys(safe).length) return { ok: true };
-    const merged = mergeCalculatorData(existing?.data, safe);
+    const pricedBusiness = existing?.businesses as { operating_state?: string } | null | undefined;
+    const guarded = pricedBusiness?.operating_state === "NSW"
+      ? preserveAadTargetPrices(existing?.data, safe, aadCataloguePrices, equipmentPriceEdits)
+      : { data: safe, conflict: false };
+    if (guarded.conflict) return { error: "This equipment price changed in another tab. Refresh and try again.", code: "EQUIPMENT_PRICE_CONFLICT", status: 409 };
+    const merged = mergeCalculatorData(existing?.data, guarded.data);
     if (!existing) {
       const inserted = await supabase.from("business_calculator_data").insert({
         business_id: businessId, data: merged, updated_at: new Date().toISOString(),
@@ -680,13 +692,15 @@ async function saveCalculatorData(request: Request) {
   );
   const { userData, businessData } = splitCalculatorDataByScope(stripCertificateValueKeys(calculatorData));
   const incomingBusinessHasData = calculatorDataHasData(businessData);
+  const explicitEquipmentEdit = !!aadCataloguePrices && body?.equipmentPriceEdits && typeof body.equipmentPriceEdits === "object"
+    && Object.keys(body.equipmentPriceEdits).length > 0 && Object.hasOwn(businessData, MANAGED_PRICE_STORAGE_KEYS[0]);
 
-  if (businessId && incomingBusinessHasData) {
+  if (businessId && (incomingBusinessHasData || explicitEquipmentEdit)) {
     const businessSave = await saveMergedBusinessData(
-      supabase, businessId, businessData, body?.businessConfigurationRevision, canEditManagedRebates,
+      supabase, businessId, businessData, body?.businessConfigurationRevision, canEditManagedRebates, body?.equipmentPriceEdits,
     );
     if ("error" in businessSave) {
-      return NextResponse.json({ error: businessSave.error }, { status: businessSave.status });
+      return NextResponse.json({ error: businessSave.error, code: businessSave.code }, { status: businessSave.status });
     }
   }
 
