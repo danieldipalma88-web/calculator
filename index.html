@@ -4712,7 +4712,44 @@ ANDOS_DUCTED_PRODUCTS.push(
   andosAccessoryInc("Hisense", "Standard Wired Controller", "HACW02", 93.50)
 );
 ANDOS_DUCTED_PRODUCTS.push(...TEMPERZONE_NSW_DUCTED_PRODUCTS.map(product=>({...product})));
+const PANASONIC_DKR_SPLIT_MODELS=[
+  [2.5,'CU-Z25DKR / CS-Z25DKRW','CU-Z25AKR'],
+  [3.5,'CU-Z35DKR / CS-Z35DKRW','CU-Z35AKR'],
+  [4.2,'CU-Z42DKR / CS-Z42DKRW','CU-Z42AKR'],
+  [5,'CU-Z50DKR / CS-Z50DKRW','CU-Z50AKR'],
+  [6,'CU-Z60DKR / CS-Z60DKRW','CU-Z60AKR'],
+  [7.1,'CU-Z71DKR / CS-Z71DKRW','CU-Z71AKR'],
+  [8,'CU-Z80DKR / CS-Z80DKR','CU-Z80YKR'],
+  [9.5,'CU-Z95DKR / CS-Z95DKR','CU-Z95AKR'],
+  [2.5,'CU-RZ25DKR / CS-RZ25DKRW','CU-RZ25AKR'],
+  [3.5,'CU-RZ35DKR / CS-RZ35DKRW','CU-RZ35AKR'],
+  [4.2,'CU-RZ42DKR / CS-RZ42DKRW','CU-RZ42AKR'],
+  [5,'CU-RZ50DKR / CS-RZ50DKRW','CU-RZ50AKR'],
+  [6,'CU-RZ60DKR / CS-RZ60DKRW','CU-RZ60AKR'],
+  [7.1,'CU-RZ71DKR / CS-RZ71DKRW','CU-RZ71AKR'],
+  [8,'CU-RZ80DKR / CS-RZ80DKR','CU-RZ80YKR'],
+  [9.5,'CU-RZ95DKR / CS-RZ95DKR','CU-RZ95AKR']
+];
+for(const catalogue of [SPLIT_PRODUCTS,ANDOS_SPLIT_PRODUCTS]){
+  const newModels=PANASONIC_DKR_SPLIT_MODELS.map(([capacityNum,model,previousOutdoor])=>{
+    const equivalent=catalogue.find(product=>
+      product.brand==='Panasonic'&&product.model.split('/')[0].trim()===previousOutdoor
+    );
+    const price=Number(equivalent?.unitPriceInc||0);
+    return {
+      brand:'Panasonic',model,phase:'Single',nswOnly:true,rebate:0,capacityNum,lateCatalogueEntry:true,
+      capacity:capacityNum.toFixed(1)+'kW',
+      series:model.startsWith('CU-RZ')?'RZ Series - DKR':'Z Series - DKR',
+      unitPriceInc:price,priceIncGst:price
+    };
+  });
+  catalogue.push(...newModels);
+}
 const PRODUCT_SUPPORT_DEFAULT={wifiStatus:'unknown',wifiLabel:'Wi-Fi TBC',warrantyYears:null,warrantyLabel:'Warranty TBC',originLabel:'Origin TBC'};
+const PANASONIC_DKR_SPLIT_SUPPORT=[
+  {brand:'Panasonic',series:'Z Series - DKR',details:{}},
+  {brand:'Panasonic',series:'RZ Series - DKR',details:{}}
+];
 const BRAND_ORIGIN_LABELS={
   'Actron':'Australian',
   'Actron Air':'Australian',
@@ -4740,6 +4777,7 @@ function productOriginLabelForBrand(brand){
   return BRAND_ORIGIN_LABELS[brand] || PRODUCT_SUPPORT_DEFAULT.originLabel;
 }
 const SPLIT_PRODUCT_SUPPORT=[
+  ...PANASONIC_DKR_SPLIT_SUPPORT,
   {brand:'Fujitsu General',series:'Lifestyle',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional adaptor',warrantyYears:5,warrantyLabel:'5 yrs warranty'}},
   {brand:'Fujitsu General',series:'Comfort',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional adaptor',warrantyYears:5,warrantyLabel:'5 yrs warranty'}},
   {brand:'Carrier',series:'Azure',details:{wifiStatus:'included',wifiLabel:'Wi-Fi kit included',warrantyYears:7,warrantyLabel:'7 yrs parts & labour'}},
@@ -4797,6 +4835,7 @@ const DUCTED_PRODUCT_SUPPORT=[
   {brand:'Braemar',series:'Braemar Ducted',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi module sold separately',warrantyYears:5,warrantyLabel:'5 yrs warranty'}}
 ];
 const ANDOS_SPLIT_PRODUCT_SUPPORT=[
+  ...PANASONIC_DKR_SPLIT_SUPPORT,
   {brand:'Daikin',series:'Alira X - A Series',details:{wifiStatus:'included',wifiLabel:'Built-in Wi-Fi',warrantyYears:5,warrantyLabel:'5 yrs parts & labour',originLabel:'Japanese'}},
   {brand:'Daikin',series:'Cora - A Series',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional adaptor',warrantyYears:5,warrantyLabel:'5 yrs parts & labour',originLabel:'Japanese'}},
   {brand:'Daikin',series:'Lite',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional adaptor',warrantyYears:5,warrantyLabel:'5 yrs warranty',originLabel:'Japanese'}},
@@ -5077,7 +5116,7 @@ function baseProductListFor(type){
   return activeBusinessState()==='NSW'?list:list.filter(product=>product.nswOnly!==true);
 }
 const verifiedCatalogueProductCache=new Map();
-function withVerifiedCatalogueProducts(type,list){
+function withVerifiedCatalogueProducts(type,list,lateEntries=[]){
   if(activeBusinessState()!=='NSW') return list;
   const key=activeCatalogKey()+'|'+type+'|'+(calculatorUserContext().businessId||'');
   if(verifiedCatalogueProductCache.has(key)) return verifiedCatalogueProductCache.get(key);
@@ -5088,11 +5127,32 @@ function withVerifiedCatalogueProducts(type,list){
     if(p.type!==type||seen.has(identity(p))) return false;
     seen.add(identity(p)); return true;
   });
-  const merged=extra.length?list.concat(extra):list;
+  const merged=extra.length||lateEntries.length?list.concat(extra):list;
+  if(lateEntries.length){
+    const indexByIdentity=new Map(merged.map((p,i)=>[identity(p),i]));
+    lateEntries.forEach(p=>{
+      const index=indexByIdentity.get(identity(p));
+      if(index===undefined){
+        indexByIdentity.set(identity(p),merged.length);
+        merged.push(p);
+      }else{
+        const existing=merged[index];
+        if(!hasPositiveUnitPrice(existing.unitPriceInc??existing.priceIncGst)){
+          merged[index]={...existing,unitPriceInc:p.unitPriceInc,priceIncGst:p.priceIncGst,dkrDefaultPriceInc:p.unitPriceInc};
+        }
+      }
+    });
+  }
   verifiedCatalogueProductCache.set(key,merged);
   return merged;
 }
-function productListFor(type){return withVerifiedCatalogueProducts(type,mergeBusinessProducts(type,baseProductListFor(type)));}
+function productListFor(type){
+  const base=baseProductListFor(type);
+  if(type!=='split'||activeBusinessState()!=='NSW') return withVerifiedCatalogueProducts(type,mergeBusinessProducts(type,base));
+  // Late additions must not take legacy business or verified product positions.
+  const original=base.filter(p=>!p.lateCatalogueEntry);
+  return withVerifiedCatalogueProducts(type,mergeBusinessProducts(type,original),base.filter(p=>p.lateCatalogueEntry));
+}
 function data(){return activeProducts(productListFor(systemType))};
 function roleUsesPricedCatalogueOnly(){
   const role=String(calculatorUserContext().role||'').trim().toLowerCase();
@@ -9813,7 +9873,7 @@ function buildManagedStoredModelMap(stored,items){
 function managedIndexSavedBelongsToCurrentItem(saved,item,items){
   if(!saved || typeof saved!=='object') return false;
   const savedModel=savedManagedModelNorm(saved);
-  if(item.p.catalogueAdditionId) return savedModel===normalizeLookup(item.p.model);
+  if(item.p.catalogueAdditionId||item.p.lateCatalogueEntry) return savedModel===normalizeLookup(item.p.model);
   if(!savedModel) return true;
   const itemModel=normalizeLookup(item.p.model);
   if(savedModel===itemModel) return true;
@@ -9858,7 +9918,7 @@ function equipmentPriceIsEmpty(value){
   return value==null || (typeof value==='string' && value.trim()==='') ||
     ((typeof value==='number' || typeof value==='string') && Number(value)===0);
 }
-const aadEffectiveSystemPrices=new WeakMap();
+const effectiveCatalogueSystemPrices=new WeakMap();
 const aadLegacyMultiPrices=new Map();
 const aadEquipmentPriceEdits=new Map();
 function stageAadEquipmentPriceEdit(key,before,after,replaceBefore){
@@ -9926,9 +9986,12 @@ function loadManagedPrices(){
       managedIndexSavedBelongsToCurrentItem(bareStored[stableKey],item,items)?bareStored[stableKey]:null,
       bareStored[legacyKey], item.p.catalogueAdditionId?null:bareStoredByModel[item.type][normalizeLookup(item.p.model)]
     ]);
-    if(aadPrice) aadEffectiveSystemPrices.set(item.p,aadPriceCode(item.p.model));
-    // Supplier prices are display and quote defaults, never saved business overrides.
-    applyManagedEntryToProduct(item,aadPrice?{...normalized,unitPriceInc:aadPrice}:normalized);
+    const dkrPrice=normalized.unitPriceInc===0 && hasPositiveUnitPrice(item.p.dkrDefaultPriceInc)
+      && normalizeLookup(normalized.model)===normalizeLookup(item.p.model) ? item.p.dkrDefaultPriceInc : 0;
+    const defaultPrice=aadPrice||dkrPrice;
+    if(defaultPrice) effectiveCatalogueSystemPrices.set(item.p,aadPriceCode(item.p.model));
+    // Effective defaults do not overwrite stored business prices.
+    applyManagedEntryToProduct(item,defaultPrice?{...normalized,unitPriceInc:defaultPrice}:normalized);
     migrated[stableKey]=normalized;
   });
   Object.entries(stored).forEach(([key,saved])=>{
@@ -10022,10 +10085,10 @@ function updateManagedPrice(key,field,value){
     const model=String(value||'').trim();
     if(!model) return;
     entry.model=model;
-    if(aadEffectiveSystemPrices.has(item.p) && aadEffectiveSystemPrices.get(item.p)!==aadPriceCode(model)){
+    if(effectiveCatalogueSystemPrices.has(item.p) && effectiveCatalogueSystemPrices.get(item.p)!==aadPriceCode(model)){
       item.p.unitPriceInc=Number(entry.unitPriceInc)||0;
       item.p.priceIncGst=item.p.unitPriceInc;
-      aadEffectiveSystemPrices.delete(item.p);
+      effectiveCatalogueSystemPrices.delete(item.p);
     }
     item.p.model=model;
   } else {
@@ -10034,7 +10097,7 @@ function updateManagedPrice(key,field,value){
     if(field==='rebate' && !canEditManagedRebates()) return;
     if(field==='unitPriceInc') stageAadEquipmentPriceEdit(key,entry.unitPriceInc,n);
     entry[field]=n;
-    if(field==='unitPriceInc'){ aadEffectiveSystemPrices.delete(item.p); item.p.unitPriceInc=n; item.p.priceIncGst=n; }
+    if(field==='unitPriceInc'){ effectiveCatalogueSystemPrices.delete(item.p); item.p.unitPriceInc=n; item.p.priceIncGst=n; }
     if(field==='rebate'){ item.p.rebate=n; entry.rebateManual=true; }
   }
   persistManagedPrices();
