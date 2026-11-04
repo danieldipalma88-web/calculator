@@ -10,14 +10,17 @@ const root=path.resolve(__dirname,'..');
 const out=path.join(root,'outputs/model-request-automation');
 fs.mkdirSync(out,{recursive:true});
 const addition={catalogueAdditionId:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',type:'split',systemType:'split',brand:'Daikin',model:'FIXTURE-OUT25 / FIXTURE-IN25',series:'Verification fixture',capacityNum:2.5,size:2.5,capacity:'2.5kW',phase:'Single',unitPriceInc:0,priceIncGst:0,rebate:0,nswOnly:true,wifiStatus:'unknown',wifiLabel:'Wi-Fi unconfirmed',warrantyLabel:'Warranty unconfirmed',originLabel:'Not confirmed'};
+function renderComponent(file,hooks=React,props={}){
+  const code=ts.transpileModule(fs.readFileSync(path.join(root,file),'utf8'),{compilerOptions:{jsx:ts.JsxEmit.ReactJSX,module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText;
+  const exports={};
+  vm.runInThisContext(`(function(exports,require){${code}\n})`)(exports,id=>id==='react'?hooks:id.endsWith('.css')?new Proxy({},{get:(_,name)=>name==='__esModule'?false:String(name)}):require(id));
+  return renderToStaticMarkup(React.createElement(exports.default,props));
+}
 function adminMarkup(){
   const fixture={requests:[{id:'fixture',requester_name:'Installer Example',requester_email:'installer@example.invalid',business_name:'Example Air Conditioning',system_type:'ducted',brand:'Daikin',model:'EXAMPLE-OUT140 / EXAMPLE-IN140',capacity:'14kW',phase:'three',notes:'Please check this indoor/outdoor combination.',postcode:'2145',install_type:'replacement',created_at:'2026-11-03T00:00:00Z',status:'reviewing',job:{state:'review',reason:'Multiple active Australian GEMS registrations match this pair',attempts:1,evidence:{registry:{model:'EXAMPLE-OUT140 / EXAMPLE-IN140'}},product:null,email_state:'pending',email_error:''}}],products:[],hasMore:false};
   let hook=0;
   const hooks={...React,useState:initial=>{hook++;return [hook===1?fixture:hook===2?false:initial,()=>{}]},useRef:value=>({current:value}),useEffect:()=>{},useCallback:fn=>fn};
-  const code=ts.transpileModule(fs.readFileSync(path.join(root,'app/admin/model-requests/request-list.tsx'),'utf8'),{compilerOptions:{jsx:ts.JsxEmit.ReactJSX,module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText;
-  const exports={};
-  vm.runInThisContext(`(function(exports,require){${code}\n})`)(exports,id=>id==='react'?hooks:id.endsWith('.css')?new Proxy({},{get:(_,name)=>name==='__esModule'?false:String(name)}):require(id));
-  return renderToStaticMarkup(React.createElement(exports.default));
+  return renderComponent('app/admin/model-requests/request-list.tsx',hooks);
 }
 (async()=>{
   const browser=await chromium.launch({headless:true,...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH?{executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH}:{})});
@@ -53,6 +56,18 @@ function adminMarkup(){
       assert.equal(await admin.getByRole('heading',{name:'Daikin EXAMPLE-OUT140 / EXAMPLE-IN140'}).count(),1);
       assert.equal(await admin.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true);
       await admin.screenshot({path:path.join(out,`admin-review-${width}.png`)});
+      const responseCss=fs.readFileSync(path.join(root,'app/model-requests/model-requests.module.css'),'utf8');
+      const responseMarkup=renderComponent('app/model-requests/request-response.tsx',React,{id:addition.catalogueAdditionId,request:{
+        ...addition,system_type:'split',postcode:'2263',install_type:'replacement',round:2,state:'closed',
+        question:'Please choose the indoor and outdoor codes printed on your equipment.',
+        candidates:[addition.model],next_at:null,
+      }});
+      await admin.setContent(`<html><head><style>${responseCss}</style></head><body><main class="shell"><section class="panel">${responseMarkup}</section></main></body></html>`);
+      assert.equal(await admin.getByRole('button',{name:'Reopen request'}).count(),1);
+      assert.equal(await admin.getByLabel('Suggested model').count(),1);
+      assert.equal(await admin.getByRole('checkbox',{name:/person review/}).count(),1);
+      assert.equal(await admin.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true);
+      await admin.screenshot({path:path.join(out,`request-response-${width}.png`)});
       await page.close();await admin.close();
       console.log(`Model request browser ${width}px: no-price guard, unconfirmed support, stable keys, editable quote price, salesperson visibility, request form and admin review layout passed.`);
     }

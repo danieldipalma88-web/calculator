@@ -9,7 +9,6 @@ import {
 
 const REQUEST_LIMIT = 5;
 const REQUEST_WINDOW_MINUTES = 15;
-const REQUEST_RECIPIENT = "danieldipalma88@gmail.com";
 export const maxDuration = 300;
 
 type ModelRequestBody = {
@@ -34,15 +33,6 @@ function json(body: unknown, status = 200) {
 
 function text(value: unknown, maxLength: number) {
   return typeof value === "string" ? value.trim().slice(0, maxLength) : "";
-}
-
-function escapeHtml(value: string) {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
 }
 
 function validUuid(value: string) {
@@ -73,55 +63,6 @@ async function resolveBusiness(
   const business = await supabase.from("businesses").select("id, name").eq("id", businessId).maybeSingle();
   if (business.error || !business.data) return null;
   return { id: String(business.data.id), name: String(business.data.name || "") };
-}
-
-function modelRequestEmailHtml(details: Record<string, string>) {
-  const rows = [
-    ["System type", details.systemType],
-    ["Brand", details.brand],
-    ["Model", details.model],
-    ["Capacity", details.capacity || "Not supplied"],
-    ["Phase", details.phase || "Not applicable"],
-    ["Notes", details.notes || "None"],
-    ["Requested by", details.requesterName || details.requesterEmail],
-    ["Email", details.requesterEmail],
-    ["Business", details.businessName || "No active business"],
-    ["Submitted", details.submittedAt],
-  ];
-  return `<!doctype html><html><body style="margin:0;background:#f3f6f8;font-family:Arial,sans-serif;color:#0f172a"><div style="max-width:620px;margin:0 auto;padding:32px 18px"><div style="background:#fff;border:1px solid #dbe4ec;border-radius:10px;overflow:hidden"><div style="padding:24px 26px;background:#0f766e;color:#fff"><div style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase">Rebate Portal</div><h1 style="margin:7px 0 0;font-size:24px">Missing model request</h1></div><div style="padding:24px 26px"><p style="margin:0 0 18px;color:#475569;line-height:1.5">A calculator user has requested a model for review.</p><table style="width:100%;border-collapse:collapse">${rows
-    .map(
-      ([label, value]) =>
-        `<tr><td style="padding:10px 12px;border-top:1px solid #e5edf3;color:#64748b;font-size:12px;font-weight:700;vertical-align:top;width:34%">${escapeHtml(label)}</td><td style="padding:10px 12px;border-top:1px solid #e5edf3;font-size:14px;line-height:1.45">${escapeHtml(value)}</td></tr>`,
-    )
-    .join("")}</table></div></div></div></body></html>`;
-}
-
-async function sendModelRequestEmail(details: Record<string, string>) {
-  const apiKey = String(process.env.RESEND_API_KEY || "").trim();
-  if (!apiKey) throw new Error("RESEND_API_KEY is not configured");
-  const from = String(process.env.MODEL_REQUEST_FROM_EMAIL || "").trim();
-  if (!['notifications@mail.rebateportal.com.au','Rebate Portal <notifications@mail.rebateportal.com.au>'].includes(from)) throw new Error("Branded model-request sender is not configured");
-  const to = String(process.env.MODEL_REQUEST_TO_EMAIL || REQUEST_RECIPIENT).trim();
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-      "Idempotency-Key": `model-request-review/${details.requestId}`,
-    },
-    body: JSON.stringify({
-      from,
-      to: [to],
-      subject: `Missing calculator model: ${details.brand} ${details.model}`,
-      html: modelRequestEmailHtml(details),
-      reply_to: details.requesterEmail,
-    }),
-    cache: "no-store",
-    signal: AbortSignal.timeout(10_000),
-  });
-  const result = (await response.json().catch(() => ({}))) as { id?: string; message?: string };
-  if (!response.ok) throw new Error(result.message || `Resend returned ${response.status}`);
-  return String(result.id || "");
 }
 
 export async function POST(request: Request) {
@@ -213,51 +154,9 @@ export async function POST(request: Request) {
 
   const requestId = String(inserted.data.id);
   const automationQueued = modelAutomationEnabled();
-  after(async () => {
-  if (automationQueued) {
-    try {
-      const outcome = await processModelRequest(requestId);
-      if (outcome.state === "added" || outcome.state === "email_pending") return;
-    } catch (error) { console.error("[model-request] verification queued for retry", { requestId, error: error instanceof Error ? error.message : "Worker unavailable" }); }
-  }
-  let notificationStatus = "sent";
-  let notificationError = "";
-  try {
-    await sendModelRequestEmail({
-      requestId,
-      systemType,
-      brand,
-      model,
-      capacity,
-      phase: systemType === "ducted" ? phase || "unknown" : "",
-      notes,
-      requesterName,
-      requesterEmail: email,
-      businessName: business.name,
-      submittedAt: new Intl.DateTimeFormat("en-AU", {
-        dateStyle: "medium",
-        timeStyle: "short",
-        timeZone: "Australia/Sydney",
-      }).format(new Date()),
-    });
-  } catch (error) {
-    notificationStatus = "failed";
-    notificationError = error instanceof Error ? error.message.slice(0, 400) : "Email notification failed";
-    console.error("[model-request] notification failed", { requestId, notificationError });
-  }
-
-  const now = new Date().toISOString();
-  await supabase
-    .from("calculator_model_requests")
-    .update({
-      notification_status: notificationStatus,
-      notification_attempted_at: now,
-      notification_sent_at: notificationStatus === "sent" ? now : null,
-      notification_error: notificationError,
-      updated_at: now,
-    })
-    .eq("id", requestId)
-    .eq("user_id", user.id);
+  if (automationQueued) after(async () => {
+    try { await processModelRequest(requestId); }
+    catch { console.error("[model-request] processing deferred", { requestId }); }
   });
   return json({ saved: true, requestId, automationQueued }, 201);
 }

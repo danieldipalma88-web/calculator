@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { runInThisContext } from "node:vm";
 import ts from "typescript";
-import { buildModelRequestEmail, sendModelRequestConfirmation } from "../lib/model-request-email.ts";
+import { buildModelRequestEmail, sendModelRequestConfirmation, sendModelRequestContact } from "../lib/model-request-email.ts";
 
 // Load the Next.js modules with their extensionless imports and JSON intact.
 const modules = new Map();
@@ -82,20 +82,13 @@ try {
     [{ ...record, Configuration1: "Ducted", Phase: "Three-phase" }], { esc: 0 })).product.phase, "Three");
 
   for (const [overrides, rows] of [
-    [{ postcode: "" }], [{ install_type: "" }], [{ system_type: "multi_split" }],
-    [{ postcode: "0000" }], [{ model: "OUT-7" }], [{ model: "OUT-7 / IN-7 / IN-8" }],
-    [{ model: "OUT7 / IN-7" }], [{ model: "OUT-7 / IN-7A" }], [{ brand: "ExampleAir" }],
+    [{ system_type: "multi_split" }],
     [{ phase: "Three" }], [{ phase: "bogus" }], [{ capacity: "7" }], [{ capacity: "7.1 or 8" }],
     [{ system_type: "ducted" }], [{}, [{ ...record, Configuration1: "Something non ducted" }]],
     [{}, [{ ...record, Configuration1: "", "Product Type": "Non Ducted" }]],
     [{}, [{ ...record, Configuration2: "Unitary" }]],
     [{}, [{ ...record, ApplStandard: "GEMS Multi-Split" }]],
     [{}, [{ ...record, "Outdoor unit only": "Yes" }]],
-    [{}, [{ ...record, Sold_in: "Not Australia" }]],
-    [{}, [{ ...record, Sold_in: "New Zealand" }]],
-    [{}, [{ ...record, ExpDate: "2000-01-01" }]],
-    [{}, [{ ...record, SubmitStatus: "Pending" }]],
-    [{}, [{ ...record, "Availability Status": "Unavailable" }]],
     [{}, [record, { ...record, Phase: "Three" }]],
     [{}, [record, { ...record, Model_No: "IN-7 / OUT-7", "Rated AEER": "" }]],
     [{}, Array(10_000).fill(record)],
@@ -106,6 +99,27 @@ try {
   ]) {
     const result = await verify(overrides, rows, {}, async () => assert.fail("Invalid registration reached certificate calculation"));
     assert.equal(result.kind, "review", JSON.stringify(overrides));
+  }
+  const inferred = await verify({ model: "IN-7" });
+  assert.equal(inferred.kind, "verified");
+  assert.equal(inferred.product.model, record.Model_No);
+  assert.equal(inferred.evidence.matchedComponent, "IN-7");
+  assert.equal((await verify({ model: "OUT-7" })).kind, "verified");
+  const alternate = { ...record, Model_No: "OUT-8 / IN-7" };
+  const ambiguous = await verify({ model: "IN-7" }, [record, alternate], {}, async () => assert.fail("Ambiguous pair must not calculate"));
+  assert.equal(ambiguous.kind, "clarify");
+  assert.deepEqual(ambiguous.candidates, [record.Model_No, alternate.Model_No]);
+  for (const [overrides, rows] of [
+    [{ postcode: "" }], [{ install_type: "" }], [{ postcode: "0000" }],
+    [{ model: "OUT-7 / IN-7 / IN-8" }], [{ model: "OUT7 / IN-7" }], [{ model: "OUT-7 / IN-7A" }],
+    [{ brand: "ExampleAir" }], [{ model: "IN" }],
+    [{}, [{ ...record, Sold_in: "Not Australia" }]],
+    [{}, [{ ...record, Sold_in: "New Zealand" }]],
+    [{}, [{ ...record, ExpDate: "2000-01-01" }]],
+    [{}, [{ ...record, SubmitStatus: "Pending" }]],
+    [{}, [{ ...record, "Availability Status": "Unavailable" }]],
+  ]) {
+    assert.equal((await verify(overrides, rows, {}, async () => assert.fail("Unverified input must not calculate"))).kind, "clarify");
   }
   for (const result of [
     { esc: 0, prc: 0 }, { esc: null }, { prc: -1 },
@@ -225,6 +239,24 @@ try {
     ...email, from: "Rebate Portal <notifications@mail.rebateportal.com.au>",
     to: [emailInput.recipient], reply_to: "danieldipalma88@gmail.com",
   });
+  const contacts = [];
+  globalThis.fetch = async (url, options) => {
+    assert.equal(url, "https://api.resend.com/emails");
+    contacts.push({ key: options.headers["Idempotency-Key"], body: JSON.parse(options.body) });
+    return Response.json({ id: "contact-message-id" });
+  };
+  const contact = { mail_key: `question/${emailInput.requestId}/1`, request_id: emailInput.requestId,
+    kind: "question", recipient: emailInput.recipient, payload: { brand: "<img>", model: "OUT / IN", question: "Which pair?" } };
+  await sendModelRequestContact(contact);
+  await sendModelRequestContact(contact);
+  assert.deepEqual(contacts[0], contacts[1], "retries must have an identical provider key and payload");
+  assert.deepEqual(contacts[0].body.to, [emailInput.recipient]);
+  assert.match(contacts[0].body.html, /&lt;img&gt;/);
+  assert.match(contacts[0].body.html, /calculator\.rebateportal\.com\.au\/model-requests\//);
+  assert.equal(contacts[0].body.reply_to, undefined, "clarifications direct replies to the portal, not a personal inbox");
+  await sendModelRequestContact({ ...contact, kind: "escalation", payload: { message: "Still not working" } });
+  assert.deepEqual(contacts[2].body.to, ["danieldipalma88@gmail.com"]);
+  assert.match(contacts[2].body.text, /Automated follow-ups are paused/);
   globalThis.fetch = async () => Response.json({}, { status: 503 });
   await assert.rejects(sendModelRequestConfirmation(emailInput), /HTTP 503/);
   globalThis.fetch = async () => Response.json({});

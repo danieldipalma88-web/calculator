@@ -50,33 +50,89 @@ ${details.map((detail) => `<p>${escapeHtml(detail)}</p>`).join("")}
 
 // The caller must confirm publication and persist the provider message ID.
 export async function sendModelRequestConfirmation(input: ModelRequestEmailInput & { recipient: string }) {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(input.requestId)) {
+    throw new Error("Model request completion requires a request UUID");
+  }
+  const requestId = input.requestId.toLowerCase();
+  return sendModelRequestMail(input.recipient, `model-request-completion/${requestId}`, {
+    ...buildModelRequestEmail({ ...input, requestId }), reply_to: REPLY_TO,
+  });
+}
+
+export type ModelRequestContactMail = {
+  mail_key: string;
+  request_id: string | null;
+  kind: "question" | "reminder" | "escalation" | "weekly";
+  recipient: string;
+  payload: Record<string, unknown>;
+  lease: string;
+  state: "sending" | "failed";
+};
+
+export async function sendModelRequestContact(mail: ModelRequestContactMail) {
+  const payload = mail.payload;
+  const label = (key: string) => String(payload[key] ?? "").trim();
+  const lines = (key: string) => Array.isArray(payload[key]) ? (payload[key] as unknown[]).filter((x): x is string => typeof x === "string") : [];
+  const product = [label("brand"), label("model")].filter(Boolean).join(" ");
+  const admin = mail.kind === "weekly" || mail.kind === "escalation";
+  if (!admin && !/^[0-9a-f-]{36}$/i.test(mail.request_id || "")) throw new Error("Invalid request link");
+  const url = admin ? "https://calculator.rebateportal.com.au/admin/model-requests"
+    : `https://calculator.rebateportal.com.au/model-requests/${mail.request_id}`;
+  const action = admin ? "Open model requests" : "Update your request";
+  const subject = mail.kind === "weekly" ? "Rebate Portal: Weekly model request summary"
+    : mail.kind === "escalation" ? "Rebate Portal: A model requester needs help"
+    : mail.kind === "reminder" ? "Rebate Portal: Reminder about your model request"
+    : "Rebate Portal: One more detail for your model request";
+  const details = mail.kind === "weekly" ? [
+    `Week beginning ${label("week")}`,
+    `Added: ${label("added")} | Already available: ${label("existing")} | Closed without response: ${label("closed")}`,
+    `Waiting for details: ${label("waiting")} | Needs attention: ${label("review")}`,
+    ...lines("models"),
+  ] : mail.kind === "escalation" ? [
+    product, [label("requester"), label("business")].filter(Boolean).join(" / "),
+    `Submitted: ${label("submitted")}`, `Last question: ${label("question")}`,
+    `Response: ${label("message") || "Asked for a person to review this request."}`,
+    "Automated follow-ups are paused.",
+  ] : [
+    product,
+    label("question"),
+    ...lines("candidates"),
+    "Sign in with the account that submitted the request and use the link below to send the details or ask for help.",
+  ];
+  return sendModelRequestMail(admin ? REPLY_TO : mail.recipient, `model-request-contact/${mail.mail_key}`, {
+    subject,
+    text: ["Rebate Portal", ...details, `${action}: ${url}`].join("\n\n"),
+    html: `<!doctype html><html lang="en"><body style="margin:0;background:#f3f6f8;color:#0f172a;font-family:Arial,sans-serif">
+<div style="max-width:600px;margin:auto;padding:24px"><div style="background:white;border:1px solid #dbe4ec">
+<h1 style="margin:0;padding:18px 24px;background:#0f766e;color:white;font-size:22px">Rebate Portal</h1>
+<div style="padding:12px 24px;line-height:1.5">${details.map(detail => `<p>${escapeHtml(detail)}</p>`).join("")}
+<p><a href="${url}" style="color:#0f766e">${action}</a></p></div></div></div></body></html>`,
+  });
+}
+
+async function sendModelRequestMail(to: string, idempotencyKey: string, content: { subject: string; text: string; html: string; reply_to?: string }) {
   const from = process.env.MODEL_REQUEST_FROM_EMAIL?.trim();
   if (from !== SENDER_ADDRESS && from !== SENDER) {
     throw new Error(`MODEL_REQUEST_FROM_EMAIL must use ${SENDER_ADDRESS}`);
   }
   const apiKey = process.env.RESEND_API_KEY?.trim();
   if (!apiKey) throw new Error("RESEND_API_KEY is not configured");
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(input.requestId)) {
-    throw new Error("Model request completion requires a request UUID");
-  }
-  const recipient = input.recipient.trim();
+  const recipient = to.trim();
   if (!/^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/.test(recipient)) {
     throw new Error("Model request completion requires a single recipient email address");
   }
 
-  const requestId = input.requestId.toLowerCase();
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
-      "Idempotency-Key": `model-request-completion/${requestId}`,
+      "Idempotency-Key": idempotencyKey,
     },
     body: JSON.stringify({
-      ...buildModelRequestEmail({ ...input, requestId }),
+      ...content,
       from: SENDER,
       to: [recipient],
-      reply_to: REPLY_TO,
     }),
     cache: "no-store",
     redirect: "error",

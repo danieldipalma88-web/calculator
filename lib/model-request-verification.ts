@@ -33,6 +33,7 @@ type VerifiedProduct = {
 
 export type ModelRequestVerificationResult =
   | { kind: "verified"; product: VerifiedProduct; evidence: Evidence }
+  | { kind: "clarify"; reason: string; candidates: string[]; evidence?: Evidence }
   | { kind: "review"; reason: string; evidence?: Evidence };
 
 type Dependencies = {
@@ -69,10 +70,14 @@ function text(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function componentCode(value: string) {
+  return /^[A-Z0-9][A-Z0-9 ._+()-]*$/i.test(value);
+}
+
 function pairKey(model: string) {
   const parts = model.split("/").map((part) => part.trim().toUpperCase());
   if (parts.length !== 2 || parts[0] === parts[1]
-    || parts.some((part) => !/^[A-Z0-9][A-Z0-9 ._+()-]*$/.test(part))) return "";
+    || parts.some((part) => !componentCode(part))) return "";
   return parts.sort().join("/");
 }
 
@@ -129,15 +134,15 @@ export async function verifyRequestedModel(
   const brand = text(input.brand);
   const model = text(input.model);
   const requestedPair = pairKey(model);
-  if (!brand || brand.length > 100 || /[\x00-\x1f\x7f]/.test(brand) || !requestedPair) {
-    return review("An exact brand and two-part model pair are required");
-  }
-
+  const requestedComponent = !requestedPair && componentCode(model) ? model.toUpperCase() : "";
   const postcode = text(input.postcode);
   const installType = text(input.install_type).toLowerCase();
-  if (!/^\d{4}$/.test(postcode) || postcode === "0000" || (installType !== "new" && installType !== "replacement")) {
-    return review("An actual installation postcode and new or replacement installation type are required");
-  }
+  const missingInstallation = !/^\d{4}$/.test(postcode) || postcode === "0000" || (installType !== "new" && installType !== "replacement");
+  const installationQuestion = missingInstallation ? " Please also confirm the installation postcode and whether it is new or a replacement." : "";
+  if (!brand || brand.length > 100 || /[\x00-\x1f\x7f]/.test(brand)) return review("An exact brand is required");
+  if (!requestedPair && !requestedComponent) return {
+    kind: "clarify", reason: "Please enter the exact indoor and outdoor model codes from the equipment labels." + installationQuestion, candidates: [],
+  };
 
   const phaseInput = text(input.phase);
   const requestedPhase = phaseFor(phaseInput);
@@ -149,19 +154,26 @@ export async function verifyRequestedModel(
   // A brand inventory avoids ranked model search dropping exact but conflicting rows.
   const records = await fetchRecords({ brand, fields: INVENTORY_FIELDS, limit: INVENTORY_LIMIT, revalidateSeconds: 0 });
   if (records.length >= INVENTORY_LIMIT) return review("GEMS brand inventory may be truncated");
-  const matches = records.filter((record) =>
-    text(record.Brand).toUpperCase() === brand.toUpperCase()
-    && pairKey(text(record.Model_No)) === requestedPair
-    && activeAustralian(record),
-  );
+  const matches = records.filter((record) => {
+    const key = pairKey(text(record.Model_No));
+    return Boolean(key) && text(record.Brand).toUpperCase() === brand.toUpperCase()
+      && (requestedPair ? key === requestedPair : key.split("/").includes(requestedComponent))
+      && activeAustralian(record);
+  });
   if (matches.length !== 1) {
-    return matches.length
-      ? review("Multiple active Australian GEMS registrations match this pair", { registrations: matches.map(registryEvidence) })
-      : review("No exact active Australian GEMS registration found for this brand and pair");
+    const pairs = new Map(matches.map(record => [pairKey(text(record.Model_No)), text(record.Model_No)]));
+    if (!matches.length) return {
+      kind: "clarify", reason: "We couldn't verify that code in the Australian register. Please check both model numbers on the equipment labels." + installationQuestion, candidates: [],
+    };
+    if (!requestedPair && pairs.size > 1) return {
+      kind: "clarify", reason: "More than one registered model pair contains that code. Please choose the exact pair on your equipment." + installationQuestion,
+      candidates: [...pairs.values()].slice(0, 12), evidence: { registrations: matches.slice(0, 12).map(registryEvidence) },
+    };
+    return review("Multiple active Australian GEMS registrations match this pair", { registrations: matches.slice(0, 12).map(registryEvidence) });
   }
 
   const [record] = matches;
-  const evidence: Evidence = { sourceUrl: GEMS_SOURCE_URL, registry: registryEvidence(record), postcode, installType };
+  const evidence: Evidence = { sourceUrl: GEMS_SOURCE_URL, registry: registryEvidence(record), postcode, installType, matchedComponent: requestedComponent || null };
   const item = mapGemsModelSearchItem(record);
   const outdoorFlag = record["Outdoor unit only"] ?? record["Outdoor Unit Only"];
   const application = (text(record.ApplStandard) || text(record["Application Standard"]))
@@ -188,6 +200,10 @@ export async function verifyRequestedModel(
   const phase = phaseFor(item.phase);
   if (!phase || (requestedPhase && requestedPhase !== phase)) return review("GEMS phase is missing or conflicts with the request", evidence);
   if (capacityInput && requestedCapacity !== capacityKw) return review("Requested capacity conflicts with GEMS cooling capacity", evidence);
+  if (missingInstallation) return {
+    kind: "clarify", reason: "Please confirm the installation postcode and whether it is a new installation or a replacement.",
+    candidates: [item.model], evidence,
+  };
 
   evidence.ratings = metadata;
   let result: Awaited<ReturnType<NonNullable<Dependencies["calculateRebate"]>>>;

@@ -56,8 +56,9 @@ async function scenario({verification,claimState='checking',sendFails=false,publ
   const job={lease_token:'lease',state:claimState,product:p,existing:false};
   const worker=moduleAt('lib/model-request-worker.ts',{
     './model-catalogue':{
-      catalogueClient:()=>({rpc:async(_,args)=>{
+      catalogueClient:()=>({rpc:async(rpcName,args)=>{
         calls.push(args.p_action);
+        if(rpcName==='model_request_contact_worker')return {data:null};
         if(args.p_action==='claim')return {data:{request,job,operating_state:'NSW',user_enabled:true}};
         if(args.p_action==='verified'){published=true;return {data:{...job,state:publishState}};}
         return {data:{}};
@@ -75,6 +76,7 @@ async function scenario({verification,claimState='checking',sendFails=false,publ
 let result=await scenario({verification:{kind:'verified',product:p,evidence:{}}});
 assert.deepEqual(result.calls,['claim','verified','email_start','email_sent']);assert.equal(result.emails,1);
 result=await scenario({verification:{kind:'review',reason:'Ambiguous'}});assert.deepEqual(result.calls,['claim','review']);assert.equal(result.emails,0);
+result=await scenario({verification:{kind:'clarify',reason:'Need details',candidates:[]}});assert.deepEqual(result.calls,['claim','clarify','claim']);assert.equal(result.emails,0);
 result=await scenario({verification:new Error('Registry timeout')});assert.deepEqual(result.calls,['claim','retry']);assert.equal(result.emails,0);
 result=await scenario({verification:{kind:'verified',product:p,evidence:{}},sendFails:true});assert.deepEqual(result.calls,['claim','verified','email_start','email_error']);
 result=await scenario({claimState:'added'});assert.deepEqual(result.calls,['claim','email_start','email_sent'],'email retry cannot republish');

@@ -29,13 +29,11 @@ assert.match(guidanceRoute, /body\?\.accepted !== true/);
 assert.match(requestRoute, /approved_user_businesses/);
 assert.match(requestRoute, /REQUEST_LIMIT = 5/);
 assert.match(requestRoute, /\.eq\("client_request_id", clientRequestId\)/);
-assert.match(requestRoute, /RESEND_API_KEY/);
-assert.match(requestRoute, /danieldipalma88@gmail\.com/);
-assert.match(requestRoute, /notifications@mail\.rebateportal\.com\.au/);
+assert.doesNotMatch(requestRoute, /api\.resend\.com|sendModelRequestEmail/, "new requests must not send routine admin emails");
 assert.match(requestRoute, /after\(async/);
 const insertAt = requestRoute.search(/\.from\("calculator_model_requests"\)\s*\.insert/);
-const emailAt = requestRoute.indexOf("await sendModelRequestEmail");
-assert.ok(insertAt >= 0 && emailAt > insertAt, "model request must be stored before email is attempted");
+const workAt = requestRoute.indexOf("await processModelRequest(requestId)");
+assert.ok(insertAt >= 0 && workAt > insertAt, "model request must be stored before the worker runs");
 
 assert.match(migration, /alter table public\.calculator_user_acknowledgements enable row level security/i);
 assert.match(migration, /alter table public\.calculator_model_requests enable row level security/i);

@@ -6415,8 +6415,7 @@ async function submitModelRequest(){
     });
     const result=await response.json().catch(()=>({}));
     if(!response.ok) throw new Error(result.error||'The model request could not be sent.');
-    const notificationDelayed=result.notificationStatus&&result.notificationStatus!=='sent';
-    setInlineRequestStatus('modelRequestStatus',result.automationQueued?'Request saved. We will check the model and email you when it is available.':notificationDelayed?'Request saved. The email notification is delayed, but your request has not been lost.':'Request sent. We will review the model for the calculator.',notificationDelayed&&!result.automationQueued?'saved':'success');
+    setInlineRequestStatus('modelRequestStatus',result.automationQueued?'Request saved. We will check the model and email you if we need more details or can confirm it.':'Request saved for review.','success');
     if(submit) submit.textContent='Request saved';
     const completedRequestId=modelRequestClientId;
     setTimeout(()=>{if(modelRequestClientId===completedRequestId){modelRequestSubmitting=false;closeModelRequestModal()}},1800);

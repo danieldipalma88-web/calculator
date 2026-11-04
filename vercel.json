@@ -1,3 +1,6 @@
 {
-  "crons": [{ "path": "/api/cron/model-requests", "schedule": "0 20 * * *" }]
+  "crons": [
+    { "path": "/api/cron/model-requests", "schedule": "0 20 * * *" },
+    { "path": "/api/cron/model-requests?recovery=1", "schedule": "0 8 * * *" }
+  ]
 }

@@ -1,21 +1,26 @@
 # Missing Model Automation
 
 New requests are saved before work starts. A database trigger creates a durable job;
-Next.js `after()` runs it without blocking the form response. A daily Vercel Cron
-at 20:00 UTC checks up to three pending jobs as a recovery backstop. Failed
-verification retries at most three times, then moves to review. Historical
-requests are not backfilled or emailed.
+Next.js `after()` runs it without blocking the form response. Two Vercel Cron
+entries twelve hours apart each check up to three pending verifications and
+twelve contact emails, keeping ordinary retries within the provider's 24-hour
+idempotency window.
+Failed verification retries at most three times, then moves to review. Historical
+requests are not bulk backfilled or emailed; an administrator can retry an individual job.
 
 ## Publication Rules
 
 - Approved, unlocked requester, with access to the selected NSW business.
-- Exact brand and complete two-part GEMS model pair; reverse order accepted.
+- Exact brand and complete two-part GEMS model pair; reverse order accepted. A
+  single code is resolved only when it exactly matches one component of a single
+  active Australian registration. No fuzzy suffix substitutions.
 - One active Australian registration with matching single-system configuration,
   phase, capacity and complete energy ratings. No guessed suffixes or package codes.
 - Positive certificate calculation bound to that exact registration and the
   submitted postcode/new-or-replacement scenario, using existing NSW formulas.
-- Conflicting or uncertain evidence, unsupported systems and multi-head requests
-  remain in review. No AI eligibility decisions or automatic DCCEEW approval.
+- Multiple distinct pairs, missing model codes and missing installation details
+  prompt a clarification. Conflicting registration evidence, unsupported systems
+  and multi-head requests remain in review. No AI eligibility decisions or automatic DCCEEW approval.
 - Added equipment starts at $0. Warranty and Wi-Fi are unconfirmed. Existing
   catalogue entries/prices and saved quotes are never overwritten.
 - Verified additions are merged into all NSW catalogue variants and the public
@@ -35,6 +40,17 @@ calculator selection. A static catalogue entry, if one also exists, is unchanged
 
 ## Email Delivery
 
+Clarification and reminder emails link to a signed-in, requester-only response
+page. Replies should be submitted there; the app does not read personal email.
+Once the clarification is accepted by the provider, reminders are scheduled after
+two and five Sydney weekdays; after ten, the request closes without deleting it.
+Updated details reopen the job for verification. The explicit human-help option
+and clear phrases indicating frustration pause reminders and queue one admin
+alert for that clarification round. The activity log records state and delivery
+changes. Routine admin notices are replaced by one deduplicated Monday Sydney
+summary (Tuesday or Wednesday if Monday is missed). Provider acceptance is
+tracked separately from inbox delivery.
+
 Requester confirmations use the existing Resend setup, exclusively from
 `notifications@mail.rebateportal.com.au`, with replies to the monitored
 `danieldipalma88@gmail.com`. No personal sender fallback. Publication and email
@@ -49,13 +65,14 @@ means accepted by Resend, not proof of inbox delivery.
 
 ## Deployment
 
-Apply `supabase/model_request_automation_upgrade.sql` once through migrations,
-after independent review. Set these production-only Vercel values:
+Apply `supabase/model_request_automation_upgrade.sql` and then
+`supabase/model_request_followup_upgrade.sql` through migrations before the
+corresponding app release, after independent review. Set these production-only Vercel values:
 
 - `MODEL_REQUEST_WORKER_SECRET`: dedicated random 256-bit-or-greater secret.
 - `CRON_SECRET`: separate random secret for the scheduled HTTP endpoint.
 - `MODEL_REQUEST_AUTOMATION_ENABLED=true`.
-- Existing `RESEND_API_KEY`, `MODEL_REQUEST_FROM_EMAIL`, `MODEL_REQUEST_TO_EMAIL`.
+- Existing `RESEND_API_KEY` and `MODEL_REQUEST_FROM_EMAIL`.
 
 Store only SHA-256(worker secret) in `model_automation_private.settings` using
 secure provisioning; never commit or print secrets. No service-role key is used.
