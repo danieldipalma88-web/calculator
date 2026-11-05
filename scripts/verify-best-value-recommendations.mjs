@@ -111,7 +111,7 @@ assert.equal(scopeSandbox.__matches(selectedDucted, { capacityNum: 14.1, phase: 
 assert.equal(scopeSandbox.__matches(selectedDucted, { capacityNum: 14, phase: "Three" }, 14, "ducted"), false, "three-phase ducted candidate must not replace a single-phase recommendation");
 assert.equal(scopeSandbox.__matches({ capacityNum: 7.1 }, { capacityNum: 7, phase: "Three" }, 7, "split"), true, "split recommendations should not apply a phase filter");
 
-assert.match(html, /calculateRecommendationCandidate\(item,postcode,calculationContext,climatePromise\)/, "candidate comparison does not use a shared climate lookup");
+assert.match(html, /calculateRecommendationCandidate\(item,postcode,calculationContext,climatePromise,signal\)/, "candidate comparison does not use a shared climate lookup");
 assert.match(html, /hasManualRebateOverride\(context\.systemType,p\)\?null:await estimateLiveEssRebate/, "manual candidates still make unnecessary live rebate requests");
 assert.match(html, /activeBusinessName\(\).*activeBusinessState\(\).*candidateSignature/s, "recommendation cache is not scoped to business and current prices");
 assert.match(html, /invalidateBestValueRecommendations\(true\);\s*syncCurrentProductAfterPriceChange/, "price edits do not invalidate recommendation results");
@@ -122,7 +122,7 @@ assert.match(html, /DCCEEW \$30 ESC rate/, "recommendation card does not disclos
 assert.match(html, /recommendationFootnote\(categoryLabel,postcode,failedCount,entry\.calculationContext\)/, "recommendations do not preserve the explicit calculation context in their footnote");
 assert.match(html, /New ducted installations are excluded from the DCCEEW contract rate\./, "recommendations do not explain the new ducted exclusion");
 
-const refreshStart = html.indexOf("async function refreshBestValueIndicator");
+const refreshStart = html.indexOf("const BEST_VALUE_COMPARISON_TIMEOUT_MS");
 const refreshEnd = html.indexOf("function hasManualRebateOverride", refreshStart);
 const refreshSource = html.slice(refreshStart, refreshEnd);
 assert.ok(refreshSource.indexOf("const requestId=++essBestValueRuntime.requestSeq") < refreshSource.indexOf("const cached=essBestValueRuntime.cache"), "cached refreshes do not cancel older recommendation requests");
@@ -148,10 +148,17 @@ let climateCalls = 0;
 let candidateCalls = 0;
 let rendered = [];
 let escRate = 23.5;
+let timerId = 0;
+const timers = new Map();
+const status = [];
+let busy = false;
 const recommendationSandbox = {
+  AbortController,
   essBestValueRuntime: { requestSeq: 0, cache: {}, pending: {}, lastEntry: null },
   systemType: "split", installType: "new",
-  setSectionLoading() {}, rebatesEnabled: () => true,
+  setSectionLoading(_id, loading) { busy = loading; }, rebatesEnabled: () => true,
+  setTimeout(fn, ms) { assert.equal(ms, 12000); timers.set(++timerId, fn); return timerId; },
+  clearTimeout(id) { timers.delete(id); },
   product: () => candidates[0], getEssPostcode: () => "2575",
   getEssEscRate: () => escRate, getEssPrcRate: () => 2.7,
   kwCategoryValue: () => 2.5, kwCategoryLabel: () => "2.5kW",
@@ -162,7 +169,7 @@ const recommendationSandbox = {
   normalizeLookup: (value) => String(value).toLowerCase(),
   recommendationCandidateSignature: () => "35-models",
   bestValueCacheKey: (_category, _postcode, _zone, rate) => `key-${rate}`,
-  setBestValueMeta() {}, setBestNetCostMeta() {},
+  setBestValueMeta(message) { status.push(message); }, setBestNetCostMeta(message) { status.push(message); },
   hasManualRebateOverride: () => false,
   resolvePostcodeZones: () => { climateCalls += 1; return climateLookup; },
   calculateRecommendationCandidate: async (item, _postcode, context, sharedClimate) => {
@@ -181,10 +188,12 @@ vm.runInNewContext(`${refreshSource}\nglobalThis.refreshRecommendation=refreshBe
 const firstRefresh = recommendationSandbox.refreshRecommendation();
 const secondRefresh = recommendationSandbox.refreshRecommendation();
 assert.equal(climateCalls, 1, "overlapping comparisons should share one postcode lookup");
-assert.equal(candidateCalls, 35, "overlapping comparisons should calculate each candidate once");
+assert.equal(candidateCalls, 8, "overlapping comparisons must share the same bounded worker pool");
 resolveClimate({ zone: "mixed", bcaZone: "BCA_Climate_Zone_7" });
 await Promise.all([firstRefresh, secondRefresh]);
 assert.equal(rendered.length, 1, "only the latest comparison should render");
+assert.equal(candidateCalls, 35, "each candidate is checked once when the comparison completes in time");
+assert.equal(timers.size, 0, "successful comparison clears its timer");
 assert.equal(rendered[0].best.model, "UNIT-34", "highest live rebate must still win");
 assert.equal(rendered[0].bestNetCost.model, "UNIT-0", "lowest net unit cost must still win");
 await recommendationSandbox.refreshRecommendation();
@@ -205,6 +214,104 @@ await new Promise((resolve) => setImmediate(resolve));
 releaseMetadata();
 await failedRefresh;
 assert.equal(rendered.length, 3, "a failed postcode lookup must not render an incomplete best result");
+
+const slow = [];
+let slowCalls = 0;
+recommendationSandbox.resolvePostcodeZones = () => climateLookup;
+recommendationSandbox.calculateRecommendationCandidate = item => {
+  slowCalls += 1;
+  if (item.i === 0) return Promise.resolve({ok:true, model:"UNIT-0", brand:"Example", unitCost:800, rebate:300, netCost:500});
+  return new Promise(resolve => slow.push(resolve));
+};
+escRate = 26;
+const slowRefresh = recommendationSandbox.refreshRecommendation();
+await new Promise(resolve => setImmediate(resolve));
+assert.equal(slowCalls, 9, "a completed candidate frees one slot, but stalled ones stay bounded");
+assert.equal(busy, true);
+assert.equal(timers.size, 1);
+[...timers.values()][0]();
+await slowRefresh;
+assert.equal(busy, false, "a stalled candidate cannot leave the overlay open");
+assert.equal(rendered.at(-1).timedOut, true);
+assert.equal(rendered.at(-1).failedCount, 34);
+assert.equal(rendered.at(-1).best.model, "UNIT-0");
+assert.equal(recommendationSandbox.essBestValueRuntime.cache["key-26"], undefined, "incomplete comparisons are not cached");
+slow.forEach(resolve => resolve({ok:true, model:"LATE", rebate:10000, unitCost:1, netCost:-9999}));
+await new Promise(resolve => setImmediate(resolve));
+assert.equal(slowCalls, 9, "a timed-out pool must not start queued candidates");
+assert.equal(rendered.at(-1).best.model, "UNIT-0", "late results must not replace the displayed comparison");
+
+const heldCandidates = [];
+const callsByRate = new Map();
+recommendationSandbox.calculateRecommendationCandidate = async (item, _postcode, context, _climate, signal) => {
+  const rate = context.escRate;
+  callsByRate.set(rate, (callsByRate.get(rate) || 0) + 1);
+  if (rate === 28 && callsByRate.get(rate) <= 8) await new Promise(resolve => heldCandidates.push(resolve));
+  signal.throwIfAborted();
+  return {ok:true, model:item.p.model, unitCost:800, rebate:rate * 10 + item.i, netCost:520 - item.i};
+};
+escRate = 28;
+const oldRefresh = recommendationSandbox.refreshRecommendation();
+escRate = 29;
+const supersededRefresh = recommendationSandbox.refreshRecommendation();
+escRate = 28;
+const latestRefresh = recommendationSandbox.refreshRecommendation();
+await Promise.all([oldRefresh, supersededRefresh]);
+assert.equal(callsByRate.get(28), 8, "switching back must queue a fresh comparison, not add a second pool");
+assert.equal(callsByRate.get(29), undefined, "a superseded queued comparison must never start");
+assert.equal(busy, true, "the canceled comparisons must not clear the active spinner");
+heldCandidates.forEach(resolve => resolve());
+await latestRefresh;
+assert.equal(callsByRate.get(28), 43, "only the latest comparison runs all 35 candidates");
+assert.equal(rendered.at(-1).rows.length, 35);
+assert.equal(rendered.at(-1).calculationContext.escRate, 28);
+assert.equal(busy, false);
+
+escRate = 27;
+recommendationSandbox.calculateRecommendationCandidate = () => new Promise(() => {});
+const emptyRefresh = recommendationSandbox.refreshRecommendation();
+[...timers.values()][0]();
+await emptyRefresh;
+assert.equal(busy, false);
+assert.match(status.at(-1), /timed out.*selected unit rebate is unchanged/);
+assert.equal(recommendationSandbox.essBestValueRuntime.lastEntry, null);
+assert.deepEqual(Object.keys(recommendationSandbox.essBestValueRuntime.pending), []);
+assert.match(html,/incomplete\?'Best rebate checked'/);
+assert.match(html,/incomplete\?'Best net unit cost checked'/);
+
+const estimateStart = html.indexOf("async function estimateLiveEssRebate");
+const estimateEnd = html.indexOf("async function loadLiveCertificatePriceIfNeeded", estimateStart);
+let finishSharedMetadata;
+let certificateCalls = 0;
+let metadataCalls = 0;
+const sharedMetadata = new Promise(resolve => { finishSharedMetadata = resolve; });
+const estimateSandbox = {
+  HVAC_AIR_CONDITIONER_TYPES: { split: "non_ducted_split_system" },
+  normalizeAirConditionerType: value => value,
+  resolveModelMetadataForRebate: () => { metadataCalls += 1; return sharedMetadata; },
+  getClimateContext: () => climateLookup,
+  calculateCertificatesForModel: async () => {
+    certificateCalls += 1;
+    return { esc: 26.127, prc: 146.248 };
+  },
+};
+vm.runInNewContext(`${html.slice(estimateStart, estimateEnd)}\nglobalThis.estimate=estimateLiveEssRebate;`, estimateSandbox);
+const estimateContext = { systemType: "split", installType: "replacement", escRate: 23, prcRate: 2.6 };
+const stopEstimate = new AbortController();
+await assert.rejects(
+  estimateSandbox.estimate("Daikin", "Cora", estimateContext, Promise.reject(new Error("postcode unavailable")), stopEstimate.signal),
+  /postcode unavailable/,
+);
+assert.equal(metadataCalls, 0, "failed comparison climate must not start metadata lookups");
+const stoppedEstimate = estimateSandbox.estimate("Daikin", "Cora", estimateContext, climateLookup, stopEstimate.signal);
+const selectedEstimate = estimateSandbox.estimate("Daikin", "Cora", estimateContext);
+await new Promise(resolve => setImmediate(resolve));
+assert.equal(metadataCalls, 2, "the selected rebate and comparison both await the shared metadata");
+stopEstimate.abort();
+finishSharedMetadata({ meta: {}, brand: "Daikin", model: "Cora" });
+await assert.rejects(stoppedEstimate, { name: "AbortError" });
+assert.equal(Number((await selectedEstimate).rebate.toFixed(2)), 981.17, "the selected model still receives its rebate");
+assert.equal(certificateCalls, 1, "only the selected rebate may proceed to certificates after cancellation");
 
 const zoneStart = html.indexOf("async function resolvePostcodeZones");
 const zoneEnd = html.indexOf("async function getClimateContext", zoneStart);

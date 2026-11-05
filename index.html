@@ -5050,7 +5050,7 @@ let bestValueRefreshTimer=null;
 function invalidateBestValueRecommendations(scheduleRefresh){
   essBestValueRuntime.requestSeq++;
   essBestValueRuntime.cache={};
-  essBestValueRuntime.pending={};
+  stopOtherBestValueComparisons();
   essBestValueRuntime.lastEntry=null;
   setSectionLoading('bestValueComparison',false);
   if(!scheduleRefresh) return;
@@ -6044,10 +6044,11 @@ async function fetchGemsModelMetadata(localBrand,localModel){
     throw e;
   }
 }
-async function fetchNswEstimatorMetadataDirect(localBrand,localModel){
+async function fetchNswEstimatorMetadataDirect(localBrand,localModel,signal){
   const errors=[];
   for(const brand of rebateLookupBrandCandidates(localBrand)){
     for(const model of rebateLookupModelSearchCandidates(localModel)){
+      signal?.throwIfAborted();
       try{
         const meta=await fetchModelMetadata(brand,model);
         if(isUsableModelMeta(meta)) return {meta,brand:meta.brand||brand,model:meta.model||model,source:'NSW estimator metadata + NSW formula'};
@@ -6056,16 +6057,18 @@ async function fetchNswEstimatorMetadataDirect(localBrand,localModel){
   }
   throw errors[0]||new Error(`Model not found in NSW estimator metadata: ${localModel}`);
 }
-async function resolveModelMetadataForRebate(localBrand,localModel){
+async function resolveModelMetadataForRebate(localBrand,localModel,signal){
   const localMeta=localRebateModelMetadata(localBrand,localModel);
   const usePreferredLocalMeta=localMeta&&rebateLookupBrandCandidates(localBrand).some(brand=>normalizeLookup(brand)==='ACTRONAIR');
   if(usePreferredLocalMeta) return {meta:localMeta,brand:localMeta.brand||localBrand,model:localMeta.model||localModel,source:'Verified GEMS metadata + NSW formula'};
   try{
     return await fetchGemsModelMetadata(localBrand,localModel);
   }catch(gemsError){
+    signal?.throwIfAborted();
     try{
-      return await fetchNswEstimatorMetadataDirect(localBrand,localModel);
+      return await fetchNswEstimatorMetadataDirect(localBrand,localModel,signal);
     }catch(nswError){
+      signal?.throwIfAborted();
       if(localMeta) return {meta:localMeta,brand:localMeta.brand||localBrand,model:localMeta.model||localModel,source:'Saved GEMS fallback + NSW formula'};
       throw gemsError||nswError;
     }
@@ -6620,9 +6623,9 @@ function recommendationRebateBasis(row){
   if(row&&row.contractExcluded) return {label:'Standard business rate',className:''};
   return {label:'Standard business rate',className:''};
 }
-async function calculateRecommendationCandidate(item,postcode,context,climatePromise){
+async function calculateRecommendationCandidate(item,postcode,context,climatePromise,signal){
   const p=item.p;
-  const result=hasManualRebateOverride(context.systemType,p)?null:await estimateLiveEssRebate(p.brand,p.model,context,climatePromise);
+  const result=hasManualRebateOverride(context.systemType,p)?null:await estimateLiveEssRebate(p.brand,p.model,context,climatePromise,signal);
   const effective=recommendationEffectiveRebate(p,result,postcode,context);
   const unitCost=Number(p.unitPriceInc||p.priceIncGst||0);
   return {ok:true,brand:p.brand,series:p.series||'',model:p.model,phase:p.phase||'',productIndex:item.i,productManagedKey:managedProductKey(context.systemType,item.i),unitCost,rebate:Number(effective.rebate)||0,netCost:unitCost-(Number(effective.rebate)||0),rebateSource:effective.rebateSource,contractApplied:!!effective.contractApplied,contractUplift:Number(effective.contractUplift)||0,contractExcluded:!!effective.contractExcluded};
@@ -6685,6 +6688,8 @@ function netCostDeltaText(best,currentMatch){
 }
 function renderBestRecommendationCards(entry,currentProduct,categoryLabel,postcode,failedCount){
   essBestValueRuntime.lastEntry=entry||null;
+  const incomplete=failedCount>0;
+  const timeoutNote=entry?.timedOut?' - comparison timed out':'';
   if(!entry || !entry.best){
     setBestValueMeta(`Best rebate unavailable for ${categoryLabel} (${installType}, postcode ${postcode}).`,true);
   }else{
@@ -6692,20 +6697,20 @@ function renderBestRecommendationCards(entry,currentProduct,categoryLabel,postco
     const currentMatch=findCurrentRecommendationMatch(entry,currentProduct);
     const unitCost=Number(best.unitCost);
     const netCost=unitCost-Number(best.rebate);
-    renderRecommendationCard('bestValueMeta','rebate','Best rebate',money(best.rebate),unitDisplayName(best),[
+    renderRecommendationCard('bestValueMeta','rebate',incomplete?'Best rebate checked':'Best rebate',money(best.rebate),unitDisplayName(best),[
       {label:'Unit price',value:unitCost>0?money(unitCost):'Not saved'},
       {label:'Net cost',value:unitCost>0?money(netCost):'-'}
-    ],recommendationRebateBasis(best),rebateDeltaText(best,currentMatch),recommendationFootnote(categoryLabel,postcode,failedCount,entry.calculationContext),false);
+    ],recommendationRebateBasis(best),incomplete?'Highest rebate of models checked':rebateDeltaText(best,currentMatch),recommendationFootnote(categoryLabel,postcode,failedCount,entry.calculationContext)+timeoutNote,false);
   }
   if(!entry || !entry.bestNetCost){
     setBestNetCostMeta(`Best net unit cost unavailable for ${categoryLabel} (${installType}, postcode ${postcode}).`,true);
   }else{
     const best=entry.bestNetCost;
     const currentMatch=findCurrentRecommendationMatch(entry,currentProduct);
-    renderRecommendationCard('bestNetCostMeta','net','Best net unit cost',recommendationMoney(best.netCost),unitDisplayName(best),[
+    renderRecommendationCard('bestNetCostMeta','net',incomplete?'Best net unit cost checked':'Best net unit cost',recommendationMoney(best.netCost),unitDisplayName(best),[
       {label:'Unit price',value:recommendationMoney(best.unitCost)},
       {label:'Rebate',value:recommendationMoney(best.rebate)}
-    ],recommendationRebateBasis(best),netCostDeltaText(best,currentMatch),recommendationFootnote(categoryLabel,postcode,failedCount,entry.calculationContext),false);
+    ],recommendationRebateBasis(best),incomplete?'Lowest net unit cost of models checked':netCostDeltaText(best,currentMatch),recommendationFootnote(categoryLabel,postcode,failedCount,entry.calculationContext)+timeoutNote,false);
   }
 }
 function formatBestValueMessage(entry,currentProduct,categoryLabel,postcode,failedCount){
@@ -6740,23 +6745,93 @@ function formatBestNetCostMessage(entry,currentProduct,categoryLabel,postcode,fa
   }
   return `${prefix}: ${bestText}${failedCount?` (${failedCount} unavailable).`:'.'}`;
 }
+const BEST_VALUE_COMPARISON_TIMEOUT_MS=12000;
+const BEST_VALUE_COMPARISON_CONCURRENCY=8;
+let recommendationCandidatesInFlight=0;
+const recommendationCandidateQueue=[];
+function runRecommendationCandidate(signal,calculate){
+  return new Promise((resolve,reject)=>{
+    signal.throwIfAborted();
+    function cancel(){
+      const index=recommendationCandidateQueue.indexOf(start);
+      if(index!==-1) recommendationCandidateQueue.splice(index,1);
+      reject(signal.reason);
+    }
+    async function start(){
+      signal.removeEventListener('abort',cancel);
+      recommendationCandidatesInFlight++;
+      try{
+        signal.throwIfAborted();
+        resolve(await calculate());
+      }catch(e){
+        reject(e);
+      }finally{
+        recommendationCandidatesInFlight--;
+        recommendationCandidateQueue.shift()?.();
+      }
+    }
+    if(recommendationCandidatesInFlight<BEST_VALUE_COMPARISON_CONCURRENCY) start();
+    else{
+      recommendationCandidateQueue.push(start);
+      signal.addEventListener('abort',cancel,{once:true});
+    }
+  });
+}
+function runRecommendationComparison(candidates,calculate){
+  const controller=new AbortController();
+  const {signal}=controller;
+  let next=0, timedOut=false;
+  const settled=[];
+  const stopped=new Promise(resolve=>signal.addEventListener('abort',resolve,{once:true}));
+  const timeoutId=setTimeout(()=>{
+    timedOut=true;
+    controller.abort();
+  },BEST_VALUE_COMPARISON_TIMEOUT_MS);
+  async function checkNext(){
+    while(!signal.aborted && next<candidates.length){
+      const item=candidates[next++];
+      try{
+        const result=await runRecommendationCandidate(signal,()=>calculate(item,signal));
+        if(!signal.aborted) settled.push(result);
+      }catch(e){
+        if(!signal.aborted) settled.push({ok:false,error:String(e?.message||e)});
+      }
+    }
+  }
+  const workers=Array.from({length:Math.min(candidates.length,BEST_VALUE_COMPARISON_CONCURRENCY)},checkNext);
+  const promise=Promise.race([Promise.all(workers),stopped])
+    .then(()=>({settled,timedOut}))
+    .finally(()=>clearTimeout(timeoutId));
+  return {promise,cancel:()=>controller.abort()};
+}
+function stopOtherBestValueComparisons(keepKey){
+  for(const [key,comparison] of Object.entries(essBestValueRuntime.pending)){
+    if(key===keepKey) continue;
+    delete essBestValueRuntime.pending[key];
+    comparison.cancel();
+  }
+}
 async function refreshBestValueIndicator(){
   setSectionLoading('bestValueComparison',false);
   const requestId=++essBestValueRuntime.requestSeq;
-  if(!rebatesEnabled()){
+  function unavailable(best,net=best,isError=true){
+    stopOtherBestValueComparisons();
     essBestValueRuntime.lastEntry=null;
-    setBestValueMeta(rebateSchemeStatusText(),false);
-    setBestNetCostMeta(rebateSchemeStatusText(),false);
-    return;
+    setBestValueMeta(best,isError);
+    setBestNetCostMeta(net,isError);
+  }
+  if(!rebatesEnabled()){
+    const message=rebateSchemeStatusText();
+    return unavailable(message,message,false);
   }
   const current=product();
-  if(!current){setBestValueMeta('Best rebate indicator unavailable.',true); setBestNetCostMeta('Best net unit cost indicator unavailable.',true); return;}
+  if(!current) return unavailable('Best rebate indicator unavailable.','Best net unit cost indicator unavailable.');
   const postcode=getEssPostcode();
-  if(!/^\d{4}$/.test(postcode)){setBestValueMeta('Enter a valid postcode to compare best rebate in this kW category.',true); setBestNetCostMeta('Enter a valid postcode to compare best net unit cost in this kW category.',true); return;}
+  if(!/^\d{4}$/.test(postcode)) return unavailable('Enter a valid postcode to compare best rebate in this kW category.','Enter a valid postcode to compare best net unit cost in this kW category.');
   const escRate=getEssEscRate(), prcRate=getEssPrcRate();
-  if(!(escRate>0) || !(prcRate>0)){setBestValueMeta('Enter valid ESC and PERC values to compare best rebate in this kW category.',true); setBestNetCostMeta('Enter valid ESC and PERC values to compare best net unit cost in this kW category.',true); return;}
+  if(!(escRate>0) || !(prcRate>0)) return unavailable('Enter valid ESC and PERC values to compare best rebate in this kW category.','Enter valid ESC and PERC values to compare best net unit cost in this kW category.');
   const category=kwCategoryValue(cap(current));
-  if(!Number.isFinite(category)){setBestValueMeta('Unable to determine kW category for this model.',true); setBestNetCostMeta('Unable to determine kW category for this model.',true); return;}
+  if(!Number.isFinite(category)) return unavailable('Unable to determine kW category for this model.');
   const categoryLabel=kwCategoryLabel(category);
   const scopeLabel=recommendationScopeLabel(categoryLabel,current);
   const zoneSel=getEssZoneSelection();
@@ -6771,9 +6846,10 @@ async function refreshBestValueIndicator(){
     seenKeys.add(key);
     uniqueCandidates.push(item);
   });
-  if(!uniqueCandidates.length){setBestValueMeta(`No models found for ${scopeLabel} category.`,true); setBestNetCostMeta(`No models found for ${scopeLabel} category.`,true); return;}
+  if(!uniqueCandidates.length) return unavailable(`No models found for ${scopeLabel} category.`);
   const candidateSignature=recommendationCandidateSignature(uniqueCandidates);
   const cacheKey=bestValueCacheKey(category,postcode,zoneSel,escRate,prcRate,phase,candidateSignature);
+  stopOtherBestValueComparisons(cacheKey);
   const cached=essBestValueRuntime.cache[cacheKey];
   if(cached){
     renderBestRecommendationCards(cached,current,scopeLabel,postcode,cached.failedCount||0);
@@ -6783,44 +6859,43 @@ async function refreshBestValueIndicator(){
   setBestNetCostMeta(`Checking best net unit cost in ${scopeLabel} category...`,false);
   setSectionLoading('bestValueComparison',true,`Comparing ${scopeLabel} models...`);
   let calculation=essBestValueRuntime.pending[cacheKey];
-  if(!calculation){
-    const needsClimate=uniqueCandidates.some(item=>!hasManualRebateOverride(calculationContext.systemType,item.p));
-    const climatePromise=needsClimate?resolvePostcodeZones(postcode).then(resolved=>({
-      postcode,
-      climateZone:(zoneSel==='hot'||zoneSel==='mixed'||zoneSel==='cold')?zoneSel:resolved.zone,
-      bcaZone:resolved.bcaZone
-    })):null;
-    // Candidates still receive this rejection after metadata loads.
-    if(climatePromise) climatePromise.catch(()=>{});
-    calculation=Promise.all(uniqueCandidates.map(async item=>{
-      try{
-        return await calculateRecommendationCandidate(item,postcode,calculationContext,climatePromise);
-      }catch(e){
-        return {ok:false,error:String(e && e.message ? e.message : e)};
-      }
-    }));
-    essBestValueRuntime.pending[cacheKey]=calculation;
-  }
-  let settled;
+  let outcome;
   try{
-    settled=await calculation;
+    if(!calculation){
+      const needsClimate=uniqueCandidates.some(item=>!hasManualRebateOverride(calculationContext.systemType,item.p));
+      const climatePromise=needsClimate?resolvePostcodeZones(postcode).then(resolved=>({
+        postcode,
+        climateZone:(zoneSel==='hot'||zoneSel==='mixed'||zoneSel==='cold')?zoneSel:resolved.zone,
+        bcaZone:resolved.bcaZone
+      })):null;
+      if(climatePromise) climatePromise.catch(()=>{});
+      calculation=runRecommendationComparison(uniqueCandidates,
+        (item,signal)=>calculateRecommendationCandidate(item,postcode,calculationContext,climatePromise,signal));
+      essBestValueRuntime.pending[cacheKey]=calculation;
+    }
+    outcome=await calculation.promise;
+  }catch(e){
+    outcome={settled:[],timedOut:false};
   }finally{
     if(essBestValueRuntime.pending[cacheKey]===calculation) delete essBestValueRuntime.pending[cacheKey];
     if(requestId===essBestValueRuntime.requestSeq) setSectionLoading('bestValueComparison',false);
   }
   if(requestId!==essBestValueRuntime.requestSeq) return;
+  const {settled,timedOut}=outcome;
   const winners=settled.filter(r=>r.ok);
-  const failedCount=settled.length-winners.length;
+  const failedCount=uniqueCandidates.length-winners.length;
   if(!winners.length){
-    setBestValueMeta(`Best value unavailable for ${scopeLabel} (${installType}, postcode ${postcode}).`,true);
-    setBestNetCostMeta(`Best net unit cost unavailable for ${scopeLabel} (${installType}, postcode ${postcode}).`,true);
+    essBestValueRuntime.lastEntry=null;
+    const timeoutMessage='Comparison timed out. The selected unit rebate is unchanged.';
+    setBestValueMeta(timedOut?timeoutMessage:`Best value unavailable for ${scopeLabel} (${installType}, postcode ${postcode}).`,true);
+    setBestNetCostMeta(timedOut?timeoutMessage:`Best net unit cost unavailable for ${scopeLabel} (${installType}, postcode ${postcode}).`,true);
     return;
   }
   const best=[...winners].sort((a,b)=>(b.rebate-a.rebate)||(a.netCost-b.netCost)||unitDisplayName(a).localeCompare(unitDisplayName(b)))[0];
   const netCostCandidates=winners.filter(r=>r.unitCost>0);
   const bestNetCost=netCostCandidates.length?[...netCostCandidates].sort((a,b)=>(a.netCost-b.netCost)||(b.rebate-a.rebate)||unitDisplayName(a).localeCompare(unitDisplayName(b)))[0]:null;
-  const entry={best,bestNetCost,rows:winners,failedCount,calculationContext};
-  essBestValueRuntime.cache[cacheKey]=entry;
+  const entry={best,bestNetCost,rows:winners,failedCount,calculationContext,timedOut};
+  if(!failedCount) essBestValueRuntime.cache[cacheKey]=entry;
   renderBestRecommendationCards(entry,current,scopeLabel,postcode,failedCount);
 }
 function hasManualRebateOverride(type,p){const key=managedKeyForProduct(type,p); return !!(key && priceLocks[key] && priceLocks[key].rebateManual===true);}
@@ -7417,11 +7492,12 @@ function decimalPrcCertificatesFromBuilding(building){
   }
   return certificateFieldNumber(building,'HVAC1_PDRSAug24_PRC_calculation');
 }
-async function calculateCertificatesWithPostcodeFallback(baseBuilding,climate,error){
+async function calculateCertificatesWithPostcodeFallback(baseBuilding,climate,error,signal){
   const message=String((error&&error.message)||error||'');
   if(!isEssClimateZoneFallbackPostcode(climate.postcode) || !/no field of name 0/i.test(message)) throw error;
   const proxyPostcode=certificateProxyPostcodeForClimateZone(climate.climateZone);
   const escResp=await fetchCertificateCalculation(baseBuilding,CERTIFICATE_ESC_PROXY_FIELDS,proxyPostcode);
+  signal?.throwIfAborted();
   const actualResp=await fetchCertificateCalculation(baseBuilding,CERTIFICATE_ACTUAL_POSTCODE_FIELDS,climate.postcode);
   const escBuilding=certificateBuilding(escResp);
   const actualBuilding=certificateBuilding(actualResp);
@@ -7441,6 +7517,8 @@ function nswCertificateCapsForAirType(airConditionerType,climateZone){
 }
 async function calculateCertificatesForModel(meta,climate,options){
   const calcOptions=options||{};
+  const {signal}=calcOptions;
+  signal?.throwIfAborted();
   const airConditionerType=normalizeAirConditionerType(calcOptions.airConditionerType||airTypeValue());
   const calcInstallType=calcOptions.installType||installType;
   const coolingOverride=toNumber(calcOptions.coolingCapacity);
@@ -7483,7 +7561,8 @@ async function calculateCertificatesForModel(meta,climate,options){
   try{
     resp=await fetchCertificateCalculation(baseBuilding,CERTIFICATE_OUTPUT_FIELDS,climate.postcode);
   }catch(e){
-    resp=await calculateCertificatesWithPostcodeFallback(baseBuilding,climate,e);
+    signal?.throwIfAborted();
+    resp=await calculateCertificatesWithPostcodeFallback(baseBuilding,climate,e,signal);
   }
   const resultBuilding=certificateBuilding(resp);
   const escOfficial=certificateFieldNumber(resultBuilding,'HVAC1_PDRSAug24_ESC_calculation');
@@ -7495,15 +7574,23 @@ async function calculateCertificatesForModel(meta,climate,options){
   const prcEffective=eligibility.prcEligible?Math.min(prcNum,caps.prc):0;
   return {esc:escEffective, prc:prcEffective, officialEsc:Number.isFinite(escOfficial)?escOfficial:escNum, officialPrc:Number.isFinite(prcOfficial)?prcOfficial:prcNum, eligibility,caps,airConditionerType};
 }
-async function estimateLiveEssRebate(localBrand,localModel,context,climatePromise){
+async function estimateLiveEssRebate(localBrand,localModel,context,climatePromise,signal){
+  signal?.throwIfAborted();
+  if(signal){
+    climatePromise=climatePromise||getClimateContext();
+    await climatePromise;
+    signal.throwIfAborted();
+  }
   const calculationContext=context||{systemType,installType};
   const [resolved,climate]=await Promise.all([
-    resolveModelMetadataForRebate(localBrand,localModel),
+    resolveModelMetadataForRebate(localBrand,localModel,signal),
     climatePromise||getClimateContext()
   ]);
+  // Shared requests can finish for the selected rebate without advancing a stopped comparison.
+  signal?.throwIfAborted();
   const meta=resolved.meta;
   const airConditionerType=calculationContext.airConditionerType||normalizeAirConditionerType(HVAC_AIR_CONDITIONER_TYPES[calculationContext.systemType]||HVAC_AIR_CONDITIONER_TYPES.split);
-  const certs=await calculateCertificatesForModel(meta,climate,{airConditionerType,installType:calculationContext.installType});
+  const certs=await calculateCertificatesForModel(meta,climate,{airConditionerType,installType:calculationContext.installType,signal});
   const escRate=calculationContext.escRate??getEssEscRate(), prcRate=calculationContext.prcRate??getEssPrcRate();
   if(!(escRate>0)) throw new Error('Enter a valid ESS $ per ESC');
   if(!(prcRate>0)) throw new Error('Enter a valid PERC (PRC) $ per cert');
