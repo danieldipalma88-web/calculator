@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import Script from "next/script";
@@ -31,6 +32,14 @@ import UserActivity from "./user-activity";
 import RemoveUserButton from "./remove-user-button";
 import PaymentFollowUpNotice from "./payment-follow-up-notice";
 import { sydneyToday } from "../../../lib/payment-follow-up";
+import {
+  getWonBatch, isWonBatchId, isWonBatchKind, listWonBatches, parseWonBatchIds,
+  recordWonBatchOutcomes, resolveWonBatchJobs, runWonBatch, sameWonBatchSelection, startWonBatch, wonBatchJobId, wonPaymentReviewFingerprint,
+  WON_BATCH_MAX_JOBS, type WonBatchKind,
+} from "../../../lib/won-batches";
+import { isWonReportDefaultPerson, wonReportAmounts, type WonReportAmounts } from "../../../lib/won-reporting";
+import { WonBatchHistory, WonSalesReport } from "./won-panels";
+import { WonSelectionScope } from "./won-controls";
 
 export const maxDuration = 60;
 
@@ -120,6 +129,8 @@ type WonOption = {
   salespersonCommissionTotal: number;
   agencyProfitAfterSalesTotal: number;
   installerProfitTotal: number;
+  paymentFields: WonPaymentFields;
+  review?: { fingerprint: string; amounts: WonReportAmounts };
   rows: {
     label: string;
     type: string;
@@ -171,6 +182,10 @@ type WonOptionAdminState = {
   unlockedByEmail?: string;
   updatedAt?: string;
 };
+
+type WonPaymentFields = Required<Pick<WonOptionAdminState,
+  "paymentRequestedAt" | "paymentRequestedByEmail" | "paidInAt" | "paidInByEmail" |
+  "paidOutAt" | "paidOutByEmail" | "paymentResetAt" | "paymentResetByEmail">>;
 
 type SalespersonSalesSummary = {
   userEmail: string;
@@ -1319,6 +1334,7 @@ function summarizeSalesBySalesperson(wonOptions: WonOption[]) {
 function wonExportScript() {
   return `
 (function(){
+  var activeWonGroup = null;
   function xmlEscape(value) {
     return String(value == null ? "" : value)
       .replace(/&/g, "&amp;")
@@ -1374,7 +1390,14 @@ function wonExportScript() {
     return String(card.getAttribute("data-won-search") || "").toLowerCase().indexOf(search) >= 0;
   }
   function hasActiveWonFilter() {
-    return activeSalespersonEmails().length > 0 || activePaymentFilters()[0] !== "all" || Boolean(activeWonSearch());
+    return Boolean(activeWonGroup) || activeSalespersonEmails().length > 0 || activePaymentFilters()[0] !== "all" || Boolean(activeWonSearch());
+  }
+  function wonCardInGroup(card) {
+    return !activeWonGroup || activeWonGroup.has(card.getAttribute("data-won-batch-job"));
+  }
+  function clearWonGroupAndChecks() {
+    activeWonGroup = null;
+    document.querySelectorAll(".won-sale-select:checked").forEach(function(box){ box.checked = false; });
   }
   function updateSelectAllLabel() {
     var visibleBoxes = visibleWonCards()
@@ -1417,13 +1440,25 @@ function wonExportScript() {
     if (mode === "paid_out") return cards.filter(function(card){ return card.getAttribute("data-payment-paid-out") !== "true"; });
     return cards;
   }
-  function setBulkSelections(cards) {
+  function setBulkSelections(cards, selectedCards) {
     var value = JSON.stringify(cards.map(parseSelectionCard).filter(Boolean));
     Array.prototype.slice.call(document.querySelectorAll("[data-selected-won-input]")).forEach(function(input){
       input.value = value;
     });
+    writeWonBatchInputs(selectedCards);
+  }
+  function writeWonBatchInputs(cards) {
+    var ids = JSON.stringify(cards.map(function(card){ return card.getAttribute("data-won-batch-job"); }));
+    var review = JSON.stringify(cards.map(function(card){ return card.getAttribute("data-won-batch-review"); }));
+    document.querySelectorAll("[data-won-batch-ids]").forEach(function(input){ input.value = ids; });
+    document.querySelectorAll("[data-won-batch-reviews]").forEach(function(input){ input.value = review; });
+    var scope = document.querySelector("[data-won-backup-scope]");
+    document.querySelectorAll("[data-won-batch-backups]").forEach(function(input){
+      input.value = scope && scope.getAttribute("data-won-backup-scope") === "1" ? "1" : "";
+    });
   }
   function bulkConfirmationMessage(mode, selectedCards, eligibleCards) {
+    if (mode === "manual") return "Save " + selectedCards.length + " selected won quotes as a manual group? No payment statuses will change.";
     var skipped = selectedCards.length - eligibleCards.length;
     var agencyTotal = eligibleCards.reduce(function(total, card){ return total + numberFromCard(card, "data-won-agency-total"); }, 0);
     var salesTotal = eligibleCards.reduce(function(total, card){ return total + numberFromCard(card, "data-won-sales-total"); }, 0);
@@ -1436,8 +1471,12 @@ function wonExportScript() {
     var amount = mode === "paid_out" ? salesTotal : agencyTotal;
     var amountLabel = mode === "paid_out" ? "sales commission" : "agency payment";
     var paymentAction = mode === "payment_requested" || mode === "paid_in" || mode === "paid_out";
+    var amountMissing = eligibleCards.some(function(card){
+      return card.getAttribute(mode === "paid_out" ? "data-won-sales-missing" : "data-won-agency-missing") === "true";
+    });
     var detail = label + " for " + eligibleCards.length + " won quote" + (eligibleCards.length === 1 ? "" : "s") +
-      (paymentAction ? " (" + amountLabel + " " + currency(amount) + ")?" : "?");
+      (paymentAction && amountMissing ? " (" + amountLabel + " total incomplete)?" :
+        paymentAction ? " (" + amountLabel + " " + currency(amount) + ")?" : "?");
     if (paymentAction) {
       var salespeople = Array.from(new Set(eligibleCards.map(function(card){ return (parseCard(card) || {}).Salesperson; }).filter(Boolean)));
       if (salespeople.length) detail += " Salespeople: " + salespeople.join(", ") + ".";
@@ -1458,14 +1497,24 @@ function wonExportScript() {
       return;
     }
     var totals = cards.reduce(function(total, card){
-      if (card.getAttribute("data-payment-paid-in") !== "true") total.agencyOutstanding += numberFromCard(card, "data-won-agency-total");
-      if (card.getAttribute("data-payment-paid-out") !== "true") total.salesOutstanding += numberFromCard(card, "data-won-sales-total");
+      if (card.getAttribute("data-payment-paid-in") !== "true") {
+        total.agencyOutstanding += numberFromCard(card, "data-won-agency-total");
+        total.agencyMissing ||= card.getAttribute("data-won-agency-missing") === "true";
+      }
+      if (card.getAttribute("data-payment-paid-out") !== "true") {
+        total.salesOutstanding += numberFromCard(card, "data-won-sales-total");
+        total.salesMissing ||= card.getAttribute("data-won-sales-missing") === "true";
+      }
       total.agencyProfit += numberFromCard(card, "data-won-agency-profit-total");
+      total.agencyProfitMissing ||= card.getAttribute("data-won-agency-profit-missing") === "true";
+      total.installerProfit += numberFromCard(card, "data-won-profit-total");
+      total.installerProfitMissing ||= card.getAttribute("data-won-profit-missing") === "true";
       return total;
-    }, { agencyOutstanding: 0, salesOutstanding: 0, agencyProfit: 0 });
-    var text = "Selected " + cards.length + ": Agency outstanding " + currency(totals.agencyOutstanding) +
-      " | Commission unpaid " + currency(totals.salesOutstanding) +
-      " | Agency profit inc GST " + currency(totals.agencyProfit);
+    }, { agencyOutstanding: 0, salesOutstanding: 0, agencyProfit: 0, installerProfit: 0 });
+    var text = "Selected " + cards.length + ": Agency outstanding " + (totals.agencyMissing ? "Incomplete" : currency(totals.agencyOutstanding)) +
+      " | Commission unpaid " + (totals.salesMissing ? "Incomplete" : currency(totals.salesOutstanding)) +
+      " | Agency profit inc GST " + (totals.agencyProfitMissing ? "Incomplete" : currency(totals.agencyProfit)) +
+      " | Installer profit ex GST " + (totals.installerProfitMissing ? "Incomplete" : currency(totals.installerProfit));
     totalsNodes.forEach(function(node){
       node.hidden = false;
       node.textContent = text;
@@ -1476,6 +1525,7 @@ function wonExportScript() {
     Array.prototype.slice.call(document.querySelectorAll("[data-selected-won-input]")).forEach(function(input){
       input.value = value;
     });
+    writeWonBatchInputs(selectedWonCards());
     updateSelectedTotals();
     updateWonSelectionDock();
   }
@@ -1555,6 +1605,10 @@ function wonExportScript() {
     var status = document.querySelector("[data-won-filter-status]");
     if (!status) return;
     var visibleCount = visibleWonCards().length;
+    if (activeWonGroup) {
+      status.textContent = "Batch filter: showing " + visibleCount + " of " + activeWonGroup.size + " original quotes.";
+      return;
+    }
     var paymentText = activePayments[0] && activePayments[0] !== "all" ? " with " + paymentFilterLabel(activePayments[0]) : "";
     if (!activeEmails.length) {
       if (paymentText) {
@@ -1621,7 +1675,7 @@ function wonExportScript() {
       var appliesToSummary = !hasSelectedSalespeople || selectedEmails.indexOf(email) >= 0;
       var summaryPayments = appliesToSummary ? activePayments : [];
       var cards = Array.prototype.slice.call(document.querySelectorAll(".won-card")).filter(function(card){
-        return String(card.getAttribute("data-won-user-email") || "").toLowerCase() === email &&
+        return wonCardInGroup(card) && String(card.getAttribute("data-won-user-email") || "").toLowerCase() === email &&
           cardMatchesPaymentFilters(card, summaryPayments);
       });
       var totals = cards.reduce(function(total, card){
@@ -1664,7 +1718,7 @@ function wonExportScript() {
       return (!hasPeopleFilter || activeEmails.indexOf(email) >= 0) && matchesWonSearch(card, search);
     });
     var visibleCards = baseCards.filter(function(card){
-      return cardMatchesPaymentFilters(card, activePayments);
+      return !card.hidden && cardMatchesPaymentFilters(card, activePayments);
     });
     var totals = visibleCards.reduce(function(total, card){
       total.quotes += 1;
@@ -1799,7 +1853,7 @@ function wonExportScript() {
     var hasFilter = activeEmails.length > 0;
     Array.prototype.slice.call(document.querySelectorAll(".won-card")).forEach(function(card){
       var email = String(card.getAttribute("data-won-user-email") || "").toLowerCase();
-      var show = (!hasFilter || activeEmails.indexOf(email) >= 0) && cardMatchesPaymentFilters(card, activePayments) && matchesWonSearch(card, search);
+      var show = wonCardInGroup(card) && (!hasFilter || activeEmails.indexOf(email) >= 0) && cardMatchesPaymentFilters(card, activePayments) && matchesWonSearch(card, search);
       card.hidden = !show;
       if (!show) {
         var box = card.querySelector(".won-sale-select");
@@ -2267,6 +2321,9 @@ function wonExportScript() {
     var clearFiltersTarget = event.target && event.target.closest ? event.target.closest("[data-clear-won-filters]") : null;
     if (clearFiltersTarget) {
       event.preventDefault();
+      if (activeWonGroup) {
+        clearWonGroupAndChecks();
+      }
       var search = document.querySelector("[data-won-search]");
       var sort = document.querySelector("[data-won-sort]");
       if (search) search.value = "";
@@ -2375,6 +2432,9 @@ function wonExportScript() {
     if (!card) { event.preventDefault(); return; }
     var tab = document.getElementById("admin-tab-jobs");
     if (tab) tab.click();
+    if (activeWonGroup) {
+      clearWonGroupAndChecks();
+    }
     var search = document.querySelector("[data-won-search]");
     if (search) search.value = "";
     setActiveSalespersonEmails([]);
@@ -2389,6 +2449,27 @@ function wonExportScript() {
       rememberWonUiState(false);
     });
   }
+  function reopenWonBatch(event) {
+    var section = document.querySelector(".won-options-section");
+    if (!section || section.getAttribute("aria-busy") === "true") return;
+    var ids = event.detail && event.detail.ids;
+    if (!Array.isArray(ids) || !ids.length) return;
+    activeWonGroup = new Set(ids);
+    var search = document.querySelector("[data-won-search]");
+    if (search) search.value = "";
+    setActiveSalespersonEmails([]);
+    setActivePaymentFilters(["all"]);
+    section.querySelectorAll(".won-card").forEach(function(card){
+      var box = card.querySelector(".won-sale-select");
+      if (box) box.checked = wonCardInGroup(card);
+    });
+    applyWonSalespersonFilter();
+    event.detail.opened = true;
+    if (search) {
+      search.focus({ preventScroll: true });
+      search.scrollIntoView({ block: "start" });
+    }
+  }
   function handleWonSubmit(event) {
     var form = event.target;
     if (!form || !form.closest || !form.closest(".won-options-section")) return;
@@ -2396,6 +2477,7 @@ function wonExportScript() {
       event.preventDefault();
       return;
     }
+    if (form.method === "get") return;
     if (form.hasAttribute("data-bulk-won-form")) {
       var selectedCards = selectedWonCards();
       if (!selectedCards.length) {
@@ -2404,13 +2486,26 @@ function wonExportScript() {
         return;
       }
       var mode = bulkModeForForm(form, event.submitter);
+      var max = Number(form.getAttribute("data-won-batch-limit") || "0");
+      if (max && selectedCards.length > max && ["manual", "payment_requested", "paid_in", "paid_out"].includes(mode)) {
+        event.preventDefault();
+        setExportStatus("Select no more than " + max + " quotes for a batch.", "error");
+        return;
+      }
+      if (["payment_requested", "paid_in", "paid_out"].includes(mode) && selectedCards.some(function(card){
+        return card.getAttribute?.("data-won-payment-readonly") === "true";
+      })) {
+        event.preventDefault();
+        setExportStatus("Remove recovered backup quotes before recording payments. Their payment statuses are read-only.", "error");
+        return;
+      }
       var eligibleCards = bulkEligibleCards(mode, selectedCards);
       if (!eligibleCards.length) {
         event.preventDefault();
         setExportStatus("All selected won quotes already have that payment recorded; no timestamps were changed.", "success");
         return;
       }
-      setBulkSelections(eligibleCards);
+      setBulkSelections(eligibleCards, selectedCards);
       if (!window.confirm(bulkConfirmationMessage(mode, selectedCards, eligibleCards))) {
         event.preventDefault();
         refreshBulkInputs();
@@ -2433,9 +2528,15 @@ function wonExportScript() {
     input: handleWonInput,
     toggle: handleWonToggle,
     review: reviewWonJob,
+    reopen: reopenWonBatch,
     submit: handleWonSubmit,
+    resetSelection: function(){
+      clearWonGroupAndChecks();
+      applyWonSalespersonFilter();
+    },
     refresh: function(){
       clearWonActionLoading();
+      clearWonGroupAndChecks();
       restoreWonUiState();
       applyWonSalespersonFilter();
       refreshBulkInputs();
@@ -2445,6 +2546,15 @@ function wonExportScript() {
     window.__adminWonOptionsHandlersBound = true;
     document.addEventListener("admin:review-won-job", function(event){
       if (window.__adminWonOptionsRuntime) window.__adminWonOptionsRuntime.review(event);
+    });
+    document.addEventListener("admin:reopen-won-batch", function(event){
+      if (window.__adminWonOptionsRuntime) window.__adminWonOptionsRuntime.reopen(event);
+    });
+    document.addEventListener("admin:won-selection-scope-changed", function(){
+      if (window.__adminWonOptionsRuntime) window.__adminWonOptionsRuntime.resetSelection();
+    });
+    window.addEventListener("pageshow", function(event){
+      if (event.persisted && window.__adminWonOptionsRuntime) window.__adminWonOptionsRuntime.resetSelection();
     });
     document.addEventListener("click", function(event){
       if (window.__adminWonOptionsRuntime) window.__adminWonOptionsRuntime.selectionClick(event);
@@ -2466,7 +2576,7 @@ function wonExportScript() {
     }, true);
     document.addEventListener("submit", function(event){
       if (window.__adminWonOptionsRuntime) window.__adminWonOptionsRuntime.submit(event);
-    });
+    }, true);
   }
   window.__adminWonOptionsRuntime.refresh();
   if (window.__adminWonDockObserver) window.__adminWonDockObserver.disconnect();
@@ -2599,6 +2709,7 @@ function addWonOptionsFromSnapshot({
   sourceId,
   recoveredFromBackup = false,
   updatedAt,
+  reviewQuote,
 }: {
   wonOptions: Map<string, WonOption>;
   deletedWonOptions: Set<string>;
@@ -2612,6 +2723,7 @@ function addWonOptionsFromSnapshot({
   sourceId: string;
   recoveredFromBackup?: boolean;
   updatedAt: string;
+  reviewQuote?: (job: WonOption, option: Record<string, unknown>, rows: Record<string, unknown>[]) => WonOption["review"];
 }) {
   function addOption(option: Record<string, unknown>, optionRows?: Record<string, unknown>[]) {
     const optionId = wonOptionId(option);
@@ -2631,16 +2743,35 @@ function addWonOptionsFromSnapshot({
       const key = wonOptionKey(email, dataOwnerEmail, dataUserId, optionId, wonAt);
       if (deletedWonOptions.has(key)) return;
       const adminState = adminWonStates.get(key);
-      const paymentWasReset = Boolean(adminState?.paymentResetAt);
-      const paymentRequestedAt = paymentWasReset
-        ? ""
-        : String(adminState?.paymentRequestedAt ?? option.paymentRequestedAt ?? "");
-      const paidInAt = paymentWasReset
-        ? ""
-        : String(adminState?.paidInAt ?? option.agencyPaidInAt ?? option.paidInAt ?? "");
-      const paidOutAt = paymentWasReset
-        ? ""
-        : String(adminState?.paidOutAt ?? option.salespersonPaidOutAt ?? option.paidOutAt ?? "");
+      const paymentSources = [option, ...rows.filter((row) => !row.wonAt || String(row.wonAt) === wonAt)];
+      function paymentPair(
+        at: "paymentRequestedAt" | "paidInAt" | "paidOutAt",
+        by: "paymentRequestedByEmail" | "paidInByEmail" | "paidOutByEmail",
+        aliasAt = at as string,
+        aliasBy = by as string,
+      ) {
+        let date = adminState?.[at] || "";
+        const actor = date ? adminState?.[by] || "" : "";
+        // A reset fences off payment flags in other saved copies, including
+        // after the next status is recorded. Non-reset legacy blanks do not.
+        if (adminState?.paymentResetAt || actor) return [date, actor];
+        for (const source of paymentSources) {
+          const aliasDate = String(source[aliasAt] || "");
+          const sourceDate = String(source[at] || "");
+          date ||= aliasDate || sourceDate;
+          const sourceActor = (date && date === aliasDate ? source[aliasBy] : "")
+            || (date && date === sourceDate ? source[by] : "");
+          if (sourceActor) return [date, String(sourceActor)];
+        }
+        return [date, ""];
+      }
+      const [paymentRequestedAt, paymentRequestedByEmail] = paymentPair("paymentRequestedAt", "paymentRequestedByEmail");
+      const [paidInAt, paidInByEmail] = paymentPair("paidInAt", "paidInByEmail", "agencyPaidInAt", "agencyPaidInByEmail");
+      const [paidOutAt, paidOutByEmail] = paymentPair("paidOutAt", "paidOutByEmail", "salespersonPaidOutAt", "salespersonPaidOutByEmail");
+      const paymentFields = {
+        paymentRequestedAt, paymentRequestedByEmail, paidInAt, paidInByEmail, paidOutAt, paidOutByEmail,
+        paymentResetAt: adminState?.paymentResetAt || "", paymentResetByEmail: adminState?.paymentResetByEmail || "",
+      };
       const paymentStatus = wonPaymentStatus(paymentRequestedAt, paidInAt, paidOutAt);
       const firstBusinessName = rows
         .map((quote) => String(quote.businessName || ""))
@@ -2687,7 +2818,23 @@ function addWonOptionsFromSnapshot({
         if (!existing.recoveredFromBackup && recoveredFromBackup) return;
       }
 
-      wonOptions.set(key, {
+      const totals = {
+        customerTotal: rows.reduce((sum, quote) => sum + moneyValue(quote.finalInc), 0),
+        agencyCommissionTotal: rows.reduce(
+          (sum, quote) => sum + moneyValue(quote.agencyCommissionInc ?? quote.commissionInc),
+          0,
+        ),
+        salespersonCommissionTotal: rows.reduce(
+          (sum, quote) => sum + moneyValue(quote.salespersonCommissionInc),
+          0,
+        ),
+        agencyProfitAfterSalesTotal: rows.reduce(
+          (sum, quote) => sum + quoteAgencyProfitAfterSalesInc(quote),
+          0,
+        ),
+        installerProfitTotal: rows.reduce((sum, quote) => sum + moneyValue(quote.netProfit), 0),
+      };
+      const wonOption: WonOption = {
         userEmail: email,
         userName: user ? displayNameFor(user) : email,
         businessName:
@@ -2708,26 +2855,16 @@ function addWonOptionsFromSnapshot({
         paymentRequestedAt,
         paidInAt,
         paidOutAt,
+        paymentFields,
         paymentStatus,
         paymentStatusLabel: wonPaymentStatusLabel(paymentRequestedAt, paidInAt, paidOutAt),
         systemCount: rows.length,
-        customerTotal: rows.reduce((sum, quote) => sum + moneyValue(quote.finalInc), 0),
+        ...totals,
         rebateTotal: rows.reduce((sum, quote) => sum + quoteRebateValue(quote), 0),
-        agencyCommissionTotal: rows.reduce(
-          (sum, quote) => sum + moneyValue(quote.agencyCommissionInc ?? quote.commissionInc),
-          0,
-        ),
-        salespersonCommissionTotal: rows.reduce(
-          (sum, quote) => sum + moneyValue(quote.salespersonCommissionInc),
-          0,
-        ),
-        agencyProfitAfterSalesTotal: rows.reduce(
-          (sum, quote) => sum + quoteAgencyProfitAfterSalesInc(quote),
-          0,
-        ),
-        installerProfitTotal: rows.reduce((sum, quote) => sum + moneyValue(quote.netProfit), 0),
         rows: wonRows,
-      });
+      };
+      wonOption.review = reviewQuote?.(wonOption, option, rows);
+      wonOptions.set(key, wonOption);
   }
 
   const wonOptionIds = new Set<string>();
@@ -2840,13 +2977,79 @@ function canonicalWonOptions(options: WonOption[]) {
   return [...canonical.values()];
 }
 
-async function listWonOptions(supabase: SupabaseServer, users: ApprovedUser[], includeBackups = false) {
-  const dataResult = await supabase
-    .from("user_calculator_data")
-    .select("user_id, email, data, updated_at");
+function wonReadableStorageKey(data: Record<string, unknown>, keys: string[]) {
+  return keys.find((key) => Boolean(data[key])) || keys[0];
+}
 
-  if (dataResult.error) {
-    return { data: [] as WonOption[], errorMessage: dbMessage(dataResult.error) };
+function wonSnapshotReader(users: ApprovedUser[]) {
+  const usersByEmail = new Map(users.map((user) => [user.email.toLowerCase(), user]));
+  const usersByName = new Map(users.map((user) => [lookupText(displayNameFor(user)), user] as const).filter(([name]) => Boolean(name)));
+  const wonOptions = new Map<string, WonOption>();
+  const deletedWonOptions = new Set<string>();
+  const adminWonStates = new Map<string, WonOptionAdminState>();
+
+  function collectState(row: CalculatorDataRow) {
+    const data = row.data || {};
+    const ownerEmail = lookupText(row.email);
+    const dataUserId = String(row.user_id || "");
+    deletedWonOptionKeysFromData(data, ownerEmail, dataUserId).forEach((key) => deletedWonOptions.add(key));
+    wonAdminStateRecordsFromData(data, ownerEmail, dataUserId).forEach((record) => {
+      const key = wonAdminStateKey(record, ownerEmail, dataUserId);
+      if (!key) return;
+      adminWonStates.set(key, newerAdminStateRecord(adminWonStates.get(key), record));
+      if (record.unlockedAt) deletedWonOptions.add(key);
+    });
+  }
+
+  function scan(row: CalculatorDataRow, updatedAt: string, sourcePrefix = "", onlySource?: string, includeReview = true) {
+    const data = row.data || {};
+    const common = {
+      wonOptions, deletedWonOptions, adminWonStates, usersByEmail, usersByName,
+      fallbackEmail: lookupText(row.email), dataUserId: String(row.user_id || ""), recoveredFromBackup: Boolean(sourcePrefix),
+      reviewQuote: includeReview ? (job: WonOption, option: Record<string, unknown>, rows: Record<string, unknown>[]) => {
+        const amounts = wonReportAmounts(job, rows);
+        return { amounts, fingerprint: wonPaymentReviewFingerprint(job, amounts, option, rows) };
+      } : undefined,
+    };
+    const currentSource = `${sourcePrefix}${CURRENT_WON_SOURCE_ID}`;
+    if (!onlySource || onlySource === currentSource) {
+      addWonOptionsFromSnapshot({
+        ...common, updatedAt, sourceId: currentSource,
+        optionDefs: parseStoredJson(data[wonReadableStorageKey(data, OPTION_DEF_STORAGE_KEYS)], []),
+        quotes: parseStoredJson(data[wonReadableStorageKey(data, QUOTE_STORAGE_KEYS)], []),
+      });
+    }
+    const savedQuoteSets = parseStoredJson<Record<string, unknown>[]>(
+      data[wonReadableStorageKey(data, SAVED_QUOTE_SET_STORAGE_KEYS)], [],
+    );
+    savedQuoteSets.forEach((savedQuoteSet, index) => {
+      const sourceId = `${sourcePrefix}${savedQuoteSetSourceId(savedQuoteSet, index)}`;
+      if (onlySource && onlySource !== sourceId) return;
+      addWonOptionsFromSnapshot({
+        ...common, sourceId,
+        optionDefs: Array.isArray(savedQuoteSet.optionDefs) ? savedQuoteSet.optionDefs : [],
+        quotes: Array.isArray(savedQuoteSet.quotes) ? savedQuoteSet.quotes : [],
+        updatedAt: String(savedQuoteSet.savedAt || updatedAt || ""),
+      });
+    });
+  }
+  return { wonOptions, collectState, scan };
+}
+
+async function listWonOptions(supabase: SupabaseServer, users: ApprovedUser[], includeBackups = false) {
+  const currentRows: CalculatorDataRow[] = [];
+  let afterUserId = "";
+  for (;;) {
+    let query = supabase.from("user_calculator_data").select("user_id, email, data, updated_at")
+      .order("user_id").limit(250);
+    if (afterUserId) query = query.gt("user_id", afterUserId);
+    const result = await query;
+    if (result.error) return { data: [] as WonOption[], errorMessage: dbMessage(result.error), currentUnavailable: true };
+    const rows = (result.data || []) as CalculatorDataRow[];
+    currentRows.push(...rows);
+    if (rows.length < 250) break;
+    afterUserId = String(rows.at(-1)?.user_id || "");
+    if (!afterUserId) return { data: [] as WonOption[], errorMessage: "Could not read all Won Quotes.", currentUnavailable: true };
   }
 
   const backupResult = includeBackups
@@ -2857,115 +3060,23 @@ async function listWonOptions(supabase: SupabaseServer, users: ApprovedUser[], i
         .limit(1000)
     : { data: [] as CalculatorBackupDataRow[], error: null };
 
-  const usersByEmail = new Map(users.map((user) => [user.email.toLowerCase(), user]));
-  const usersByName = new Map(
-    users
-      .map((user) => [lookupText(displayNameFor(user)), user] as const)
-      .filter(([name]) => Boolean(name)),
-  );
-  const wonOptions = new Map<string, WonOption>();
-  const deletedWonOptions = new Set<string>();
-  const adminWonStates = new Map<string, WonOptionAdminState>();
-
-  ((dataResult.data || []) as CalculatorDataRow[]).forEach((row) => {
-    const data = row.data || {};
-    const ownerEmail = lookupText(row.email);
-    const dataUserId = String(row.user_id || "");
-    deletedWonOptionKeysFromData(data, ownerEmail, dataUserId).forEach((key) => {
-      deletedWonOptions.add(key);
-    });
-    wonAdminStateRecordsFromData(data, ownerEmail, dataUserId).forEach((record) => {
-      const key = wonAdminStateKey(record, ownerEmail, dataUserId);
-      if (!key) return;
-      adminWonStates.set(key, newerAdminStateRecord(adminWonStates.get(key), record));
-      if (record.unlockedAt) deletedWonOptions.add(key);
-    });
-  });
-
-  function scanCalculatorSnapshot({
-    row,
-    sourcePrefix = "",
-    recoveredFromBackup = false,
-    updatedAt,
-  }: {
-    row: CalculatorDataRow;
-    sourcePrefix?: string;
-    recoveredFromBackup?: boolean;
-    updatedAt: string;
-  }) {
-    const fallbackEmail = lookupText(row.email);
-    const dataUserId = String(row.user_id || "");
-
-    const data = row.data || {};
-    const optionDefs = parseStoredJson<Record<string, unknown>[]>(
-      data.installerQuoteOptionDefsV1 || data.greenEnergyQuoteOptionDefsV1 || data.QuoteOptionDefsV1,
-      [],
-    );
-    const quotes = parseStoredJson<Record<string, unknown>[]>(
-      data.installerMasterQuoteLogV1 || data.greenEnergyMasterQuoteLogV1 || data.MasterQuoteLogV1,
-      [],
-    );
-    addWonOptionsFromSnapshot({
-      wonOptions,
-      deletedWonOptions,
-      adminWonStates,
-      usersByEmail,
-      usersByName,
-      fallbackEmail,
-      dataUserId,
-      optionDefs,
-      quotes,
-      sourceId: `${sourcePrefix}${CURRENT_WON_SOURCE_ID}`,
-      recoveredFromBackup,
-      updatedAt,
-    });
-
-    const savedQuoteSets = parseStoredJson<Record<string, unknown>[]>(
-      data.installerSavedQuoteSetsV1 || data.greenEnergySavedQuoteSetsV1 || data.SavedQuoteSetsV1,
-      [],
-    );
-    savedQuoteSets.forEach((savedQuoteSet, index) => {
-      addWonOptionsFromSnapshot({
-        wonOptions,
-        deletedWonOptions,
-        adminWonStates,
-        usersByEmail,
-        usersByName,
-        fallbackEmail,
-        dataUserId,
-        optionDefs: Array.isArray(savedQuoteSet.optionDefs) ? savedQuoteSet.optionDefs as Record<string, unknown>[] : [],
-        quotes: Array.isArray(savedQuoteSet.quotes) ? savedQuoteSet.quotes as Record<string, unknown>[] : [],
-        sourceId: `${sourcePrefix}${savedQuoteSetSourceId(savedQuoteSet, index)}`,
-        recoveredFromBackup,
-        updatedAt: String(savedQuoteSet.savedAt || updatedAt || ""),
-      });
-    });
-  }
-
-  ((dataResult.data || []) as CalculatorDataRow[]).forEach((row) => {
-    scanCalculatorSnapshot({
-      row,
-      updatedAt: String(row.updated_at || ""),
-    });
-  });
+  const reader = wonSnapshotReader(users);
+  currentRows.forEach(reader.collectState);
+  currentRows.forEach((row) => reader.scan(row, String(row.updated_at || "")));
 
   if (!backupResult.error) {
     ((backupResult.data || []) as CalculatorBackupDataRow[]).forEach((row) => {
-      scanCalculatorSnapshot({
-        row,
-        sourcePrefix: `backup:${row.id}:`,
-        recoveredFromBackup: true,
-        updatedAt: String(row.created_at || ""),
-      });
+      reader.scan(row, String(row.created_at || ""), `backup:${row.id}:`);
     });
   }
 
   const backupErrorMessage = backupResult.error ? dbMessage(backupResult.error) : "";
-  const dedupedWonOptions = canonicalWonOptions([...wonOptions.values()]);
+  const dedupedWonOptions = canonicalWonOptions([...reader.wonOptions.values()]);
 
   return {
     data: dedupedWonOptions.sort((a, b) => Number(new Date(b.wonAt)) - Number(new Date(a.wonAt))),
     errorMessage: backupErrorMessage ? `Backup won options were not checked: ${backupErrorMessage}` : "",
+    currentUnavailable: false,
   };
 }
 
@@ -3000,22 +3111,16 @@ function upsertWonAdminState(
       nextRecord.paymentRequestedAt = now;
       nextRecord.paymentRequestedByEmail = adminEmail;
     }
-    delete nextRecord.paymentResetAt;
-    delete nextRecord.paymentResetByEmail;
   } else if (mode === "paid_in") {
     if (!nextRecord.paidInAt) {
       nextRecord.paidInAt = now;
       nextRecord.paidInByEmail = adminEmail;
     }
-    delete nextRecord.paymentResetAt;
-    delete nextRecord.paymentResetByEmail;
   } else if (mode === "paid_out") {
     if (!nextRecord.paidOutAt) {
       nextRecord.paidOutAt = now;
       nextRecord.paidOutByEmail = adminEmail;
     }
-    delete nextRecord.paymentResetAt;
-    delete nextRecord.paymentResetByEmail;
   } else if (mode === "reset_payment") {
     nextRecord.paymentRequestedAt = "";
     delete nextRecord.paymentRequestedByEmail;
@@ -3047,10 +3152,13 @@ async function updateWonOptionState(
   dataUserId = "",
   dataOwnerEmail = "",
   wonAt = "",
+  review?: { fingerprint: string; users: ApprovedUser[] },
 ) {
   const ownerEmail = (dataOwnerEmail || userEmail).toLowerCase();
   const ownerColumn = dataUserId ? "user_id" : "email";
   const ownerValue = dataUserId || ownerEmail;
+  const paymentAction = mode === "payment_requested" || mode === "paid_in" || mode === "paid_out";
+  const paymentStatusWrite = paymentAction || mode === "reset_payment";
 
   function appendDeletedWonOption(originalData: Record<string, unknown>) {
     const data = { ...originalData };
@@ -3119,11 +3227,13 @@ async function updateWonOptionState(
         return next;
       });
     } else {
+      const matchesPaymentDate = (record: Record<string, unknown>) =>
+        !paymentStatusWrite || !wonAt || !record.wonAt || String(record.wonAt) === wonAt;
       nextOptionDefs = optionDefs.map((option) =>
-        targetIds.has(wonOptionId(option)) ? applyWonPaymentFields(option, mode, adminEmail) : option,
+        targetIds.has(wonOptionId(option)) && matchesPaymentDate(option) ? applyWonPaymentFields(option, mode, adminEmail) : option,
       );
       nextQuotes = quotes.map((quote) =>
-        targetIds.has(String(quote.optionId || "option_1"))
+        targetIds.has(String(quote.optionId || "option_1")) && matchesPaymentDate(quote)
           ? applyWonPaymentFields(quote, mode, adminEmail)
           : quote,
       );
@@ -3132,13 +3242,14 @@ async function updateWonOptionState(
     return { optionDefs: nextOptionDefs, quotes: nextQuotes };
   }
 
-  function updateDataForSource(originalData: Record<string, unknown>, targetSourceId: string) {
+  function updateDataForSource(originalData: Record<string, unknown>, targetSourceId: string, paymentSavedSetIndex?: number) {
     const data = { ...originalData };
     let updated = false;
+    const sourceStorageKey = paymentStatusWrite ? wonReadableStorageKey : storedJsonKey;
 
     if (targetSourceId === CURRENT_WON_SOURCE_ID) {
-      const optionDefsKey = storedJsonKey(data, OPTION_DEF_STORAGE_KEYS);
-      const quotesKey = storedJsonKey(data, QUOTE_STORAGE_KEYS);
+      const optionDefsKey = sourceStorageKey(data, OPTION_DEF_STORAGE_KEYS);
+      const quotesKey = sourceStorageKey(data, QUOTE_STORAGE_KEYS);
       const optionDefs = parseStoredJson<Record<string, unknown>[]>(data[optionDefsKey], []);
       const quotes = parseStoredJson<Record<string, unknown>[]>(data[quotesKey], []);
       const next = updateOptionCollections(optionDefs, quotes);
@@ -3150,10 +3261,11 @@ async function updateWonOptionState(
       return { data, updated };
     }
 
-    const savedSetsKey = storedJsonKey(data, SAVED_QUOTE_SET_STORAGE_KEYS);
+    const savedSetsKey = sourceStorageKey(data, SAVED_QUOTE_SET_STORAGE_KEYS);
     const savedQuoteSets = parseStoredJson<Record<string, unknown>[]>(data[savedSetsKey], []);
     const nextSavedQuoteSets = savedQuoteSets.map((savedQuoteSet, index) => {
-      if (savedQuoteSetSourceId(savedQuoteSet, index) !== targetSourceId) return savedQuoteSet;
+      if (paymentStatusWrite ? index !== paymentSavedSetIndex
+        : savedQuoteSetSourceId(savedQuoteSet, index) !== targetSourceId) return savedQuoteSet;
       const optionDefs = Array.isArray(savedQuoteSet.optionDefs)
         ? savedQuoteSet.optionDefs as Record<string, unknown>[]
         : [];
@@ -3252,6 +3364,7 @@ async function updateWonOptionState(
 
   const backupSource = backupSourceParts(sourceId);
   if (backupSource) {
+    if (paymentStatusWrite) return "Recovered backup payment statuses are read-only.";
     const backupResult = await supabase
       .from("user_calculator_data_backups")
       .select("id, user_id, email, data")
@@ -3260,12 +3373,6 @@ async function updateWonOptionState(
 
     if (backupResult.error) return dbMessage(backupResult.error);
     if (!backupResult.data?.data) return "Could not find that recovered backup.";
-    if (
-      wonOptionPaymentAlreadyRecorded(backupResult.data.data as Record<string, unknown>, backupSource.sourceId, optionId, wonAt, mode)
-      || wonAdminPaymentAlreadyRecorded(backupResult.data.data as Record<string, unknown>, userEmail, ownerEmail, dataUserId, backupSource.sourceId, optionId, wonAt, mode)
-    ) {
-      return WON_PAYMENT_ALREADY_RECORDED;
-    }
 
     const next = updateDataForSource(backupResult.data.data as Record<string, unknown>, backupSource.sourceId);
     if (!next.updated) return "Could not find that won option in the recovered backup.";
@@ -3274,29 +3381,70 @@ async function updateWonOptionState(
       .from("user_calculator_data_backups")
       .update({ data: next.data })
       .eq("id", backupSource.backupId);
-
     return updateResult.error ? dbMessage(updateResult.error) : "";
   }
 
   let dataQuery = supabase
     .from("user_calculator_data")
-    .select("user_id, data, updated_at");
+    .select("user_id, email, data, updated_at");
   dataQuery = dataQuery.eq(ownerColumn, ownerValue);
   const dataResult = await dataQuery.maybeSingle();
 
   if (dataResult.error) return dbMessage(dataResult.error);
   if (!dataResult.data?.data) return "Could not find saved calculator data for this user.";
-  if (
-    wonOptionPaymentAlreadyRecorded(dataResult.data.data as Record<string, unknown>, sourceId, optionId, wonAt, mode)
-    || wonAdminPaymentAlreadyRecorded(dataResult.data.data as Record<string, unknown>, userEmail, ownerEmail, dataUserId, sourceId, optionId, wonAt, mode)
-  ) {
-    return WON_PAYMENT_ALREADY_RECORDED;
+  const data = dataResult.data.data as Record<string, unknown>;
+  let paymentSavedSetIndex: number | undefined;
+  if (paymentStatusWrite) {
+    let optionDefs: Record<string, unknown>[];
+    if (sourceId === CURRENT_WON_SOURCE_ID) {
+      optionDefs = parseStoredJson(data[wonReadableStorageKey(data, OPTION_DEF_STORAGE_KEYS)], []);
+    } else {
+      const savedSets = parseStoredJson<Record<string, unknown>[]>(
+        data[wonReadableStorageKey(data, SAVED_QUOTE_SET_STORAGE_KEYS)], [],
+      );
+      // The reader can show one quote even when another container has the same ID.
+      for (const [index, set] of savedSets.entries()) {
+        if (savedQuoteSetSourceId(set, index) !== sourceId) continue;
+        if (paymentSavedSetIndex !== undefined) {
+          return "Multiple saved quote groups share this ID. No payment status changed.";
+        }
+        paymentSavedSetIndex = index;
+      }
+      if (paymentSavedSetIndex === undefined) return "The saved quote group changed before saving. No payment status changed.";
+      const set = savedSets[paymentSavedSetIndex];
+      optionDefs = Array.isArray(set.optionDefs) ? set.optionDefs : [];
+    }
+    if (optionDefs.filter((option) => wonOptionId(option) === optionId).length > 1) {
+      return "Multiple options in this quote group share the selected ID. No payment status changed.";
+    }
   }
-
-  const next = updateDataForSource(dataResult.data.data as Record<string, unknown>, sourceId);
+  let paymentFields: WonPaymentFields | undefined;
+  if (paymentAction) {
+    const reader = wonSnapshotReader(review?.users || []);
+    reader.collectState(dataResult.data);
+    reader.scan(dataResult.data, String(dataResult.data.updated_at || ""), "", review ? undefined : sourceId, Boolean(review));
+    const key = wonOptionKey(userEmail, ownerEmail, dataUserId, optionId, wonAt);
+    const latest = reader.wonOptions.get(key);
+    if (review && (!latest || latest.review?.fingerprint !== review.fingerprint)) {
+      return "The selected quote changed before saving. Refresh and review it again.";
+    }
+    if (!latest || latest.sourceId !== sourceId) {
+      if (!review && (wonOptionPaymentAlreadyRecorded(data, sourceId, optionId, wonAt, mode)
+        || wonAdminPaymentAlreadyRecorded(data, userEmail, ownerEmail, dataUserId, sourceId, optionId, wonAt, mode))) {
+        return WON_PAYMENT_ALREADY_RECORDED;
+      }
+      return "Could not find that won quote in the saved source.";
+    }
+    paymentFields = latest.paymentFields;
+    if (mode === "payment_requested" ? latest.paymentRequestedAt || latest.paidInAt || latest.paidOutAt
+      : mode === "paid_in" ? latest.paidInAt : latest.paidOutAt) return WON_PAYMENT_ALREADY_RECORDED;
+  }
+  const next = updateDataForSource(data, sourceId, paymentSavedSetIndex);
+  if (paymentStatusWrite && !next.updated) return "The quote is no longer won in the saved source.";
   const adminState = upsertWonAdminState(
     next.data,
     {
+      ...paymentFields,
       userEmail: userEmail.toLowerCase(),
       dataOwnerEmail: ownerEmail,
       dataUserId,
@@ -3311,7 +3459,7 @@ async function updateWonOptionState(
 
   if (!updated) return "Could not find that won option in the saved calculator data.";
 
-  return saveWonCalculatorSnapshot(supabase, ownerColumn, ownerValue, adminState.data, dataResult.data.updated_at ?? null);
+  return saveWonCalculatorSnapshot(supabase, ownerColumn, ownerValue, adminState.data, dataResult.data.updated_at ?? null, Boolean(review));
 }
 
 async function saveWonCalculatorSnapshot(
@@ -3320,12 +3468,16 @@ async function saveWonCalculatorSnapshot(
   ownerValue: string,
   data: Record<string, unknown>,
   previousUpdatedAt: string | null,
+  requireAcknowledgement = false,
 ) {
+  // A same-millisecond write must invalidate every CAS using the old version.
+  const nextUpdatedAt = new Date(Math.max(Date.now(), (Date.parse(previousUpdatedAt || "") || 0) + 1)).toISOString();
   let update = supabase.from("user_calculator_data")
-    .update({ data, updated_at: new Date().toISOString() })
+    .update({ data, updated_at: nextUpdatedAt })
     .eq(ownerColumn, ownerValue);
   update = previousUpdatedAt ? update.eq("updated_at", previousUpdatedAt) : update.is("updated_at", null);
   const result = await update.select("user_id");
+  if (requireAcknowledgement && (result.status === 0 || result.status >= 500)) throw new Error("Payment update not confirmed.");
   if (result.error) return dbMessage(result.error);
   return result.data?.length ? "" : "This calculator changed during the update. Refresh Won Jobs and retry; no payment change was saved.";
 }
@@ -4306,18 +4458,106 @@ async function refreshWonOptionRebate(
   return { errorMessage: "Calculator data changed while the rebate was updating; please retry", systemCount: 0, previousTotal: 0, nextTotal: 0 };
 }
 
+async function submitWonBatch(
+  supabase: SupabaseServer,
+  adminEmail: string,
+  kind: WonBatchKind,
+  formData: FormData,
+): Promise<never> {
+  const id = formData.get("wonBatchToken");
+  const ids = parseWonBatchIds(formData.get("wonBatchIds"));
+  const reviewed = kind === "manual" ? null : parseWonBatchIds(formData.get("wonBatchReviews"));
+  const rawLabel = formData.get("wonBatchName");
+  const label = kind === "manual" && typeof rawLabel === "string" ? rawLabel.trim() : "";
+  const includeBackups = formData.get("wonBatchIncludeBackups") === "1";
+  function finish(message: string, error: boolean, savedId?: string): never {
+    const params = new URLSearchParams({ [error ? "error" : "message"]: message });
+    if (includeBackups) params.set("checkBackups", "1");
+    if (savedId) params.set("wonBatch", savedId);
+    redirect(`/admin/users?${params}#won-options`);
+  }
+  if (!isWonBatchId(id) || !ids) finish(`Select 1 to ${WON_BATCH_MAX_JOBS} Won Quotes and try again.`, true);
+  if (kind === "manual" && (!label || label.length > 80)) finish("Enter a group name of 1 to 80 characters.", true);
+  if (kind !== "manual" && reviewed?.length !== ids.length) {
+    finish("Refresh Won Quotes and review the selection before recording payment statuses.", true);
+  }
+  const existing = await getWonBatch(supabase, id);
+  if (existing.error) finish("Could not check batch storage. No payment statuses changed.", true);
+  if (existing.batch) {
+    if (!sameWonBatchSelection(existing.batch, kind, label, ids, adminEmail)) {
+      finish("This submission token was already used. Refresh before trying again.", true);
+    }
+    finish("This batch was already submitted. No updates were replayed.", false, id);
+  }
+
+  const userResult = await listApprovedUsers(supabase, []);
+  if (userResult.errorMessage) finish("Could not verify the selected Won Quotes. No payment statuses changed.", true);
+  const wonResult = await listWonOptions(supabase, userResult.data, includeBackups);
+  if (wonResult.errorMessage) finish("Could not verify the selected Won Quotes. No payment statuses changed.", true);
+  const jobs = resolveWonBatchJobs(ids, wonResult.data);
+  if (!jobs) finish("At least one selected quote is no longer available. No payment statuses changed.", true);
+  if (kind !== "manual" && jobs.some((job) => job.recoveredFromBackup)) {
+    finish("Recovered backup payment statuses are read-only. No payment statuses changed.", true);
+  }
+  if (kind !== "manual" && jobs.some((job, index) => !job.review || job.review.fingerprint !== reviewed?.[index])) {
+    finish("At least one selected quote changed. Refresh and review the selection. No payment statuses changed.", true);
+  }
+
+  const items = jobs.map((job, index) => ({
+    id: ids[index], quote: job.optionName.slice(0, 160), salesperson: job.userName.slice(0, 160),
+    recovered: job.recoveredFromBackup,
+  }));
+  const result = await runWonBatch({ id, kind, label, items }, {
+    start: (intent) => startWonBatch(supabase, intent, adminEmail),
+    record: (outcomes) => recordWonBatchOutcomes(supabase, id, outcomes),
+    apply: async (_item, index) => {
+      if (kind === "manual") throw new Error("Manual groups cannot update payments.");
+      const job = jobs[index];
+      if (kind === "payment_requested" ? job.paymentRequestedAt || job.paidInAt || job.paidOutAt
+        : kind === "paid_in" ? job.paidInAt : job.paidOutAt) return { status: "already_recorded" };
+      const fingerprint = reviewed?.[index];
+      if (!fingerprint) throw new Error("Missing payment review fingerprint.");
+      const error = await updateWonOptionState(supabase, job.userEmail, job.optionId, kind, adminEmail,
+        job.sourceId, job.dataUserId, job.dataOwnerEmail, job.wonAt, { fingerprint, users: userResult.data });
+      if (error === WON_PAYMENT_ALREADY_RECORDED) return { status: "already_recorded" };
+      return error ? { status: "failed", detail: error.slice(0, 240) } : { status: "confirmed" };
+    },
+  });
+
+  if (result.status === "unavailable") finish("Could not save the batch. No payment statuses changed.", true);
+  if (result.status === "conflict") finish("This submission token was already used. Refresh before trying again.", true);
+  if (result.status === "replayed") finish("This batch was already submitted. No updates were replayed.", false, id);
+  revalidatePath("/admin/users");
+  if (kind === "manual") finish(`Saved ${items.length} quotes as a manual group. No payment statuses changed.`, false, id);
+
+  let alreadyRecordedCount = 0;
+  let updatedCount = 0;
+  let failedCount = 0;
+  for (const outcome of result.outcomes) {
+    if (outcome.status === "already_recorded") alreadyRecordedCount += 1;
+    else if (outcome.status === "confirmed") updatedCount += 1;
+    else failedCount += 1;
+  }
+  const summary = `${updatedCount} updated, ${alreadyRecordedCount} already recorded, ${failedCount} failed.`;
+  if (result.status === "interrupted") {
+    finish(`${summary} ${items.length - result.outcomes.length} unconfirmed. Review the batch and current statuses before retrying.`, true, id);
+  }
+  finish(summary, failedCount > 0, id);
+}
+
 async function bulkUpdateWonOptions(formData: FormData) {
   "use server";
 
   const { supabase, email: adminEmail } = await requireAdmin();
-  const mode = String(formData.get("bulkMode") || "") as WonOptionUpdateMode;
+  const mode = String(formData.get("bulkMode") || "");
+  if (isWonBatchKind(mode)) return submitWonBatch(supabase, adminEmail, mode, formData);
   const selections = parseWonOptionSelections(formData.get("selectedWonOptions"));
 
   if (!selections.length) {
     redirect("/admin/users?error=Select at least one won option first.");
   }
 
-  if (!["payment_requested", "paid_in", "paid_out", "reset_payment", "unlock", "delete", "update_rebate"].includes(mode)) {
+  if (mode !== "reset_payment" && mode !== "unlock" && mode !== "delete" && mode !== "update_rebate") {
     redirect("/admin/users?error=Choose a valid bulk action.");
   }
 
@@ -4369,7 +4609,6 @@ async function bulkUpdateWonOptions(formData: FormData) {
 
   const errors: string[] = [];
   let updatedCount = 0;
-  let alreadyRecordedCount = 0;
   for (const selection of selections) {
     const errorMessage = await updateWonOptionState(
       supabase,
@@ -4382,9 +4621,7 @@ async function bulkUpdateWonOptions(formData: FormData) {
       selection.dataOwnerEmail,
       selection.wonAt,
     );
-    if (errorMessage === WON_PAYMENT_ALREADY_RECORDED) {
-      alreadyRecordedCount += 1;
-    } else if (errorMessage) {
+    if (errorMessage) {
       errors.push(`${selection.userEmail}: ${errorMessage}`);
     } else {
       updatedCount += 1;
@@ -4399,29 +4636,25 @@ async function bulkUpdateWonOptions(formData: FormData) {
   }
 
   const actionLabel =
-    mode === "payment_requested"
-      ? "requested for agency payment"
-      : mode === "paid_out"
-      ? "marked with salesperson commission paid"
-      : mode === "paid_in"
-        ? "marked with agency payment received"
-        : mode === "reset_payment"
-          ? "reset"
-          : mode === "unlock"
-            ? "unlocked"
-            : "permanently deleted";
+    mode === "reset_payment" ? "reset" : mode === "unlock" ? "unlocked" : "permanently deleted";
+  redirect(`/admin/users?message=${encodeURIComponent(`${updatedCount} won option${updatedCount === 1 ? "" : "s"} ${actionLabel}.`)}`);
+}
 
-  const skipped = alreadyRecordedCount
-    ? ` ${alreadyRecordedCount} already-recorded payment${alreadyRecordedCount === 1 ? " was" : "s were"} skipped.`
-    : "";
-  redirect(`/admin/users?message=${encodeURIComponent(`${updatedCount} won option${updatedCount === 1 ? "" : "s"} ${actionLabel}.${skipped}`)}`);
+function WonBatchFormFields() {
+  return <>
+    <input type="hidden" name="wonBatchToken" value={randomUUID()} />
+    <input type="hidden" name="wonBatchIds" data-won-batch-ids />
+    <input type="hidden" name="wonBatchReviews" data-won-batch-reviews />
+    <input type="hidden" name="wonBatchIncludeBackups" data-won-batch-backups />
+  </>;
 }
 
 function WonBulkActionControls() {
   return (
     <>
-      <form action={bulkUpdateWonOptions} className="won-bulk-actions" data-bulk-won-form>
+      <form action={bulkUpdateWonOptions} className="won-bulk-actions" data-bulk-won-form data-won-batch-limit={WON_BATCH_MAX_JOBS}>
         <input type="hidden" name="selectedWonOptions" data-selected-won-input />
+        <WonBatchFormFields />
         <button className="secondary" type="submit" name="bulkMode" value="paid_in">
           Record payment received
         </button>
@@ -4435,8 +4668,9 @@ function WonBulkActionControls() {
         <div className="won-selected-totals" data-won-selected-totals hidden aria-live="polite" />
         <button className="secondary" data-select-all-won type="button">Select all</button>
         <button className="secondary" data-export-won-selected type="button">Export selected Excel</button>
-        <form action={bulkUpdateWonOptions} className="won-secondary-action" data-bulk-won-form>
+        <form action={bulkUpdateWonOptions} className="won-secondary-action" data-bulk-won-form data-won-batch-limit={WON_BATCH_MAX_JOBS}>
           <input type="hidden" name="selectedWonOptions" data-selected-won-input />
+          <WonBatchFormFields />
           <button className="secondary" type="submit" name="bulkMode" value="payment_requested">
             Record payment request
           </button>
@@ -4449,6 +4683,15 @@ function WonBulkActionControls() {
           <button className="secondary" type="submit" name="bulkMode" value="unlock">
             Unlock quote
           </button>
+        </form>
+        <form action={bulkUpdateWonOptions} className="won-secondary-action" data-bulk-won-form data-won-batch-limit={WON_BATCH_MAX_JOBS}>
+          <WonBatchFormFields />
+          <input type="hidden" name="bulkMode" value="manual" />
+          <label className="won-filter-field">
+            <span>Manual group name</span>
+            <input name="wonBatchName" maxLength={80} required />
+          </label>
+          <button className="secondary" type="submit">Save selected as manual group</button>
         </form>
         <form
           action={bulkUpdateWonOptions}
@@ -4476,19 +4719,29 @@ export default async function AdminUsersPage({
     setupBusiness?: string;
     setupAction?: string;
     certificateHistoryRange?: string;
+    wonBatch?: string;
+    wonBatchPage?: string;
+    wonReport?: string;
+    wonSalesperson?: string;
+    wonFrom?: string;
+    wonTo?: string;
   }>;
 }) {
   const params = await searchParams;
   const includeBackupWonOptions = params?.checkBackups === "1";
+  const activeWonBatchId = isWonBatchId(params?.wonBatch) ? params.wonBatch : undefined;
+  const wonBatchPage = /^[1-9]\d{0,5}$/.test(params?.wonBatchPage || "") ? Number(params?.wonBatchPage) : 1;
   const certificateHistoryRange = normalizeCertificateHistoryRange(params?.certificateHistoryRange);
   const { supabase, email: currentEmail } = await requireAdmin();
   const businessResult = await listBusinesses(supabase);
-  const [usersResult, membershipsResult, certificateResult, certificateHistoryResult, activityResult] = await Promise.all([
+  const [usersResult, membershipsResult, certificateResult, certificateHistoryResult, activityResult, batchHistory, activeBatchResult] = await Promise.all([
     listApprovedUsers(supabase, businessResult.data),
     listUserBusinessMemberships(supabase, businessResult.data),
     getPlatformCertificateValues(supabase, businessResult.data),
     listPlatformCertificateValueHistory(supabase),
     listApprovedUserActivity(supabase),
+    listWonBatches(supabase, wonBatchPage),
+    activeWonBatchId ? getWonBatch(supabase, activeWonBatchId) : null,
   ]);
 
   const businesses = businessResult.data;
@@ -4498,6 +4751,20 @@ export default async function AdminUsersPage({
   );
   const wonResult = await listWonOptions(supabase, users, includeBackupWonOptions);
   const wonOptions = wonResult.data;
+  const batchJobIds = new Map(wonOptions.map((option) => [option, wonBatchJobId(option)]));
+  const availableBatchIds = new Set(batchJobIds.values());
+  const reportJobs = wonOptions.filter((option) => !option.recoveredFromBackup && option.review);
+  const reportPeopleByEmail = new Map(reportJobs.map((option) => [
+    option.userEmail.toLowerCase(), { email: option.userEmail.toLowerCase(), name: option.userName },
+  ]));
+  for (const user of users) {
+    const email = user.email.toLowerCase();
+    const name = displayNameFor(user);
+    if (user.role === "salesperson" || reportPeopleByEmail.has(email) || isWonReportDefaultPerson(name)) {
+      reportPeopleByEmail.set(email, { email, name });
+    }
+  }
+  const reportPeople = [...reportPeopleByEmail.values()].sort((a, b) => a.name.localeCompare(b.name) || a.email.localeCompare(b.email));
   const salespersonSales = summarizeSalesBySalesperson(wonOptions);
   const certificateValues = certificateResult.data;
   const businessCertificateValues = certificateResult.businessValuesById;
@@ -4597,7 +4864,7 @@ export default async function AdminUsersPage({
           </section>
         ) : null}
 
-        <AdminWorkspace storageScope={currentEmail} initialView={setupBusiness ? "users" : params?.certificateHistoryRange ? "prices" : includeBackupWonOptions ? "jobs" : undefined}>
+        <AdminWorkspace storageScope={currentEmail} initialView={setupBusiness ? "users" : params?.certificateHistoryRange ? "prices" : includeBackupWonOptions || activeWonBatchId || params?.wonBatchPage || params?.wonReport ? "jobs" : undefined}>
         <AdminPanel view="prices" id="certificate-values">
           <div className="section-heading admin-section-summary">
             <div>
@@ -5107,7 +5374,11 @@ export default async function AdminUsersPage({
             <span className="section-count">{wonOptions.length} quotes</span>
           </div>
 
-          <div className="admin-section-body">
+          <div className="admin-section-body" data-won-backup-scope={includeBackupWonOptions ? "1" : "0"}>
+            <WonSelectionScope scope={JSON.stringify([
+              includeBackupWonOptions, activeWonBatchId, wonBatchPage, params?.wonReport, params?.wonSalesperson,
+              params?.wonFrom, params?.wonTo,
+            ])} />
             <div className="won-loading-overlay" data-won-loading-overlay>
               <div className="won-loading-panel">
                 <span className="won-loading-spinner" aria-hidden="true" />
@@ -5131,6 +5402,13 @@ export default async function AdminUsersPage({
                 </a>
               </details>
             </div>
+            <WonBatchHistory batches={batchHistory.batches} activeBatch={activeBatchResult?.batch}
+              activeBatchId={activeWonBatchId} availableIds={availableBatchIds} includeBackups={includeBackupWonOptions}
+              unavailable={batchHistory.unavailable} page={wonBatchPage} hasMore={batchHistory.hasMore} />
+            <WonSalesReport jobs={reportJobs.flatMap((option) => option.review ? [{
+              userEmail: option.userEmail, wonAt: option.wonAt, reportAmounts: option.review.amounts,
+            }] : [])} people={reportPeople} today={sydneyToday()} includeBackups={includeBackupWonOptions}
+              unavailable={wonResult.currentUnavailable} query={params} />
             <div className="won-filter-controls">
               <label className="won-filter-field won-search-field">
                 <span>Search Won Quotes</span>
@@ -5244,6 +5522,9 @@ export default async function AdminUsersPage({
                   wonAt: option.wonAt,
                 })}
                 data-won-user-email={option.userEmail.toLowerCase()}
+                data-won-batch-job={batchJobIds.get(option)}
+                data-won-batch-review={option.review?.fingerprint}
+                data-won-payment-readonly={option.recoveredFromBackup ? "true" : undefined}
                 data-won-card-key={wonOptionDomKey(option)}
                 data-won-search={[option.optionName, option.userName, option.businessName, option.userEmail].join(" ").toLowerCase()}
                 data-won-time={Number.isFinite(new Date(option.wonAt).getTime()) ? new Date(option.wonAt).getTime() : 0}
@@ -5259,6 +5540,10 @@ export default async function AdminUsersPage({
                 data-won-customer-total={option.customerTotal}
                 data-won-profit-total={option.installerProfitTotal}
                 data-won-sales-total={option.salespersonCommissionTotal}
+                data-won-sales-missing={option.review?.amounts.salespersonCommissionTotal == null ? "true" : undefined}
+                data-won-agency-missing={option.review?.amounts.agencyCommissionTotal == null ? "true" : undefined}
+                data-won-agency-profit-missing={option.review?.amounts.agencyProfitAfterSalesTotal == null ? "true" : undefined}
+                data-won-profit-missing={option.review?.amounts.installerProfitTotal == null ? "true" : undefined}
                 key={wonOptionDomKey(option)}
               >
                 <summary className="won-card-summary">
@@ -5317,8 +5602,8 @@ export default async function AdminUsersPage({
                     <span className="locked-pill">
                       {option.wonAt ? formatShortDate(option.wonAt) : "Won"}
                     </span>
-                    {option.recoveredFromBackup ? <span className="locked-pill">Recovered backup</span> : null}
-                    {!option.paymentRequestedAt && !option.paidInAt ? (
+                    {option.recoveredFromBackup ? <span className="locked-pill">Recovered backup: payment read-only</span> : null}
+                    {!option.recoveredFromBackup && !option.paymentRequestedAt && !option.paidInAt ? (
                       <form action={updateWonPaymentStatus}>
                         <input type="hidden" name="userEmail" value={option.userEmail} />
                         <input type="hidden" name="dataUserId" value={option.dataUserId} />
@@ -5332,7 +5617,7 @@ export default async function AdminUsersPage({
                         </button>
                       </form>
                     ) : null}
-                    {!option.paidInAt ? (
+                    {!option.recoveredFromBackup && !option.paidInAt ? (
                       <form action={updateWonPaymentStatus}>
                         <input type="hidden" name="userEmail" value={option.userEmail} />
                         <input type="hidden" name="dataUserId" value={option.dataUserId} />
@@ -5346,7 +5631,7 @@ export default async function AdminUsersPage({
                         </button>
                       </form>
                     ) : null}
-                    {!option.paidOutAt ? (
+                    {!option.recoveredFromBackup && !option.paidOutAt ? (
                       <form action={updateWonPaymentStatus}>
                         <input type="hidden" name="userEmail" value={option.userEmail} />
                         <input type="hidden" name="dataUserId" value={option.dataUserId} />
@@ -5362,7 +5647,7 @@ export default async function AdminUsersPage({
                     ) : null}
                     <details className="won-secondary-actions">
                       <summary>More actions</summary>
-                    {option.paymentRequestedAt || option.paidInAt || option.paidOutAt ? (
+                    {!option.recoveredFromBackup && (option.paymentRequestedAt || option.paidInAt || option.paidOutAt) ? (
                       <form action={updateWonPaymentStatus}>
                         <input type="hidden" name="userEmail" value={option.userEmail} />
                         <input type="hidden" name="dataUserId" value={option.dataUserId} />
