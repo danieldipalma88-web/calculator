@@ -6,10 +6,11 @@ const tick = async () => { for (let i = 0; i < 8; i += 1) await new Promise(reso
 const success = () => ({ ok: true, status: 200, json: async () => ({ ok: true }), headers: { get: () => null } });
 const unavailable = () => ({ ok: false, status: 503, json: async () => ({ error: 'offline' }), headers: { get: () => null } });
 
-function browser({ cloud = { draft: 'seed' }, businessId = '11111111-1111-4111-8111-111111111111', email = 'fixture@example.test', viewingEmail = email, session = new Map(), initialStorage = {} } = {}) {
+function browser({ cloud = { draft: 'seed' }, businessId = '11111111-1111-4111-8111-111111111111', email = 'fixture@example.test', viewingEmail = email, session = new Map(), initialStorage = {}, initialStorageFailure = {} } = {}) {
   const storage = new Map(Object.entries(initialStorage).map(([key, value]) => [key, String(value)]));
   const timeouts = new Map(), intervals = new Map(), documentHandlers = new Map(), windowHandlers = new Map();
   const calls = [], beacons = [], storageWrites = [];
+  const storageFailure = { set: false, remove: false, ...initialStorageFailure };
   let nextTimer = 0, responder = () => success();
   const sandbox = {
     AbortController, Blob, Event, CustomEvent, performance: { now: () => 0 },
@@ -24,8 +25,8 @@ function browser({ cloud = { draft: 'seed' }, businessId = '11111111-1111-4111-8
     localStorage: {
       get length() { return storage.size; }, key: index => [...storage.keys()][index],
       getItem: key => storage.get(key) ?? null,
-      setItem: (key, value) => { storageWrites.push(['set', key, String(value)]); storage.set(key, String(value)); },
-      removeItem: key => { storageWrites.push(['remove', key]); storage.delete(key); },
+      setItem: (key, value) => { if (storageFailure.set) throw new Error('storage unavailable'); storageWrites.push(['set', key, String(value)]); storage.set(key, String(value)); },
+      removeItem: key => { if (storageFailure.remove === true || storageFailure.remove === key) throw new Error('storage unavailable'); storageWrites.push(['remove', key]); storage.delete(key); },
       clear: () => { storageWrites.push(['clear']); storage.clear(); },
     },
     sessionStorage: {
@@ -42,7 +43,7 @@ function browser({ cloud = { draft: 'seed' }, businessId = '11111111-1111-4111-8
   assert.ok(script, 'generated calculator bootstrap script exists');
   vm.runInNewContext(script, sandbox);
   return {
-    sandbox, storage, session, storageWrites, timeouts, intervals, documentHandlers, windowHandlers, calls, beacons,
+    sandbox, storage, session, storageWrites, storageFailure, timeouts, intervals, documentHandlers, windowHandlers, calls, beacons,
     setResponder(fn) { responder = fn; },
     timer(ms) {
       const entry = [...timeouts].find(([, timer]) => timer.ms === ms);
@@ -501,4 +502,57 @@ assert.equal(lostCopySession.has(lostCopyKey), true, 'recovered response alone r
 assert.equal(lostCopy.sandbox.window.__calculatorAcknowledgeQuoteMutation('quoteCopy', lostCopyPayload.saveId), true);
 assert.equal(lostCopySession.has(lostCopyKey), false, 'recovered original response plus matching acknowledgement clears the fence');
 
-console.log('Cloud save recovery passed: bounded retries/manual recovery; strict acknowledgements/deadlines; unload/conflict fencing; full tab-scoped envelopes; reload/empty-cloud recovery guards; legacy profile compatibility; signed-in account/view/business isolation and pre-debounce fencing; quote mutation stash/retry/ack fencing, including lost-copy-response then terminal-401 recovery.');
+// The release notice is advisory and may offer a reload only after durable saves.
+const refresh = browser();
+assert.equal(refresh.sandbox.window.__calculatorCanRefresh(), true, 'acknowledged initial workspace permits explicit refresh');
+refresh.edit('not-yet-saved');
+assert.equal(refresh.sandbox.window.__calculatorCanRefresh(), false, 'dirty local edits block refresh before the debounce');
+await refresh.sandbox.window.__calculatorFlushCloudSave(60000); await tick();
+assert.equal(refresh.sandbox.window.__calculatorCanRefresh(), true, 'confirmed save permits refresh');
+refresh.sandbox.window.aadEquipmentPriceEditSnapshot = () => ({ pending: true });
+assert.equal(refresh.sandbox.window.__calculatorCanRefresh(), false, 'unacknowledged equipment price edits block refresh');
+refresh.sandbox.window.aadEquipmentPriceEditSnapshot = () => { throw new Error('unavailable'); };
+assert.equal(refresh.sandbox.window.__calculatorCanRefresh(), false, 'guard errors fail closed');
+assert.equal(conflict.sandbox.window.__calculatorCanRefresh(), false, 'quote conflict blocks refresh');
+assert.equal(fenced.sandbox.window.__calculatorCanRefresh(), false, 'changed workspace blocks refresh');
+assert.equal(lostCopyReload.sandbox.window.__calculatorCanRefresh(), false, 'pending recovery blocks refresh');
+const refreshingMutation = browser();
+refreshingMutation.setResponder(() => new Promise(() => {}));
+void refreshingMutation.sandbox.window.__calculatorQuoteRequest('quoteCopy', { saveId: 'refresh-copy', sourceOptionId: 'option-1' });
+await tick();
+assert.equal(refreshingMutation.sandbox.window.__calculatorCanRefresh(), false, 'in-flight quote mutation blocks refresh');
+const refreshingSave = browser();
+refreshingSave.setResponder(() => new Promise(() => {}));
+refreshingSave.edit('saving');
+void refreshingSave.sandbox.window.__calculatorFlushCloudSave(60000);
+await tick();
+assert.equal(refreshingSave.sandbox.window.__calculatorCanRefresh(), false, 'in-flight cloud save blocks refresh');
+for (const flag of ['currentQuoteTotalsEditing', 'quoteLibraryEdit', 'quoteArrangeBusy', 'quoteArrangePending']) {
+  const editor = browser(); editor.sandbox[flag] = true;
+  assert.equal(editor.sandbox.window.__calculatorCanRefresh(), false, flag + ' blocks refresh');
+  editor.sandbox[flag] = false;
+  assert.equal(editor.sandbox.window.__calculatorCanRefresh(), true, flag + ' closes cleanly');
+}
+for (const operation of ['set', 'remove']) {
+  const failedStorage = browser(); failedStorage.storageFailure[operation] = true;
+  const write = () => operation === 'set' ? failedStorage.edit('unsaved') : failedStorage.sandbox.localStorage.removeItem('draft');
+  assert.throws(write, /storage unavailable/);
+  assert.equal(failedStorage.sandbox.window.__calculatorCanRefresh(), false, 'failed local ' + operation + ' blocks refresh');
+  failedStorage.storageFailure[operation] = false;
+  assert.equal(failedStorage.sandbox.window.__calculatorCanRefresh(), false, 'storage recovery alone cannot confirm the lost edit');
+  write();
+  assert.equal(failedStorage.sandbox.window.__calculatorCanRefresh(), false, 'successful local retry still requires cloud confirmation');
+  await failedStorage.sandbox.window.__calculatorFlushCloudSave(60000); await tick();
+  assert.equal(failedStorage.sandbox.window.__calculatorCanRefresh(), true, 'same-key retry plus cloud confirmation clears refresh fence');
+}
+const failedCleanup = browser({
+  email: 'new-account@example.test', cloud: { draft: 'new-account-cloud' },
+  initialStorage: { __calculatorSignedInEmail: 'old-account@example.test', __calculatorProfileEmail: startupProfile,
+    installerMasterQuoteLogV1: JSON.stringify([{ id: 'old-account-quote' }]) },
+  initialStorageFailure: { remove: 'installerMasterQuoteLogV1' },
+});
+assert.equal(failedCleanup.storage.get('__calculatorSignedInEmail'), 'new-account@example.test');
+assert.match(failedCleanup.storage.get('installerMasterQuoteLogV1'), /old-account-quote/);
+assert.equal(failedCleanup.sandbox.window.__calculatorCanRefresh(), false, 'failed pre-wrapper workspace cleanup blocks refresh');
+
+console.log('Cloud save recovery passed, including safe-refresh guards for dirty state, pending saves/mutations, conflicts, price edits, recovery and workspace changes.');

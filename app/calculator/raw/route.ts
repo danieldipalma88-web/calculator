@@ -26,6 +26,8 @@ import { createSupabaseServerClient } from "../../../lib/supabase/server";
 import { visibleCalculatorData } from "../../../lib/quote-data-visibility";
 import { applyStoredQuoteAdminUnlocks } from "../../../lib/quote-family";
 import { BUSINESS_CONFIGURATION_STORAGE_KEY, validateBusinessCalculatorConfiguration, validatedBusinessConfigurationData, withoutBusinessConfiguration } from "../../../lib/business-calculator-configuration";
+import { calculatorReleaseVersion } from "../../../lib/calculator-release";
+import { injectCalculatorUpdateNotice } from "../../../lib/calculator-update-notice";
 
 const calculatorHtmlPromise = readFile(
   path.join(process.cwd(), "index.html"),
@@ -411,6 +413,7 @@ function injectCloudStorageSync(
   var recoveryRequired = false;
   var workspaceChanged = false;
   var recoveryStorageFailed = false;
+  var refreshBlockedStorageKeys = Object.create(null);
   try {
     var storedRecovery = sessionStorage.getItem(pendingStorageKey);
     if (storedRecovery) {
@@ -908,6 +911,20 @@ function injectCloudStorageSync(
     sendPendingSnapshot();
     return confirmation;
   };
+  window.__calculatorCanRefresh = function(){
+    try {
+      if (syncing || recoveryRequired || workspaceChanged || recoveryStorageFailed || quoteConflictError || quoteArrangeAttempt ||
+          syncRequestInFlight || pendingSnapshot || pendingRecovery || syncRetryTimer || syncRetryPaused) return false;
+      if (Object.keys(refreshBlockedStorageKeys).length) return false;
+      if ((typeof currentQuoteTotalsEditing !== 'undefined' && currentQuoteTotalsEditing) ||
+          (typeof quoteLibraryEdit !== 'undefined' && quoteLibraryEdit) ||
+          (typeof quoteArrangeBusy !== 'undefined' && quoteArrangeBusy) ||
+          (typeof quoteArrangePending !== 'undefined' && quoteArrangePending)) return false;
+      if (localStorage.getItem(accountStorageKey) !== calculatorUser.email || localStorage.getItem(profileStorageKey) !== profileEmail) return false;
+      if (typeof window.aadEquipmentPriceEditSnapshot === 'function' && Object.keys(window.aadEquipmentPriceEditSnapshot()).length) return false;
+      return JSON.stringify(snapshot()) === lastSnapshotJson;
+    } catch(e) { return false; }
+  };
   window.__calculatorResolveQuoteConflict = function(){
     if (!quoteConflictError) return window.__calculatorFlushCloudSave(20000);
     quoteConflictError = null;
@@ -1015,7 +1032,7 @@ function injectCloudStorageSync(
         if (isAppStorageKey(key)) keys.push(key);
       }
       keys.forEach(function(key){ localStorage.removeItem(key); });
-    } catch (e) {}
+    } catch (e) { refreshBlockedStorageKeys.__bootstrap = true; }
   }
   function applyCommissionSettings(){
     if (!calculatorUser) return;
@@ -1146,6 +1163,7 @@ function injectCloudStorageSync(
     var shouldBackfillCloud = !snapshotHasData(cloudData) && snapshotHasData(snapshot());
     lastSnapshotJson = JSON.stringify(snapshot());
   } catch (e) {
+    refreshBlockedStorageKeys.__bootstrap = true;
   } finally {
     syncing = false;
   }
@@ -1155,19 +1173,22 @@ function injectCloudStorageSync(
     var originalClear = localStorage.clear.bind(localStorage);
     localStorage.setItem = function(key, value){
       if (isAppStorageKey(key) && !workspaceIsCurrent()) return;
-      originalSetItem(key, value);
+      try { originalSetItem(key, value); delete refreshBlockedStorageKeys[key]; }
+      catch(e) { if (isAppStorageKey(key)) refreshBlockedStorageKeys[key] = true; throw e; }
       if (isAppStorageKey(key)) retainLocalEdit();
       scheduleSync();
     };
     localStorage.removeItem = function(key){
       if (isAppStorageKey(key) && !workspaceIsCurrent()) return;
-      originalRemoveItem(key);
+      try { originalRemoveItem(key); delete refreshBlockedStorageKeys[key]; }
+      catch(e) { if (isAppStorageKey(key)) refreshBlockedStorageKeys[key] = true; throw e; }
       if (isAppStorageKey(key)) retainLocalEdit();
       scheduleSync();
     };
     localStorage.clear = function(){
       if (!workspaceIsCurrent()) return;
-      originalClear();
+      try { originalClear(); }
+      catch(e) { refreshBlockedStorageKeys.__clear = true; throw e; }
       retainLocalEdit();
       scheduleSync();
     };
@@ -1526,7 +1547,8 @@ export async function GET(request: Request) {
     },
   );
 
-  return new NextResponse(html, {
+  const currentHtml = injectCalculatorUpdateNotice(html, calculatorReleaseVersion());
+  return new NextResponse(currentHtml, {
     headers: {
       "Content-Type": "text/html; charset=utf-8",
       "Cache-Control": "no-store",

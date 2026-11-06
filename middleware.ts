@@ -4,7 +4,8 @@ import { updateSession } from "./lib/supabase/middleware";
 export async function middleware(request: NextRequest) {
   if (
     request.nextUrl.pathname === "/calculator/raw" ||
-    request.nextUrl.pathname === "/api/calculator-data"
+    request.nextUrl.pathname === "/api/calculator-data" ||
+    request.nextUrl.pathname === "/api/calculator-version"
   ) {
     return NextResponse.next();
   }
