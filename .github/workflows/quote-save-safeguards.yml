@@ -52,8 +52,7 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '24'
-          cache: npm
-      - run: npm ci --ignore-scripts
+      - run: npm install --no-package-lock --ignore-scripts
       - name: Simulate timeouts, conflicts and lost save responses
         run: npm run verify:save-recovery
       - name: Verify quote and business data protection
