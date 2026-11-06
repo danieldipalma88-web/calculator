@@ -13,7 +13,7 @@ const apiPath = path.join(root, "app/api/calculator-data/route.ts");
 const rawPath = path.join(root, "app/calculator/raw/route.ts");
 const raw = fs.readFileSync(rawPath, "utf8");
 const modules = new Map();
-let activeClient;
+let activeDatabase;
 function loadTs(filename) {
   if (modules.has(filename)) return modules.get(filename);
   const module = { exports: {} };
@@ -22,10 +22,22 @@ function loadTs(filename) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
   }).outputText;
   vm.runInNewContext(source, {
-    module, exports: module.exports, URL, Request, Response, process: { env: {} },
+    module, exports: module.exports, URL, Request, Response, AbortController, AbortSignal, setTimeout, clearTimeout,
+    fetch: (input, init) => {
+      assert.ok(init.signal instanceof AbortSignal, "Save DB requests use the route deadline signal");
+      return activeDatabase.transport(input, init);
+    },
+    process: { env: { NEXT_PUBLIC_SUPABASE_URL: "https://mock.invalid", NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "mock-key" } },
     require: (specifier) => {
       if (specifier === "next/server") return { NextResponse: { json: Response.json } };
-      if (specifier.endsWith("/supabase/server")) return { createSupabaseServerClient: async () => activeClient };
+      if (specifier === "next/headers") return { cookies: async () => ({ getAll: () => [], set() {} }) };
+      if (specifier.endsWith("/supabase/server")) return { createSupabaseServerClient: async () => activeDatabase.client() };
+      if (specifier === "@supabase/ssr") return { createServerClient(url, key, options) {
+        assert.equal(url, "https://mock.invalid");
+        assert.equal(key, "mock-key");
+        assert.equal(options.db.retry, false, "Save DB retries remain disabled");
+        return activeDatabase.client(options.global.fetch);
+      } };
       if (specifier.endsWith(".json")) return require(path.resolve(path.dirname(filename), specifier));
       return specifier.startsWith(".")
         ? loadTs(path.resolve(path.dirname(filename), specifier.endsWith(".ts") ? specifier : `${specifier}.ts`))
@@ -75,10 +87,7 @@ function database(config = {}) {
     ],
     platform_certificate_values: config.platform === null ? [] : [config.platform ?? platform],
   };
-  const client = createClient("https://mock.invalid", "mock-key", {
-    db: { retry: false },
-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-    global: { fetch: async (input, options) => {
+  const transport = async (input, options) => {
       if (options.method !== "GET") writes.push({ url: String(input), method: options.method });
       assert.equal(options.method, "GET", "Verification must never write records");
       const url = new URL(String(input));
@@ -97,14 +106,21 @@ function database(config = {}) {
         return projection ? [projection[1], item.data?.[projection[2]] ?? null] : [column, item[column]];
       })));
       return Response.json(rows);
-    } },
-  });
-  client.auth.getUser = async () => ({ data: { user: config.signedOut ? null : { email, id: "current-id" } } });
-  return { client, queries, writes };
+  };
+  function client(fetch = transport) {
+    const db = createClient("https://mock.invalid", "mock-key", {
+      db: { retry: false },
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+      global: { fetch },
+    });
+    db.auth.getUser = async () => ({ data: { user: config.signedOut ? null : { email, id: "current-id" } } });
+    return db;
+  }
+  return { client, transport, queries, writes };
 }
 async function get(query, config = {}, method = "GET") {
   const db = database(config);
-  activeClient = db.client;
+  activeDatabase = db;
   const request = new Request(`https://calculator.test/api/calculator-data${query ? `?${query}` : ""}`, method === "GET" ? undefined : {
     method, headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ data: { privateProfile: "attempted write", installerManagedPricesV1: businessData.installerManagedPricesV1 } }),
@@ -225,10 +241,11 @@ function browser(context = {}, hidden = false) {
   const windowEvents = new Map();
   const documentEvents = new Map();
   const storage = new Map();
+  const session = new Map();
   const calls = [];
   const applied = [];
   let timerId = 0;
-  let fetchImpl = async () => ({ ok: true, json: async () => normal.light.body });
+  let fetchImpl = async (_url, options) => ({ ok: true, json: async () => options.method === "PUT" ? { ok: true } : normal.light.body });
   const sandbox = {
     AbortController, Blob, Event, performance: { now: () => 0 },
     setTimeout: (fn, ms) => { const id = ++timerId; timeouts.set(id, { fn, ms }); return id; },
@@ -249,7 +266,11 @@ function browser(context = {}, hidden = false) {
       getItem: (key) => storage.get(key) ?? null,
       setItem: (key, value) => storage.set(key, value), removeItem: (key) => storage.delete(key), clear: () => storage.clear(),
     },
-    navigator: { sendBeacon: (url) => calls.push({ url, beacon: true }) },
+    sessionStorage: {
+      getItem: (key) => session.get(key) ?? null,
+      setItem: (key, value) => session.set(key, value), removeItem: (key) => session.delete(key),
+    },
+    navigator: { sendBeacon: (url, body) => { calls.push({ url, body, beacon: true }); return true; } },
     fetch: (url, options) => { calls.push({ url, options }); return fetchImpl(url, options); },
   };
   const html = generator.injectCloudStorageSync("<script></script>", {}, { email: currentEmail, viewingEmail: currentEmail, businessId: "business-a", ...context });
@@ -355,14 +376,19 @@ for (const context of [{ businessId: null }, { viewingEmail: targetEmail, busine
   assert.equal(url.searchParams.get("mode"), "rebate-settings");
   assert.equal(url.searchParams.get("businessId"), context.businessId);
   assert.equal(url.searchParams.get("as"), context.viewingEmail || null);
-  client.unload();
-  assert.ok(!client.calls.at(-1).url.includes("mode="), "Beacon saves must retain the original full URL");
   client.sandbox.localStorage.setItem("privateQuote", "updated quote");
+  client.unload();
+  const beacon = client.calls.at(-1);
+  assert.equal(beacon.beacon, true, "Dirty unload must actually send a beacon");
+  assert.ok(!beacon.url.includes("mode="), "Beacon saves must retain the original full URL");
+  const expectedWorkspace = { accountEmail: currentEmail, viewingEmail: context.viewingEmail || currentEmail, businessId: context.businessId };
+  assert.deepEqual(JSON.parse(await beacon.body.text()).expectedWorkspace, expectedWorkspace);
   await client.sandbox.window.__calculatorFlushCloudSave();
   const save = client.calls.at(-1);
   assert.equal(save.options.method, "PUT");
   assert.ok(!save.url.includes("mode="), "PUT saves must retain the original full URL");
   assert.equal(JSON.parse(save.options.body).data.privateQuote, "updated quote");
+  assert.deepEqual(JSON.parse(save.options.body).expectedWorkspace, expectedWorkspace);
 }
 delete bridge.sandbox.window.applyAuthoritativeRebateSettings;
 const legacyCalls = [];

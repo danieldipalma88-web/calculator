@@ -37,11 +37,13 @@ function endpoint(data = baseline, visible = true, collision) {
         return Promise.resolve({data:[{user_id:'user'}],error:null});
       },
       eq(k,v){filters[k]=v;return q;},is(k,v){filters[k]=v;return q;},update(v){update=v;return q;},
-      async maybeSingle(){state.reads++;return {data:{user_id:'user',data:clone(state.data),updated_at:state.updated_at},error:null};},
+      async maybeSingle(){state.reads++;return {data:{user_id:'user',email:'user@test',data:clone(state.data),updated_at:state.updated_at},error:null};},
     };return q;
   }};
-  const context={...family,...quoteLibrary,...sync,...validation,applyQuoteArrange,calculatorDataHasData:data=>Object.keys(data||{}).length>0};
-  vm.runInNewContext(ts.transpileModule(declaration('saveMergedUserData',route),{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText,context);
+  const context={...family,...quoteLibrary,...sync,...validation,...loadTsModule('lib/calculator-data-save.ts'),
+    applyQuoteArrange,calculatorDataHasData:data=>Object.keys(data||{}).length>0};
+  vm.runInNewContext(ts.transpileModule(['saveDatabaseTimeout','saveMergedUserData'].map(name=>declaration(name,route)).join('\n'),
+    {compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText,context);
   return {state,async call(body) {
     const result=await context.saveMergedUserData(db,'user@test','user',body.data||{},false,body.quoteEdit,visible,body.quoteCopy,true,body.quoteArrange);
     return {ok:!result.error,status:result.status||200,json:async()=>clone(result)};
@@ -126,7 +128,9 @@ const failedPreparationCheck=assert.rejects(failedPreparation,/Current changes c
 await tick();failedFlush.fire(20000);await failedPreparationCheck;
 assert.ok(failedFlush.calls.every(body=>body.data),'No mutation before successful preparation');
 failedFlush.setResponder(body=>failedFlushServer.call(body));
-const preparedRetry=await failedFlush.sandbox.window.__calculatorQuoteRequest('quoteArrange',clone(payload));
+const preparingRetry=failedFlush.sandbox.window.__calculatorQuoteRequest('quoteArrange',clone(payload));
+failedFlush.fire([...failedFlush.timeouts.values()].find(timer=>timer.ms>=3000&&timer.ms<3500).ms);
+const preparedRetry=await preparingRetry;
 failedFlush.patch(preparedRetry);await tick();
 assert.ok(failedFlush.calls.at(-2).data);assert.ok(failedFlush.calls.at(-1).quoteArrange);
 

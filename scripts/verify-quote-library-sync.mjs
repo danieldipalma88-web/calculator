@@ -6,6 +6,7 @@ import { mergeCalculatorData } from "../lib/quote-sync.ts";
 import { applyStoredQuoteAdminUnlocks, quoteFamilySnapshotViolation, quoteFamilySnapshotConflict, quoteFamilyUnlockRequested } from "../lib/quote-family.ts";
 import { applyQuoteLibraryCopy, applyQuoteLibraryEdit, quoteLibraryResponseRow, quoteLibraryVisibleRow } from "../lib/quote-library-edit.ts";
 import { canManageUsers, canSeeCommissionDetails, canSeeProfitDetails, isOwnerEmail } from "../lib/admin.ts";
+import { declaration, loadTsModule } from "./verify-business-configuration.mjs";
 
 const rowsKey = "installerMasterQuoteLogV1";
 const optionsKey = "installerQuoteOptionDefsV1";
@@ -248,15 +249,13 @@ for (const [userContext, expectedUrl] of [
   assert.equal(sandbox.result, expectedUrl, "Raw mutation URL preserves server-derived preview, profile and business context");
 }
 assert.ok(raw.includes("var calculatorSyncUrl = ${safeScriptJson(syncUrl)};"));
-const ast = ts.createSourceFile("route.ts", api, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+const saveHelpers = loadTsModule("lib/calculator-data-save.ts");
 const context = { mergeCalculatorData, applyStoredQuoteAdminUnlocks, quoteFamilySnapshotViolation, quoteFamilySnapshotConflict, quoteFamilyUnlockRequested, applyQuoteLibraryCopy, applyQuoteLibraryEdit, quoteLibraryResponseRow, quoteLibraryVisibleRow,
+  ...saveHelpers,
   validateNewWonJobTransitions: () => ({ valid: true }), wonJobValidationMessage: () => "Invalid won job",
 };
-for (const name of ["storedValueHasData", "calculatorDataHasData", "saveMergedUserData"]) {
-  const fn = ast.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === name);
-  assert.ok(fn, name);
-  vm.runInNewContext(ts.transpile(fn.getText(ast), { target: ts.ScriptTarget.ES2020 }), context);
-}
+vm.runInNewContext(ts.transpile(["storedValueHasData", "calculatorDataHasData", "saveDatabaseTimeout", "saveMergedUserData"]
+  .map(name => declaration(name, api)).join("\n"), { target: ts.ScriptTarget.ES2020 }), context);
 function mockProfile(initial, race) {
   let stored = { user_id: "user-1", data: clone(initial), updated_at: "2026-01-01T00:00:00.000Z" };
   let writes = 0, attempts = 0;
@@ -339,8 +338,9 @@ function endpointHarness({ role = "admin", targetRole = "user", email = "admin@e
   db.auth = { getUser: async () => ({ data: { user: { id: "user-1", email } } }) };
   const endpoint = {
     URL, canManageUsers, canSeeCommissionDetails, canSeeProfitDetails, isOwnerEmail,
+    ...saveHelpers, aadCataloguePrices: null,
     NextResponse: { json: (body, options) => ({ body, status: options?.status ?? 200 }) },
-    createSupabaseServerClient: async () => db,
+    createCalculatorSaveClient: async () => db,
     currentApprovedUser: async (_db, requested) => requested === email
       ? { data: { role }, error: null } : { data: { role: targetRole }, error: targetError },
     resolveBusinessId: async () => null,
@@ -350,12 +350,9 @@ function endpointHarness({ role = "admin", targetRole = "user", email = "admin@e
     calculatorDataHasData: context.calculatorDataHasData,
     saveMergedUserData: context.saveMergedUserData,
   };
-  for (const name of ["targetEmailFromRequest", "mutationFinancialsVisible", "saveCalculatorData"]) {
-    const node = ast.statements.find(entry => ts.isFunctionDeclaration(entry) && entry.name?.text === name);
-    assert.ok(node, name);
-    vm.runInNewContext(ts.transpile(node.getText(ast), { target: ts.ScriptTarget.ES2020 }), endpoint);
-  }
-  return { db, call: (body, query = "") => endpoint.saveCalculatorData(new Request(`https://test.invalid/api/calculator-data${query}`, {
+  vm.runInNewContext(ts.transpile(["targetEmailFromRequest", "mutationFinancialsVisible", "saveCalculatorData", "saveCalculatorDataWithDeadline"]
+    .map(name => declaration(name, api)).join("\n"), { target: ts.ScriptTarget.ES2020 }), endpoint);
+  return { db, call: (body, query = "") => endpoint.saveCalculatorDataWithDeadline(new Request(`https://test.invalid/api/calculator-data${query}`, {
     method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
   })) };
 }
@@ -373,7 +370,7 @@ for (const [settings, query, full] of [
   [{ role: "admin", targetRole: "user" }, "?as=sales@example.test", true],
   [{ role: "admin", targetRole: "business_owner" }, "?as=owner@example.test&preview=1", true],
   [{ role: "admin" }, "?preview=1", true],
-  [{ role: "user" }, "?as=sales@example.test&preview=1", false],
+  [{ role: "user" }, "?as=admin@example.test&preview=1", false],
   [{ role: "user", email: "danieldipalma88@gmail.com", targetRole: "user" }, "?as=sales@example.test&preview=1", false],
 ]) {
   const harness = endpointHarness(settings);
@@ -383,6 +380,11 @@ for (const [settings, query, full] of [
   assert.equal(response.body.row.finalInc, 4400);
   assert.equal(JSON.parse(harness.db.stored.data[rowsKey])[0].agencyCommissionRate, original.agencyCommissionRate);
 }
+const revokedAdmin = endpointHarness({ role: "user" });
+const revokedEdit = await revokedAdmin.call({ quoteEdit: request() }, "?as=sales@example.test&preview=1");
+assert.equal(revokedEdit.status, 409);
+assert.equal(revokedEdit.body.code, "CALCULATOR_WORKSPACE_CHANGED");
+assert.equal(revokedAdmin.db.writes, 0, "A revoked admin tab cannot edit the signed-in user's quotes");
 const failedVisibility = endpointHarness({ targetError: { message: "unavailable" } });
 assert.equal((await failedVisibility.call({ quoteEdit: request() }, "?as=sales@example.test&preview=1")).status, 503);
 assert.equal(failedVisibility.db.writes, 0);

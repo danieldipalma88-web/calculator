@@ -11,6 +11,7 @@ import { canManageUsers, canSeeCommissionDetails, canSeeProfitDetails, isOwnerEm
 import { visibleCalculatorData } from '../lib/quote-data-visibility.ts';
 import { CERTIFICATE_VALUES_STORAGE_KEYS, PLATFORM_CERTIFICATE_VALUES_ID, overlayPlatformCertificateValues, platformCertificateValuesFromRow } from '../lib/certificate-values.ts';
 import { validatedBusinessConfigurationData, withoutBusinessConfiguration } from '../lib/business-calculator-configuration.ts';
+import { declaration, loadTsModule } from './verify-business-configuration.mjs';
 
 const clone = value => structuredClone(value);
 const parse = value => typeof value === 'string' ? JSON.parse(value) : value;
@@ -224,13 +225,14 @@ assert.ok(!rows(legacyDelete).some(value => value.id === 'unrelated'), 'unarrang
 // Exercise the actual route CAS loop with an in-memory Supabase query double.
 const routeText = fs.readFileSync(new URL('../app/api/calculator-data/route.ts', import.meta.url), 'utf8');
 const routeAst = ts.createSourceFile('route.ts', routeText, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
-const saveFunction = routeAst.statements.find(value => ts.isFunctionDeclaration(value) && value.name?.text === 'saveMergedUserData');
-assert.ok(saveFunction);
+const saveHelpers = loadTsModule('lib/calculator-data-save.ts');
 const context = { applyQuoteArrange, applyQuoteLibraryCopy, applyQuoteLibraryEdit, quoteLibraryResponseRow, quoteLibraryVisibleRow,
   mergeCalculatorData, applyStoredQuoteAdminUnlocks, quoteFamilySnapshotViolation, quoteFamilySnapshotConflict, quoteFamilyUnlockRequested, validateNewWonJobTransitions, wonJobValidationMessage,
+  ...saveHelpers,
   calculatorDataHasData: data => Object.keys(data || {}).length > 0 };
 vm.createContext(context);
-vm.runInContext(ts.transpileModule(saveFunction.getText(routeAst), { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText, context);
+vm.runInContext(ts.transpileModule(['saveDatabaseTimeout', 'saveMergedUserData'].map(name => declaration(name, routeText)).join('\n'),
+  { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText, context);
 function database(data, collision) {
   const state = { record: { user_id: 'user', data: clone(data), updated_at: '2026-10-27T00:00:00Z' }, writes: 0, reads: 0 };
   const db = { from(table) {
@@ -290,24 +292,22 @@ function endpoint({ role = 'user', locked = false, targetRole = 'user', initialD
   const { db, state } = database(initialData);
   db.auth = { getUser: async () => ({ data: { user: { id: 'user', email: 'actor@example.test' } } }) };
   const sandbox = { URL, canManageUsers, canSeeCommissionDetails, canSeeProfitDetails, isOwnerEmail,
+    ...saveHelpers, aadCataloguePrices: null,
     NextResponse: { json: (body, options) => ({ body, status: options?.status ?? 200 }) },
-    createSupabaseServerClient: async () => db,
+    createCalculatorSaveClient: async () => db,
     currentApprovedUser: async (_db, email) => ({ data: { role: email === 'actor@example.test' ? role : targetRole, is_locked: locked }, error: null }),
     resolveBusinessId: async () => null, sanitizeIncomingCalculatorData: value => value,
     stripCertificateValueKeys: value => value, splitCalculatorDataByScope: value => ({ userData: value, businessData: {} }),
     calculatorDataHasData: context.calculatorDataHasData, saveMergedUserData: context.saveMergedUserData };
-  for (const name of ['targetEmailFromRequest', 'mutationFinancialsVisible', 'saveCalculatorData']) {
-    const fn = routeAst.statements.find(value => ts.isFunctionDeclaration(value) && value.name?.text === name);
-    assert.ok(fn, name);
-    vm.runInNewContext(ts.transpileModule(fn.getText(routeAst), { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText, sandbox);
-  }
-  return { state, call: (body, query = '', method = 'PUT') => sandbox.saveCalculatorData(new Request(`https://test.invalid/api/calculator-data${query}`, {
+  vm.runInNewContext(ts.transpileModule(['targetEmailFromRequest', 'mutationFinancialsVisible', 'saveCalculatorData', 'saveCalculatorDataWithDeadline']
+    .map(name => declaration(name, routeText)).join('\n'), { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText, sandbox);
+  return { state, call: (body, query = '', method = 'PUT') => sandbox.saveCalculatorDataWithDeadline(new Request(`https://test.invalid/api/calculator-data${query}`, {
     method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })) };
 }
 for (const [settings, query, full] of [
   [{ role: 'admin' }, '?as=sales@example.test&preview=1', false],
   [{ role: 'admin' }, '?as=sales@example.test', true],
-  [{ role: 'user' }, '?as=sales@example.test&preview=1', false],
+  [{ role: 'user' }, '?as=actor@example.test&preview=1', false],
   [{ role: 'admin', targetRole: 'business_owner' }, '?as=owner@example.test&preview=1', true],
 ]) {
   const harness = endpoint(settings);
@@ -318,6 +318,11 @@ for (const [settings, query, full] of [
   assert.equal(stale.status, 409);
   assert.equal('agencyCommission' in stale.body.currentFamily.rows[0], full, 'conflict family honours existing preview visibility');
 }
+const revokedActor = endpoint({ role: 'user' });
+const revokedArrangement = await revokedActor.call({ quoteArrange: casPayload }, '?as=sales@example.test&preview=1');
+assert.equal(revokedArrangement.status, 409);
+assert.equal(revokedArrangement.body.code, 'CALCULATOR_WORKSPACE_CHANGED');
+assert.equal(revokedActor.state.writes, 0, 'A revoked admin tab cannot arrange the signed-in user\'s quotes');
 for (const body of [
   { quoteArrange: casPayload, data: { preferences: 'not allowed' } },
   { quoteArrange: casPayload, quoteCopy: { optionId: 'a', name: 'Copy', saveId: 'copy_mixed_request' } },

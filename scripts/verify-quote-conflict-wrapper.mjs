@@ -60,6 +60,7 @@ paused.sandbox.localStorage.setItem(rowsKey, JSON.stringify([{ id: 'unsaved', op
 const first = paused.sandbox.window.__calculatorFlushCloudSave(20000).catch(error => error);
 paused.sandbox.localStorage.setItem('unrelatedDraft', 'newer local edit');
 const queued = paused.sandbox.window.__calculatorFlushCloudSave(20000).catch(error => error);
+await tick();
 assert.equal(paused.calls.length, 1);
 const beforeConflict = new Map(paused.storage);
 respond(conflictResponse());
@@ -74,7 +75,7 @@ assert.deepEqual(plain(paused.sandbox.window.__calculatorQuoteConflict.currentFa
 const event = paused.events.find(event => event.type === 'calculator-quote-conflict');
 assert.ok(event);
 assert.equal(event.detail, firstError);
-assert.ok(![...paused.timeouts.values()].some(timer => timer.ms === 1800 || timer.ms === 20000), 'no retry timer or unresolved waiter remains');
+assert.ok(![...paused.timeouts.values()].some(timer => timer.ms >= 3000), 'no retry timer or unresolved waiter remains');
 paused.sandbox.localStorage.setItem('anotherLocalDraft', 'retained while paused');
 paused.periodic(); paused.unload();
 assert.equal(paused.calls.length, 1);
@@ -108,7 +109,7 @@ assert.equal(settled, false, 'transient CAS conflict keeps its flush waiter pend
 assert.equal(transient.sandbox.window.__calculatorQuoteConflict, null);
 assert.equal(transient.sandbox.window.__calculatorCloudSaveState.tone, 'retrying');
 assert.ok(!transient.events.some(event => event.type === 'calculator-quote-conflict'));
-transient.fire(1800);
+transient.fire([...transient.timeouts.values()].find(timer => timer.ms >= 3000 && timer.ms < 3500).ms);
 await confirmation; await tick();
 assert.equal(transient.calls.length, 2);
 assert.equal(settled, true);

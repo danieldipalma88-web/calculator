@@ -1,0 +1,62 @@
+name: Quote save safeguards
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '47 20 * * 0'
+  push:
+    branches: [main]
+    paths:
+      - 'app/api/calculator-data/**'
+      - 'app/calculator/raw/**'
+      - 'lib/calculator-data-save.ts'
+      - 'lib/quote*.ts'
+      - 'lib/business-calculator-configuration.ts'
+      - 'index.html'
+      - 'scripts/verify-*save*.mjs'
+      - 'scripts/verify-quote*.mjs'
+      - 'scripts/verify-business-configuration.mjs'
+      - 'package*.json'
+      - '.github/workflows/quote-save-safeguards.yml'
+  pull_request:
+    paths:
+      - 'app/api/calculator-data/**'
+      - 'app/calculator/raw/**'
+      - 'lib/calculator-data-save.ts'
+      - 'lib/quote*.ts'
+      - 'lib/business-calculator-configuration.ts'
+      - 'index.html'
+      - 'scripts/verify-*save*.mjs'
+      - 'scripts/verify-quote*.mjs'
+      - 'scripts/verify-business-configuration.mjs'
+      - 'package*.json'
+      - '.github/workflows/quote-save-safeguards.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quote-save-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  recovery-regressions:
+    # All data and services are local fixtures. Never write real quotes or use paid private runners.
+    if: github.event.repository.private == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Simulate timeouts, conflicts and lost save responses
+        run: npm run verify:save-recovery
+      - name: Verify quote and business data protection
+        run: |
+          npm run verify:quote-sync
+          npm run verify:business-configuration

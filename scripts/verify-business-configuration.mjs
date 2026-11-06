@@ -13,7 +13,7 @@ const apiSource = fs.readFileSync(path.join(root, "app/api/calculator-data/route
 const require = createRequire(import.meta.url);
 const moduleCache = new Map();
 export function loadTsModule(relative) {
-  const filename = path.resolve(root, relative);
+  const filename = path.resolve(root, path.extname(relative) ? relative : relative + ".ts");
   if (moduleCache.has(filename)) return moduleCache.get(filename);
   const module = { exports: {} };
   moduleCache.set(filename, module.exports);
@@ -139,9 +139,12 @@ export function createSnapshotEndpoint(options = {}) {
   const context = {
     ...configurationModule, ...loadTsModule("lib/quote-sync.ts"), ...loadTsModule("lib/quote-family.ts"),
     ...loadTsModule("lib/quote-library-edit.ts"), ...loadTsModule("lib/won-job-validation.ts"),
+    ...loadTsModule("lib/calculator-data-save.ts"),
     ...loadTsModule("lib/aad-catalogue-price-defaults.ts"), aadCataloguePrices: options.aadCataloguePrices ?? null,
     exports: {},
+    URL,
     createSupabaseServerClient: async () => supabase,
+    createCalculatorSaveClient: async () => supabase,
     currentApprovedUser: async () => ({ data: { role: "user", business_id: businessA }, error: null }),
     canManageUsers: () => false, isOwnerEmail: () => false,
     targetEmailFromRequest: () => "fixture@example.test", resolveBusinessId: async () => businessA,
@@ -157,14 +160,16 @@ export function createSnapshotEndpoint(options = {}) {
     "storedValueHasData", "calculatorDataHasData", "splitCalculatorDataByScope", "stripCertificateValueKeys",
     "sanitizeIncomingCalculatorData", "stripManagedRebateOverrides", "parseManagedPriceMap", "serializeManagedPriceMap",
     "normalizeManagedLookup", "managedEntryHasTrustedRebate", "managedEntryModelKey", "managedRebateSource",
-    "preserveManagedRebateFields", "preserveBusinessManagedRebates", "saveMergedBusinessData", "saveMergedUserData",
-    "saveCalculatorData", "PUT", "POST"];
+    "preserveManagedRebateFields", "preserveBusinessManagedRebates", "saveDatabaseTimeout", "saveMergedBusinessData", "saveMergedUserData",
+    "saveCalculatorData", "saveCalculatorDataWithDeadline", "PUT", "POST"];
   vm.runInNewContext(ts.transpileModule([
     ...names.map(name => declaration(name, apiSource)), "globalThis.routes={PUT,POST};",
   ].join("\n"), { compilerOptions: { target: ts.ScriptTarget.ES2017, module: ts.ModuleKind.CommonJS } }).outputText, context);
   return {
     state,
-    request: (body, method = "PUT") => context.routes[method]({ json: async () => clone(body) }),
+    request: (body, method = "PUT") => context.routes[method](new Request("https://calculator.test/api/calculator-data", {
+      method, body: JSON.stringify(body),
+    })),
   };
 }
 
@@ -181,7 +186,7 @@ async function verifySnapshotRaces(config) {
     const initial = structuredClone(previous);
     if (configuredBefore) initial.data[key] = JSON.stringify({ ...config, revision: "fixture-r1" });
     const endpoint = createSnapshotEndpoint({ initialBusiness: initial, afterBusinessRead: async state => { if (state.reads === 1) { pause(); await held; } } });
-    const saving = endpoint.request({ data: { ...initial.data, ...quoteData }, businessConfigurationRevision: configuredBefore ? "fixture-r1" : null });
+    const saving = endpoint.request({ data: { ...initial.data, [priceKey]: prices(881), ...quoteData }, businessConfigurationRevision: configuredBefore ? "fixture-r1" : null });
     await reached; endpoint.state.business = structuredClone(imported); release();
     const response = await saving;
     assert.equal(response.status, 200); assert.equal(endpoint.state.reads, 2);
@@ -215,10 +220,10 @@ async function verifySnapshotRaces(config) {
   assert.equal((await missingFresh.request({ data: previous.data })).status, 200);
   assert.deepEqual(missingFresh.state.business.data, previous.data);
   const conflict = createSnapshotEndpoint({ initialBusiness: previous, beforeBusinessUpdate: state => { state.business.updated_at = new Date(Date.parse(state.business.updated_at) + 1).toISOString(); } });
-  assert.equal((await conflict.request({ data: previous.data })).status, 409);
+  assert.equal((await conflict.request({ data: { ...previous.data, [priceKey]: prices(881) } })).status, 409);
   assert.equal(conflict.state.reads, 5, "CAS contention is bounded and never silently succeeds");
   const nullVersion = createSnapshotEndpoint({ initialBusiness: { ...previous, updated_at: null } });
-  assert.equal((await nullVersion.request({ data: previous.data })).status, 200);
+  assert.equal((await nullVersion.request({ data: { ...previous.data, [priceKey]: prices(881) } })).status, 200);
   assert.deepEqual(nullVersion.state.updates[0].filters[1], ["updated_at", null]);
   let releaseConcurrent;
   const concurrentGate = new Promise(resolve => { releaseConcurrent = resolve; });

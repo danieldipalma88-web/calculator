@@ -24,6 +24,14 @@ import {
 } from "../../../lib/won-job-validation";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
 import { revisionGuardedBusinessSnapshot, validatedBusinessConfigurationData, withoutBusinessConfiguration } from "../../../lib/business-calculator-configuration";
+import {
+  calculatorSaveUnavailable,
+  createCalculatorSaveClient,
+  isCalculatorSaveAuthUnavailable,
+  isCalculatorSaveDatabaseTimeout,
+  sameCalculatorSaveData,
+  withCalculatorSaveDeadline,
+} from "../../../lib/calculator-data-save";
 
 const MANAGED_PRICE_STORAGE_KEYS = [
   "installerManagedPricesV1",
@@ -83,7 +91,7 @@ async function mutationFinancialsVisible(
   const previewAsViewedUser = canManage && new URL(request.url).searchParams.get("preview") === "1" && viewingEmail !== currentEmail;
   const target = viewingEmail === currentEmail ? { data: approvedUser, error: null }
     : await currentApprovedUser(supabase, viewingEmail);
-  if (target.error) return { error: "Unable to verify viewed profile visibility", status: 503 };
+  if (target.error) return { error: "Unable to verify viewed profile visibility", status: 503, cause: target.error };
   const contextRole = String((target.data || approvedUser).role || "user");
   const useAdminVisibility = (isOwnerEmail(currentEmail) || approvedUser.role === "admin") && !previewAsViewedUser;
   return {
@@ -138,6 +146,7 @@ async function businessIdsForEmail(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   email: string,
   fallbackBusinessId?: string | null,
+  onLookupError?: (error: { code?: string }) => void,
 ) {
   const ids = new Set<string>();
   if (fallbackBusinessId) ids.add(fallbackBusinessId);
@@ -147,7 +156,8 @@ async function businessIdsForEmail(
     .select("business_id")
     .eq("email", email);
 
-  if (!memberships.error) {
+  if (memberships.error) onLookupError?.(memberships.error);
+  else {
     (memberships.data || []).forEach((row: { business_id?: string | null }) => {
       if (row.business_id) ids.add(row.business_id);
     });
@@ -162,13 +172,14 @@ async function resolveBusinessId(
   viewingEmail: string,
   canManage: boolean,
   approvedUser: ApprovedCalculatorUser,
+  onLookupError?: (error: { code?: string }) => void,
 ) {
   const { searchParams } = new URL(request.url);
   const requestedBusinessId = String(searchParams.get("businessId") || "").trim();
   if (!requestedBusinessId) return null;
   if (canManage) return requestedBusinessId;
 
-  const businessIds = await businessIdsForEmail(supabase, viewingEmail, approvedUser.business_id);
+  const businessIds = await businessIdsForEmail(supabase, viewingEmail, approvedUser.business_id, onLookupError);
   return businessIds.includes(requestedBusinessId) ? requestedBusinessId : null;
 }
 
@@ -311,8 +322,15 @@ function preserveBusinessManagedRebates(
 
 type ExistingCalculatorData = {
   user_id: string;
+  email: string | null;
   data: unknown;
   updated_at: string | null;
+};
+
+const saveDatabaseTimeout = {
+  error: "Calculator save could not be confirmed. Please retry.",
+  code: "CALCULATOR_SAVE_TIMEOUT" as const,
+  status: 503,
 };
 
 async function saveMergedBusinessData(
@@ -329,6 +347,7 @@ async function saveMergedBusinessData(
       .select("data, updated_at, businesses(operating_state)")
       .eq("business_id", businessId)
       .maybeSingle();
+    if (isCalculatorSaveDatabaseTimeout(existingBusiness.error)) return saveDatabaseTimeout;
     if (existingBusiness.error) return { error: "Unable to verify current business settings", status: 503 };
     const existing = existingBusiness.data;
     const revisionSafe = revisionGuardedBusinessSnapshot(existing?.data, incoming, incomingRevision, businessId);
@@ -348,12 +367,14 @@ async function saveMergedBusinessData(
       const inserted = await supabase.from("business_calculator_data").insert({
         business_id: businessId, data: merged, updated_at: new Date().toISOString(),
       });
+      if (isCalculatorSaveDatabaseTimeout(inserted.error)) return saveDatabaseTimeout;
       if (inserted.error?.code === "23505") continue;
       if (inserted.error) return { error: inserted.error.message, status: 500 };
       return { ok: true };
     }
     const previousTime = existing.updated_at === null ? 0 : Date.parse(existing.updated_at);
     if (!Number.isFinite(previousTime)) return { error: "Unable to verify business settings version", status: 503 };
+    if (sameCalculatorSaveData(existing.data, merged)) return { ok: true };
     // Match the exact server timestamp, including sub-milliseconds; never reuse a read version.
     const updatedAt = new Date(Math.max(Date.now(), previousTime + 1)).toISOString();
     let update = supabase.from("business_calculator_data")
@@ -361,6 +382,7 @@ async function saveMergedBusinessData(
       .eq("business_id", businessId);
     update = existing.updated_at === null ? update.is("updated_at", null) : update.eq("updated_at", existing.updated_at);
     const saved = await update.select("business_id");
+    if (isCalculatorSaveDatabaseTimeout(saved.error)) return saveDatabaseTimeout;
     if (saved.error) return { error: saved.error.message, status: 500 };
     if (saved.data?.length) return { ok: true };
     // A concurrent import/save won. Reread before recomputing both the guard and merge.
@@ -384,19 +406,21 @@ async function saveMergedUserData(
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const byEmail = await supabase
       .from("user_calculator_data")
-      .select("user_id, data, updated_at")
+      .select("user_id, email, data, updated_at")
       .eq("email", targetEmail)
       .maybeSingle();
 
+    if (isCalculatorSaveDatabaseTimeout(byEmail.error)) return saveDatabaseTimeout;
     if (byEmail.error) return { error: byEmail.error.message, status: 500 };
 
     let existing = byEmail.data as ExistingCalculatorData | null;
     if (!existing && !requireExistingProfile) {
       const byUserId = await supabase
         .from("user_calculator_data")
-        .select("user_id, data, updated_at")
+        .select("user_id, email, data, updated_at")
         .eq("user_id", authenticatedUserId)
         .maybeSingle();
+      if (isCalculatorSaveDatabaseTimeout(byUserId.error)) return saveDatabaseTimeout;
       if (byUserId.error) return { error: byUserId.error.message, status: 500 };
       existing = byUserId.data as ExistingCalculatorData | null;
     }
@@ -428,11 +452,13 @@ async function saveMergedUserData(
         data: mergedData,
         updated_at: new Date().toISOString(),
       });
+      if (isCalculatorSaveDatabaseTimeout(inserted.error)) return saveDatabaseTimeout;
       if (!inserted.error) return { ok: true };
       continue;
     }
 
-    existing = { ...existing, data: applyStoredQuoteAdminUnlocks(existing.data) };
+    const storedData = existing.data;
+    existing = { ...existing, data: applyStoredQuoteAdminUnlocks(storedData) };
     if (quoteEdit === undefined && quoteCopy === undefined && quoteArrange === undefined && !calculatorDataHasData(incomingData) && calculatorDataHasData(existing.data)) {
       return { ok: true, skipped: "empty_snapshot_ignored" };
     }
@@ -493,6 +519,16 @@ async function saveMergedUserData(
     } : null;
     if (arrangedQuote?.replayed) return arrangementResponse!;
 
+    const success = () => {
+      if (arrangementResponse) return arrangementResponse;
+      if (copiedQuote) return {
+        ok: true, def: quoteLibraryVisibleRow(copiedQuote.def, financialsVisible),
+        rows: copiedQuote.rows.map((row) => quoteLibraryResponseRow(row, financialsVisible, canSeeSalespersonCommission)),
+      };
+      return editedRow ? { ok: true, row: quoteLibraryResponseRow(editedRow, financialsVisible, canSeeSalespersonCommission) } : { ok: true };
+    };
+    if (existing.email === targetEmail && sameCalculatorSaveData(storedData, mergedData)) return success();
+
     // Advance even for same-millisecond saves so another request's CAS cannot reuse this version.
     const nextUpdatedAt = new Date(Math.max(Date.now(), (Date.parse(existing.updated_at || "") || 0) + 1)).toISOString();
     let update = supabase
@@ -508,15 +544,9 @@ async function saveMergedUserData(
       : update.is("updated_at", null);
     const saved = await update.select("user_id");
 
+    if (isCalculatorSaveDatabaseTimeout(saved.error)) return saveDatabaseTimeout;
     if (saved.error) return { error: saved.error.message, status: 500 };
-    if (saved.data?.length) {
-      if (arrangementResponse) return arrangementResponse;
-      if (copiedQuote) return {
-        ok: true, def: quoteLibraryVisibleRow(copiedQuote.def, financialsVisible),
-        rows: copiedQuote.rows.map((row) => quoteLibraryResponseRow(row, financialsVisible, canSeeSalespersonCommission)),
-      };
-      return editedRow ? { ok: true, row: quoteLibraryResponseRow(editedRow, financialsVisible, canSeeSalespersonCommission) } : { ok: true };
-    }
+    if (saved.data?.length) return success();
   }
 
   return {
@@ -645,18 +675,25 @@ export async function GET(request: Request) {
   );
 }
 
-async function saveCalculatorData(request: Request) {
-  const supabase = await createSupabaseServerClient();
+async function saveCalculatorData(
+  request: Request,
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  setPhase: (phase: string) => void,
+) {
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser();
 
   if (!user) {
+    if (isCalculatorSaveAuthUnavailable(authError)) return calculatorSaveUnavailable("CALCULATOR_SAVE_UNAVAILABLE");
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
 
+  setPhase("account-approval");
   const currentEmail = String(user.email || "").toLowerCase();
   const approval = await currentApprovedUser(supabase, currentEmail);
+  if (isCalculatorSaveDatabaseTimeout(approval.error)) return calculatorSaveUnavailable("CALCULATOR_SAVE_TIMEOUT");
   if (approval.error) {
     return NextResponse.json({ error: "Unable to verify account approval" }, { status: 503 });
   }
@@ -673,8 +710,33 @@ async function saveCalculatorData(request: Request) {
     currentEmail,
     canManage,
   );
-  const businessId = await resolveBusinessId(request, supabase, viewingEmail, canManage, approvedUser);
+  const workspaceChanged = () => NextResponse.json({
+    error: "Your calculator account or workspace changed. Reopen the correct workspace before saving.",
+    code: "CALCULATOR_WORKSPACE_CHANGED",
+  }, { status: 409 });
+  const { searchParams } = new URL(request.url);
+  const requestedViewingEmail = String(searchParams.get("as") || "").trim().toLowerCase();
+  if (requestedViewingEmail && requestedViewingEmail !== viewingEmail) return workspaceChanged();
+  setPhase("business-membership");
+  let membershipLookupError: { code?: string } | undefined;
+  const businessId = await resolveBusinessId(request, supabase, viewingEmail, canManage, approvedUser, (error) => {
+    membershipLookupError = error;
+  });
+  if (isCalculatorSaveDatabaseTimeout(membershipLookupError)) return calculatorSaveUnavailable("CALCULATOR_SAVE_TIMEOUT");
+  if (membershipLookupError && !businessId) return calculatorSaveUnavailable("CALCULATOR_SAVE_UNAVAILABLE");
+  setPhase("request-body");
   const body = await request.json().catch(() => null);
+  const requestedBusinessId = String(searchParams.get("businessId") || "").trim();
+  const expectedWorkspace = body?.expectedWorkspace;
+  const hasExpectedWorkspace = body != null && Object.hasOwn(body, "expectedWorkspace");
+  if ((requestedBusinessId && requestedBusinessId !== businessId) || (hasExpectedWorkspace && (
+    !expectedWorkspace || typeof expectedWorkspace !== "object" || Array.isArray(expectedWorkspace) ||
+    expectedWorkspace.accountEmail !== currentEmail ||
+    expectedWorkspace.viewingEmail !== viewingEmail ||
+    expectedWorkspace.businessId !== (businessId ?? null)
+  ))) {
+    return workspaceChanged();
+  }
   const quoteEdit = body && Object.prototype.hasOwnProperty.call(body, "quoteEdit") ? body.quoteEdit : undefined;
   const quoteCopy = body && Object.prototype.hasOwnProperty.call(body, "quoteCopy") ? body.quoteCopy : undefined;
   const quoteArrange = body && Object.prototype.hasOwnProperty.call(body, "quoteArrange") ? body.quoteArrange : undefined;
@@ -682,8 +744,12 @@ async function saveCalculatorData(request: Request) {
       ([quoteEdit, quoteCopy, quoteArrange].filter((value) => value !== undefined).length > 1 || (body.data && Object.keys(body.data).length))) {
     return NextResponse.json({ error: "Send quote mutations separately from each other and calculator snapshots." }, { status: 422 });
   }
+  setPhase("profile-visibility");
   const visibility = await mutationFinancialsVisible(request, supabase, currentEmail, viewingEmail, approvedUser);
-  if ("error" in visibility) return NextResponse.json({ error: visibility.error }, { status: visibility.status });
+  if ("error" in visibility) {
+    if (isCalculatorSaveDatabaseTimeout(visibility.cause)) return calculatorSaveUnavailable("CALCULATOR_SAVE_TIMEOUT");
+    return NextResponse.json({ error: visibility.error }, { status: visibility.status });
+  }
   const rawCalculatorData = body && typeof body.data === "object" ? body.data : {};
   const canEditManagedRebates = isOwnerEmail(viewingEmail);
   const calculatorData = sanitizeIncomingCalculatorData(
@@ -696,14 +762,17 @@ async function saveCalculatorData(request: Request) {
     && Object.keys(body.equipmentPriceEdits).length > 0 && Object.hasOwn(businessData, MANAGED_PRICE_STORAGE_KEYS[0]);
 
   if (businessId && (incomingBusinessHasData || explicitEquipmentEdit)) {
+    setPhase("business-save");
     const businessSave = await saveMergedBusinessData(
       supabase, businessId, businessData, body?.businessConfigurationRevision, canEditManagedRebates, body?.equipmentPriceEdits,
     );
     if ("error" in businessSave) {
+      if (businessSave.code === "CALCULATOR_SAVE_TIMEOUT") return calculatorSaveUnavailable("CALCULATOR_SAVE_TIMEOUT");
       return NextResponse.json({ error: businessSave.error, code: businessSave.code }, { status: businessSave.status });
     }
   }
 
+  setPhase("user-save");
   const userSave = await saveMergedUserData(
     supabase,
     viewingEmail,
@@ -718,6 +787,7 @@ async function saveCalculatorData(request: Request) {
     visibility.canUnlockWon,
   );
   if ("error" in userSave) {
+    if ("code" in userSave && userSave.code === "CALCULATOR_SAVE_TIMEOUT") return calculatorSaveUnavailable("CALCULATOR_SAVE_TIMEOUT");
     return NextResponse.json(
       { error: userSave.error, code: "code" in userSave ? userSave.code : undefined,
         currentFamily: "currentFamily" in userSave ? userSave.currentFamily : undefined },
@@ -727,10 +797,18 @@ async function saveCalculatorData(request: Request) {
   return NextResponse.json(userSave);
 }
 
+function saveCalculatorDataWithDeadline(request: Request) {
+  let phase = "auth";
+  return withCalculatorSaveDeadline(request.signal, async (deadlineFetch) => {
+    const supabase = await createCalculatorSaveClient(deadlineFetch);
+    return saveCalculatorData(request, supabase, (next) => { phase = next; });
+  }, () => console.warn("Calculator save deadline exceeded", { method: request.method, phase }));
+}
+
 export async function PUT(request: Request) {
-  return saveCalculatorData(request);
+  return saveCalculatorDataWithDeadline(request);
 }
 
 export async function POST(request: Request) {
-  return saveCalculatorData(request);
+  return saveCalculatorDataWithDeadline(request);
 }

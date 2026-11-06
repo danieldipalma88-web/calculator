@@ -403,7 +403,24 @@ function injectCloudStorageSync(
   var calculatorSyncUrl = ${safeScriptJson(syncUrl)};
   var calculatorSettingsUrl = calculatorSyncUrl + (calculatorSyncUrl.indexOf('?') >= 0 ? '&' : '?') + 'mode=rebate-settings';
   var profileStorageKey = '__calculatorProfileEmail';
-  var profileEmail = ((calculatorUser && (calculatorUser.viewingEmail || calculatorUser.email)) || '') + '|' + ((calculatorUser && calculatorUser.businessId) || '');
+  var accountStorageKey = '__calculatorSignedInEmail';
+  var profileEmail = (calculatorUser.viewingEmail || calculatorUser.email || '') + '|' + (calculatorUser.businessId || '');
+  var expectedWorkspace = {accountEmail:calculatorUser.email, viewingEmail:calculatorUser.viewingEmail || calculatorUser.email, businessId:calculatorUser.businessId || null};
+  var pendingStorageKey = '__calculatorPendingSaveV1:' + calculatorUser.email + '|' + profileEmail;
+  var pendingRecovery = null;
+  var recoveryRequired = false;
+  var workspaceChanged = false;
+  var recoveryStorageFailed = false;
+  try {
+    var storedRecovery = sessionStorage.getItem(pendingStorageKey);
+    if (storedRecovery) {
+      var parsedRecovery = JSON.parse(storedRecovery);
+      if (parsedRecovery && parsedRecovery.version === 1 && parsedRecovery.profile === pendingStorageKey && parsedRecovery.envelope && (parsedRecovery.envelope.data || parsedRecovery.envelope.quoteArrange || parsedRecovery.envelope.quoteEdit || parsedRecovery.envelope.quoteCopy)) {
+        pendingRecovery = parsedRecovery;
+        recoveryRequired = true;
+      }
+    }
+  } catch(e) { recoveryStorageFailed = true; }
   var trustedManagedPriceKeys = {};
   var syncing = false;
   var timer = null;
@@ -412,6 +429,9 @@ function injectCloudStorageSync(
   var syncRequestInFlight = false;
   var inFlightSnapshotJson = '';
   var syncRetryTimer = null;
+  var syncFailures = 0;
+  var syncRetryPaused = false;
+  var syncRetryDelaysMs = [3000, 10000];
   var cloudSaveHideTimer = null;
   var cloudSaveWaiters = [];
   var quoteConflictError = null;
@@ -455,7 +475,7 @@ function injectCloudStorageSync(
     status.dataset.tone = 'idle';
     status.textContent = '';
     status.setAttribute('aria-hidden', 'true');
-    document.body.appendChild(status);
+    document.body.insertBefore(status, document.body.firstChild);
     return status;
   }
   function setCloudSaveStatus(message, tone){
@@ -469,6 +489,23 @@ function injectCloudStorageSync(
     status.textContent = message || '';
     status.dataset.tone = nextTone;
     status.setAttribute('aria-hidden', nextTone === 'idle' ? 'true' : 'false');
+    if (nextTone === 'error' && syncRetryPaused && !workspaceChanged && !recoveryRequired && !quoteConflictError && !quoteArrangeAttempt) {
+      var retry = document.createElement('button');
+      retry.type = 'button';
+      retry.className = 'secondary';
+      retry.textContent = 'Retry save';
+      retry.onclick = function(){ window.__calculatorFlushCloudSave(20000).catch(function(){}); };
+      status.appendChild(retry);
+    }
+    if (nextTone === 'error' && pendingRecovery && !workspaceChanged && !recoveryRequired) {
+      var download = document.createElement('button');
+      download.type = 'button';
+      download.className = 'secondary';
+      download.textContent = 'Back up';
+      download.title = 'Download pending changes before closing this tab';
+      download.onclick = downloadPendingRecovery;
+      status.appendChild(download);
+    }
     if (nextTone === 'saved') {
       cloudSaveHideTimer = setTimeout(function(){
         status.textContent = '';
@@ -479,7 +516,94 @@ function injectCloudStorageSync(
     }
   }
   function isAppStorageKey(key){
-    return !!key && key.indexOf('sb-') !== 0 && key !== profileStorageKey;
+    return !!key && key.indexOf('sb-') !== 0 && key !== profileStorageKey && key !== accountStorageKey;
+  }
+  function saveEnvelope(request){
+    return {data:request.data, businessConfigurationRevision:businessConfigurationRevision, equipmentPriceEdits:equipmentPriceEditsForSnapshot(request.data), expectedWorkspace:expectedWorkspace};
+  }
+  function retainPendingSnapshot(request){
+    retainRecoveryEnvelope(saveEnvelope(request));
+  }
+  function retainRecoveryEnvelope(envelope){
+    pendingRecovery = {version:1, profile:pendingStorageKey, savedAt:new Date().toISOString(), envelope:envelope};
+    try {
+      sessionStorage.setItem(pendingStorageKey, JSON.stringify(pendingRecovery));
+      recoveryStorageFailed = false;
+    } catch(e) { recoveryStorageFailed = true; }
+  }
+  function clearAcknowledgedRecovery(envelope){
+    if (!pendingRecovery || JSON.stringify(pendingRecovery.envelope) !== JSON.stringify(envelope)) return;
+    try { sessionStorage.removeItem(pendingStorageKey); pendingRecovery = null; recoveryStorageFailed = false; }
+    catch(e) { recoveryStorageFailed = true; }
+  }
+  function downloadPendingRecovery(){
+    if (!pendingRecovery) return;
+    var url = URL.createObjectURL(new Blob([JSON.stringify(pendingRecovery, null, 2)], {type:'application/json'}));
+    var link = document.createElement('a');
+    link.href = url;
+    link.download = 'rebate-portal-unsaved-changes.json';
+    link.click();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+  }
+  function showRecoveryGuard(){
+    if (!document.body || (!workspaceChanged && !recoveryRequired)) return;
+    var overlay = document.getElementById('calculatorSaveRecovery');
+    if (overlay) return;
+    overlay = document.createElement('dialog');
+    overlay.id = 'calculatorSaveRecovery';
+    overlay.className = 'calculatorSaveRecovery';
+    overlay.setAttribute('aria-labelledby', 'calculatorSaveRecoveryTitle');
+    overlay.addEventListener('cancel', function(event){ event.preventDefault(); });
+    var title = document.createElement('h2');
+    title.id = 'calculatorSaveRecoveryTitle';
+    title.textContent = workspaceChanged ? 'Workspace changed in another tab' : 'Unsaved changes found';
+    var description = document.createElement('p');
+    description.textContent = workspaceChanged ? 'This tab has paused to keep different businesses and accounts separate. Reopen this workspace to continue.' : 'A previous save was not confirmed. Your saved calculator is unchanged. Review and download the pending changes before continuing.';
+    overlay.append(title, description);
+    if (pendingRecovery) {
+      var details = document.createElement('details');
+      var summary = document.createElement('summary');
+      summary.textContent = 'Review pending changes';
+      var preview = document.createElement('pre');
+      preview.textContent = JSON.stringify(pendingRecovery.envelope.data || pendingRecovery.envelope.quoteArrange || pendingRecovery.envelope.quoteEdit || pendingRecovery.envelope.quoteCopy, null, 2);
+      details.append(summary, preview);
+      var download = document.createElement('button');
+      download.type = 'button';
+      download.textContent = 'Download recovery file';
+      download.onclick = function(){ downloadPendingRecovery(); proceed.disabled = false; };
+      overlay.append(details, download);
+    }
+    var proceed = document.createElement('button');
+    proceed.type = 'button';
+    proceed.className = 'secondary';
+    proceed.textContent = workspaceChanged ? 'Reopen this workspace' : 'Use saved calculator';
+    proceed.disabled = !!pendingRecovery;
+    proceed.onclick = function(){
+      if (workspaceChanged) { window.location.reload(); return; }
+      if (!window.confirm('Continue with the saved cloud version? Pending changes will remain in the recovery file you downloaded and will not be applied automatically.')) return;
+      try { sessionStorage.removeItem(pendingStorageKey); }
+      catch(e) { description.textContent = 'Recovery storage is unavailable. Keep this tab open and try again.'; return; }
+      pendingRecovery = null;
+      recoveryRequired = false;
+      overlay.close(); overlay.remove();
+      scheduleSync();
+    };
+    overlay.appendChild(proceed);
+    document.body.appendChild(overlay);
+    overlay.showModal();
+  }
+  function workspaceIsCurrent(){
+    if (workspaceChanged) return false;
+    var activeProfile;
+    var activeAccount;
+    try { activeProfile = localStorage.getItem(profileStorageKey); activeAccount = localStorage.getItem(accountStorageKey); } catch(e) { return false; }
+    if (activeProfile === profileEmail && activeAccount === calculatorUser.email) return true;
+    workspaceChanged = true;
+    clearTimeout(syncRetryTimer); syncRetryTimer = null;
+    cloudSaveWaiters.slice().forEach(function(waiter){ settleCloudSaveWaiters(waiter.json, new Error('Workspace changed in another tab. Reopen this workspace to continue.')); });
+    setCloudSaveStatus('Workspace changed. Saving paused.', 'error');
+    showRecoveryGuard();
+    return false;
   }
   function snapshot(){
     var output = {};
@@ -639,7 +763,7 @@ function injectCloudStorageSync(
       };
       waiter.timeout = setTimeout(function(){
         cloudSaveWaiters = cloudSaveWaiters.filter(function(candidate){ return candidate !== waiter; });
-        reject(new Error('Current changes could not be confirmed as saved. Check your connection and retry.'));
+        reject(new Error('Current changes could not be confirmed as saved. Keep this tab open and retry save.'));
       }, Math.max(Number(timeoutMs) || 20000, saveRequestTimeoutMs + 1000));
       cloudSaveWaiters.push(waiter);
     });
@@ -669,34 +793,49 @@ function injectCloudStorageSync(
     } catch(e) { return {}; }
   }
   function sendPendingSnapshot(){
-    if (quoteConflictError || quoteArrangeAttempt || syncRequestInFlight || !pendingSnapshot) return;
+    if (recoveryRequired || !workspaceIsCurrent() || quoteConflictError || quoteArrangeAttempt || syncRetryPaused || syncRetryTimer || syncRequestInFlight || !pendingSnapshot) return;
     clearTimeout(syncRetryTimer);
     syncRetryTimer = null;
     var request = pendingSnapshot;
-    var equipmentPriceEdits = equipmentPriceEditsForSnapshot(request.data);
+    var envelope = saveEnvelope(request);
+    var equipmentPriceEdits = envelope.equipmentPriceEdits;
+    retainPendingSnapshot(request);
     pendingSnapshot = null;
     syncRequestInFlight = true;
     inFlightSnapshotJson = request.json;
     setCloudSaveStatus('Saving...', 'saving');
+    if (recoveryStorageFailed) setCloudSaveStatus('Saving... Recovery storage unavailable; keep this tab open.', 'saving');
     var controller = typeof AbortController === 'function' ? new AbortController() : null;
-    var requestTimeout = controller ? setTimeout(function(){ controller.abort(); }, saveRequestTimeoutMs) : null;
+    var requestTimeout;
+    var deadline = new Promise(function(resolve, reject){
+      requestTimeout = setTimeout(function(){
+        if (controller) controller.abort();
+        reject(new Error('Save confirmation timed out.'));
+      }, saveRequestTimeoutMs);
+    });
     var fetchOptions = {
       method: 'PUT',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({data: request.data, businessConfigurationRevision: businessConfigurationRevision, equipmentPriceEdits: equipmentPriceEdits})
+      body: JSON.stringify(envelope)
     };
     if (controller) fetchOptions.signal = controller.signal;
-    fetch(calculatorSyncUrl, fetchOptions).then(function(response){
+    var saving = Promise.resolve().then(function(){ return fetch(calculatorSyncUrl, fetchOptions); }).then(function(response){
       return response.json().catch(function(){ return {}; }).then(function(result){
-        if (response.ok) return result;
+        if (response.ok && result && result.ok === true) return result;
         var error = new Error(result && result.error ? result.error : 'Calculator sync failed');
         error.status = response.status;
         error.code = result.code;
         error.currentFamily = result.currentFamily;
-        error.permanent = response.status >= 400 && response.status < 500 && response.status !== 409 && response.status !== 429 || error.code === 'QUOTE_OPTION_CONFLICT' || error.code === 'EQUIPMENT_PRICE_CONFLICT';
+        var retryAfter = response.headers && response.headers.get('Retry-After');
+        error.retryAfterMs = retryAfter ? Math.min(60000, Math.max(0, Number(retryAfter) * 1000 || Date.parse(retryAfter) - Date.now() || 0)) : 0;
+        error.permanent = response.status >= 400 && response.status < 500 && response.status !== 408 && response.status !== 409 && response.status !== 429 || error.code === 'QUOTE_OPTION_CONFLICT' || error.code === 'EQUIPMENT_PRICE_CONFLICT' || error.code === 'CALCULATOR_WORKSPACE_CHANGED';
         throw error;
       });
-    }).then(function(){
+    });
+    Promise.race([saving, deadline]).then(function(){
+      clearAcknowledgedRecovery(envelope);
+      syncFailures = 0;
+      syncRetryPaused = false;
       if (typeof window.acknowledgeAadEquipmentPriceEdits === 'function') window.acknowledgeAadEquipmentPriceEdits(equipmentPriceEdits);
       lastSnapshotJson = request.json;
       if (pendingSnapshot && pendingSnapshot.json === lastSnapshotJson) pendingSnapshot = null;
@@ -706,23 +845,37 @@ function injectCloudStorageSync(
       if (error && error.code === 'QUOTE_OPTION_CONFLICT') {
         pauseQuoteConflict(error);
       } else if (error && error.permanent) {
+        if (!pendingSnapshot) pendingSnapshot = request;
+        syncRetryPaused = true;
         settleCloudSaveWaiters(request.json, error);
-        setCloudSaveStatus(pendingSnapshot ? 'Saving...' : (error.code === 'EQUIPMENT_PRICE_CONFLICT' ? error.message : 'Save failed'), pendingSnapshot ? 'saving' : 'error');
+        setCloudSaveStatus(error.code === 'EQUIPMENT_PRICE_CONFLICT' ? error.message : 'Save not confirmed. Keep this tab open and retry.', 'error');
+        if (error.code === 'CALCULATOR_WORKSPACE_CHANGED') { workspaceChanged = true; showRecoveryGuard(); }
       } else {
         if (!pendingSnapshot) pendingSnapshot = request;
-        setCloudSaveStatus('Retrying...', 'retrying');
-        clearTimeout(syncRetryTimer);
-        syncRetryTimer = setTimeout(sendPendingSnapshot, 1800);
+        syncFailures += 1;
+        if (syncFailures > syncRetryDelaysMs.length) {
+          syncRetryPaused = true;
+          var pausedError = new Error('Current changes could not be confirmed as saved. Keep this tab open and retry save.');
+          cloudSaveWaiters.slice().forEach(function(waiter){ settleCloudSaveWaiters(waiter.json, pausedError); });
+          setCloudSaveStatus('Save not confirmed. Keep this tab open and retry.', 'error');
+        } else {
+          setCloudSaveStatus('Retrying...', 'retrying');
+          var delay = Math.max(syncRetryDelaysMs[syncFailures - 1], error && error.retryAfterMs || 0) + Math.floor(Math.random() * 500);
+          syncRetryTimer = setTimeout(function(){
+            syncRetryTimer = null;
+            sendPendingSnapshot();
+          }, delay);
+        }
       }
     }).finally(function(){
       if (requestTimeout) clearTimeout(requestTimeout);
       syncRequestInFlight = false;
       inFlightSnapshotJson = '';
-      if (!quoteConflictError && pendingSnapshot && !syncRetryTimer) sendPendingSnapshot();
+      if (!quoteConflictError && !syncRetryPaused && pendingSnapshot && !syncRetryTimer) sendPendingSnapshot();
     });
   }
   function writeSnapshot(force){
-    if (quoteConflictError || quoteArrangeAttempt) return;
+    if (recoveryRequired || !workspaceIsCurrent() || quoteConflictError || quoteArrangeAttempt) return;
     var data = snapshot();
     var nextJson = JSON.stringify(data);
     var hasPriceEdits = typeof window.aadEquipmentPriceEditSnapshot === 'function' && Object.keys(window.aadEquipmentPriceEditSnapshot()).length > 0;
@@ -732,11 +885,11 @@ function injectCloudStorageSync(
       if (!hasPriceEdits && !syncRequestInFlight && !pendingSnapshot && nextJson === lastSnapshotJson) return;
     }
     pendingSnapshot = {data: data, json: nextJson};
-    clearTimeout(syncRetryTimer);
-    syncRetryTimer = null;
+    retainPendingSnapshot(pendingSnapshot);
     sendPendingSnapshot();
   }
   window.__calculatorFlushCloudSave = function(timeoutMs){
+    if (recoveryRequired || !workspaceIsCurrent()) return Promise.reject(new Error('Review the pending recovery or reopen this workspace before saving.'));
     if (quoteConflictError) return Promise.reject(quoteConflictError);
     if (quoteArrangeAttempt) return Promise.reject(new Error('Confirm the pending option change before saving more changes.'));
     var data = snapshot();
@@ -747,14 +900,19 @@ function injectCloudStorageSync(
     }
     var confirmation = waitForCloudSave(nextJson, timeoutMs);
     pendingSnapshot = {data:data, json:nextJson};
-    clearTimeout(syncRetryTimer);
-    syncRetryTimer = null;
+    retainPendingSnapshot(pendingSnapshot);
+    if (syncRetryPaused && !syncRequestInFlight) {
+      syncRetryPaused = false;
+      syncFailures = 0;
+    }
     sendPendingSnapshot();
     return confirmation;
   };
   window.__calculatorResolveQuoteConflict = function(){
     if (!quoteConflictError) return window.__calculatorFlushCloudSave(20000);
     quoteConflictError = null;
+    syncRetryPaused = false;
+    syncFailures = 0;
     window.__calculatorQuoteConflict = null;
     pendingSnapshot = null;
     clearTimeout(timer);
@@ -764,17 +922,19 @@ function injectCloudStorageSync(
     return window.__calculatorFlushCloudSave(20000);
   };
   window.__calculatorQuoteRequest = async function(kind, payload, onProgress){
+    if (recoveryRequired || !workspaceIsCurrent()) throw new Error('Review recovery or reopen this workspace before saving.');
     if (kind !== 'quoteEdit' && kind !== 'quoteCopy' && kind !== 'quoteArrange') throw new Error('Unsupported quote action.');
     var arrangement = kind === 'quoteArrange';
     var payloadJson = JSON.stringify(payload);
-    var retryArrange = arrangement && quoteArrangeAttempt && quoteArrangeAttempt.payloadJson === payloadJson && !quoteArrangeAttempt.inFlight;
+    var retryArrange = quoteArrangeAttempt && quoteArrangeAttempt.kind === kind && quoteArrangeAttempt.payloadJson === payloadJson && !quoteArrangeAttempt.inFlight;
     if (quoteArrangeAttempt && !retryArrange) throw new Error('Confirm the pending option change before starting another request.');
     function progress(stage){ if (typeof onProgress === 'function') { try { onProgress(stage); } catch(e) {} } }
     progress('preparing');
     // Retrying an uncertain move must reach its receipt, not first flush the old layout.
     if (!retryArrange) await window.__calculatorFlushCloudSave(20000);
     if (!retryArrange && quoteArrangeAttempt) throw new Error('Confirm the pending option change before starting another request.');
-    if (arrangement) quoteArrangeAttempt = {payloadJson:payloadJson, saveId:JSON.parse(payloadJson).saveId, inFlight:true, validResponse:false};
+    quoteArrangeAttempt = {kind:kind, payloadJson:payloadJson, saveId:JSON.parse(payloadJson).saveId, inFlight:true, validResponse:false};
+    retainRecoveryEnvelope({[kind]:JSON.parse(payloadJson), businessConfigurationRevision:businessConfigurationRevision, expectedWorkspace:expectedWorkspace});
     progress('saving');
     var controller = new AbortController();
     var timeout = setTimeout(function(){ controller.abort(); }, 15000);
@@ -782,11 +942,11 @@ function injectCloudStorageSync(
     try {
       var response = await fetch(calculatorSyncUrl, {
         method:'PUT', headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({[kind]:JSON.parse(payloadJson), businessConfigurationRevision:businessConfigurationRevision}), signal:controller.signal
+        body:JSON.stringify({[kind]:JSON.parse(payloadJson), businessConfigurationRevision:businessConfigurationRevision, expectedWorkspace:expectedWorkspace}), signal:controller.signal
       });
       var result = await response.json().catch(function(){ return {}; });
-      if (!response.ok) {
-        var error = new Error(result.error || 'The quote could not be saved.');
+      if (!response.ok || result.ok !== true) {
+        var error = new Error(result.error || (response.ok ? 'The saved quote could not be verified. Retry to confirm the same save.' : 'The quote could not be saved.'));
         error.status = response.status;
         error.code = result.code;
         error.currentFamily = result.currentFamily;
@@ -802,12 +962,16 @@ function injectCloudStorageSync(
           throw new Error('The saved options could not be verified. Retry to confirm the same save.');
         }
       }
-      if (arrangement) quoteArrangeAttempt.validResponse = true;
+      if (kind === 'quoteEdit' && (!result.row || result.row.id !== payload.rowId || result.row.optionId !== payload.optionId)) throw new Error('The saved system could not be verified. Retry to confirm the same save.');
+      if (kind === 'quoteCopy' && (!result.def || !result.def.id || !Array.isArray(result.rows) || !result.rows.length || result.rows.some(function(row){ return !row.id || row.optionId !== result.def.id; }))) throw new Error('The saved copy could not be verified. Retry to confirm the same save.');
+      quoteArrangeAttempt.validResponse = true;
       setCloudSaveStatus('Saved', 'saved');
       return result;
     } catch(error) {
-      if (arrangement && error.status >= 400 && error.status < 500 && error.status !== 408 && error.status !== 429) quoteArrangeAttempt = null;
+      // A rejected retry cannot disprove an earlier committed request with a lost reply.
+      if (!retryArrange && error.status >= 400 && error.status < 500 && error.status !== 408 && error.status !== 429) quoteArrangeAttempt = null;
       setCloudSaveStatus('Quote save not confirmed', 'error');
+      if (error.code === 'CALCULATOR_WORKSPACE_CHANGED') { workspaceChanged = true; showRecoveryGuard(); }
       if (error.name === 'AbortError') throw new Error('The save could not be confirmed. Retry to check the same save without creating a duplicate.');
       throw error;
     } finally {
@@ -816,15 +980,28 @@ function injectCloudStorageSync(
       else scheduleSync();
     }
   };
-  window.__calculatorAcknowledgeQuoteArrange = function(saveId){
-    if (!quoteArrangeAttempt || typeof saveId !== 'string' || !saveId || quoteArrangeAttempt.saveId !== saveId ||
+  window.__calculatorHasPendingQuoteRequest = function(kind){ return !!quoteArrangeAttempt && (!kind || quoteArrangeAttempt.kind === kind); };
+  window.__calculatorAcknowledgeQuoteMutation = function(kind, saveId){
+    if (!quoteArrangeAttempt || quoteArrangeAttempt.kind !== kind || typeof saveId !== 'string' || !saveId || quoteArrangeAttempt.saveId !== saveId ||
         quoteArrangeAttempt.inFlight || !quoteArrangeAttempt.validResponse) return false;
+    if (pendingRecovery && pendingRecovery.envelope[kind] && pendingRecovery.envelope[kind].saveId === saveId) clearAcknowledgedRecovery(pendingRecovery.envelope);
     quoteArrangeAttempt = null;
     scheduleSync();
     return true;
   };
+  window.__calculatorAcknowledgeQuoteArrange = function(saveId){ return window.__calculatorAcknowledgeQuoteMutation('quoteArrange', saveId); };
+  function retainLocalEdit(){
+    if (syncing || recoveryRequired || quoteArrangeAttempt || quoteConflictError) return;
+    try {
+      var data = snapshot();
+      if (JSON.stringify(data) !== lastSnapshotJson) retainPendingSnapshot({data:data});
+    } catch(e) {
+      recoveryStorageFailed = true;
+      setCloudSaveStatus('Local recovery unavailable. Keep this tab open until saving is confirmed.', 'error');
+    }
+  }
   function scheduleSync(force){
-    if (syncing || quoteConflictError || quoteArrangeAttempt) return;
+    if (syncing || recoveryRequired || !workspaceIsCurrent() || quoteConflictError || quoteArrangeAttempt) return;
     clearTimeout(timer);
     timer = setTimeout(function(){
       writeSnapshot(!!force);
@@ -947,7 +1124,11 @@ function injectCloudStorageSync(
   try {
     syncing = true;
     var existingProfile = localStorage.getItem(profileStorageKey) || '';
-    if (existingProfile && profileEmail && existingProfile !== profileEmail) clearAppStorage();
+    var existingAccount = localStorage.getItem(accountStorageKey) || '';
+    // Claim the workspace before changing shared storage so older tabs can fence immediately.
+    localStorage.setItem(accountStorageKey, calculatorUser.email);
+    localStorage.setItem(profileStorageKey, profileEmail);
+    if (recoveryRequired || (existingAccount && existingAccount !== calculatorUser.email) || (existingProfile && profileEmail && existingProfile !== profileEmail)) clearAppStorage();
     // Configuration is authoritative business data, never a local/account fallback.
     localStorage.removeItem(${safeScriptJson(BUSINESS_CONFIGURATION_STORAGE_KEY)});
     stripLocalCertificateRates();
@@ -973,15 +1154,21 @@ function injectCloudStorageSync(
     var originalRemoveItem = localStorage.removeItem.bind(localStorage);
     var originalClear = localStorage.clear.bind(localStorage);
     localStorage.setItem = function(key, value){
+      if (isAppStorageKey(key) && !workspaceIsCurrent()) return;
       originalSetItem(key, value);
+      if (isAppStorageKey(key)) retainLocalEdit();
       scheduleSync();
     };
     localStorage.removeItem = function(key){
+      if (isAppStorageKey(key) && !workspaceIsCurrent()) return;
       originalRemoveItem(key);
+      if (isAppStorageKey(key)) retainLocalEdit();
       scheduleSync();
     };
     localStorage.clear = function(){
+      if (!workspaceIsCurrent()) return;
       originalClear();
+      retainLocalEdit();
       scheduleSync();
     };
     document.addEventListener('input', function(){ scheduleSync(); }, true);
@@ -995,11 +1182,21 @@ function injectCloudStorageSync(
     document.addEventListener('visibilitychange', function(){
       if (document.visibilityState === 'visible') refreshAuthoritativeCertificateValues();
     });
-    window.addEventListener('beforeunload', function(){
-      if (quoteConflictError || quoteArrangeAttempt) return;
+    window.addEventListener('beforeunload', function(event){
       try {
+        if (workspaceChanged || recoveryRequired) {
+          if (pendingRecovery && event) { event.preventDefault(); event.returnValue = ''; }
+          return;
+        }
+        if (!workspaceIsCurrent()) return;
         var data = snapshot();
-        navigator.sendBeacon(calculatorSyncUrl, new Blob([JSON.stringify({data: data, businessConfigurationRevision: businessConfigurationRevision, equipmentPriceEdits: equipmentPriceEditsForSnapshot(data)})], {type: 'application/json'}));
+        var dirty = JSON.stringify(data) !== lastSnapshotJson || pendingSnapshot || syncRequestInFlight || quoteArrangeAttempt || quoteConflictError;
+        if (!dirty) return;
+        if (event) { event.preventDefault(); event.returnValue = ''; }
+        if (!quoteArrangeAttempt && !quoteConflictError) retainPendingSnapshot({data:data, json:JSON.stringify(data)});
+        // Do not create a competing save when the result of another request is uncertain.
+        if (quoteConflictError || quoteArrangeAttempt || syncRequestInFlight || syncRetryTimer || syncRetryPaused) return;
+        navigator.sendBeacon(calculatorSyncUrl, new Blob([JSON.stringify(saveEnvelope({data:data}))], {type: 'application/json'}));
       } catch(e) {}
     });
     if (typeof shouldBackfillCloud !== 'undefined' && shouldBackfillCloud) {
@@ -1010,10 +1207,31 @@ function injectCloudStorageSync(
   else { applyRoleUi(); wrapPrivacyRenderers(); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){ setCloudSaveStatus('', 'idle'); });
   else setCloudSaveStatus('', 'idle');
+  window.addEventListener('storage', function(event){ if (event.key === profileStorageKey || event.key === accountStorageKey) workspaceIsCurrent(); });
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', showRecoveryGuard);
+  else showRecoveryGuard();
 })();
 </script>`;
 
   return html.replace("<script>", `${bootstrap}\n<script>`);
+}
+
+function isMissingBaselineColumn(error: { code?: string } | null) {
+  return error?.code === "42703" || error?.code === "PGRST204";
+}
+
+function unavailableCalculatorBaseline() {
+  return new NextResponse(
+    '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Calculator temporarily unavailable</title></head><body><main><h1>Calculator temporarily unavailable</h1><p>We could not load your saved calculator. This page has not changed your local data. Try again in a moment.</p><p><a href="">Try again</a></p></main></body></html>',
+    {
+      status: 503,
+      headers: {
+        "Content-Type": "text/html; charset=utf-8",
+        "Cache-Control": "no-store",
+        "Retry-After": "3",
+      },
+    },
+  );
 }
 
 async function getApprovedUser(
@@ -1025,7 +1243,7 @@ async function getApprovedUser(
     .select("email, display_name, role, business_id, is_locked, commission_type_override, agency_commission_rate_override, salesperson_commission_rate_override, salesperson_gst_registered")
     .eq("email", email)
     .maybeSingle();
-  if (!withGst.error) return withGst;
+  if (!isMissingBaselineColumn(withGst.error)) return withGst;
 
   const upgraded = await supabase
     .from("approved_users")
@@ -1035,9 +1253,9 @@ async function getApprovedUser(
     .eq("email", email)
     .maybeSingle();
 
-  if (!upgraded.error) return upgraded;
+  if (!isMissingBaselineColumn(upgraded.error)) return upgraded;
 
-  return supabase.from("approved_users").select("email, role").eq("email", email).maybeSingle();
+  return supabase.from("approved_users").select("email, role, business_id, is_locked").eq("email", email).maybeSingle();
 }
 
 function accountDisplayName(user: ApprovedUser | null | undefined, fallbackEmail: string) {
@@ -1056,12 +1274,14 @@ async function getBusiness(
     .maybeSingle();
 
   if (!upgraded.error) return (upgraded.data || null) as Business | null;
+  if (!isMissingBaselineColumn(upgraded.error)) throw new Error("Business baseline unavailable");
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("businesses")
     .select("id, name, commission_type, agency_commission_rate, salesperson_commission_rate")
     .eq("id", businessId)
     .maybeSingle();
+  if (error) throw new Error("Business baseline unavailable");
   return (data || null) as Business | null;
 }
 
@@ -1082,6 +1302,8 @@ async function businessIdsForEmail(
     (memberships.data || []).forEach((row: { business_id?: string | null }) => {
       if (row.business_id) ids.add(row.business_id);
     });
+  } else if (!["42P01", "PGRST205"].includes(memberships.error.code)) {
+    throw new Error("Business membership baseline unavailable");
   }
 
   return [...ids];
@@ -1161,22 +1383,19 @@ async function getSavedCalculatorData(
     platformPromise,
   ]);
 
-  let userData: Record<string, unknown> = (byEmail.data?.data || {}) as Record<string, unknown>;
-  if (!byEmail.data?.data && byUser.data?.data) {
-    userData = byUser.data.data as Record<string, unknown>;
-  }
+  // A failed read is not an empty saved profile. The browser replaces its
+  // baseline with the snapshot from this route when it starts up.
+  const useUserIdFallback = viewingEmail === currentEmail && !byEmail.data?.data;
+  if (byEmail.error || (useUserIdFallback && byUser.error)) return { loadError: "user" as const };
+  if (businessResult.error) return { loadError: "business" as const };
+  if (platformResult.error) return { loadError: "platform-values" as const };
 
-  let businessData: Record<string, unknown> = {};
-  if (!businessResult.error) {
-    businessData = (businessResult.data?.data || {}) as Record<string, unknown>;
-  }
-
-  const platformValues = platformResult.error
-    ? null
-    : platformCertificateValuesFromRow(
-        platformResult.data as PlatformCertificateValuesRow | null,
-      );
-  businessData = validatedBusinessConfigurationData(overlayPlatformCertificateValues(businessData, platformValues), businessId);
+  const userData = ((useUserIdFallback ? byUser.data?.data : byEmail.data?.data) || {}) as Record<string, unknown>;
+  const platformValues = platformCertificateValuesFromRow(platformResult.data as PlatformCertificateValuesRow | null);
+  const businessData = validatedBusinessConfigurationData(
+    overlayPlatformCertificateValues((businessResult.data?.data || {}) as Record<string, unknown>, platformValues),
+    businessId,
+  );
 
   const unlockedUserData = applyWonAdminUnlocks(userData);
   const cleanedUserData = withoutBusinessConfiguration(stripCertificateValueKeys(unlockedUserData));
@@ -1199,7 +1418,8 @@ export async function GET(request: Request) {
   const requestedEmail = String(searchParams.get("as") || "").trim().toLowerCase();
   const requestedPreview = searchParams.get("preview") === "1";
   const requestedBusinessId = String(searchParams.get("businessId") || "").trim();
-  const { data: approvedUser } = await getApprovedUser(supabase, currentEmail);
+  const { data: approvedUser, error: approvalError } = await getApprovedUser(supabase, currentEmail);
+  if (approvalError) return unavailableCalculatorBaseline();
 
   if (!approvedUser) {
     return new NextResponse("Not approved", { status: 403 });
@@ -1214,18 +1434,25 @@ export async function GET(request: Request) {
   const previewAsViewedUser = canManage && requestedPreview && viewingEmail !== currentEmail;
   const rememberedBusinessId = String(cookieValue(request, lastBusinessCookieName(viewingEmail)) || "").trim();
   const effectiveRequestedBusinessId = requestedBusinessId || rememberedBusinessId;
-  const { data: viewedApprovedUser } =
+  const { data: viewedApprovedUser, error: viewedApprovalError } =
     viewingEmail === currentEmail
-      ? { data: approved }
+      ? { data: approved, error: null }
       : await getApprovedUser(supabase, viewingEmail);
-  const viewedUser = (viewedApprovedUser || approved) as ApprovedUser;
+  if (viewedApprovalError) return unavailableCalculatorBaseline();
+  if (!viewedApprovedUser) return new NextResponse("Viewed account not available", { status: 403 });
+  const viewedUser = viewedApprovedUser as ApprovedUser;
   const currentUserIsOwner = isOwnerEmail(currentEmail);
-  const business = await resolveActiveBusiness(
-    supabase,
-    viewedUser,
-    effectiveRequestedBusinessId,
-    currentUserIsOwner,
-  );
+  let business: Business | null;
+  try {
+    business = await resolveActiveBusiness(
+      supabase,
+      viewedUser,
+      effectiveRequestedBusinessId,
+      currentUserIsOwner,
+    );
+  } catch {
+    return unavailableCalculatorBaseline();
+  }
   const businessOperatingState = normalizeOperatingState(business?.operating_state);
   const rebateScheme = rebateSchemeForState(businessOperatingState);
   const commissionType =
@@ -1244,6 +1471,9 @@ export async function GET(request: Request) {
     viewingEmail,
     business?.id || null,
   );
+  if ("loadError" in savedDataResult) {
+    return unavailableCalculatorBaseline();
+  }
   const savedData = savedDataResult.data;
   const effectiveSavedData = isOwnerEmail(viewingEmail)
     ? { ...savedData }

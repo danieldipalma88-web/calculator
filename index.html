@@ -63,6 +63,7 @@ body.drawerOpen{overflow:hidden}
   align-items:center;
   gap:7px;
   min-height:32px;
+  max-width:calc(100vw - 24px);
   padding:7px 10px;
   border:1px solid #cbd5e1;
   border-radius:999px;
@@ -71,7 +72,7 @@ body.drawerOpen{overflow:hidden}
   box-shadow:0 7px 20px rgba(15,23,42,.1);
   font-size:11px;
   font-weight:800;
-  line-height:1;
+  line-height:1.4;
   pointer-events:none;
   opacity:1;
   visibility:visible;
@@ -81,6 +82,7 @@ body.drawerOpen{overflow:hidden}
 .cloudSaveStatus[data-tone="idle"]{opacity:0;visibility:hidden;transform:translateY(-5px)}
 .cloudSaveStatus:before{
   content:"";
+  flex-shrink:0;
   width:8px;
   height:8px;
   border-radius:50%;
@@ -94,8 +96,16 @@ body.drawerOpen{overflow:hidden}
 }
 .cloudSaveStatus[data-tone="retrying"]{color:#9a3412;border-color:#fed7aa;background:#fff7ed}
 .cloudSaveStatus[data-tone="retrying"]:before{background:#f97316}
-.cloudSaveStatus[data-tone="error"]{color:#991b1b;border-color:#fecaca;background:#fef2f2}
+.cloudSaveStatus[data-tone="error"]{position:sticky;top:12px;right:auto;width:fit-content;margin:12px 12px 12px auto;color:#991b1b;border-color:#fecaca;background:#fef2f2;border-radius:8px}
 .cloudSaveStatus[data-tone="error"]:before{background:#dc2626}
+.cloudSaveStatus button{pointer-events:auto;flex-shrink:0;min-height:40px;white-space:nowrap}
+.calculatorSaveRecovery{width:min(560px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow:auto;border:1px solid var(--line);border-radius:8px;padding:24px;color:var(--dark);background:#fff}
+.calculatorSaveRecovery::backdrop{background:rgba(15,23,42,.45)}
+.calculatorSaveRecovery h2{font-size:20px;letter-spacing:0;margin:0 0 12px}
+.calculatorSaveRecovery p{font-size:14px;line-height:1.5}
+.calculatorSaveRecovery details{margin:16px 0}
+.calculatorSaveRecovery pre{max-height:250px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px}
+.calculatorSaveRecovery button{margin:4px;min-height:44px}
 
 h1,h2,h3{
   font-family:'Space Grotesk','Manrope','Segoe UI',sans-serif;
@@ -3962,7 +3972,7 @@ button.quoteDragHandle:active{cursor:grabbing}
 <div id="quoteActionNotice" class="quoteActionNotice" role="status" aria-live="polite"></div>
 <div id="quoteNameModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="quoteNameModalTitle" aria-describedby="quoteNameModalDescription" onclick="if(event.target===this)closeQuoteNameModal()"><div class="quoteNameModalCard"><div id="quoteNameModalKicker" class="kicker">Name this quote</div><h2 id="quoteNameModalTitle">Who is this quote for?</h2><p id="quoteNameModalDescription">Enter the customer name before adding the first system.</p><label for="quoteNameModalInput">Customer name</label><input id="quoteNameModalInput" type="text" autocomplete="name" placeholder="Example: Ash Macquarie Links" oninput="updateQuoteNameModalSubmitState()" onkeydown="if(event.key==='Enter')confirmQuoteNameModal()"><div id="quoteNameModalHint" class="hint" role="status" aria-live="polite" style="display:none"></div><div class="quoteNameModalActions"><button class="secondary" type="button" onclick="closeQuoteNameModal()">Cancel</button><button id="quoteNameModalSubmit" class="orange" type="button" onclick="confirmQuoteNameModal()" disabled>Add to Quote</button></div></div></div>
 <div id="removeSystemModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="removeSystemModalTitle" onclick="if(event.target===this)closeRemoveSystemModal()"><div class="quoteNameModalCard"><div class="kicker">Current quote</div><h2 id="removeSystemModalTitle">Remove this system?</h2><p id="removeSystemModalMessage">This system will no longer be included in the quote totals.</p><div class="quoteNameModalActions"><button class="secondary" type="button" onclick="closeRemoveSystemModal()">Cancel</button><button class="danger" type="button" onclick="confirmRemoveCurrentQuoteSystem()">Remove system</button></div></div></div>
-<div id="wonDetailsModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="wonDetailsModalTitle" aria-describedby="wonDetailsModalDescription" onclick="if(event.target===this)closeWonDetailsModal()"><div class="quoteNameModalCard wonDetailsModalCard"><div class="kicker">Won job details</div><h2 id="wonDetailsModalTitle">Complete won job</h2><p id="wonDetailsModalDescription">Confirm the installation location and proposed date before locking this quote.</p><div class="wonDetailsFields"><div class="wonDetailsField"><label id="wonAddressLabel">Installation address <span class="wonRequired">Required</span></label><div id="wonAddressLookup" class="wonAddressLookup" aria-labelledby="wonAddressLabel"><div class="wonAddressLoading">Loading Google address search...</div></div><div id="wonAddressStatus" class="wonAddressStatus" role="status" aria-live="polite">A Google address selection is required.</div></div><div class="wonDetailsField"><label for="wonInstallDate">Proposed installation date <span class="wonRequired">Required</span></label><div class="wonDateControl"><input id="wonInstallDate" type="date" required onchange="updateWonDetailsSubmitState()" oninput="updateWonDetailsSubmitState()"></div></div></div><div id="wonDetailsHint" class="hint" role="status" aria-live="polite" style="display:none"></div><div class="quoteNameModalActions"><button class="secondary" type="button" onclick="closeWonDetailsModal()">Cancel</button><button id="wonDetailsSubmit" class="green" type="button" onclick="confirmWonDetails()" disabled>Mark as won</button></div></div></div>
+<div id="wonDetailsModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="wonDetailsModalTitle" aria-describedby="wonDetailsModalDescription" onclick="if(event.target===this)closeWonDetailsModal()"><div class="quoteNameModalCard wonDetailsModalCard"><div class="kicker">Won job details</div><h2 id="wonDetailsModalTitle">Complete won job</h2><p id="wonDetailsModalDescription">Confirm the installation location and proposed date before locking this quote.</p><div class="wonDetailsFields"><div class="wonDetailsField"><label id="wonAddressLabel">Installation address <span class="wonRequired">Required</span></label><div id="wonAddressLookup" class="wonAddressLookup" aria-labelledby="wonAddressLabel"><div class="wonAddressLoading">Loading Google address search...</div></div><div id="wonAddressStatus" class="wonAddressStatus" role="status" aria-live="polite">A Google address selection is required.</div></div><div class="wonDetailsField"><label for="wonInstallDate">Proposed installation date <span class="wonRequired">Required</span></label><div class="wonDateControl"><input id="wonInstallDate" type="date" required onchange="updateWonDetailsSubmitState()" oninput="updateWonDetailsSubmitState()"></div></div></div><div id="wonDetailsHint" class="hint" role="status" aria-live="polite" style="display:none"></div><div class="quoteNameModalActions"><button id="wonDetailsClose" class="secondary" type="button" onclick="closeWonDetailsModal()">Cancel</button><button id="wonDetailsSubmit" class="green" type="button" onclick="confirmWonDetails()" disabled>Mark as won</button></div></div></div>
 <div id="dcceewInfoModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="dcceewInfoModalTitle" aria-describedby="dcceewInfoModalDescription" onclick="if(event.target===this)closeDcceewInfoModal()"><div class="quoteNameModalCard dcceewInfoModalCard"><div class="kicker">DCCEEW $30 ESC contract rate</div><h2 id="dcceewInfoModalTitle">Complete every required step</h2><p id="dcceewInfoModalDescription">This job is potentially eligible because the selected postcode and product are on the approved lists.</p><div class="dcceewInfoModalIntro">The fixed $30 rate is not automatic. Complete all applicable requirements to receive it.</div><ol class="dcceewCriteria"><li>Select <strong>Yes</strong> for DCCEEW consent in Alitsy when setting up the job. This cannot be corrected after payment processing begins.</li><li>For replacement jobs, enter the existing unit's <strong>year of manufacture</strong> in the Compliance tab.</li><li>For replacement jobs, attach a clear photo of the existing indoor or outdoor unit's <strong>compliance plate</strong>.</li><li>Ensure the customer invoice clearly itemises the <strong>incentive or discount passed through to the customer</strong>.</li></ol><div class="dcceewFallbackNotice">If any required information is missing, the job will be paid at the standard market rate instead of the fixed $30 ESC rate.</div><div class="quoteNameModalActions"><button type="button" onclick="closeDcceewInfoModal()">Understood</button></div></div></div>
 <div id="calculatorGuidanceModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="calculatorGuidanceTitle" aria-describedby="calculatorGuidanceDescription"><div class="quoteNameModalCard calculatorGuidanceCard"><div class="kicker">Before you start quoting</div><h2 id="calculatorGuidanceTitle">A quick note about this calculator</h2><p id="calculatorGuidanceDescription">This quote calculator is built around the systems installers use most often.</p><div class="calculatorGuidanceIntro">Use it to check rebates, build customer quotes and understand likely profit margins. The figures below are practical starting points, not fixed guarantees.</div><div class="calculatorGuidancePoints"><div class="calculatorGuidancePoint"><span class="calculatorGuidancePointIcon" aria-hidden="true">1</span><div><strong>Products and costs</strong><span>We include a curated range of commonly installed systems, selected wholesaler pricing and common labour, materials and installation costs. Review these figures before issuing a quote.</span></div></div><div class="calculatorGuidancePoint"><span class="calculatorGuidancePointIcon" aria-hidden="true">2</span><div><strong>Missing models</strong><span>The catalogue is not exhaustive. Use <em>Request a model</em> near the product selector if a system you install is missing.</span></div></div><div class="calculatorGuidancePoint"><span class="calculatorGuidancePointIcon" aria-hidden="true">3</span><div><strong>Rebate movement</strong><span>Rebate values are indicative and can move up or down with certificate market prices and trading conditions before a claim is submitted or processed. Build enough margin into each quote to allow for movement.</span></div></div></div><label class="guidanceCheck" for="calculatorGuidanceAccepted"><input id="calculatorGuidanceAccepted" type="checkbox" onchange="updateCalculatorGuidanceState()"><span>I understand that rebate amounts and preloaded costs are estimates, may change, and should be verified before I issue a customer quote.</span></label><div id="calculatorGuidanceStatus" class="modelRequestStatus" role="status" aria-live="polite"></div><div class="quoteNameModalActions"><button id="calculatorGuidanceContinue" type="button" onclick="confirmCalculatorGuidance()" disabled>Continue to calculator</button></div></div></div>
 <div id="modelRequestModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="modelRequestTitle" aria-describedby="modelRequestDescription" onclick="if(event.target===this)closeModelRequestModal()"><div class="quoteNameModalCard modelRequestCard"><div class="kicker">Product catalogue</div><h2 id="modelRequestTitle">Request a missing model</h2><p id="modelRequestDescription">Send the product details for review. Your account, email and active business will be attached automatically.</p><div class="modelRequestGrid"><div class="modelRequestField"><label for="modelRequestSystemType">System type</label><input id="modelRequestSystemType" type="text" readonly></div><div class="modelRequestField"><label for="modelRequestBrand">Brand</label><input id="modelRequestBrand" type="text" maxlength="100" autocomplete="organization"></div><div class="modelRequestField wide"><label for="modelRequestModel">Model <span class="wonRequired">Required</span></label><input id="modelRequestModel" type="text" maxlength="180" autocomplete="off" placeholder="Outdoor / indoor model numbers"></div><div class="modelRequestField"><label for="modelRequestCapacity">Capacity</label><input id="modelRequestCapacity" type="text" maxlength="40" placeholder="Example: 7.1kW"></div><div id="modelRequestPhaseField" class="modelRequestField"><label for="modelRequestPhase">Phase</label><select id="modelRequestPhase"><option value="unknown">Not sure</option><option value="single">Single phase</option><option value="three">Three phase</option></select></div><div class="modelRequestField"><label for="modelRequestPostcode">Installation postcode</label><input id="modelRequestPostcode" inputmode="numeric" maxlength="4" placeholder="Postcode"></div><div class="modelRequestField"><label for="modelRequestInstall">Installation type</label><select id="modelRequestInstall"><option value="new">New install</option><option value="replacement">Replacement</option></select></div><div class="modelRequestField wide"><label for="modelRequestNotes">Notes</label><textarea id="modelRequestNotes" maxlength="600" placeholder="Series, pricing or any other useful details"></textarea></div></div><div id="modelRequestStatus" class="modelRequestStatus" role="status" aria-live="polite"></div><div class="quoteNameModalActions"><button class="secondary" type="button" onclick="closeModelRequestModal()">Cancel</button><button id="modelRequestSubmit" class="modelRequestSubmit" type="button" onclick="submitModelRequest()">Send request</button></div></div></div>
@@ -11395,13 +11405,14 @@ function optionNameById(id){const o=quoteOptionDefs.find(x=>x.id===id); return o
 function optionDefById(id){return quoteOptionDefs.find(x=>x.id===id)||null;}
 function optionIsWon(id){const o=optionDefById(id); return !!(o&&o.wonAt);}
 function quoteRowIsWon(row){return !!(row&&(row.wonAt||optionIsWon(row.optionId)));}
-function canUnlockWonOptions(){return canSeeOwnerDetails();}
+function canUnlockWonOptions(id){return canSeeOwnerDetails()&&!pendingWonSaveFor(id);}
 function wonOptionOwnerName(){
   const u=calculatorUserContext();
   return String(u.viewingDisplayName||u.displayName||u.viewingEmail||u.email||'');
 }
 function optionWonLabel(def){
   if(!def||!def.wonAt) return '';
+  if(pendingWonSaveFor(def.id)) return 'Won save unconfirmed';
   const date=new Date(def.wonAt);
   const stamp=Number.isNaN(date.getTime())?'':date.toLocaleDateString('en-AU');
   return stamp?`Won ${stamp}`:'Won';
@@ -11415,6 +11426,10 @@ function assertOptionEditable(id){
 let pendingWonOptionId='';
 let selectedWonGooglePlace=null;
 let wonSaveInProgress=false;
+let pendingWonSaveAttempt=null;
+function pendingWonSaveFor(id){
+  return pendingWonSaveAttempt&&pendingWonSaveAttempt.id===id?pendingWonSaveAttempt:null;
+}
 let wonAddressAutocomplete=null;
 let wonAddressSearchTimer=null;
 let wonAddressSearchController=null;
@@ -11444,8 +11459,19 @@ function setWonAddressBusy(busy){
 }
 function updateWonDetailsSubmitState(){
   const date=String(($('wonInstallDate')&&$('wonInstallDate').value)||'').trim();
+  const retry=!!pendingWonSaveFor(pendingWonOptionId);
   const submit=$('wonDetailsSubmit');
-  if(submit) submit.disabled=wonSaveInProgress||!!wonAddressBusy||!(pendingWonOptionId&&selectedWonGooglePlace&&selectedWonGooglePlace.placeId&&date);
+  if(submit){
+    submit.textContent=wonSaveInProgress?'Confirming won save...':retry?'Retry confirmation':'Mark as won';
+    submit.disabled=wonSaveInProgress||(!retry&&(!!wonAddressBusy||!(pendingWonOptionId&&selectedWonGooglePlace&&selectedWonGooglePlace.placeId&&date)));
+    submit.setAttribute('aria-busy',wonSaveInProgress?'true':'false');
+  }
+  const close=$('wonDetailsClose');
+  if(close){close.textContent=retry?'Close':'Cancel';close.disabled=wonSaveInProgress;}
+  const dateInput=$('wonInstallDate');
+  const addressInput=$('wonAddressInput');
+  if(dateInput) dateInput.disabled=retry;
+  if(addressInput) addressInput.disabled=retry;
 }
 function clearWonAddressSuggestions(){
   const list=$('wonAddressSuggestions');
@@ -11616,22 +11642,27 @@ function mountWonAddressAutocomplete(){
   if(selectedWonGooglePlace&&selectedWonGooglePlace.formattedAddress) setWonAddressStatus(selectedWonGooglePlace.formattedAddress,'success');
   else setWonAddressStatus('Select an address from the Google suggestions.','');
   updateWonDetailsSubmitState();
-  setTimeout(()=>input.focus(),0);
+  setTimeout(()=>(pendingWonSaveFor(pendingWonOptionId)?$('wonDetailsSubmit'):input)?.focus(),0);
+}
+function showWonSaveHint(message){
+  const hint=$('wonDetailsHint');
+  if(hint){hint.textContent=message;hint.style.display=message?'block':'none';}
 }
 function openWonDetailsModal(id){
   const def=optionDefById(id);
-  if(!def) return;
+  if(!def||wonSaveInProgress) return;
+  const attempt=pendingWonSaveFor(id);
+  const details=attempt?attempt.fields:def;
   pendingWonOptionId=id;
-  selectedWonGooglePlace=def.googlePlaceId&&def.installationAddress?{
-    formattedAddress:String(def.installationAddress),
-    placeId:String(def.googlePlaceId),
-    latitude:def.installationLatitude??null,
-    longitude:def.installationLongitude??null
+  selectedWonGooglePlace=details.googlePlaceId&&details.installationAddress?{
+    formattedAddress:String(details.installationAddress),
+    placeId:String(details.googlePlaceId),
+    latitude:details.installationLatitude??null,
+    longitude:details.installationLongitude??null
   }:null;
   const date=$('wonInstallDate');
-  if(date) date.value=String(def.proposedInstallationDate||'');
-  const hint=$('wonDetailsHint');
-  if(hint){hint.textContent='';hint.style.display='none';}
+  if(date) date.value=String(details.proposedInstallationDate||'');
+  showWonSaveHint(attempt?attempt.message:'');
   const modal=$('wonDetailsModal');
   if(modal) modal.classList.add('open');
   updateWonDetailsSubmitState();
@@ -11654,82 +11685,114 @@ function closeWonDetailsModal(force){
   wonAddressAutocomplete=null;
   setWonAddressBusy(false);
 }
-function restoreWonSaveSnapshot(target,snapshot,syncUpdatedAt){
-  Object.keys(target).forEach(key=>delete target[key]);
-  Object.assign(target,snapshot,{syncUpdatedAt});
+function restoreWonSaveSnapshot(target,snapshot,fields){
+  for(const key of Object.keys(fields)){
+    if(Object.hasOwn(snapshot,key)) target[key]=snapshot[key];
+    else delete target[key];
+  }
+}
+function wonSaveRecordMatches(record,fields){
+  return !!record&&Object.entries(fields).every(([key,value])=>record[key]===value);
+}
+function wonSaveSnapshotMatches(attempt,defs,rows){
+  const matches=rows.filter(row=>row.optionId===attempt.id);
+  return wonSaveRecordMatches(defs.find(def=>def.id===attempt.id),attempt.fields)
+    &&matches.length===attempt.previousRows.size
+    &&matches.every(row=>attempt.previousRows.has(row.id)&&wonSaveRecordMatches(row,attempt.fields));
+}
+function wonSaveStoredSnapshotMatches(attempt){
+  try{
+    const defs=JSON.parse(localStorage.getItem(OPTION_DEFS_STORAGE_KEY)||'[]');
+    const rows=JSON.parse(localStorage.getItem(QUOTE_STORAGE_KEY)||'[]');
+    return wonSaveSnapshotMatches(attempt,defs,rows);
+  }catch(e){return false;}
 }
 function setWonSaveInProgress(busy){
   wonSaveInProgress=!!busy;
-  const submit=$('wonDetailsSubmit');
-  if(submit){
-    submit.textContent=wonSaveInProgress?'Saving won job...':'Mark as won';
-    submit.setAttribute('aria-busy',wonSaveInProgress?'true':'false');
-  }
   updateWonDetailsSubmitState();
 }
 async function completeOptionWon(id,details){
   const def=optionDefById(id);
-  if(!def||def.wonAt||wonSaveInProgress) return false;
-  const targetRows=quotes.filter(q=>q.optionId===id);
-  if(!targetRows.length) return false;
-  const missingPriceModels=quoteRowsMissingPriceModels(targetRows);
-  if(missingPriceModels.length){
-    const message=`Add a unit price for ${formatPriceModelList(missingPriceModels)} before marking this quote as won.`;
-    const hint=$('wonDetailsHint');
-    if(hint){hint.textContent=message;hint.style.display='block';}
-    showQuoteActionNotice(message);
-    return false;
+  if(!def||wonSaveInProgress) return false;
+  let attempt=pendingWonSaveFor(id);
+  const isRetry=!!attempt;
+  if(!attempt){
+    if(def.wonAt||pendingWonSaveAttempt||!details||quoteFamilyIsLocked(id)) return false;
+    const targetRows=quotes.filter(q=>q.optionId===id);
+    if(!targetRows.length) return false;
+    const missingPriceModels=quoteRowsMissingPriceModels(targetRows);
+    if(missingPriceModels.length){
+      const message=`Add a unit price for ${formatPriceModelList(missingPriceModels)} before marking this quote as won.`;
+      showWonSaveHint(message);
+      showQuoteActionNotice(message);
+      return false;
+    }
+    if(typeof window.__calculatorFlushCloudSave!=='function'){
+      showWonSaveHint('Cloud save confirmation is unavailable. Reopen the calculator before marking this quote as won.');
+      return false;
+    }
+    const now=Date.now();
+    const syncUpdatedAt=Math.max(now,...[def,...targetRows].map(record=>(Number(record.syncUpdatedAt||record.timestamp)||0)+1));
+    const u=calculatorUserContext();
+    const fields={
+      wonAt:new Date(now).toISOString(),
+      wonByEmail:String(u.viewingEmail||u.email||''),
+      wonByName:wonOptionOwnerName(),
+      installationAddress:details.formattedAddress,
+      googlePlaceId:details.placeId,
+      installationLatitude:details.latitude,
+      installationLongitude:details.longitude,
+      proposedInstallationDate:details.proposedInstallationDate,
+      syncUpdatedAt
+    };
+    attempt={id,fields,previousDef:{...def},previousRows:new Map(targetRows.map(row=>[row.id,{...row}])),message:''};
+    pendingWonSaveAttempt=attempt;
+    Object.assign(def,fields);
+    targetRows.forEach(row=>Object.assign(row,fields));
   }
-  const previousDef=JSON.parse(JSON.stringify(def));
-  const previousRows=new Map(targetRows.map(row=>[row.id,JSON.parse(JSON.stringify(row))]));
-  const now=new Date().toISOString();
-  const u=calculatorUserContext();
-  const wonDetails={
-    wonAt:now,
-    wonByEmail:String(u.viewingEmail||u.email||''),
-    wonByName:wonOptionOwnerName(),
-    installationAddress:details.formattedAddress,
-    googlePlaceId:details.placeId,
-    installationLatitude:details.latitude,
-    installationLongitude:details.longitude,
-    proposedInstallationDate:details.proposedInstallationDate
-  };
-  const syncUpdatedAt=Date.now();
-  Object.assign(def,wonDetails,{syncUpdatedAt});
-  targetRows.forEach(q=>Object.assign(q,wonDetails,{syncUpdatedAt}));
   setWonSaveInProgress(true);
-  persistOptionDefs();
-  persistQuotes();
-  renderQuotes();
+  showWonSaveHint('');
   try{
-    if(typeof window.__calculatorFlushCloudSave!=='function') throw new Error('Cloud save confirmation is unavailable. Refresh the calculator and try again.');
-    await window.__calculatorFlushCloudSave(20000);
-    const wonName=def.name;
-    setWonSaveInProgress(false);
-    closeWonDetailsModal(true);
-    showQuoteActionNotice(`${wonName} marked as won and saved.`);
-    return true;
+    if(!isRetry){
+      persistOptionDefs();
+      persistQuotes();
+      renderQuotes();
+    }
+    if(!wonSaveSnapshotMatches(attempt,quoteOptionDefs,quotes)||!wonSaveStoredSnapshotMatches(attempt)){
+      throw new Error('The original won save is not available in this workspace.');
+    }
+    const confirmation=await window.__calculatorFlushCloudSave(20000);
+    if(confirmation?.ok!==true) throw new Error('The won save was not confirmed.');
   }catch(error){
-    const rollbackUpdatedAt=Date.now();
-    restoreWonSaveSnapshot(def,previousDef,rollbackUpdatedAt);
-    targetRows.forEach(row=>{
-      const previous=previousRows.get(row.id);
-      if(previous) restoreWonSaveSnapshot(row,previous,rollbackUpdatedAt);
-    });
-    persistOptionDefs();
-    persistQuotes();
-    renderQuotes();
-    setWonSaveInProgress(false);
-    const hint=$('wonDetailsHint');
-    if(hint){
-      hint.textContent=(error&&error.message?error.message:'The won quote was not saved.')+' Nothing was marked as won. Please try again.';
-      hint.style.display='block';
+    // A rejection after an unknown result cannot disprove the earlier commit.
+    if(!isRetry&&error?.status===422&&error.code==='WON_JOB_DETAILS_REQUIRED'&&wonSaveSnapshotMatches(attempt,quoteOptionDefs,quotes)){
+      restoreWonSaveSnapshot(optionDefById(id),attempt.previousDef,attempt.fields);
+      quotes.filter(row=>row.optionId===id).forEach(row=>restoreWonSaveSnapshot(row,attempt.previousRows.get(row.id),attempt.fields));
+      pendingWonSaveAttempt=null;
+      persistOptionDefs();
+      persistQuotes();
+      renderQuotes();
+      showWonSaveHint(error.message||'The server rejected the won job details. Review them and try again.');
+    }else{
+      attempt.message='The won save is not confirmed. The server may already have saved it. Keep this tab open and retry confirmation for the original win.';
+      showWonSaveHint(attempt.message);
     }
     return false;
+  }finally{
+    setWonSaveInProgress(false);
   }
+  pendingWonSaveAttempt=null;
+  closeWonDetailsModal(true);
+  renderQuotes();
+  showQuoteActionNotice(`${def.name} marked as won and saved.`);
+  return true;
 }
 async function confirmWonDetails(){
   if(wonSaveInProgress) return;
+  if(pendingWonSaveFor(pendingWonOptionId)){
+    await completeOptionWon(pendingWonOptionId);
+    return;
+  }
   const hint=$('wonDetailsHint');
   const proposedInstallationDate=String(($('wonInstallDate')&&$('wonInstallDate').value)||'').trim();
   if(!selectedWonGooglePlace||!selectedWonGooglePlace.placeId){
@@ -11749,6 +11812,8 @@ function markOptionWon(id){
   ensureOptionDefs();
   const def=optionDefById(id);
   if(!def) return;
+  if(pendingWonSaveFor(id)){openWonDetailsModal(id);return;}
+  if(pendingWonSaveAttempt){showQuoteActionNotice('Confirm the pending won save before marking another quote as won.');return;}
   if(def.wonAt){alert('This quote is already marked as won.');return;}
   if(quoteFamilyIsLocked(id)){alert('An option in this quote is already won. Unlock it before choosing a different option.');return;}
   const rows=quotes.filter(q=>q.optionId===id);
@@ -11759,7 +11824,7 @@ function markOptionWon(id){
 }
 function unlockWonOption(id){
   ensureOptionDefs();
-  if(!canUnlockWonOptions()){alert('Only Daniel can unlock a won quote.');return;}
+  if(!canUnlockWonOptions(id)){alert(canUnlockWonOptions()?'Confirm the pending won save before unlocking this quote.':'Only Daniel can unlock a won quote.');return;}
   const def=optionDefById(id);
   if(!def||!def.wonAt) return;
   if(!confirm(`Unlock "${def.name}" so it can be edited again?`)) return;
@@ -11774,6 +11839,7 @@ function unlockWonOption(id){
 }
 function toggleCurrentOptionWon(){
   const {id,def}=currentOptionSelection();
+  if(pendingWonSaveFor(id)){markOptionWon(id);return;}
   if(def&&def.wonAt){
     if(canUnlockWonOptions()) unlockWonOption(id);
     else alert('This quote is already marked as won and locked.');
@@ -11787,6 +11853,12 @@ function updateCurrentOptionWonButton(def,rows){
   const isWon=!!(def&&def.wonAt);
   btn.classList.toggle('orange',!isWon);
   btn.classList.toggle('secondary',isWon);
+  if(pendingWonSaveFor(def?.id)){
+    btn.textContent='Retry won confirmation';
+    btn.disabled=false;
+    btn.title='Confirm the original won save.';
+    return;
+  }
   if(isWon){
     btn.textContent=canUnlockWonOptions()?'Unlock won':optionWonLabel(def);
     btn.disabled=!canUnlockWonOptions();
@@ -12212,6 +12284,7 @@ function collectWonJobsFromSnapshot(source,seen,jobs){
     const optionId=String(def.id||optionRows[0]?.optionId||'option_1');
     const wonAt=String(def.wonAt || optionRows.find(row=>row.wonAt)?.wonAt || source.savedAt || source.updatedAt || '');
     if(!wonAt || !optionRows.length) return;
+    if(pendingWonSaveFor(optionId)?.fields.wonAt===wonAt) return;
     const key=`${optionId}|${wonAt}`;
     if(seen.has(key)) return;
     seen.add(key);
@@ -12705,7 +12778,10 @@ function filteredQuoteLibraryGroups(){
 }
 function quoteLibraryDate(timestamp){return timestamp?new Date(timestamp).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'}):'Date not recorded';}
 function quoteLibraryMetric(label,value){return '<div><dt>'+htmlEscape(label)+'</dt><dd>'+htmlEscape(value)+'</dd></div>';}
-function quoteLibraryGroupStatus(group){return '<span class="quoteLibraryBadge'+(group.won?' won':'')+'">'+(group.won?'Won':group.familyLocked?'Not selected':'Open')+'</span>';}
+function pendingWonLibraryOption(group){
+  return (group.familyOptions||[group]).find(option=>pendingWonSaveFor(option.def.id)?.fields.wonAt===option.def.wonAt&&option.def.wonAt);
+}
+function quoteLibraryGroupStatus(group){return pendingWonLibraryOption(group)?'<span class="quoteLibraryBadge">Won save unconfirmed</span>':'<span class="quoteLibraryBadge'+(group.won?' won':'')+'">'+(group.won?'Won':group.familyLocked?'Not selected':'Open')+'</span>';}
 function selectedQuoteLibraryGroup(){
   const family=quoteLibraryGroups().find(group=>String(group.def.id)===quoteLibraryView.selectedId||group.familyOptions?.some(option=>String(option.def.id)===quoteLibraryView.selectedId));
   if(!family) return null;
@@ -12721,6 +12797,7 @@ function filterQuoteLibrary(){quoteLibraryView.page=1;renderQuoteLibrary();}
 function setQuoteLibraryStatus(status){quoteLibraryView.status=status;filterQuoteLibrary();}
 function setQuoteLibraryPage(page){quoteLibraryView.page=Math.max(1,Number(page)||1);renderQuoteLibrary();$('drawer').scrollTop=0;$('quoteLibraryContent')?.focus({preventScroll:true});}
 function discardQuoteLibraryEdit(){
+  if(window.__calculatorHasPendingQuoteRequest?.('quoteEdit')){showQuoteActionNotice('Retry the pending save to confirm it before leaving these edits.');return false;}
   if(quoteLibraryBusy) return false;
   if(quoteLibraryEdit&&!confirm('Discard the unsaved system edits?')) return false;
   quoteLibraryEdit=null;
@@ -12836,10 +12913,12 @@ function quoteLibraryFinancialHtml(rows){
 }
 function quoteLibraryDetailHtml(group){
   const backup=!!quoteLibraryView.backupId;
+  const pendingWin=!backup&&pendingWonLibraryOption(group);
   const priceError=quoteRowsMissingPriceModels(group.rows).length>0;
   const copyError=currentQuoteInfoError(group.rows);
   const lock=backup||group.won||group.familyLocked;
-  const actions=backup?'<button class="secondary" onclick="openLibraryCopyName()">Copy to a new open quote</button>':'<button id="quoteLibraryCopyBtn" class="secondary" onclick="copyLibraryQuoteInfo()"'+(copyError?' disabled title="'+htmlEscape(copyError)+'"':'')+'>Copy quote info</button>'+(!lock?'<button class="orange" onclick="addSystemFromLibrary()">Add system</button><button class="green" onclick="libraryQuoteAction(\'won\')"'+(!group.rows.length||priceError?' disabled':'')+'>Mark won</button>':'');
+  const retryWin=pendingWin?`<button class="secondary" onclick="markOptionWon(decodeURIComponent('${quoteLibraryArg(pendingWin.def.id)}'))">Retry won confirmation</button>`:'';
+  const actions=backup?'<button class="secondary" onclick="openLibraryCopyName()">Copy to a new open quote</button>':'<button id="quoteLibraryCopyBtn" class="secondary" onclick="copyLibraryQuoteInfo()"'+(copyError?' disabled title="'+htmlEscape(copyError)+'"':'')+'>Copy quote info</button>'+(!lock?'<button class="orange" onclick="addSystemFromLibrary()">Add system</button><button class="green" onclick="libraryQuoteAction(\'won\')"'+(!group.rows.length||priceError?' disabled':'')+'>Mark won</button>':retryWin);
   const more=backup?'':'<details class="quoteLibraryMore"><summary aria-label="More quote actions" title="More quote actions">&hellip;</summary><div class="quoteLibraryMoreMenu">'+(!lock?'<button onclick="libraryQuoteAction(\'rename\')">Rename quote</button>':'')+'<button onclick="libraryQuoteAction(\'copy\')"'+(!group.rows.length?' disabled':'')+'>Copy to a new quote</button>'+(!lock?'<button onclick="adjustLibraryQuoteTotals()"'+(!group.rows.length?' disabled':'')+'>Adjust quote totals</button>':'')+'<button onclick="exportQuoteLibrary(\'selected\')">Export internal CSV</button>'+(!lock?'<button class="danger" onclick="libraryQuoteAction(\'delete\')">Delete quote</button>':'')+'</div></details>';
   const systems=group.rows.map((row,index)=>{
     const rowArg=quoteLibraryArg(row.id);
@@ -13006,14 +13085,16 @@ async function saveLibrarySystem(){
     const next=quotes.map(item=>String(item.id)===edit.rowId?result.row:item);
     localStorage.setItem(QUOTE_STORAGE_KEY,JSON.stringify(next));
     quotes=next;
+    if(window.__calculatorAcknowledgeQuoteMutation?.('quoteEdit',edit.saveId)!==true) throw new Error('The saved changes could not be applied locally. Retry to confirm the same save.');
     quoteLibraryEdit=null;
     quoteLibraryRefreshSavedViews();
     showQuoteActionNotice('System updated. Other quotes and the saved rebate are unchanged.');
   }catch(error){
-    status.textContent=error?.status===409?'This quote has changed in another session. Your edits were not applied. Open the calculator in a new tab to load the latest saved version.':error.message||'Could not confirm the save. Your edits are still here; please retry.';
+    status.textContent=error?.status===409?'This quote has changed in another session. Open the calculator in a new tab to review the latest saved version before trying again.':error.message||'Could not confirm the save. Your edits are still here; please retry.';
   }finally{
     quoteLibraryBusy=false;
     form?.querySelectorAll('input,button').forEach(el=>el.disabled=false);
+    if(window.__calculatorHasPendingQuoteRequest?.()) form?.querySelectorAll('input,button[type="button"]').forEach(el=>el.disabled=true);
   }
 }
 let quoteLibraryCopyRequest=null;
@@ -13044,6 +13125,7 @@ async function commitLibraryQuoteCopy(name){
     localStorage.setItem(OPTION_DEFS_STORAGE_KEY,JSON.stringify(nextDefs));
     localStorage.setItem(QUOTE_STORAGE_KEY,JSON.stringify(nextRows));
     quoteOptionDefs=nextDefs;quotes=nextRows;
+    if(window.__calculatorAcknowledgeQuoteMutation?.('quoteCopy',request.saveId)!==true) throw new Error('The saved copy could not be applied locally. Retry to confirm the same save.');
     quoteLibraryBusy=false;closeQuoteNameModal();quoteLibraryCopyRequest=null;
     quoteLibraryView.backupId='';quoteLibraryView.selectedId=String(result.def.id);
     quoteLibraryRefreshSavedViews();
@@ -13288,14 +13370,14 @@ function renderCurrentOptionPanel(savedSelection){
   const disabled=quoteArrangeBusy||!!quoteArrangePending||!!quoteArrangeConflict;
   updateCopyQuoteChoicesButton();
   const wonButton=$('currentOptionWonBtn');if(wonButton) wonButton.hidden=true;
-  const toolbar=`<div class="quoteChoicesToolbar">${locked?'<p>Accepted: '+htmlEscape(quoteChoiceName(wonDef))+'</p>':''}<div class="actions">${!locked?`<button class="orange" onclick="quoteChoiceAction('addOption','${quoteLibraryArg(selected.def.id)}')"${disabled?' disabled':''}>+ Add option</button>`:''}</div></div>`;
+  const toolbar=`<div class="quoteChoicesToolbar">${locked?'<p>'+(pendingWonSaveFor(wonDef.id)?'Win unconfirmed: ':'Accepted: ')+htmlEscape(quoteChoiceName(wonDef))+'</p>':''}<div class="actions">${!locked?`<button class="orange" onclick="quoteChoiceAction('addOption','${quoteLibraryArg(selected.def.id)}')"${disabled?' disabled':''}>+ Add option</button>`:''}</div></div>`;
   const sections=defs.map(def=>{
     const rows=quoteChoiceRows(def.id),arg=quoteLibraryArg(def.id),active=def.id===selected.def.id;
     const total=groupTotals(rows).customer;
     const won=def.id===wonDef?.id;
     const name=htmlEscape(quoteChoiceName(def)),count=rows.length+' system'+(rows.length===1?'':'s');
-    const heading=locked?`<h3>${name}</h3><span class="quoteChoiceCount">${count}</span><span class="quoteChoiceBadge">${won?'Accepted':'Not selected'}</span>`:`<h3><button type="button" class="quoteChoiceSelect" aria-pressed="${active}" title="Add new systems to ${name}" onclick="selectQuoteChoiceDestination('${arg}')"${disabled?' disabled':''}><span class="quoteChoiceSelectName">${name}</span><span class="quoteChoiceCount">${count}</span><span class="quoteChoiceBadge">${active?'Adding here':'Add here'}</span></button></h3>`;
-    return `<section class="quoteChoice" data-option-id="${htmlEscape(def.id)}" data-selected="${active}" aria-label="${name}"><header class="quoteChoiceHeader"><div class="quoteChoiceHeading">${heading}</div><div class="quoteChoiceHeadlineNumbers"><div class="quoteChoiceTotal"><strong>${money(total)}</strong><small>Customer total inc GST</small></div>${quoteChoiceProfitHtml(rows)}</div>${!locked?`<details class="quoteLibraryMore"><summary title="Option actions" aria-label="Actions for ${name}">&hellip;</summary><div class="quoteLibraryMoreMenu"><button onclick="quoteChoiceAction('renameOption','${arg}')">Rename option</button><button onclick="quoteChoiceAction('duplicateOption','${arg}')">Duplicate option</button><button class="danger" onclick="quoteChoiceAction('deleteOption','${arg}')"${defs.length===1?' disabled':''}>Delete option</button></div></details>`:''}</header><div class="quoteChoiceList" data-option-id="${htmlEscape(def.id)}">${rows.map(row=>quoteChoiceCardHtml(row,defs,locked||disabled)).join('')}</div><footer class="quoteChoiceFooter"><details class="quoteChoiceFinancial"><summary>Option costs &amp; profit</summary>${quoteLibraryFinancialHtml(rows)}</details><button class="secondary" onclick="copyOneQuoteChoice('${arg}')"${currentQuoteInfoError(rows)||disabled?' disabled':''}>Copy option info</button>${!locked?`<button class="secondary" onclick="quoteChoiceAdjust('${arg}')"${!rows.length||disabled?' disabled':''}>Adjust totals</button><button class="orange" onclick="quoteChoiceAddSystem('${arg}')"${disabled?' disabled':''}>Add system</button><button class="green" onclick="quoteChoiceMarkWon('${arg}')"${!rows.length||quoteRowsMissingPriceModels(rows).length||disabled?' disabled':''}>Accept this option</button>`:won&&canUnlockWonOptions()?`<button class="secondary" onclick="unlockWonOption(decodeURIComponent('${arg}'))">Unlock won option</button>`:''}</footer></section>`;
+    const heading=locked?`<h3>${name}</h3><span class="quoteChoiceCount">${count}</span><span class="quoteChoiceBadge">${won?(pendingWonSaveFor(def.id)?'Win unconfirmed':'Accepted'):'Not selected'}</span>`:`<h3><button type="button" class="quoteChoiceSelect" aria-pressed="${active}" title="Add new systems to ${name}" onclick="selectQuoteChoiceDestination('${arg}')"${disabled?' disabled':''}><span class="quoteChoiceSelectName">${name}</span><span class="quoteChoiceCount">${count}</span><span class="quoteChoiceBadge">${active?'Adding here':'Add here'}</span></button></h3>`;
+    return `<section class="quoteChoice" data-option-id="${htmlEscape(def.id)}" data-selected="${active}" aria-label="${name}"><header class="quoteChoiceHeader"><div class="quoteChoiceHeading">${heading}</div><div class="quoteChoiceHeadlineNumbers"><div class="quoteChoiceTotal"><strong>${money(total)}</strong><small>Customer total inc GST</small></div>${quoteChoiceProfitHtml(rows)}</div>${!locked?`<details class="quoteLibraryMore"><summary title="Option actions" aria-label="Actions for ${name}">&hellip;</summary><div class="quoteLibraryMoreMenu"><button onclick="quoteChoiceAction('renameOption','${arg}')">Rename option</button><button onclick="quoteChoiceAction('duplicateOption','${arg}')">Duplicate option</button><button class="danger" onclick="quoteChoiceAction('deleteOption','${arg}')"${defs.length===1?' disabled':''}>Delete option</button></div></details>`:''}</header><div class="quoteChoiceList" data-option-id="${htmlEscape(def.id)}">${rows.map(row=>quoteChoiceCardHtml(row,defs,locked||disabled)).join('')}</div><footer class="quoteChoiceFooter"><details class="quoteChoiceFinancial"><summary>Option costs &amp; profit</summary>${quoteLibraryFinancialHtml(rows)}</details><button class="secondary" onclick="copyOneQuoteChoice('${arg}')"${currentQuoteInfoError(rows)||disabled?' disabled':''}>Copy option info</button>${!locked?`<button class="secondary" onclick="quoteChoiceAdjust('${arg}')"${!rows.length||disabled?' disabled':''}>Adjust totals</button><button class="orange" onclick="quoteChoiceAddSystem('${arg}')"${disabled?' disabled':''}>Add system</button><button class="green" onclick="quoteChoiceMarkWon('${arg}')"${!rows.length||quoteRowsMissingPriceModels(rows).length||disabled?' disabled':''}>Accept this option</button>`:pendingWonSaveFor(def.id)?`<button class="secondary" onclick="markOptionWon(decodeURIComponent('${arg}'))">Retry won confirmation</button>`:won&&canUnlockWonOptions()?`<button class="secondary" onclick="unlockWonOption(decodeURIComponent('${arg}'))">Unlock won option</button>`:''}</footer></section>`;
   }).join('');
   body.innerHTML=toolbar+'<div id="quoteChoicesStatus" class="quoteChoicesStatus'+(quoteArrangeError?' error':'')+'" role="status" aria-live="polite" tabindex="-1">'+htmlEscape(quoteArrangeBusy?(quoteChoiceProgressLabel||'Saving option changes...'):quoteArrangeMessage)+(quoteArrangePending&&!quoteArrangeBusy?'<button class="secondary" onclick="retryQuoteChoiceSave()">Retry save</button>':'')+(quoteArrangeConflict?'<button class="secondary" onclick="loadLatestQuoteChoices()">Load latest options</button>':'')+(quoteArrangeUndo&&!disabled?'<button class="secondary" onclick="undoQuoteChoiceMove()">Undo move</button>':'')+'</div><div class="quoteChoices" aria-busy="'+String(disabled)+'">'+sections+'</div>';
   if(!locked&&!disabled) setupQuoteChoiceDragging();
@@ -13623,6 +13705,7 @@ function updateQuoteNameModalSubmitState(){
 }
 function closeQuoteNameModal(){
   if(quoteLibraryBusy) return;
+  if(window.__calculatorHasPendingQuoteRequest?.('quoteCopy')){showQuoteActionNotice('Retry the pending copy to confirm it before closing.');return;}
   const modal=$('quoteNameModal');
   if(modal) modal.classList.remove('open');
   pendingQuoteAddKind='';
@@ -13842,7 +13925,9 @@ function renderQuotes(){
         const privateHeads=showPrivate?`<th>Agency comm inc</th><th>Salesperson comm inc</th>${showGroupAgencyProfit?'<th>Agency profit inc</th>':''}<th>Installer Profit ex</th>`:(showLimitedSales?'<th>Salesperson commission</th><th>Installer Profit ex</th>':'');
         const privateTotals=showPrivate?`<span>Agency commission inc<strong>${money(t.commission)}</strong></span><span>Salesperson commission payable<strong>${money(t.salespersonCommission)}</strong></span>${showGroupAgencyProfit?`<span>Agency profit inc GST<strong>${money(t.agencyProfitAfterSales)}</strong></span>`:''}<span>Installer profit ex<strong>${money(t.profit)}</strong></span>`:(showLimitedSales?`<span>Salesperson commission<strong>${money(t.salespersonCommission)}</strong></span><span>Installer profit ex<strong>${money(t.profit)}</strong></span>`:'');
         const wonBadge=isWon?`<span class="wonBadge">${htmlEscape(optionWonLabel(g.def))}</span>`:'';
-        const wonTools=isWon
+        const wonTools=pendingWonSaveFor(g.def.id)
+          ? `<button class="smallBtn secondary" onclick="markOptionWon('${g.def.id}')">Retry won confirmation</button>`
+          : isWon
           ? (canUnlockWonOptions()?`<button class="smallBtn secondary" onclick="unlockWonOption('${g.def.id}')">Unlock won quote</button>`:`<button class="smallBtn secondary" disabled>Locked</button>`)
           : (missingPriceModels.length
             ? `<button class="smallBtn orange" disabled title="Add a unit price before marking this quote as won.">Mark won</button>`
