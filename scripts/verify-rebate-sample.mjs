@@ -10,6 +10,7 @@ import {
   documentedGemsCandidates,
   executeCases,
   historicalReferencesComplete,
+  loadExactGemsMetadata,
   makeSampleCases,
   makeVerifiedMultiSplitCases,
   parseSampleArgs,
@@ -92,6 +93,25 @@ assert.deepEqual(parseSampleArgs(["--seed=repeatable", "--concurrency=2"]), {
 assert.throws(() => parseSampleArgs(["--concurrency=5"]), /1 to 4/);
 
 const rates = fixture.controlledPayoutRates;
+const fullPair = "TCHV03T1S/TSHV03T1S";
+const exactTask = { brand: "Braemar", model: "TCHV03T1S / TSHV03T1S", searchTerms: ["TCHV03T1S"] };
+const queries = [];
+const metadataLoader = {
+  fetchGemsDatastoreRecords: async ({ query }) => {
+    queries.push(query);
+    return query === fullPair || query === "TCHV03T1S" ? [{ brand: "Braemar", model: fullPair, completeEnergyData: true, metadata: {} }] : [];
+  },
+  isEligibleAustralianGemsRecord: () => true,
+  mapGemsModelSearchItem: record => record,
+};
+assert.equal((await loadExactGemsMetadata(metadataLoader, exactTask)).matchedModel, fullPair);
+assert.deepEqual(queries, [exactTask.model, fullPair], "Try both published separator formats without substituting component suffixes");
+const componentOnlyLoader = { ...metadataLoader, fetchGemsDatastoreRecords: async ({ query }) => query === "TCHV03T1S" ? [{ brand: "Braemar", model: fullPair, completeEnergyData: true, metadata: {} }] : [] };
+assert.equal((await loadExactGemsMetadata(componentOnlyLoader, exactTask)).matchedModel, fullPair, "A component search must validate against the complete documented pair, not just the query token");
+await assert.rejects(loadExactGemsMetadata(componentOnlyLoader, { ...exactTask, model: "TCHV03T1S / DIFFERENT" }), /INCOMPLETE/, "Never accept a different pair sharing an outdoor unit");
+await assert.rejects(loadExactGemsMetadata(componentOnlyLoader, { ...exactTask, brand: "Other" }), /INCOMPLETE/, "Never substitute another brand");
+await assert.rejects(loadExactGemsMetadata({ ...metadataLoader, fetchGemsDatastoreRecords: async () => [{ brand: "Braemar", model: "TCHV03T1S", completeEnergyData: true, metadata: {} }] }, exactTask), /INCOMPLETE/, "A component-only registration is not the documented complete pair");
+assert.equal((await loadExactGemsMetadata({ ...metadataLoader, fetchGemsDatastoreRecords: async () => [{ brand: "SAMSUNG ELECTRONICS", model: "OUT/IN", completeEnergyData: true, metadata: {} }] }, { brand: "Samsung", model: "OUT/IN" })).matchedModel, "OUT/IN");
 let zeroClimateRequests = 0;
 const zeroFrontend = await createFrontendCalculator({
   fetch: async () => {

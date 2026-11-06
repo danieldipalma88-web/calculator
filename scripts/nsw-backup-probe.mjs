@@ -13,6 +13,45 @@ export const referenceRequest = {
   }).map(([key, value]) => [prefix + key, { [date]: value }])) }, persons: { person1: {} },
 };
 
+function verifyReference(body) {
+  const building = body?.buildings?.building_1;
+  const expected = referenceRequest.buildings.building_1;
+  if (!building || Object.keys(building).length !== Object.keys(expected).length) throw new Error("Invalid calculation response fields");
+  for (const [field, input] of Object.entries(expected)) {
+    const actual = building[field];
+    if (!actual || Object.keys(actual).length !== 1 || !Object.hasOwn(actual, date)) throw new Error("Invalid calculation response period");
+    const value = actual[date];
+    if (input[date] === null ? typeof value !== "number" || !Number.isFinite(value) : value !== input[date]) throw new Error("Mismatched calculation response");
+  }
+  const value = (field) => building[prefix + field][date];
+  const esc = value("electricity_savings") * value("PDRS__regional_network_factor") * 1.06;
+  const prc = value("peak_demand_reduction_capacity") * value("get_network_loss_factor_by_postcode") * 10;
+  if (!Number.isFinite(esc) || !Number.isFinite(prc) || Math.abs(esc - 8.61131174) > 1e-9 || Math.abs(prc - 86.646231) > 1e-9) throw new Error("Certificate reference mismatch");
+  return { verified: true, esc, prc };
+}
+
+export async function probePrimaryCalculation(fetchImpl = fetch) {
+  try {
+    const origin = "https://calculator.rebateportal.com.au";
+    const preflight = await fetchImpl("https://of-sfg-rac-prd.energy.nsw.gov.au/calculate", {
+      method: "OPTIONS", headers: { Origin: origin, "Access-Control-Request-Method": "POST", "Access-Control-Request-Headers": "Content-Type" },
+      signal: AbortSignal.timeout(6000), redirect: "error",
+    });
+    if (!preflight.ok || preflight.redirected || ![origin, "*"].includes(preflight.headers.get("Access-Control-Allow-Origin"))
+      || !(preflight.headers.get("Access-Control-Allow-Methods") || "").toUpperCase().split(/\s*,\s*/).includes("POST")
+      || !(preflight.headers.get("Access-Control-Allow-Headers") || "").toLowerCase().split(/\s*,\s*/).includes("content-type")) throw new Error("Primary browser preflight failed");
+    const response = await fetchImpl("https://of-sfg-rac-prd.energy.nsw.gov.au/calculate", {
+      method: "POST", headers: { "Content-Type": "application/json", Origin: origin },
+      body: JSON.stringify(referenceRequest), signal: AbortSignal.timeout(6000), redirect: "error",
+    });
+    if (!response.ok || response.redirected) throw new Error(`Primary reference HTTP ${response.status}`);
+    if (![origin, "*"].includes(response.headers.get("Access-Control-Allow-Origin"))) throw new Error("Primary browser access unavailable");
+    return verifyReference(await response.json());
+  } catch (error) {
+    return { verified: false, reason: error instanceof Error ? error.message : "Primary reference unavailable" };
+  }
+}
+
 export async function probeBackupCalculation(fetchImpl = fetch) {
   try {
     const origin = "https://calculator.rebateportal.com.au";
@@ -25,22 +64,7 @@ export async function probeBackupCalculation(fetchImpl = fetch) {
     if (response.redirected || response.headers.get("X-NSW-Calculation-Source") !== "OpenFisca-ae8d778-HVAC1_PDRSAug24"
       || response.headers.get("Access-Control-Allow-Origin") !== origin
       || !(response.headers.get("Access-Control-Expose-Headers") || "").toLowerCase().split(/\s*,\s*/).includes("x-nsw-calculation-source")) throw new Error("Unverified backup browser response");
-    const building = (await response.json()).buildings?.building_1;
-    const expected = referenceRequest.buildings.building_1;
-    if (!building || Object.keys(building).length !== Object.keys(expected).length) throw new Error("Invalid backup response fields");
-    for (const [field, input] of Object.entries(expected)) {
-      const actual = building[field];
-      if (!actual || Object.keys(actual).length !== 1 || !Object.hasOwn(actual, date)) throw new Error("Invalid backup response period");
-      const value = actual[date];
-      if (input[date] === null ? typeof value !== "number" || !Number.isFinite(value) : value !== input[date]) throw new Error("Mismatched backup response");
-    }
-    const value = (field) => building?.[prefix + field]?.[date];
-    const esc = value("electricity_savings") * value("PDRS__regional_network_factor") * 1.06;
-    const prc = value("peak_demand_reduction_capacity") * value("get_network_loss_factor_by_postcode") * 10;
-    if (!Number.isFinite(esc) || !Number.isFinite(prc) || Math.abs(esc - 8.61131174) > 1e-9 || Math.abs(prc - 86.646231) > 1e-9) {
-      throw new Error("Certificate reference mismatch");
-    }
-    return { verified: true, esc, prc };
+    return verifyReference(await response.json());
   } catch (error) {
     return { verified: false, reason: error instanceof Error ? error.message : "Backup unavailable" };
   }

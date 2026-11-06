@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
-import { checkCertificate, dependencyHealth } from "./monitor-rebate-dependencies.mjs";
-import { probeBackupCalculation } from "./nsw-backup-probe.mjs";
+import { checkCertificate, dependencyHealth, probeCatalogueLookup } from "./monitor-rebate-dependencies.mjs";
+import { probeBackupCalculation, probePrimaryCalculation } from "./nsw-backup-probe.mjs";
 import handler from "../services/nsw-rebate-backup/api/calculate.mjs";
 
 async function scenario(days, error) {
@@ -24,6 +24,21 @@ assert.equal((await scenario(7)).ok, false);
 assert.equal((await scenario(1)).ok, false);
 assert.equal((await scenario(0, "CERT_HAS_EXPIRED")).reason, "CERT_HAS_EXPIRED");
 assert.equal((await probeBackupCalculation((url, options) => handler.fetch(new Request(url, options)))).verified, true);
+assert.equal((await probePrimaryCalculation((url, options) => handler.fetch(new Request(url, options)))).verified, true);
+assert.equal((await probePrimaryCalculation(async () => Response.json({ buildings: {} }))).verified, false);
+assert.equal((await probePrimaryCalculation(async () => { throw new Error("offline"); })).verified, false);
+assert.equal((await probePrimaryCalculation(async (url, options) => {
+  const response = await handler.fetch(new Request(url, options));
+  if (options.method === "OPTIONS") return response;
+  const body = await response.json();
+  body.buildings.building_1.HVAC1_PDRSAug24_electricity_savings["2021-01-01"] += 1;
+  return Response.json(body, { headers: response.headers });
+})).verified, false, "A responding primary with wrong results is not healthy");
+assert.equal((await probePrimaryCalculation(async (url, options) => {
+  const response = await handler.fetch(new Request(url, options));
+  if (options.method === "OPTIONS") response.headers.delete("Access-Control-Allow-Methods");
+  return response;
+})).verified, false, "A primary with broken browser preflight cannot count as recovered");
 assert.equal((await probeBackupCalculation(async () => Response.json({ buildings: {} }))).verified, false);
 assert.equal((await probeBackupCalculation(async () => { throw new Error("offline"); })).verified, false);
 for (const header of ["Access-Control-Allow-Origin", "Access-Control-Allow-Methods", "Access-Control-Allow-Headers", "Access-Control-Expose-Headers", "X-NSW-Calculation-Source"]) {
@@ -59,4 +74,11 @@ assert.equal(renewal.ok, true, "An approaching renewal is not an outage");
 assert.equal(renewal.degraded, true);
 assert.equal(dependencyHealth({ available: false }, { ok: false }, { verified: true }).ok, true);
 assert.equal(dependencyHealth({ available: false }, { ok: false }, { verified: false }).ok, false);
+assert.equal(dependencyHealth({ available: true }, { ok: true }, { verified: false }, { verified: false }).ok, false);
+assert.equal(dependencyHealth({ available: true }, { ok: true }, { verified: true }, { verified: false }).degraded, true);
+assert.equal(dependencyHealth({ available: true }, { ok: true }, { verified: true }, { verified: true }, { verified: false }).ok, false);
+assert.equal((await probeCatalogueLookup(async () => Response.json({ models: [{ brand: "DAIKIN", model: "RZAS71C2V1 / FDYA71AV19", completeEnergyData: true }] }))).verified, true);
+assert.equal((await probeCatalogueLookup(async () => Response.json({ models: [] }))).verified, false);
+assert.equal((await probeCatalogueLookup(async () => Response.json({ models: [{ brand: "DAIKIN", model: "RZAS71C2V1 / OTHER", completeEnergyData: true }] }))).verified, false);
+assert.equal((await probeCatalogueLookup(async () => new Response("", { status: 503 }))).verified, false);
 console.log("TLS expiry monitor validates certificates and warns seven days before expiry.");

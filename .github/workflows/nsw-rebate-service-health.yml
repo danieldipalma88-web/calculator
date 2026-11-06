@@ -2,7 +2,8 @@ name: NSW rebate service health
 
 on:
   schedule:
-    - cron: '43 * * * *'
+    # GitHub schedules can be delayed. Failover is automatic and does not wait for this check.
+    - cron: '7,22,37,52 * * * *'
   workflow_dispatch:
   push:
     branches: [main]
@@ -11,8 +12,11 @@ on:
       - 'lib/rebate-service-status.ts'
       - 'services/nsw-rebate-backup/**'
       - 'lib/nsw-calculation-transport.ts'
+      - 'lib/gems-model-search.ts'
+      - 'app/api/gems-model-search/route.ts'
       - 'scripts/nsw-backup-probe.mjs'
       - 'scripts/*rebate-dependencies*'
+      - 'scripts/*rebate-incident*'
       - 'scripts/verify-rebate-service-status.mjs'
       - 'scripts/verify-rebate-dependencies.mjs'
       - 'scripts/verify-rebate-service-ui.mjs'
@@ -29,9 +33,13 @@ concurrency:
 jobs:
   upstream-health:
     # Avoid paid private-repository Actions minutes.
-    if: github.event.repository.private == false
+    if: github.repository == 'danieldipalma88-web/calculator' && github.event.repository.private == false && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 2
+    permissions:
+      contents: read
+    outputs:
+      report: ${{ steps.report.outputs.report }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -43,6 +51,47 @@ jobs:
         run: |
           node --experimental-strip-types scripts/verify-rebate-service-status.mjs
           node --experimental-strip-types scripts/verify-rebate-dependencies.mjs
+          node scripts/verify-rebate-incident.mjs
+          node scripts/verify-nsw-backup-http.mjs
           node scripts/verify-rebate-failure-zero.mjs
       - name: Check primary service, certificate expiry and backup accuracy
-        run: node --experimental-strip-types scripts/monitor-rebate-dependencies.mjs
+        # Push checks run before Vercel finishes deploying. Verify live on schedule/manual runs.
+        if: github.event_name != 'push'
+        run: node --experimental-strip-types scripts/monitor-rebate-dependencies.mjs --output=rebate-health-report.json
+      - name: Capture fixed-data health state for the alert job
+        id: report
+        if: always() && github.event_name != 'push'
+        run: |
+          node -e 'const fs=require("node:fs");let report=null;try{report=JSON.parse(fs.readFileSync("rebate-health-report.json","utf8"))}catch{}fs.appendFileSync(process.env.GITHUB_OUTPUT,"report="+JSON.stringify(report)+"\n")'
+      - name: Include health results in the run summary
+        if: always()
+        run: |
+          if [ -f rebate-health-report.json ]; then
+            printf '%s\n' '## NSW calculation health' '```json' >> "$GITHUB_STEP_SUMMARY"
+            cat rebate-health-report.json >> "$GITHUB_STEP_SUMMARY"
+            printf '%s\n' '```' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  incident-alert:
+    needs: upstream-health
+    if: always() && github.repository == 'danieldipalma88-web/calculator' && github.event.repository.private == false && github.ref == 'refs/heads/main' && github.event_name != 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Read state without evaluating report content
+        env:
+          HEALTH_REPORT: ${{ needs.upstream-health.outputs.report }}
+        run: node -e 'require("node:fs").writeFileSync("rebate-health-report.json",process.env.HEALTH_REPORT||"null")'
+      - name: Open or resolve one incident when health changes
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/report-rebate-incident.mjs

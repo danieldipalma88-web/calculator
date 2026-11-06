@@ -5236,6 +5236,7 @@ const PRODUCT_MODEL_DISPLAY_ALIASES={
   "FDCA160VNX-W-FDUA160VH":"FDCA160VNX-W / FDUA160VH"
 };
 const REBATE_LOOKUP_MODEL_ALIASES={
+  "AUD85UXHTSETAUD85UX4RTH1AUW85U4RK1":["AUW-85U4RK1/AUD-85UX4RTH1"],
   "FDCA71VNXWFDU71VH":["FDU71AVNXWVH"],
   "FDU71VHFDCA71VNXW":["FDU71AVNXWVH"],
   "FDC100VNPWFDU100VH":["FDU100VNPWVH"],
@@ -5660,6 +5661,8 @@ function rebateLookupBrandCandidates(b){
   const displayBrand=normaliseBrandName(b);
   const candidates=[b,displayBrand];
   if(displayBrand==='Actron Air') candidates.push('Actron');
+  if(displayBrand==='Samsung') candidates.push('Samsung Electronics');
+  if(displayBrand==='Mitsubishi Heavy Industries') candidates.push('Mitsubishi HI');
   if(displayBrand==='Fujitsu General' || displayBrand==='Fujitsu') candidates.push('Fujitsu','Fujitsu General');
   return [...new Set(candidates.map(v=>String(v||'').trim()).filter(Boolean))];
 }
@@ -5968,7 +5971,7 @@ function modelMetaFromGemsRecord(record){
 }
 function modelMetaScore(meta){
   const fields=['Cooling Capacity','Heating Capacity','Input Power','Rated AEER','Rated ACOP','Residential TCSPF_mixed','Residential HSPF_mixed','Residential HSPF_cold','Residential tcec_hot','Residential tcec_mixed','Residential tcec_cold','Residential thec_hot','Residential thec_mixed','Residential thec_cold'];
-  return fields.reduce((score,field)=>score+(Number.isFinite(toNumber(meta[field]))?1:0),0);
+  return fields.reduce((score,field)=>score+((typeof meta[field]==='number'||typeof meta[field]==='string')&&String(meta[field]).trim()!==''&&Number.isFinite(toNumber(meta[field]))?1:0),0);
 }
 function isUsableModelMeta(meta){
   return meta && modelMetaScore(meta)>=14;
@@ -6000,7 +6003,12 @@ function scoreGemsRecord(record,localBrand,localModel){
 function selectBestGemsRecord(records,localBrand,localModel,options){
   const exactModelOnly=!!(options&&options.exactModelOnly);
   const exactModels=new Set(rebateLookupModelSearchCandidates(localModel).map(m=>normalizeLookup(m)));
+  const exactBrands=new Set(rebateLookupBrandCandidates(localBrand).map(normalizeLookup));
   return (records||[])
+    .filter(record=>exactBrands.has(normalizeLookup(gemsRecordBrand(record)))
+      && String(record.SubmitStatus||'').trim().toLowerCase()==='approved'
+      && String(record['Availability Status']||'').trim().toLowerCase()==='available'
+      && String(record.Sold_in||record['Sold in']||'').split(/[,;]/).some(country=>country.trim().toLowerCase()==='australia'))
     .map(record=>({record,score:scoreGemsRecord(record,localBrand,localModel)}))
     .filter(item=>!exactModelOnly || exactModels.has(normalizeLookup(gemsRecordModel(item.record))))
     .filter(item=>item.score>=140)
@@ -7182,6 +7190,9 @@ async function requestNswCalculation(options){
         try{detail=(await response.text()).slice(0,300);}catch(e){}
         const error=new Error(`HTTP ${response.status} - ${detail}`);
         error.status=response.status;
+        if(url===NSW_BACKUP_CALCULATE_API&&response.status===422&&response.headers.get('X-NSW-Calculation-Source')==='OpenFisca-ae8d778-HVAC1_PDRSAug24'){
+          try{if(JSON.parse(detail).code==='NSW_POSTCODE_DATA_UNAVAILABLE') error.code='NSW_POSTCODE_DATA_UNAVAILABLE';}catch(e){}
+        }
         throw error;
       }
       if(url===NSW_BACKUP_CALCULATE_API&&response.headers.get('X-NSW-Calculation-Source')!=='OpenFisca-ae8d778-HVAC1_PDRSAug24'){
@@ -7343,6 +7354,13 @@ function electricFutureBcaClimateZoneOverride(postcode){
   if(Number.isInteger(n) && n===2163) return 5;
   return null;
 }
+function postcodeDataIssue(postcode){
+  if(['2611','2618','3691','4375','4377','4380','4383','4385'].includes(postcode)) return 'Location verification required: this postcode crosses a state border. Confirm the NSW installation address, electricity distributor and BCA climate zone before calculating the rebate.';
+  if(postcode==='2678') return 'Location verification required: use the physical installation address, not the university or mail-centre postal address. The site, electricity distributor and climate zone need confirmation.';
+  if(postcode==='2898') return 'Location verification required: Lord Howe Island has its own electricity network. A combined ESC/PERC estimate is unavailable; request a separate eligibility review.';
+  if(postcode==='2619') return 'Location verification required: the published calculator data is missing a network factor for Jerrabomberra. Confirm the installation address and electricity connection before calculating the rebate.';
+  return '';
+}
 async function resolvePostcodeZones(postcode){
   if(essCache.zoneByPostcode[postcode]) return essCache.zoneByPostcode[postcode];
   const payload={
@@ -7366,6 +7384,9 @@ async function resolvePostcodeZones(postcode){
     const bcaZone=bcaMap[bcaOverride??Number(bcaNum)]||'';
     if(!zone || !bcaZone) throw new Error('Unable to resolve postcode climate zones');
     return {zone,bcaZone};
+  }).catch(e=>{
+    if(e?.status===422&&e?.code==='NSW_POSTCODE_DATA_UNAVAILABLE'&&postcodeDataIssue(postcode)) throw new Error(postcodeDataIssue(postcode));
+    throw e;
   });
   essCache.zoneByPostcode[postcode]=lookup;
   try{
@@ -7711,6 +7732,7 @@ function isLiveRebateNetworkError(error){
 }
 function liveRebateInputDetail(error){
   const message=error?.message;
+  if(typeof message==='string'&&message.startsWith('Location verification required:')) return message;
   if(/^(?:Enter a valid 4-digit postcode|Unable to resolve postcode climate zones|Enter a valid ESS \$ per ESC|Enter a valid PERC \(PRC\) \$ per cert)$/.test(message)) return message;
   if(/^Incomplete (?:model|GEMS) energy rating data\b/.test(message)) return 'The selected model is missing required energy rating data.';
   if(/^Model not found in (?:GEMS registry|NSW estimator metadata):/.test(message)) return 'The selected model could not be found in the energy rating data.';

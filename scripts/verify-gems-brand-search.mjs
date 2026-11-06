@@ -70,10 +70,17 @@ try {
   assert.equal((await queryRoute("brand=Rinnai&q=MISSING")).models.length, 0);
   assert.equal((await queryRoute("brand=Rinnai&q=x")).status, 400);
   assert.equal((await queryRoute("q=DONSR15B1")).status, 400);
-  const inventories = requests.filter((item) => item.url.pathname.endsWith("datastore_search_sql"));
+  const inventories = requests.filter((item) => item.url.pathname.endsWith("datastore_search_sql") && /WHERE LOWER/.test(item.url.searchParams.get("sql")));
   assert.ok(inventories.length >= 6);
   assert.ok(inventories.every((item) => /LOWER\("Brand"\) = LOWER\('/.test(item.url.searchParams.get("sql"))));
-  assert.ok(inventories.every((item) => item.url.searchParams.get("sql").includes('"SubmitStatus" = \'Approved\'') && item.url.searchParams.get("sql").includes('"Availability Status" = \'Available\'')));
+  assert.ok(inventories.every((item) => item.url.searchParams.get("sql").includes('"SubmitStatus" = \'Approved\'')));
+  for (const item of inventories) {
+    const sql = item.url.searchParams.get("sql");
+    if (sql.includes(gems.GEMS_AIRCON_RESOURCE_IDS[0])) {
+      assert.ok(!sql.includes('"Availability Status"'), "The labelled dataset does not contain this column");
+      assert.ok(!sql.includes('"C-Total Cool Rated"'), "Do not query a rating column from the other export schema");
+    } else assert.ok(sql.includes('"Availability Status" = \'Available\''));
+  }
   assert.ok(inventories.every((item) => [0, 3_600].includes(item.options.next.revalidate)));
   assert.equal(inventories.filter((item) => item.options.next.revalidate === 0).length, 2, "Only a missing search should recheck both datasets fresh.");
   await gems.fetchGemsDatastoreRecords({ brand: "Rinnai' OR 1=1 --", fields: ["Brand"], limit: 5, revalidateSeconds: 3_600 });

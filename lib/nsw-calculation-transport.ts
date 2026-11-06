@@ -20,6 +20,10 @@ export async function requestNswCalculation(options: RequestInit = {}) {
         try { detail = (await response.text()).slice(0, 300); } catch {}
         const error = new Error(`HTTP ${response.status} - ${detail}`);
         Object.assign(error, { status: response.status });
+        if (url === NSW_BACKUP_CALCULATE_URL && response.status === 422
+            && response.headers.get("X-NSW-Calculation-Source") === "OpenFisca-ae8d778-HVAC1_PDRSAug24") {
+          try { if (JSON.parse(detail).code === "NSW_POSTCODE_DATA_UNAVAILABLE") Object.assign(error, { code: "NSW_POSTCODE_DATA_UNAVAILABLE" }); } catch {}
+        }
         throw error;
       }
       if (url === NSW_BACKUP_CALCULATE_URL && response.headers.get("X-NSW-Calculation-Source") !== "OpenFisca-ae8d778-HVAC1_PDRSAug24") {

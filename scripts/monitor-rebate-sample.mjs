@@ -19,6 +19,10 @@ const DEFAULTS = { concurrency: 3, timeoutMs: 12_000, budgetMs: 8 * 60_000 };
 const MAX_CONCURRENCY = 4;
 
 function compact(value) { return String(value || "").toUpperCase().replace(/[^A-Z0-9]+/g, ""); }
+function brandKey(value) {
+  const key = compact(value);
+  return ({ FUJITSUGENERAL: "FUJITSU", MITSUBISHIHI: "MITSUBISHIHEAVYINDUSTRIES", ACTRON: "ACTRONAIR", SAMSUNGELECTRONICS: "SAMSUNG" })[key] || key;
+}
 function roundMoney(value) { return Math.round((value + Number.EPSILON) * 100) / 100; }
 function finite(value) { return Number.isFinite(value) && value >= 0; }
 function weekSeed(date = new Date()) {
@@ -281,13 +285,17 @@ async function loadProduction() {
   return { ...rebate, ...gems };
 }
 
-async function loadExactGemsMetadata(production, task) {
-  for (const candidate of documentedGemsCandidates(task)) {
-    const records = await production.fetchGemsDatastoreRecords({ query: candidate.model, limit: 250, revalidateSeconds: 3_600 });
+export async function loadExactGemsMetadata(production, task) {
+  const candidates = documentedGemsCandidates(task);
+  const identities = candidates.filter(candidate => candidate.source !== "catalogue-search-term");
+  const queries = [...new Set(candidates.flatMap(candidate => [candidate.model, candidate.model.replace(/\s*\/\s*/g, "/")]))];
+  for (const query of queries) {
+    const records = await production.fetchGemsDatastoreRecords({ query, limit: 250, revalidateSeconds: 3_600 });
     const item = records.filter(production.isEligibleAustralianGemsRecord).map(production.mapGemsModelSearchItem).filter(Boolean)
       .find((record) => record.completeEnergyData
-        && compact(record.brand) === compact(task.brand)
-        && compact(record.model) === compact(candidate.model));
+        && brandKey(record.brand) === brandKey(task.brand)
+        && identities.some(candidate => compact(record.model) === compact(candidate.model)));
+    const candidate = item && identities.find(candidate => compact(item.model) === compact(candidate.model));
     if (item) return { metadata: item.metadata, matchedModel: item.model, candidate };
   }
   throw new Error(`INCOMPLETE: current GEMS has no approved, available, complete record matching a documented catalogue model/alias for ${task.brand} ${task.model}`);

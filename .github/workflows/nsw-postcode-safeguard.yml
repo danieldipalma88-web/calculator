@@ -10,10 +10,12 @@ on:
     paths:
       - 'index.html'
       - 'lib/nsw-hvac-rebate.ts'
+      - 'lib/nsw-postcode-data-issue.ts'
       - 'lib/gems-model-search.ts'
       - 'lib/public-rebate-catalogue.generated.json'
       - 'scripts/*postcode*'
       - 'scripts/*rebate-sample*'
+      - 'scripts/verify-rebate-data-gaps.mjs'
       - 'scripts/*rebate-live*'
       - 'lib/dcceew-contract*'
       - 'scripts/fixtures/**'
@@ -24,10 +26,12 @@ on:
     paths:
       - 'index.html'
       - 'lib/nsw-hvac-rebate.ts'
+      - 'lib/nsw-postcode-data-issue.ts'
       - 'lib/gems-model-search.ts'
       - 'lib/public-rebate-catalogue.generated.json'
       - 'scripts/*postcode*'
       - 'scripts/*rebate-sample*'
+      - 'scripts/verify-rebate-data-gaps.mjs'
       - 'scripts/*rebate-live*'
       - 'lib/dcceew-contract*'
       - 'scripts/fixtures/**'
@@ -91,6 +95,7 @@ jobs:
       - name: Test sample selection and financial guardrails
         run: |
           node scripts/verify-rebate-sample.mjs
+          node --experimental-strip-types scripts/verify-rebate-data-gaps.mjs
           node scripts/verify-dcceew-contract-rate.mjs
           node scripts/verify-rebate-failure-zero.mjs
           node scripts/verify-multi-split-capacity-rules.mjs

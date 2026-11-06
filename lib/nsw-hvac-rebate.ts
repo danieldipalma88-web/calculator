@@ -1,5 +1,6 @@
 import catalogueData from "./public-rebate-catalogue.generated.json";
 import { requestNswCalculation } from "./nsw-calculation-transport";
+import { postcodeDataIssue } from "./nsw-postcode-data-issue";
 import {
   fetchGemsDatastoreRecords,
   isEligibleAustralianGemsRecord,
@@ -137,6 +138,7 @@ function normalizeBrand(value: unknown) {
   const compact = normalize(value);
   if (compact === "ACTRON" || compact === "ACTRONAIR") return "ACTRONAIR";
   if (compact === "FUJITSU" || compact === "FUJITSUGENERAL") return "FUJITSU";
+  if (compact === "SAMSUNGELECTRONICS") return "SAMSUNG";
   if (compact === "MITSUBISHIHI" || compact === "MITSUBISHIHEAVYINDUSTRIES") return "MITSUBISHIHEAVYINDUSTRIES";
   return compact;
 }
@@ -180,17 +182,22 @@ function catalogueProductFor(brand: string, model: string) {
     normalizeBrand(product.brand) === brandKey
       && [product.model, ...(product.modelAliases || [])].some((candidate) => normalize(candidate) === modelKey),
   );
-  return exactBrand || catalogue.products.find((product) =>
-    [product.model, ...(product.modelAliases || [])].some((candidate) => normalize(candidate) === modelKey),
-  ) || null;
+  return exactBrand || null;
+}
+
+function modelIdentities(brand: string, model: string) {
+  const product = catalogueProductFor(brand, model);
+  return [...new Set([model, product?.model, ...(product?.modelAliases || [])]
+    .map(value => String(value || "").trim()).filter(Boolean))];
 }
 
 function modelCandidates(brand: string, model: string) {
   const product = catalogueProductFor(brand, model);
-  const candidates = [model, product?.model, ...(product?.modelAliases || []), ...(product?.searchTerms || [])]
+  // Component terms retrieve records; only the full model or documented aliases establish identity.
+  const candidates = [...modelIdentities(brand, model), ...(product?.searchTerms || [])]
     .flatMap((candidate) => {
       const value = String(candidate || "").trim();
-      return [value, ...value.split(/[\/|]+/).map((part) => part.trim())];
+      return [value, value.replace(/\s*\/\s*/g, "/"), ...value.split(/[\/|]+/).map((part) => part.trim())];
     })
     .filter((candidate) => normalize(candidate).length >= 5);
   return [...new Set(candidates)];
@@ -224,7 +231,7 @@ function fallbackMetadata(row: LocalFallbackRow): Metadata {
 
 function localMetadataFor(brand: string, model: string) {
   const brandKeys = new Set([normalizeBrand(brand), normalizeBrand(catalogueProductFor(brand, model)?.brand)]);
-  const modelKeys = new Set(modelCandidates(brand, model).map(normalize));
+  const modelKeys = new Set(modelIdentities(brand, model).map(normalize));
   const row = catalogue.fallbackMetadata.find((candidate) =>
     brandKeys.has(normalizeBrand(candidate.brand)) && modelKeys.has(normalize(candidate.model)),
   );
@@ -247,7 +254,8 @@ function completeMetadata(meta: Metadata) {
     "Residential thec_hot",
     "Residential thec_mixed",
     "Residential thec_cold",
-  ].every((field) => Number.isFinite(finiteNumber(meta[field])));
+  ].every((field) => (typeof meta[field] === "number" || typeof meta[field] === "string")
+    && String(meta[field]).trim() !== "" && Number.isFinite(finiteNumber(meta[field])));
 }
 
 function bestGemsItem(items: GemsModelSearchItem[], brand: string, candidates: string[]) {
@@ -257,10 +265,10 @@ function bestGemsItem(items: GemsModelSearchItem[], brand: string, candidates: s
     item.completeEnergyData
       && normalizeBrand(item.brand) === brandKey
       && candidateKeys.has(normalize(item.model)),
-  ) || items.find((item) => item.completeEnergyData && candidateKeys.has(normalize(item.model))) || null;
+  ) || null;
 }
 
-async function fetchGemsMetadata(brand: string, candidates: string[]) {
+async function fetchGemsMetadata(brand: string, candidates: string[], identities: string[]) {
   const records: Record<string, unknown>[] = [];
   for (const candidate of candidates) {
     const found = await fetchGemsDatastoreRecords({
@@ -272,7 +280,7 @@ async function fetchGemsMetadata(brand: string, candidates: string[]) {
     const item = bestGemsItem(
       records.filter(isEligibleAustralianGemsRecord).map(mapGemsModelSearchItem).filter(Boolean) as GemsModelSearchItem[],
       brand,
-      candidates,
+      identities,
     );
     if (item) return item.metadata;
   }
@@ -333,11 +341,12 @@ async function resolveMetadata(brand: string, model: string) {
       return { meta: local, source: "Verified GEMS metadata + NSW formula" };
     }
     const candidates = modelCandidates(brand, model);
+    const identities = modelIdentities(brand, model);
     try {
-      return { meta: await fetchGemsMetadata(brand, candidates), source: "GEMS registry + NSW formula" };
+      return { meta: await fetchGemsMetadata(brand, candidates, identities), source: "GEMS registry + NSW formula" };
     } catch (gemsError) {
       try {
-        return { meta: await fetchNswEstimatorMetadata(brand, candidates), source: "NSW estimator metadata + NSW formula" };
+        return { meta: await fetchNswEstimatorMetadata(brand, identities), source: "NSW estimator metadata + NSW formula" };
       } catch {
         if (local) return { meta: local, source: "Saved GEMS fallback + NSW formula" };
         throw gemsError;
@@ -395,7 +404,12 @@ async function resolveClimate(postcode: string) {
       : "";
     if (!climateZone || !bcaZone) throw new Error(`Unable to resolve climate zones for postcode ${postcode}`);
     return { postcode, climateZone, bcaZone };
-  })();
+  })().catch(error => {
+    if (error?.status === 422 && error?.code === "NSW_POSTCODE_DATA_UNAVAILABLE" && postcodeDataIssue(postcode)) {
+      throw new Error(postcodeDataIssue(postcode));
+    }
+    throw error;
+  });
   climateCache.set(postcode, promise);
   try {
     return await promise;

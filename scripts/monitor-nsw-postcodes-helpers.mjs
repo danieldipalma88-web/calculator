@@ -200,7 +200,7 @@ function extractConst(source, name) {
 
 const FRONTEND_FUNCTIONS = [
   "toNumber", "requestNswCalculation", "fetchJson", "normalizeEssClimateZone", "isEssClimateZoneFallbackPostcode",
-  "fallbackEssClimateZoneFromPostcode", "electricFutureBcaClimateZoneOverride", "resolvePostcodeZones",
+  "fallbackEssClimateZoneFromPostcode", "electricFutureBcaClimateZoneOverride", "postcodeDataIssue", "resolvePostcodeZones",
   "getClimateContext", "activityValueForInstall", "normalizeAirConditionerType", "normalizeHvacProductClass",
   "hvacProductClassNumber", "nswHvacRequirementForClass", "nswHvacMeasuredValue", "nswHvacPassesMetric",
   "deriveHvacProductClass", "evaluateNswHvacEligibility", "certificateProxyPostcodeForClimateZone",

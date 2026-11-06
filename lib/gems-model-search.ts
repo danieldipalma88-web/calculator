@@ -197,6 +197,17 @@ function sqlLiteral(value: string) {
   return value.replace(/'/g, "''");
 }
 
+// The labelled export uses different rating columns and has no availability column.
+// Keep unknown availability null: a rating record alone must never approve a product.
+const LABELLED_MISSING_FIELDS = new Set(["Availability Status", "C-Total Cool Rated", "H-Total Heat Rated", "C-Power_Inp_Rated", "Submit_ID"]);
+
+function datasetSqlFields(resourceId: string, fields?: string[]) {
+  if (!fields?.length) return "*";
+  safeSqlFields(fields);
+  const selected = resourceId === GEMS_AIRCON_RESOURCE_IDS[0] ? fields.filter(field => !LABELLED_MISSING_FIELDS.has(field)) : fields;
+  return safeSqlFields(selected.length ? selected : ["Brand"]).join(", ");
+}
+
 async function collectGemsDatasets(read: (resourceId: string) => Promise<GemsSearchRecord[]>, limit: number) {
   // The two published datasets overlap, but neither contains every complete registration.
   const results = await Promise.allSettled(GEMS_AIRCON_RESOURCE_IDS.map(read));
@@ -232,7 +243,7 @@ export async function fetchGemsMultiSplitRecords(options: {
   limit?: number;
   revalidateSeconds: number;
 }) {
-  const fields = safeSqlFields(options.fields);
+  safeSqlFields(options.fields);
   const limit = Math.min(Math.max(Math.floor(options.limit || 10_000), 1), 10_000);
   const brand = cleanGemsBrand(options.brand || "");
   return collectGemsDatasets(async (resourceId) => {
@@ -241,13 +252,13 @@ export async function fetchGemsMultiSplitRecords(options: {
     try {
       const clauses = [
         `"SubmitStatus" = 'Approved'`,
-        `"Availability Status" = 'Available'`,
         `LOWER("Sold_in") LIKE '%australia%'`,
         `LOWER("Configuration2") IN ('fixed', 'vrf')`,
         `LOWER("ApplStandard") LIKE '%multi-split%'`,
       ];
+      if (resourceId !== GEMS_AIRCON_RESOURCE_IDS[0]) clauses.push(`"Availability Status" = 'Available'`);
       if (brand) clauses.push(`LOWER("Brand") = LOWER('${sqlLiteral(brand)}')`);
-      const sql = `SELECT ${fields.join(", ")} FROM "${resourceId}" WHERE ${clauses.join(" AND ")} LIMIT ${limit}`;
+      const sql = `SELECT ${datasetSqlFields(resourceId, options.fields)} FROM "${resourceId}" WHERE ${clauses.join(" AND ")} LIMIT ${limit}`;
       const response = await fetch(
         `${GEMS_DATASTORE_SQL_API}?sql=${encodeURIComponent(sql)}`,
         {
@@ -298,17 +309,23 @@ export async function fetchGemsDatastoreRecords(options: {
           JSON.stringify({
             Brand: brand,
             SubmitStatus: "Approved",
-            "Availability Status": "Available",
+            ...(resourceId !== GEMS_AIRCON_RESOURCE_IDS[0] ? { "Availability Status": "Available" } : {}),
           }),
         );
       }
       if (query) params.set("q", query);
-      if (options.fields?.length) params.set("fields", options.fields.join(","));
+      if (options.fields?.length) {
+        safeSqlFields(options.fields);
+        params.set("fields", options.fields.join(","));
+      }
       // GEMS contains mixed-case brand registrations (for example RINNAI and Rinnai).
       // Brand inventories must include both; exact CKAN filters silently omit older rows.
+      const availabilityClause = resourceId === GEMS_AIRCON_RESOURCE_IDS[0] ? "" : ` AND "Availability Status" = 'Available'`;
       const inventorySql = brand && !query
-        ? `SELECT ${options.fields?.length ? safeSqlFields(options.fields).join(", ") : "*"} FROM "${resourceId}" WHERE LOWER("Brand") = LOWER('${sqlLiteral(brand)}') AND "SubmitStatus" = 'Approved' AND "Availability Status" = 'Available' LIMIT ${params.get("limit")}`
-        : "";
+        ? `SELECT ${datasetSqlFields(resourceId, options.fields)} FROM "${resourceId}" WHERE LOWER("Brand") = LOWER('${sqlLiteral(brand)}') AND "SubmitStatus" = 'Approved'${availabilityClause} LIMIT ${params.get("limit")}`
+        : !brand && !query && options.fields?.length
+          ? `SELECT ${datasetSqlFields(resourceId, options.fields)} FROM "${resourceId}" LIMIT ${params.get("limit")}`
+          : "";
       const url = inventorySql
         ? `${GEMS_DATASTORE_SQL_API}?sql=${encodeURIComponent(inventorySql)}`
         : `${GEMS_DATASTORE_API}?${params.toString()}`;
