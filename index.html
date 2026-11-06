@@ -6083,45 +6083,81 @@ async function fetchGemsRecordsForQuery(query,limit=50){
   }
   return all;
 }
-async function fetchGemsModelMetadata(localBrand,localModel){
+async function fetchGemsModelMetadata(localBrand,localModel,signal){
+  signal?.throwIfAborted();
   const key=`${normalizeLookup(localBrand)}|${normalizeLookup(normaliseModelName(localModel))}`;
-  if(essCache.gemsByLookup[key]) return essCache.gemsByLookup[key];
-  const lookup=(async()=>{
-    const queries=rebateLookupModelSearchCandidates(localModel);
-    const records=[];
-    let record=null;
-    for(const query of queries){
+  let entry=essCache.gemsByLookup[key];
+  if(entry?.result && entry.expiresAt>Date.now()) return entry.result;
+  if(!entry?.promise){
+    entry={};
+    essCache.gemsByLookup[key]=entry;
+    entry.promise=(async()=>{
+      const controller=new AbortController();
+      let timeoutId;
+      const unavailable=()=>Object.assign(new Error('Registered model data is temporarily unavailable. Please retry.'),{code:'GEMS_UNAVAILABLE'});
+      const invalid=()=>Object.assign(new Error('Registered model data could not be verified. Please retry or request a model review.'),{code:'GEMS_INVALID_RESPONSE'});
+      const deadline=new Promise((resolve,reject)=>{timeoutId=setTimeout(()=>{controller.abort();reject(unavailable());},10000);});
       try{
-        const found=await fetchGemsRecordsForQuery(query);
-        records.push(...found);
-      }catch(e){}
-      record=selectBestGemsRecord(records,localBrand,localModel,{exactModelOnly:true});
-      if(record) break;
-    }
-    if(!record){
-      for(const query of rebateLookupBrandCandidates(localBrand)){
-        try{
-          const found=await fetchGemsRecordsForQuery(query,1000);
-          records.push(...found);
-        }catch(e){}
-        record=selectBestGemsRecord(records,localBrand,localModel,{exactModelOnly:true});
-        if(record) break;
-      }
-    }
-    if(!record) throw new Error(`Model not found in GEMS registry: ${localModel}`);
-    const meta=modelMetaFromGemsRecord(record);
-    if(!isUsableModelMeta(meta)) throw new Error(`Incomplete GEMS energy rating data for ${gemsRecordModel(record)}`);
-    return {meta,brand:meta.brand,model:meta.model,source:'GEMS registry + NSW formula'};
-  })();
-  essCache.gemsByLookup[key]=lookup;
-  try{
-    const result=await lookup;
-    if(essCache.gemsByLookup[key]===lookup) essCache.gemsByLookup[key]=result;
-    return result;
-  }catch(e){
-    if(essCache.gemsByLookup[key]===lookup) delete essCache.gemsByLookup[key];
-    throw e;
+        const result=await Promise.race([deadline,(async()=>{
+          const response=await fetch(`/api/gems-model-metadata?brand=${encodeURIComponent(normaliseBrandName(localBrand))}&model=${encodeURIComponent(normaliseModelName(localModel))}`,{
+            signal:controller.signal,cache:'no-store',credentials:'omit',redirect:'error',headers:{Accept:'application/json'}
+          });
+          let payload;
+          try{payload=await response.json();}catch(error){throw response.ok||(response.status<500&&response.status!==429)?invalid():unavailable();}
+          if(!response.ok){
+            const messages={
+              GEMS_MODEL_NOT_FOUND:'The selected model could not be found in the current registered model data.',
+              GEMS_MODEL_CONFLICT:'Conflicting registered model data needs review before this rebate can be calculated.',
+              GEMS_MODEL_INCOMPLETE:'The selected model is missing required energy rating data.',
+              GEMS_MODEL_REJECTED:'The current registration could not be verified as available for this model.'
+            };
+            if(messages[payload?.code]) throw Object.assign(new Error(messages[payload.code]),{code:payload.code});
+            if(response.status<500&&response.status!==429) throw invalid();
+            throw unavailable();
+          }
+          const now=Date.now();
+          const brands=new Set(rebateLookupBrandCandidates(localBrand).map(normalizeLookup));
+          const models=new Set(rebateLookupModelSearchCandidates(localModel).map(normalizeLookup));
+          const requested=normalizeLookup(normaliseModelName(localModel));
+          const received=normalizeLookup(payload?.model);
+          const catalogue=[...(typeof SPLIT_PRODUCTS==='undefined'?[]:SPLIT_PRODUCTS),...(typeof DUCTED_PRODUCTS==='undefined'?[]:DUCTED_PRODUCTS)];
+          const components=new Set();
+          const requestedParts=String(normaliseModelName(localModel)).split('/');
+          if(requestedParts.length===2) requestedParts.forEach(part=>components.add(normalizeLookup(part)));
+          const reciprocal=catalogue.some(product=>{
+            if(!brands.has(normalizeLookup(normaliseBrandName(product.brand)))) return false;
+            const parts=String(product.model).split('/');
+            if(parts.length===2&&parts.some(part=>normalizeLookup(part)===requested)) return false;
+            const candidates=rebateLookupModelSearchCandidates(product.model).map(normalizeLookup);
+            if(candidates.includes(requested)&&parts.length===2) parts.forEach(part=>components.add(normalizeLookup(part)));
+            return candidates.includes(requested)&&candidates.includes(received);
+          });
+          if(payload?.schemaVersion!==1 || !brands.has(normalizeLookup(payload.brand)) || components.has(received) || (!models.has(received)&&!reciprocal) ||
+             normalizeLookup(payload.meta?.brand)!==normalizeLookup(payload.brand) || normalizeLookup(payload.meta?.model)!==normalizeLookup(payload.model) ||
+             !isUsableModelMeta(payload.meta) || !Number.isFinite(payload.verifiedAt) || !Number.isFinite(payload.expiresAt) ||
+             payload.verifiedAt>now+60000 || payload.expiresAt<=now || payload.expiresAt<=payload.verifiedAt || payload.expiresAt-payload.verifiedAt>3600000) throw invalid();
+          return {meta:payload.meta,brand:payload.brand,model:payload.model,source:'GEMS registry + NSW formula',expiresAt:payload.expiresAt};
+        })()]);
+        if(controller.signal.aborted) throw unavailable();
+        entry.result=result;
+        entry.expiresAt=Math.min(result.expiresAt,Date.now()+300000);
+        return result;
+      }catch(error){
+        if(essCache.gemsByLookup[key]===entry) delete essCache.gemsByLookup[key];
+        if(error?.code?.startsWith('GEMS_')) throw error;
+        throw unavailable();
+      }finally{clearTimeout(timeoutId);entry.promise=null;}
+    })();
   }
+  // A cancelled comparison must not abort a request shared with the selected unit.
+  const pending=entry.promise;
+  if(!signal) return pending;
+  return new Promise((resolve,reject)=>{
+    const stop=()=>reject(signal.reason||new Error('Model lookup cancelled'));
+    signal.addEventListener('abort',stop,{once:true});
+    pending.then(value=>{signal.removeEventListener('abort',stop);resolve(value);},error=>{signal.removeEventListener('abort',stop);reject(error);});
+    if(signal.aborted) stop();
+  });
 }
 async function fetchNswEstimatorMetadataDirect(localBrand,localModel,signal){
   const errors=[];
@@ -6141,16 +6177,11 @@ async function resolveModelMetadataForRebate(localBrand,localModel,signal){
   const usePreferredLocalMeta=localMeta&&rebateLookupBrandCandidates(localBrand).some(brand=>normalizeLookup(brand)==='ACTRONAIR');
   if(usePreferredLocalMeta) return {meta:localMeta,brand:localMeta.brand||localBrand,model:localMeta.model||localModel,source:'Verified GEMS metadata + NSW formula'};
   try{
-    return await fetchGemsModelMetadata(localBrand,localModel);
+    return await fetchGemsModelMetadata(localBrand,localModel,signal);
   }catch(gemsError){
     signal?.throwIfAborted();
-    try{
-      return await fetchNswEstimatorMetadataDirect(localBrand,localModel,signal);
-    }catch(nswError){
-      signal?.throwIfAborted();
-      if(localMeta) return {meta:localMeta,brand:localMeta.brand||localBrand,model:localMeta.model||localModel,source:'Saved GEMS fallback + NSW formula'};
-      throw gemsError||nswError;
-    }
+    if(localMeta&&['GEMS_UNAVAILABLE','GEMS_MODEL_NOT_FOUND'].includes(gemsError?.code)) return {meta:localMeta,brand:localMeta.brand||localBrand,model:localMeta.model||localModel,source:'Saved GEMS fallback + NSW formula'};
+    throw gemsError;
   }
 }
 function toNumber(v){const n=Number(v); return Number.isFinite(n)?n:NaN;}
@@ -7958,6 +7989,7 @@ function isLiveRebateNetworkError(error){
 }
 function liveRebateInputDetail(error){
   const message=error?.message;
+  if(['GEMS_UNAVAILABLE','GEMS_MODEL_NOT_FOUND','GEMS_MODEL_CONFLICT','GEMS_MODEL_INCOMPLETE','GEMS_MODEL_REJECTED','GEMS_INVALID_RESPONSE'].includes(error?.code)) return message;
   if(typeof message==='string'&&message.startsWith('Location verification required:')) return message;
   if(/^(?:Enter a valid 4-digit postcode|Unable to resolve postcode climate zones|Enter a valid ESS \$ per ESC|Enter a valid PERC \(PRC\) \$ per cert)$/.test(message)) return message;
   if(/^Incomplete (?:model|GEMS) energy rating data\b/.test(message)) return 'The selected model is missing required energy rating data.';

@@ -14,6 +14,10 @@ on:
       - 'lib/nsw-installation-address.ts'
       - 'scripts/verify-nsw-installation-address.mjs'
       - 'lib/gems-model-search.ts'
+      - 'lib/gems-calculation-metadata.ts'
+      - 'app/api/gems-model-metadata/**'
+      - 'scripts/verify-gems-calculation-metadata.mjs'
+      - 'scripts/verify-server-model-lookup-*.mjs'
       - 'lib/public-rebate-catalogue.generated.json'
       - 'scripts/*postcode*'
       - 'scripts/*rebate-sample*'
@@ -32,6 +36,10 @@ on:
       - 'lib/nsw-installation-address.ts'
       - 'scripts/verify-nsw-installation-address.mjs'
       - 'lib/gems-model-search.ts'
+      - 'lib/gems-calculation-metadata.ts'
+      - 'app/api/gems-model-metadata/**'
+      - 'scripts/verify-gems-calculation-metadata.mjs'
+      - 'scripts/verify-server-model-lookup-*.mjs'
       - 'lib/public-rebate-catalogue.generated.json'
       - 'scripts/*postcode*'
       - 'scripts/*rebate-sample*'
@@ -51,6 +59,24 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  model-cache-outage-check:
+    # Fixture-only: no partner records, live writes, paid services or external model lookups.
+    if: github.event.repository.private == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - run: npm install --no-package-lock --ignore-scripts
+      - name: Verify cache expiry, outages, conflicts and unchanged certificate counts
+        run: |
+          node --experimental-transform-types scripts/verify-gems-calculation-metadata.mjs
+          node --experimental-transform-types scripts/verify-server-model-lookup-parity.mjs
+
   postcode-check:
     # Standard runners are free in public repos. Never incur private-repo minutes.
     if: github.event.repository.private == false

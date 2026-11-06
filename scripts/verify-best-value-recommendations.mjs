@@ -358,9 +358,11 @@ const gemsSandbox = {
   essCache: { gemsByLookup: {} },
   normalizeLookup: (value) => String(value).toLowerCase(),
   normaliseModelName: (value) => value,
+  normaliseBrandName: (value) => value,
   rebateLookupModelSearchCandidates: (value) => [value],
   rebateLookupBrandCandidates: (value) => [value],
-  fetchGemsRecordsForQuery: () => { gemsCalls += 1; return gemsResponse; },
+  AbortController, setTimeout, clearTimeout,
+  fetch: () => { gemsCalls += 1; return gemsResponse; },
   selectBestGemsRecord: (records) => records[0],
   modelMetaFromGemsRecord: (record) => record,
   isUsableModelMeta: () => true,
@@ -369,7 +371,7 @@ vm.runInNewContext(`${html.slice(gemsStart, gemsEnd)}\nglobalThis.resolveGems=fe
 const gemsFirst = gemsSandbox.resolveGems("Example", "UNIT-1");
 const gemsSecond = gemsSandbox.resolveGems("Example", "UNIT-1");
 assert.equal(gemsCalls, 1, "selected model and comparison should share an in-flight GEMS lookup");
-resolveGemsRequest([{ brand: "Example", model: "UNIT-1" }]);
+resolveGemsRequest({ok:true,json:async()=>({schemaVersion:1,brand:'Example',model:'UNIT-1',meta:{brand:'Example',model:'UNIT-1'},verifiedAt:Date.now(),expiresAt:Date.now()+300000})});
 const [gemsOne, gemsTwo] = await Promise.all([gemsFirst, gemsSecond]);
 assert.equal(gemsOne.meta.model, "UNIT-1");
 assert.equal(gemsTwo.meta.model, "UNIT-1");
