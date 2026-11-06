@@ -253,7 +253,9 @@ export async function createFrontendCalculator({ indexHtml, fetch }) {
 }
 
 export function isInfrastructureError(error) {
-  return /HTTP (408|425|429|5\d\d)|timed out|fetch failed|network|service unavailable/i.test(String(error?.message || error));
+  const message = String(error?.message || error);
+  if (message.startsWith("Location verification required:")) return false;
+  return /HTTP (408|425|429|5\d\d)|timed out|fetch failed|network|service unavailable/i.test(message);
 }
 
 export function validateComparableCertificates(server, frontend, expectedPositive) {

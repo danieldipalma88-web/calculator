@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { postcodeDataIssue } from "../lib/nsw-postcode-data-issue.ts";
 import {
   createFrontendCalculator,
   createMemoizedFetch,
@@ -31,6 +32,12 @@ assert.deepEqual(expectedRequestBudget(3), {
 
 assert.equal(isInfrastructureError(new Error("Unable to resolve climate zones for postcode 2550")), false,
   "A postcode mapping failure must not stop the remaining postcode sweep as a general outage");
+for (const postcode of ["2611", "2618", "2619", "2678", "2898", "3691", "4375", "4377", "4380", "4383", "4385"]) {
+  assert.equal(isInfrastructureError(new Error(postcodeDataIssue(postcode))), false, `${postcode} missing site data is not an outage`);
+}
+for (const message of ["HTTP 503 - Location verification required:", "fetch failed", "network connection failed", "Live rebate service timed out"]) {
+  assert.equal(isInfrastructureError(new Error(message)), true, "Genuine transport errors remain infrastructure failures");
+}
 assert.match(validateComparableCertificates({ esc: 0, prc: 0, rebate: 0 }, { esc: 0, prc: 0 }, true), /no rebate/);
 assert.match(validateComparableCertificates({ esc: NaN, prc: 1, rebate: 1 }, { esc: 0, prc: 1 }, true), /non-finite/);
 assert.match(validateComparableCertificates({ esc: 1, prc: 1, rebate: 2 }, { esc: 2, prc: 1 }, true), /mismatch/);

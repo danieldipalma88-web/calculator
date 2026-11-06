@@ -36,6 +36,8 @@ The exact 11 are **2611, 2618, 2619, 2678, 2898, 3691, 4375, 4377, 4380, 4383, 4
 
 No climate, network or eligibility values were invented. The UI explains the missing location verification instead of presenting an unexplained failure. These 11 remain monitored and are not silently removed from the postcode sweep.
 
+The final complete sweep exercised all 622 geographic postcodes: 1,224 calculation cases passed, 22 cases failed for these 11 known location-data gaps, zero infrastructure failures and zero untested cases. Location messages mentioning an electricity network are classified as individual data failures, never as a general network outage that stops the rest of the sweep. This does not establish coverage for mail-only postcodes or every model/site combination.
+
 Sources: [official pinned engine](https://github.com/energy-savings-scheme/openfisca_nsw_safeguard/tree/ae8d778f18e0612bd38c69a2527ff9d7e12d3747), [ESS Rule September 2026, A24/A27](https://www.energysustainabilityschemes.nsw.gov.au/sites/default/files/cm9_documents/Energy-Savings-Scheme-%28Amendment-No.-2%29-Rule-2026.PDF), [PDRS Rule October 2026, A3/A5](https://www.energysustainabilityschemes.nsw.gov.au/sites/default/files/documents/2026-10/Peak-Demand-Reduction-Scheme-Rule-of-2022-12-October-2026.pdf), [ABCB climate map](https://www.abcb.gov.au/abcb-climate-map), [Lord Howe electricity network](https://www.lhib.nsw.gov.au/infrastructure/electricity).
 
 ## Safeguards
