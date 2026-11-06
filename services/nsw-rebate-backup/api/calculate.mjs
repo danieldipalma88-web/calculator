@@ -57,6 +57,9 @@ export default {
       const text = Buffer.concat(chunks).toString("utf8");
       return reply(calculateNswFallback(JSON.parse(text)));
     } catch (error) {
+      if (error instanceof RangeError && /^Nonpositive NSW lookup: (?:network|regional) factor for \d{4}$/.test(error.message)) {
+        return reply({ error: "Published postcode data is incomplete", code: "NSW_POSTCODE_DATA_UNAVAILABLE" }, 422);
+      }
       if (error?.code === "NSW_UNSUPPORTED_ESS_CLIMATE") {
         return reply({ error: "no field of name 0 in the NSW ESS postcode table", code: "NSW_UNSUPPORTED_ESS_CLIMATE" }, 400);
       }
