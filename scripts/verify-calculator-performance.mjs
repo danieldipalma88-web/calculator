@@ -73,6 +73,7 @@ const optionGroupsSource = functionSource("optionGroups");
   });
   const controller = new AbortController();
   const context = contextWith(`const DEFAULT_FETCH_TIMEOUT_MS = 12000;\n${fetchJsonSource}`, {
+    ESS_CALCULATE_API: "https://rebate.example/calculate",
     AbortController: class {
       constructor() {
         return controller;

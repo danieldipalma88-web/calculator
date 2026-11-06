@@ -42,6 +42,18 @@ Sources: [official pinned engine](https://github.com/energy-savings-scheme/openf
 
 ## Safeguards
 
+### Installation-address review
+
+The calculator now offers an address-review step for the 11 known postcode gaps in split, ducted, multi-head and All Models. Authenticated approved users can select a Google address. The server requires unambiguous structured Australian country, NSW state, the exact entered postcode, street number, street and locality. It rejects mail-only addresses, incomplete results and state/postcode mismatches.
+
+The result means **address matched**, not rebate approved. It never supplies a network factor, changes a climate zone, overrides eligibility or modifies a saved quote. An optional distributor from the user's bill is labelled user-reported and unverified. Copy review details or Open email draft prepares a manual handoff to daniel@electric-future.com; it does not send an email or create a tracked review case. Closing the window, editing the address or changing postcode clears the match. Nothing is persisted to the database.
+
+The 11 postcode cases remain unavailable for automatic combined rebates until the site-specific inputs are independently confirmed. Google coordinates are not requested or used for boundary matching. Future automatic resolution needs an appropriately licensed address source, authoritative BCA boundaries and reliable electricity-connection evidence; it must not use a nearby postcode or a self-reported distributor as a calculation override.
+
+Tests: `verify:postcode-address` checks authentication, structured validation, timeouts and the existing won-job address flow; `verify:postcode-address-browser` checks desktop/mobile review, stale responses, keyboard access and unchanged quote/rebate state. The pure address validator also runs in the weekly postcode safeguard. Browser tests use explicit synthetic fixtures, not evidence of a real property's eligibility.
+
+### Service continuity
+
 - Automatic verified backup remains independent of the failed government TLS certificate; certificate validation is never disabled.
 - A 15-minute GitHub schedule checks known certificate results on both services, backup browser access, live registered-model search and certificate renewal risk. GitHub scheduling can be delayed; automatic request failover does not wait for a scheduled check.
 - A single GitHub incident is assigned to the repository owner on degradation/outage, updated only on a state change and closed after verified recovery. Email delivery follows the owner's GitHub notification settings; this is not a separate email service.

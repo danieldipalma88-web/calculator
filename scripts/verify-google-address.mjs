@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import ts from "typescript";
+import { matchNswInstallationAddress } from "../lib/nsw-installation-address.ts";
+import { postcodeDataIssue } from "../lib/nsw-postcode-data-issue.ts";
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
 const route = ts.transpileModule(read("../app/api/google-address/route.ts"), {
@@ -9,7 +11,7 @@ const route = ts.transpileModule(read("../app/api/google-address/route.ts"), {
 }).outputText;
 const json = (body, status = 200) => Response.json(body, { status });
 
-function server({ env = { GOOGLE_PLACES_SERVER_KEY: "test-server-key" }, user = { email: "approved@example.test" }, approval = { email: "approved@example.test", is_locked: false }, fetcher } = {}) {
+function server({ env = { GOOGLE_PLACES_SERVER_KEY: "test-server-key" }, user = { email: "approved@example.test" }, approval = { email: "approved@example.test", is_locked: false }, lockLookupError = false, fetcher } = {}) {
   const logs = [];
   const scope = {
     exports: {}, process: { env }, URL, Error, AbortSignal,
@@ -19,9 +21,11 @@ function server({ env = { GOOGLE_PLACES_SERVER_KEY: "test-server-key" }, user = 
       if (name === "next/server") return { NextResponse: { json: (body, options) => Response.json(body, options) } };
       if (name.endsWith("/admin")) return { isOwnerEmail: () => false };
       if (name.endsWith("/config")) return { publicSiteUrl: "https://calculator.rebateportal.com.au" };
+      if (name.endsWith("/nsw-installation-address")) return { matchNswInstallationAddress };
+      if (name.endsWith("/nsw-postcode-data-issue")) return { postcodeDataIssue };
       if (name.endsWith("/server")) return { createSupabaseServerClient: async () => ({
         auth: { getUser: async () => ({ data: { user } }) },
-        from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: approval, error: null }) }) }) }),
+        from: () => ({ select: fields => ({ eq: () => ({ maybeSingle: async () => ({ data: approval, error: lockLookupError && fields.includes("is_locked") ? { message: "Unavailable" } : null }) }) }) }),
       }) };
       throw new Error(`Unexpected import ${name}`);
     },
@@ -81,10 +85,55 @@ assert.match((await response.json()).error, /configuration issue/);
 assert.equal(denied.logs[0][1].reason, "API_KEY_HTTP_REFERRER_BLOCKED");
 assert.doesNotMatch(JSON.stringify(denied.logs), /AIza-testcredential/);
 
-for (const action of ["autocomplete", "details"]) {
+const installation = {
+  id: "place-1", formattedAddress: "10 Example Street, Jerrabomberra NSW 2619, Australia", types: ["street_address"],
+  addressComponents: [
+    { types: ["country"], longText: "Australia", shortText: "AU" },
+    { types: ["administrative_area_level_1"], longText: "New South Wales", shortText: "NSW" },
+    { types: ["postal_code"], longText: "2619" },
+    { types: ["locality"], longText: "Jerrabomberra" },
+    { types: ["street_number"], longText: "10" },
+    { types: ["route"], longText: "Example Street" },
+  ],
+  attributions: [{ provider: "Test provider", providerUri: "https://example.test/maps" }, { provider: "Text only", providerUri: "javascript:alert(1)" }],
+};
+const verificationBody = { action: "verify-installation", placeId: "place-1", postcode: "2619", sessionToken: "session-1" };
+assert.equal((await server({ user: null }).post(verificationBody)).status, 401);
+assert.equal((await server({ approval: { is_locked: true } }).post(verificationBody)).status, 403);
+assert.equal((await server({ lockLookupError: true }).post(verificationBody)).status, 503);
+assert.equal((await server({ approval: { email: "approved@example.test", is_locked: null } }).post(verificationBody)).status, 503);
+assert.equal((await server({ lockLookupError: true }).post({ action: "autocomplete-installation", input: "Test address" })).status, 503);
+assert.equal((await server().post({ ...verificationBody, postcode: "2000" })).status, 400);
+assert.equal((await server().post({ ...verificationBody, postcode: 2619 })).status, 400);
+assert.equal((await server().post({ ...verificationBody, placeId: "x".repeat(301) })).status, 400);
+assert.equal((await server().post({ ...verificationBody, placeId: "" })).status, 400);
+response = await server({ fetcher: async (url, init) => {
+  assert.match(url, /places\/place-1\?sessionToken=session-1$/);
+  assert.equal(init.headers["X-Goog-FieldMask"], "id,formattedAddress,addressComponents,types,attributions");
+  return json(installation);
+} }).post(verificationBody);
+assert.equal(response.status, 200);
+assert.match(response.headers.get("Cache-Control"), /private, no-store/);
+const verified = (await response.json()).verification;
+assert.equal(verified.status, "address_matched");
+assert.equal(verified.rebateStatus, "requires_review");
+assert.equal(verified.postcode, "2619");
+assert.equal("latitude" in verified, false);
+assert.equal("rebate" in verified, false);
+assert.deepEqual(verified.attributions, [{ provider: "Test provider", uri: "https://example.test/maps" }, { provider: "Text only", uri: "" }]);
+for (const invalid of [
+  { ...installation, id: "another-place" },
+  { ...installation, addressComponents: installation.addressComponents.filter(c => !c.types.includes("street_number")) },
+  { ...installation, addressComponents: installation.addressComponents.map(c => c.types.includes("postal_code") ? { ...c, longText: "2000" } : c) },
+  { ...installation, addressComponents: installation.addressComponents.map(c => c.types.includes("administrative_area_level_1") ? { ...c, shortText: "ACT" } : c) },
+]) {
+  assert.equal((await server({ fetcher: async () => json(invalid) }).post(verificationBody)).status, 422);
+}
+
+for (const action of ["autocomplete", "autocomplete-installation", "details", "verify-installation"]) {
   for (const name of ["TimeoutError", "AbortError", "TypeError"]) {
     const failed = server({ fetcher: async () => { const error = new Error("failure"); error.name = name; throw error; } });
-    const result = await failed.post({ action, input: "Sydney", placeId: "place-1" });
+    const result = await failed.post({ action, input: "Sydney", placeId: "place-1", postcode: "2619" });
     assert.equal(result.status, name === "TypeError" ? 502 : 504);
   }
 }

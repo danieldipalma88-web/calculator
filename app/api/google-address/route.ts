@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { isOwnerEmail } from "../../../lib/admin";
 import { publicSiteUrl } from "../../../lib/supabase/config";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
+import { matchNswInstallationAddress } from "../../../lib/nsw-installation-address";
+import { postcodeDataIssue } from "../../../lib/nsw-postcode-data-issue";
 
 type GoogleError = {
   status?: string;
@@ -24,6 +26,7 @@ type GooglePlaceDetailsResponse = {
   formattedAddress?: string;
   location?: { latitude?: number; longitude?: number };
   error?: GoogleError;
+  attributions?: Array<{ provider?: string; providerUri?: string }>;
 };
 
 function noStoreJson(body: unknown, status = 200) {
@@ -67,7 +70,7 @@ async function approvedEmail() {
     return { status: 403 as const, email: "" };
   }
   if (!approval.data && !isOwnerEmail(email)) return { status: 403 as const, email: "" };
-  return { status: 200 as const, email };
+  return { status: 200 as const, email, lockVerified: !upgradedApproval.error && upgradedApproval.data?.is_locked === false };
 }
 
 function googleFailure(action: string, status: number, error?: GoogleError) {
@@ -125,8 +128,11 @@ export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
   const action = String(body?.action || "");
   const sessionToken = String(body?.sessionToken || "").trim().slice(0, 80);
+  if ((action === "verify-installation" || action === "autocomplete-installation") && !approval.lockVerified) {
+    return noStoreJson({ error: "Your account access could not be verified. Please try again." }, 503);
+  }
 
-  if (action === "autocomplete") {
+  if (action === "autocomplete" || action === "autocomplete-installation") {
     const input = String(body?.input || "").trim().slice(0, 180);
     if (input.length < 3) return noStoreJson({ suggestions: [] });
 
@@ -180,6 +186,46 @@ export async function POST(request: Request) {
         longitude: Number.isFinite(result.location?.longitude) ? result.location?.longitude : null,
       },
     });
+  }
+
+  if (action === "verify-installation") {
+    const postcode = typeof body?.postcode === "string" ? body.postcode.trim() : "";
+    const placeId = typeof body?.placeId === "string" ? body.placeId.trim() : "";
+    if (!/^\d{4}$/.test(postcode) || !postcodeDataIssue(postcode)) {
+      return noStoreJson({ error: "This postcode does not require installation-address review." }, 400);
+    }
+    if (!placeId || placeId.length > 300) {
+      return noStoreJson({ error: "Choose an installation address from the suggestions." }, 400);
+    }
+    const detailHeaders = googleHeaders("id,formattedAddress,addressComponents,types,attributions");
+    if (!detailHeaders) return noStoreJson({ error: "Google address search is not configured." }, 503);
+    const query = sessionToken ? `?sessionToken=${encodeURIComponent(sessionToken)}` : "";
+    const lookup = await googleRequest<GooglePlaceDetailsResponse>(action,
+      `https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}${query}`,
+      { headers: detailHeaders },
+    );
+    if (lookup.failure) return lookup.failure;
+    const match = matchNswInstallationAddress(lookup.result, postcode);
+    if (!match.ok) return noStoreJson({ error: match.error }, 422);
+    if (match.address.placeId !== placeId) {
+      return noStoreJson({ error: "The address result changed. Please search and select the address again." }, 422);
+    }
+    const attributions = (Array.isArray(lookup.result.attributions) ? lookup.result.attributions : []).flatMap((item) => {
+      if (!item || typeof item.provider !== "string" || !item.provider.trim()) return [];
+      let uri = "";
+      try {
+        const url = new URL(String(item.providerUri || ""));
+        if (url.protocol === "https:") uri = url.href;
+      } catch { /* A provider name can still be displayed without a URL. */ }
+      return [{ provider: item.provider.trim().slice(0, 300), uri }];
+    });
+    // An address match is evidence for review, never permission to calculate a rebate.
+    return noStoreJson({ verification: {
+      ...match.address,
+      status: "address_matched",
+      rebateStatus: "requires_review",
+      attributions,
+    } });
   }
 
   return noStoreJson({ error: "Unsupported address lookup action." }, 400);

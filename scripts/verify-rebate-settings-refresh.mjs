@@ -22,7 +22,7 @@ function loadTs(filename) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
   }).outputText;
   vm.runInNewContext(source, {
-    module, exports: module.exports, URL, Request, Response,
+    module, exports: module.exports, URL, Request, Response, process: { env: {} },
     require: (specifier) => {
       if (specifier === "next/server") return { NextResponse: { json: Response.json } };
       if (specifier.endsWith("/supabase/server")) return { createSupabaseServerClient: async () => activeClient };

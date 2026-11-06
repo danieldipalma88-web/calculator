@@ -11,6 +11,8 @@ on:
       - 'index.html'
       - 'lib/nsw-hvac-rebate.ts'
       - 'lib/nsw-postcode-data-issue.ts'
+      - 'lib/nsw-installation-address.ts'
+      - 'scripts/verify-nsw-installation-address.mjs'
       - 'lib/gems-model-search.ts'
       - 'lib/public-rebate-catalogue.generated.json'
       - 'scripts/*postcode*'
@@ -27,6 +29,8 @@ on:
       - 'index.html'
       - 'lib/nsw-hvac-rebate.ts'
       - 'lib/nsw-postcode-data-issue.ts'
+      - 'lib/nsw-installation-address.ts'
+      - 'scripts/verify-nsw-installation-address.mjs'
       - 'lib/gems-model-search.ts'
       - 'lib/public-rebate-catalogue.generated.json'
       - 'scripts/*postcode*'
@@ -62,6 +66,7 @@ jobs:
       - name: Check the safeguard and known postcode regressions
         run: |
           node scripts/verify-postcode-monitor.mjs
+          node scripts/verify-nsw-installation-address.mjs
           node scripts/verify-nsw-hvac-rebate-rules.mjs
       - name: Check live rebates for every NSW postcode
         if: github.event_name != 'pull_request'

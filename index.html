@@ -2248,6 +2248,27 @@ tbody tr:hover td{background:#f0f7ff}
 body.guidanceModalOpen{overflow:hidden}
 #calculatorGuidanceModal{z-index:150}
 #modelRequestModal{z-index:140}
+.postcodeVerification{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px;padding:10px 12px;border-left:3px solid #b45309;background:#fffbeb;color:#78350f;font-size:13px;line-height:1.4}
+.postcodeVerification[hidden],#postcodeAddressModal [hidden]{display:none!important}
+.postcodeVerification button{flex-shrink:0;min-height:44px}
+#postcodeAddressModal{z-index:145}
+body.postcodeAddressOpen{overflow:hidden}
+.postcodeAddressCard{width:min(560px,100%);max-height:calc(100dvh - 32px);overflow:auto;overscroll-behavior:contain}
+.postcodeAddressCard input,.postcodeAddressCard select{min-height:44px}
+.postcodeAddressLookup{margin-top:16px;border-top:1px solid #d9e3ee;border-bottom:1px solid #d9e3ee;padding-bottom:10px}
+.postcodeAddressSuggestions{display:grid;gap:2px;margin-top:4px}
+.postcodeAddressSuggestions button{min-height:44px;border-radius:4px;background:#f1f5f9;color:#0f172a;text-align:left;font-size:13px;font-weight:500;white-space:normal;overflow-wrap:anywhere}
+.postcodeAddressSuggestions button:hover,.postcodeAddressSuggestions button:focus{background:#e2e8f0;transform:none;outline:2px solid #0f766e;outline-offset:-2px}
+.postcodeMapsAttribution{margin-top:10px;text-align:right;color:#5e5e5e;font:400 12px/1.4 Arial,sans-serif;letter-spacing:0;white-space:nowrap}
+.postcodeAddressPrivacy{margin:12px 0 0!important;font-size:12px!important}
+.postcodeAddressProviders{color:#475569;font-size:12px;overflow-wrap:anywhere;text-align:right}
+.postcodeAddressStatus{margin-top:12px;color:#475569;font-size:13px;line-height:1.5;overflow-wrap:anywhere}
+.postcodeAddressStatus.error{color:#b91c1c}
+.postcodeAddressResult{margin-top:14px;padding:12px 0;border-bottom:1px solid #d9e3ee;font-size:14px;line-height:1.5}
+.postcodeAddressResult strong{display:block;color:#78350f}
+.postcodeAddressActions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:18px}
+.postcodeAddressActions button{min-height:44px}
+@media(max-width:480px){.postcodeVerification{align-items:flex-start;flex-direction:column;gap:6px}.postcodeAddressCard{padding:18px}.postcodeAddressActions button{flex:1 1 120px}}
 .calculatorGuidanceCard{width:min(620px,100%);max-height:calc(100dvh - 40px);overflow-y:auto}
 .calculatorGuidanceIntro{
   margin-top:16px;
@@ -3609,6 +3630,7 @@ button.quoteDragHandle:active{cursor:grabbing}
           <div class="mobileHideRebateConfig ownerOnlyRebateConfig"><label>ESS climate zone</label><select id="essClimateZone"><option value="auto">Auto from postcode</option><option value="mixed">Mixed</option><option value="hot">Hot</option><option value="cold">Cold</option></select></div>
           <div class="mobileHideRebateConfig ownerOnlyRebateConfig"><label>ESS $ per ESC</label><input id="essEscRate" type="number" step="0.01" value="24.39"></div>
         </div>
+        <div id="standardPostcodeVerification" class="postcodeVerification" hidden><span>Installation location needs checking before a rebate can be calculated.</span><button class="secondary" type="button" onclick="openPostcodeAddressModal('standard',this)">Verify address</button></div>
         <div class="row2 mobileHideRebateConfig ownerOnlyRebateConfig rebateSchemeUi" style="margin-top:12px">
           <div class="mobileHideRebateConfig"><label>PERC (PRC) $ per cert</label><input id="essPrcRate" type="number" step="0.01" value="2.85"></div>
           <div class="mobileHideRebateConfig"><label>Live calc source</label><input readonly value="NSW ESS/PDRS API"></div>
@@ -3731,6 +3753,7 @@ button.quoteDragHandle:active{cursor:grabbing}
             <div class="postcodeField multiSplitPostcodeField" id="multiSplitPostcodeField"><div class="fieldLabelRow"><label for="multiSplitPostcode">Customer postcode</label><span class="fieldPill" id="multiSplitPostcodeRequiredPill">Required for rebate</span></div><input id="multiSplitPostcode" type="text" inputmode="numeric" maxlength="4" value="2170" aria-describedby="multiSplitPostcodeRequiredPill"></div>
             <div class="multiSplitQuickRebateAction"><button id="multiSplitQuickRebateBtn" class="green" type="button" onclick="calculateMultiSplitTrialRebate(true)">Calculate rebate</button></div>
           </div>
+          <div id="multiPostcodeVerification" class="postcodeVerification" hidden><span>Installation location needs checking before a rebate can be calculated.</span><button class="secondary" type="button" onclick="openPostcodeAddressModal('multi',this)">Verify address</button></div>
           <div class="selected multiSplitSelected">
             <div class="selectedText">
               <div class="selectedHeader"><strong id="multiSplitSelectedModel">Select an outdoor unit</strong></div>
@@ -3909,6 +3932,7 @@ button.quoteDragHandle:active{cursor:grabbing}
             <div class="postcodeField" id="allModelsPostcodeField"><div class="fieldLabelRow"><label for="allModelsPostcode">Customer postcode</label><span class="fieldPill" id="allModelsPostcodePill">Required for rebate</span></div><input id="allModelsPostcode" type="text" inputmode="numeric" maxlength="4" value="2000" aria-describedby="allModelsPostcodePill"></div>
             <button id="allModelsCalculateBtn" class="green allModelsCalculateBtn" type="button" onclick="calculateAllModelsRebate()" disabled>Calculate rebate</button>
           </div>
+          <div id="allModelsPostcodeVerification" class="postcodeVerification" hidden><span>Installation location needs checking before a rebate can be calculated.</span><button class="secondary" type="button" onclick="openPostcodeAddressModal('allModels',this)">Verify address</button></div>
           <div id="allModelsLookupNotice" class="allModelsNotice">This lookup checks registered equipment and rebates only. It does not add models, prices or costs to a customer quote.</div>
         </div>
       </main>
@@ -3943,6 +3967,29 @@ button.quoteDragHandle:active{cursor:grabbing}
 <div id="calculatorGuidanceModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="calculatorGuidanceTitle" aria-describedby="calculatorGuidanceDescription"><div class="quoteNameModalCard calculatorGuidanceCard"><div class="kicker">Before you start quoting</div><h2 id="calculatorGuidanceTitle">A quick note about this calculator</h2><p id="calculatorGuidanceDescription">This quote calculator is built around the systems installers use most often.</p><div class="calculatorGuidanceIntro">Use it to check rebates, build customer quotes and understand likely profit margins. The figures below are practical starting points, not fixed guarantees.</div><div class="calculatorGuidancePoints"><div class="calculatorGuidancePoint"><span class="calculatorGuidancePointIcon" aria-hidden="true">1</span><div><strong>Products and costs</strong><span>We include a curated range of commonly installed systems, selected wholesaler pricing and common labour, materials and installation costs. Review these figures before issuing a quote.</span></div></div><div class="calculatorGuidancePoint"><span class="calculatorGuidancePointIcon" aria-hidden="true">2</span><div><strong>Missing models</strong><span>The catalogue is not exhaustive. Use <em>Request a model</em> near the product selector if a system you install is missing.</span></div></div><div class="calculatorGuidancePoint"><span class="calculatorGuidancePointIcon" aria-hidden="true">3</span><div><strong>Rebate movement</strong><span>Rebate values are indicative and can move up or down with certificate market prices and trading conditions before a claim is submitted or processed. Build enough margin into each quote to allow for movement.</span></div></div></div><label class="guidanceCheck" for="calculatorGuidanceAccepted"><input id="calculatorGuidanceAccepted" type="checkbox" onchange="updateCalculatorGuidanceState()"><span>I understand that rebate amounts and preloaded costs are estimates, may change, and should be verified before I issue a customer quote.</span></label><div id="calculatorGuidanceStatus" class="modelRequestStatus" role="status" aria-live="polite"></div><div class="quoteNameModalActions"><button id="calculatorGuidanceContinue" type="button" onclick="confirmCalculatorGuidance()" disabled>Continue to calculator</button></div></div></div>
 <div id="modelRequestModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="modelRequestTitle" aria-describedby="modelRequestDescription" onclick="if(event.target===this)closeModelRequestModal()"><div class="quoteNameModalCard modelRequestCard"><div class="kicker">Product catalogue</div><h2 id="modelRequestTitle">Request a missing model</h2><p id="modelRequestDescription">Send the product details for review. Your account, email and active business will be attached automatically.</p><div class="modelRequestGrid"><div class="modelRequestField"><label for="modelRequestSystemType">System type</label><input id="modelRequestSystemType" type="text" readonly></div><div class="modelRequestField"><label for="modelRequestBrand">Brand</label><input id="modelRequestBrand" type="text" maxlength="100" autocomplete="organization"></div><div class="modelRequestField wide"><label for="modelRequestModel">Model <span class="wonRequired">Required</span></label><input id="modelRequestModel" type="text" maxlength="180" autocomplete="off" placeholder="Outdoor / indoor model numbers"></div><div class="modelRequestField"><label for="modelRequestCapacity">Capacity</label><input id="modelRequestCapacity" type="text" maxlength="40" placeholder="Example: 7.1kW"></div><div id="modelRequestPhaseField" class="modelRequestField"><label for="modelRequestPhase">Phase</label><select id="modelRequestPhase"><option value="unknown">Not sure</option><option value="single">Single phase</option><option value="three">Three phase</option></select></div><div class="modelRequestField"><label for="modelRequestPostcode">Installation postcode</label><input id="modelRequestPostcode" inputmode="numeric" maxlength="4" placeholder="Postcode"></div><div class="modelRequestField"><label for="modelRequestInstall">Installation type</label><select id="modelRequestInstall"><option value="new">New install</option><option value="replacement">Replacement</option></select></div><div class="modelRequestField wide"><label for="modelRequestNotes">Notes</label><textarea id="modelRequestNotes" maxlength="600" placeholder="Series, pricing or any other useful details"></textarea></div></div><div id="modelRequestStatus" class="modelRequestStatus" role="status" aria-live="polite"></div><div class="quoteNameModalActions"><button class="secondary" type="button" onclick="closeModelRequestModal()">Cancel</button><button id="modelRequestSubmit" class="modelRequestSubmit" type="button" onclick="submitModelRequest()">Send request</button></div></div></div>
 <div id="multiSplitPriceSaveModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="multiSplitPriceSaveTitle" aria-describedby="multiSplitPriceSaveDescription" onclick="if(event.target===this)finishMultiSplitPriceEdit(false)"><div class="quoteNameModalCard"><div class="kicker">Multi-head equipment price</div><h2 id="multiSplitPriceSaveTitle">Save this price to the unit?</h2><p id="multiSplitPriceSaveDescription">The entered price is already being used for this quote. You can also save it as this business's price for the selected model.</p><div class="multiSplitPriceSaveSummary"><strong id="multiSplitPriceSaveModel">Selected model</strong><span id="multiSplitPriceSaveAmount">$0.00 inc GST</span></div><div id="multiSplitPriceSaveStatus" class="modelRequestStatus" role="status" aria-live="polite"></div><div class="quoteNameModalActions"><button id="multiSplitPriceUseOnce" class="secondary" type="button" onclick="finishMultiSplitPriceEdit(false)">Use for this quote only</button><button id="multiSplitPriceSaveAccount" class="green" type="button" onclick="finishMultiSplitPriceEdit(true)">Save to this business</button></div></div></div>
+<div id="postcodeAddressModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="postcodeAddressTitle" aria-describedby="postcodeAddressDescription" onclick="if(event.target===this)closePostcodeAddressModal()" onkeydown="postcodeAddressKeydown(event)">
+  <div class="quoteNameModalCard postcodeAddressCard">
+    <div class="kicker">Installation location review</div>
+    <h2 id="postcodeAddressTitle">Verify installation address</h2>
+    <p id="postcodeAddressDescription">Postcode <strong id="postcodeAddressPostcode"></strong> needs a location check. A matching address does not confirm rebate eligibility.</p>
+    <p class="postcodeAddressPrivacy">As you type, your address is sent to Google Maps for suggestions and matching. <a href="/address-lookup" target="_blank" rel="noopener noreferrer">Address lookup terms &amp; privacy</a>.</p>
+    <div class="postcodeAddressLookup">
+      <label for="postcodeAddressInput">Physical installation address</label>
+      <input id="postcodeAddressInput" type="text" maxlength="180" autocomplete="off" placeholder="Street number, street and suburb" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="postcodeAddressSuggestions" aria-describedby="postcodeAddressStatus" oninput="searchPostcodeAddress()">
+      <div id="postcodeAddressSuggestions" class="postcodeAddressSuggestions" role="listbox" aria-label="Installation address suggestions" hidden></div>
+      <div id="postcodeAddressMatched" class="postcodeAddressResult" hidden><strong>NSW installation address matched</strong><span id="postcodeAddressMatchedText"></span></div>
+      <div class="postcodeMapsAttribution" translate="no">Google Maps</div>
+      <div id="postcodeAddressProviders" class="postcodeAddressProviders"></div>
+    </div>
+    <div id="postcodeAddressStatus" class="postcodeAddressStatus" role="status" aria-live="polite">Select the installation address from the suggestions. Postal boxes are not accepted.</div>
+    <div id="postcodeAddressReview" hidden>
+      <label for="postcodeAddressDistributor">Electricity distributor on the bill (optional)</label>
+      <select id="postcodeAddressDistributor"><option value="Not supplied">Not sure / not available</option><option>Ausgrid</option><option>Endeavour Energy</option><option>Essential Energy</option><option>Other network</option></select>
+      <div class="postcodeAddressStatus">Rebate pending: the electricity connection and BCA climate zone still need independent confirmation. This address has not been saved to the quote.</div>
+    </div>
+    <div class="postcodeAddressActions"><button class="secondary" type="button" onclick="closePostcodeAddressModal()">Close</button><button id="postcodeAddressCopy" class="secondary" type="button" onclick="copyPostcodeAddressReview()" disabled>Copy review details</button><button id="postcodeAddressEmail" type="button" onclick="emailPostcodeAddressReview()" disabled>Open email draft</button></div>
+  </div>
+</div>
 <div class="portraitOnlyNotice" aria-live="polite"><div><strong>Use portrait view</strong><span>Rotate your phone upright to continue quoting.</span></div></div>
 <div id="overlay" class="drawerOverlay" onclick="closeAllDrawers()"></div>
 <div id="drawer" class="quoteDrawer quoteBuilderDrawer quoteLibrary" role="dialog" aria-modal="true" aria-labelledby="quoteLibraryTitle">
@@ -6929,6 +6976,174 @@ async function refreshBestValueIndicator(){
   if(!failedCount) essBestValueRuntime.cache[cacheKey]=entry;
   renderBestRecommendationCards(entry,current,scopeLabel,postcode,failedCount);
 }
+// Location review is deliberately isolated from rebate inputs and saved quote state.
+let postcodeAddressState={open:false,sequence:0,timer:null,controller:null,match:null,trigger:null};
+function postcodeAddressContext(){return JSON.stringify([calculatorUserContext().email||'',calculatorUserContext().businessId||'',getEssPostcode(),rebatesEnabled()]);}
+function postcodeAddressCurrent(sequence){return postcodeAddressState.open&&sequence===postcodeAddressState.sequence&&postcodeAddressState.context===postcodeAddressContext();}
+function clearPostcodeAddressSuggestions(){
+  $('postcodeAddressSuggestions').replaceChildren();
+  $('postcodeAddressSuggestions').hidden=true;
+  $('postcodeAddressInput').setAttribute('aria-expanded','false');
+}
+function invalidatePostcodeAddress(){
+  clearTimeout(postcodeAddressState.timer);
+  postcodeAddressState.controller?.abort();
+  postcodeAddressState.controller=null;
+  postcodeAddressState.sequence++;
+  postcodeAddressState.match=null;
+  clearPostcodeAddressSuggestions();
+  $('postcodeAddressMatched').hidden=true;
+  $('postcodeAddressMatchedText').textContent='';
+  $('postcodeAddressProviders').replaceChildren();
+  $('postcodeAddressReview').hidden=true;
+  $('postcodeAddressCopy').disabled=true;
+  $('postcodeAddressEmail').disabled=true;
+  $('postcodeAddressInput').setAttribute('aria-busy','false');
+}
+function postcodeAddressStatus(message,error=false){
+  $('postcodeAddressStatus').textContent=message;
+  $('postcodeAddressStatus').classList.toggle('error',error);
+}
+function updatePostcodeVerificationPrompts(){
+  for(const [source,input] of [['standard','essPostcode'],['multi','multiSplitPostcode'],['allModels','allModelsPostcode']]){
+    const prompt=$(source+'PostcodeVerification');
+    if(prompt) prompt.hidden=!(rebatesEnabled()&&postcodeDataIssue(String($(input)?.value||'').trim()));
+  }
+  if(postcodeAddressState.open&&postcodeAddressState.context!==postcodeAddressContext()) closePostcodeAddressModal();
+}
+function openPostcodeAddressModal(source,trigger){
+  const input={standard:'essPostcode',multi:'multiSplitPostcode',allModels:'allModelsPostcode'}[source];
+  const postcode=String($(input)?.value||'').trim();
+  if(!rebatesEnabled()||!postcodeDataIssue(postcode)) return;
+  invalidatePostcodeAddress();
+  Object.assign(postcodeAddressState,{open:true,postcode,context:postcodeAddressContext(),trigger:trigger||document.activeElement,sessionToken:window.crypto.randomUUID()});
+  $('postcodeAddressInput').value='';
+  $('postcodeAddressDistributor').value='Not supplied';
+  $('postcodeAddressPostcode').textContent=postcode;
+  postcodeAddressStatus('Select the physical installation address from the suggestions. Postal boxes are not accepted.');
+  $('postcodeAddressModal').classList.add('open');
+  document.body.classList.add('postcodeAddressOpen');
+  $('postcodeAddressInput').focus();
+}
+function closePostcodeAddressModal(){
+  const trigger=postcodeAddressState.trigger;
+  invalidatePostcodeAddress();
+  postcodeAddressState.open=false;
+  postcodeAddressState.context='';
+  postcodeAddressState.postcode='';
+  postcodeAddressState.sessionToken='';
+  postcodeAddressState.trigger=null;
+  $('postcodeAddressInput').value='';
+  $('postcodeAddressDistributor').value='Not supplied';
+  $('postcodeAddressModal').classList.remove('open');
+  document.body.classList.remove('postcodeAddressOpen');
+  if(trigger?.isConnected) trigger.focus();
+}
+function searchPostcodeAddress(){
+  invalidatePostcodeAddress();
+  const sequence=postcodeAddressState.sequence;
+  if(!postcodeAddressCurrent(sequence)) return closePostcodeAddressModal();
+  const input=$('postcodeAddressInput').value.trim();
+  if(input.length<3){postcodeAddressStatus('Enter a street number, street and suburb.');return;}
+  postcodeAddressStatus('Searching addresses...');
+  $('postcodeAddressInput').setAttribute('aria-busy','true');
+  postcodeAddressState.timer=setTimeout(async()=>{
+    const controller=new AbortController();
+    postcodeAddressState.controller=controller;
+    try{
+      const result=await googleAddressRequest({action:'autocomplete-installation',input,sessionToken:postcodeAddressState.sessionToken},controller.signal);
+      if(!postcodeAddressCurrent(sequence)) return;
+      const suggestions=Array.isArray(result.suggestions)?result.suggestions.slice(0,8):[];
+      for(const suggestion of suggestions){
+        if(typeof suggestion.placeId!=='string'||typeof suggestion.text!=='string') continue;
+        const button=document.createElement('button');
+        button.type='button';button.role='option';button.textContent=suggestion.text;
+        button.onclick=()=>selectPostcodeAddress(suggestion.placeId);
+        $('postcodeAddressSuggestions').appendChild(button);
+      }
+      const found=$('postcodeAddressSuggestions').children.length>0;
+      $('postcodeAddressSuggestions').hidden=!found;
+      $('postcodeAddressInput').setAttribute('aria-expanded',String(found));
+      postcodeAddressStatus(found?'Choose the physical installation address.':'No addresses found. Try the full street address and suburb.');
+    }catch(error){if(postcodeAddressCurrent(sequence)) postcodeAddressStatus(error.message||'Address search is unavailable. Please try again.',true);}
+    finally{if(postcodeAddressCurrent(sequence)) $('postcodeAddressInput').setAttribute('aria-busy','false');}
+  },300);
+}
+async function selectPostcodeAddress(placeId){
+  invalidatePostcodeAddress();
+  const sequence=postcodeAddressState.sequence;
+  if(!postcodeAddressCurrent(sequence)) return closePostcodeAddressModal();
+  const controller=new AbortController();postcodeAddressState.controller=controller;
+  $('postcodeAddressInput').focus();
+  $('postcodeAddressInput').setAttribute('aria-busy','true');
+  postcodeAddressStatus('Checking the NSW address and postcode...');
+  try{
+    const result=await googleAddressRequest({action:'verify-installation',placeId,postcode:postcodeAddressState.postcode,sessionToken:postcodeAddressState.sessionToken},controller.signal);
+    if(!postcodeAddressCurrent(sequence)) return;
+    const match=result.verification;
+    if(!match||match.status!=='address_matched'||match.rebateStatus!=='requires_review'||match.postcode!==postcodeAddressState.postcode||match.state!=='NSW'||match.country!=='AU'||match.placeId!==placeId||typeof match.formattedAddress!=='string') throw new Error('The address could not be verified. Please search again.');
+    postcodeAddressState.match=match;
+    $('postcodeAddressInput').value=match.formattedAddress;
+    $('postcodeAddressMatchedText').textContent=match.formattedAddress;
+    for(const attribution of Array.isArray(match.attributions)?match.attributions:[]){
+      if(typeof attribution?.provider!=='string') continue;
+      const line=document.createElement('div');
+      let link=null;
+      try{if(new URL(attribution.uri).protocol==='https:'){link=document.createElement('a');link.href=attribution.uri;link.target='_blank';link.rel='noopener noreferrer';}}catch{}
+      (link||line).textContent=attribution.provider;
+      if(link) line.appendChild(link);
+      $('postcodeAddressProviders').appendChild(line);
+    }
+    $('postcodeAddressMatched').hidden=false;
+    $('postcodeAddressReview').hidden=false;
+    $('postcodeAddressCopy').disabled=false;
+    $('postcodeAddressEmail').disabled=false;
+    postcodeAddressStatus('Address matched. Rebate remains unavailable until the electricity connection and climate zone are confirmed.');
+  }catch(error){if(postcodeAddressCurrent(sequence)) postcodeAddressStatus(error.message||'Address verification failed. Please try again.',true);}
+  finally{
+    if(postcodeAddressCurrent(sequence)){
+      $('postcodeAddressInput').setAttribute('aria-busy','false');
+      postcodeAddressState.sessionToken=window.crypto.randomUUID();
+    }
+  }
+}
+function postcodeAddressReviewText(){
+  if(!postcodeAddressCurrent(postcodeAddressState.sequence)||!postcodeAddressState.match) return '';
+  const match=postcodeAddressState.match;
+  return ['Please review this NSW installation location before calculating a rebate.',
+    '',`Business: ${activeBusinessName()}`,`Installation address: ${match.formattedAddress}`,`Postcode: ${match.postcode}`,
+    `Electricity distributor (user reported, not verified): ${$('postcodeAddressDistributor').value}`,
+    '',postcodeDataIssue(match.postcode),'NSW electricity connection and BCA climate zone require independent confirmation. No rebate has been approved by this address check.'].join('\n');
+}
+async function copyPostcodeAddressReview(){
+  const text=postcodeAddressReviewText();if(!text) return;
+  const sequence=postcodeAddressState.sequence;let timer;
+  try{
+    await Promise.race([navigator.clipboard?.writeText?navigator.clipboard.writeText(text):Promise.resolve(fallbackCopyQuoteInfo(text)),new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('Clipboard unavailable')),5000);})]);
+    if(postcodeAddressCurrent(sequence)) postcodeAddressStatus('Review details copied. Rebate remains pending review.');
+  }catch{if(postcodeAddressCurrent(sequence)) postcodeAddressStatus('Could not copy. Please use Open email draft instead.',true);}
+  finally{clearTimeout(timer);}
+}
+function emailPostcodeAddressReview(){
+  const text=postcodeAddressReviewText();if(!text) return;
+  const subject=`NSW installation location review - ${postcodeAddressState.postcode}`;
+  window.location.href='mailto:daniel@electric-future.com?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(text);
+  postcodeAddressStatus('Opening a draft in your email app. Nothing is sent automatically; the rebate remains pending review.');
+}
+function postcodeAddressKeydown(event){
+  if(event.key==='Escape'){event.preventDefault();event.stopPropagation();closePostcodeAddressModal();return;}
+  const suggestions=[...$('postcodeAddressSuggestions').querySelectorAll('button')];
+  const index=suggestions.indexOf(document.activeElement);
+  if((event.key==='ArrowDown'||event.key==='ArrowUp')&&(document.activeElement===$('postcodeAddressInput')||index>=0)&&suggestions.length){
+    event.preventDefault();const next=event.key==='ArrowDown'?(index+1)%suggestions.length:(index<=0?suggestions.length-1:index-1);suggestions[next].focus();return;
+  }
+  if(event.key==='Tab'){
+    const focusable=[...$('postcodeAddressModal').querySelectorAll('a[href],input,select,button')].filter(el=>!el.disabled&&el.getClientRects().length);
+    const first=focusable[0],last=focusable.at(-1);
+    if(event.shiftKey&&document.activeElement===first){event.preventDefault();last?.focus();}
+    else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first?.focus();}
+  }
+}
 function hasManualRebateOverride(type,p){const key=managedKeyForProduct(type,p); return !!(key && priceLocks[key] && priceLocks[key].rebateManual===true);}
 function getEssEscRate(){const n=Number(($('essEscRate')&&$('essEscRate').value)||0); return Number.isFinite(n)&&n>0?n:0;}
 function getEssPrcRate(){const n=Number(($('essPrcRate')&&$('essPrcRate').value)||0); return Number.isFinite(n)&&n>0?n:0;}
@@ -6954,6 +7169,7 @@ function syncSharedEssPostcode(value,source,persist){
   updatePostcodeFieldState();
   updateMultiSplitPostcodeFieldState();
   updateAllModelsPostcodeFieldState();
+  updatePostcodeVerificationPrompts();
   if(persist) saveEssSettings();
   return postcode;
 }

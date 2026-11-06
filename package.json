@@ -24,6 +24,8 @@
     "verify:payment-follow-up": "node scripts/verify-payment-follow-up.mjs",
     "verify:auth": "node scripts/verify-email-code-login.mjs",
     "verify:google-address": "node scripts/verify-google-address.mjs",
+    "verify:postcode-address": "node scripts/verify-nsw-installation-address.mjs && node scripts/verify-google-address.mjs",
+    "verify:postcode-address-browser": "node scripts/verify-postcode-address-browser.mjs",
     "verify:guidance": "node scripts/verify-calculator-guidance-and-model-requests.mjs",
     "verify:price-updates": "node scripts/verify-business-price-update-tool.mjs && node scripts/verify-shared-split-prices.mjs",
     "verify:business-configuration": "node scripts/verify-business-configuration.mjs",
