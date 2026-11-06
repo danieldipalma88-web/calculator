@@ -582,6 +582,17 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
   background:#fff7f7;
 }
 .certificateBreakdown.error .certificateMetric small{color:#b91c1c}
+.certificateBreakdown.error #certRebateValue{font-size:16px}
+#rebateServiceDetail:not(:empty){margin-top:4px}
+#retryLiveRebate{
+  width:auto;
+  margin-top:8px;
+  padding:7px 10px;
+  border-radius:8px;
+  font-size:12px;
+}
+#retryLiveRebate span{display:inline;color:inherit;font-size:14px;letter-spacing:0}
+#retryLiveRebate[hidden]{display:none}
 #liveRebatePanel.dcceewEligible{
   border-color:#e8b84a;
   background:linear-gradient(160deg,#fff7d6 0%,#fffbeb 58%,#fff8dc 100%);
@@ -3601,7 +3612,7 @@ button.quoteDragHandle:active{cursor:grabbing}
           <div class="mobileHideRebateConfig"><label>PERC (PRC) $ per cert</label><input id="essPrcRate" type="number" step="0.01" value="2.85"></div>
           <div class="mobileHideRebateConfig"><label>Live calc source</label><input readonly value="NSW ESS/PDRS API"></div>
         </div>
-        <div class="selected" id="liveRebatePanel"><div class="selectedText"><div class="selectedHeader"><strong id="selectedModel"></strong><button type="button" class="copyModelBtn" onclick="copyCurrentModel()">Copy model</button></div><div class="tiny" id="modelMeta"></div><div class="tiny rebateSchemeUi" id="rebateCalcMeta">Live ESS/PERC rebate status will appear here.</div><div class="dcceewExclusionNote" id="dcceewExclusionNote" role="status">New ducted installations are excluded from the DCCEEW contract rate.</div><div class="dcceewContractPanel rebateSchemeUi" id="dcceewContractPanel" aria-hidden="true"><div class="dcceewContractHead"><div class="dcceewContractCopy"><span class="dcceewContractBadge">DCCEEW contract match</span><strong>Potentially eligible for the fixed $30 per ESC rate</strong><p>The selected postcode and product are on the approved contract lists. Required compliance steps must still be completed.</p></div><div class="dcceewInfoPrompt"><span>Action required</span><div class="dcceewInfoActions"><button id="dcceewInfoButton" class="dcceewInfoButton" type="button" onclick="openDcceewInfoModal()"><span class="dcceewInfoIcon" aria-hidden="true">i</span>Important information</button><a class="dcceewGuideButton" href="https://rebateportal.com.au/first-job-guide" target="_blank" rel="noopener noreferrer">Open first job checklist</a></div></div></div><div class="dcceewComparison"><div class="dcceewComparisonCard"><span>Standard rebate</span><strong id="dcceewStandardTotal">Calculating...</strong><small id="dcceewStandardMeta">Using the normal business ESC rate</small></div><div class="dcceewComparisonCard contract"><span>DCCEEW contract rebate</span><strong id="dcceewContractTotal">Calculating...</strong><small id="dcceewContractMeta">ESCs at $30.00 plus unchanged PERC</small></div><div class="dcceewComparisonCard uplift"><span>Additional contract value</span><strong id="dcceewContractUplift">Calculating...</strong><small id="dcceewUpliftMeta">Difference from the standard payout</small></div></div><div class="dcceewComparisonNote" id="dcceewComparisonNote">The contract-rate rebate is included in Costs for this match. Missing a required compliance step means the standard market rate applies.</div></div><div class="certificateBreakdown rebateSchemeUi" id="certificateBreakdown"><div class="certificateMetric"><span>ESC generated</span><strong id="escCertCount">-</strong><small id="escCertValue">Waiting for live lookup</small></div><div class="certificateMetric"><span>PERC generated</span><strong id="prcCertCount">-</strong><small id="prcCertValue">Waiting for live lookup</small></div><div class="certificateMetric"><span>Rebate calculation</span><strong id="certRebateValue">-</strong><small id="certRebateMeta">Waiting for live lookup</small></div></div><div class="recommendationCards rebateSchemeUi" id="bestValueComparison"><div class="recommendationCard" id="bestValueMeta"><div class="recommendationEyebrow">Best rebate</div><div class="recommendationStatus">Best rebate indicator will appear here.</div></div><div class="recommendationCard net" id="bestNetCostMeta"><div class="recommendationEyebrow">Best net unit cost</div><div class="recommendationStatus">Best net unit cost indicator will appear here.</div></div></div></div></div>
+        <div class="selected" id="liveRebatePanel"><div class="selectedText"><div class="selectedHeader"><strong id="selectedModel"></strong><button type="button" class="copyModelBtn" onclick="copyCurrentModel()">Copy model</button></div><div class="tiny" id="modelMeta"></div><div class="tiny rebateSchemeUi" id="rebateCalcMeta">Live ESS/PERC rebate status will appear here.</div><div class="dcceewExclusionNote" id="dcceewExclusionNote" role="status">New ducted installations are excluded from the DCCEEW contract rate.</div><div class="dcceewContractPanel rebateSchemeUi" id="dcceewContractPanel" aria-hidden="true"><div class="dcceewContractHead"><div class="dcceewContractCopy"><span class="dcceewContractBadge">DCCEEW contract match</span><strong>Potentially eligible for the fixed $30 per ESC rate</strong><p>The selected postcode and product are on the approved contract lists. Required compliance steps must still be completed.</p></div><div class="dcceewInfoPrompt"><span>Action required</span><div class="dcceewInfoActions"><button id="dcceewInfoButton" class="dcceewInfoButton" type="button" onclick="openDcceewInfoModal()"><span class="dcceewInfoIcon" aria-hidden="true">i</span>Important information</button><a class="dcceewGuideButton" href="https://rebateportal.com.au/first-job-guide" target="_blank" rel="noopener noreferrer">Open first job checklist</a></div></div></div><div class="dcceewComparison"><div class="dcceewComparisonCard"><span>Standard rebate</span><strong id="dcceewStandardTotal">Calculating...</strong><small id="dcceewStandardMeta">Using the normal business ESC rate</small></div><div class="dcceewComparisonCard contract"><span>DCCEEW contract rebate</span><strong id="dcceewContractTotal">Calculating...</strong><small id="dcceewContractMeta">ESCs at $30.00 plus unchanged PERC</small></div><div class="dcceewComparisonCard uplift"><span>Additional contract value</span><strong id="dcceewContractUplift">Calculating...</strong><small id="dcceewUpliftMeta">Difference from the standard payout</small></div></div><div class="dcceewComparisonNote" id="dcceewComparisonNote">The contract-rate rebate is included in Costs for this match. Missing a required compliance step means the standard market rate applies.</div></div><div class="certificateBreakdown rebateSchemeUi" id="certificateBreakdown"><div class="certificateMetric"><span>ESC generated</span><strong id="escCertCount">-</strong><small id="escCertValue">Waiting for live lookup</small></div><div class="certificateMetric"><span>PERC generated</span><strong id="prcCertCount">-</strong><small id="prcCertValue">Waiting for live lookup</small></div><div class="certificateMetric"><span>Rebate calculation</span><strong id="certRebateValue">-</strong><div role="status"><small id="certRebateMeta">Waiting for live lookup</small><small id="rebateServiceDetail"></small></div><button id="retryLiveRebate" class="secondary" type="button" onclick="retryLiveRebate()" hidden><span aria-hidden="true">&#8635;</span> Retry rebate</button></div></div><div class="recommendationCards rebateSchemeUi" id="bestValueComparison"><div class="recommendationCard" id="bestValueMeta"><div class="recommendationEyebrow">Best rebate</div><div class="recommendationStatus">Best rebate indicator will appear here.</div></div><div class="recommendationCard net" id="bestNetCostMeta"><div class="recommendationEyebrow">Best net unit cost</div><div class="recommendationStatus">Best net unit cost indicator will appear here.</div></div></div></div></div>
       </div>
       <div class="card">
         <h2 class="sectionTitle">Costs</h2>
@@ -6509,6 +6520,8 @@ function setCertificateBreakdown(result,message,isError){
   const box=$('certificateBreakdown');
   if(!box) return;
   box.classList.toggle('error',!!isError);
+  if($('retryLiveRebate')) $('retryLiveRebate').hidden=!isError;
+  if($('rebateServiceDetail')) $('rebateServiceDetail').textContent='';
   if(result){
     const esc=Number(result.esc)||0;
     const prc=Number(result.prc)||0;
@@ -6531,7 +6544,7 @@ function setCertificateBreakdown(result,message,isError){
   if($('escCertValue')) $('escCertValue').textContent=message||'Waiting for live lookup';
   if($('prcCertCount')) $('prcCertCount').textContent='-';
   if($('prcCertValue')) $('prcCertValue').textContent=message||'Waiting for live lookup';
-  if($('certRebateValue')) $('certRebateValue').textContent=isError?money(0):'-';
+  if($('certRebateValue')) $('certRebateValue').textContent=isError?'Unavailable':'-';
   if($('certRebateMeta')) $('certRebateMeta').textContent=message||'Waiting for live lookup';
 }
 function clearCertificateRuntime(){
@@ -7620,11 +7633,42 @@ async function loadLiveCertificatePriceIfNeeded(){
     if(!prcInput.value) prcInput.value=DEFAULT_PRC_RATE.toFixed(2);
   }
 }
+function isLiveRebateNetworkError(error){
+  return /^(?:failed to fetch|fetch failed|load failed|network request failed|networkerror when attempting to fetch resource\.?|live rebate (?:service|calculation) timed out\. please try again\.)$/i.test(error?.message)
+    || /^HTTP (?:502|503|504)(?: - |$)/.test(error?.message);
+}
+function liveRebateInputDetail(error){
+  const message=error?.message;
+  if(/^(?:Enter a valid 4-digit postcode|Unable to resolve postcode climate zones|Enter a valid ESS \$ per ESC|Enter a valid PERC \(PRC\) \$ per cert)$/.test(message)) return message;
+  if(/^Incomplete (?:model|GEMS) energy rating data\b/.test(message)) return 'The selected model is missing required energy rating data.';
+  if(/^Model not found in (?:GEMS registry|NSW estimator metadata):/.test(message)) return 'The selected model could not be found in the energy rating data.';
+  return '';
+}
+async function showLiveRebateServiceDetail(requestId){
+  try{
+    const status=await fetchJson('/api/rebate-service-status');
+    const detail=$('rebateServiceDetail');
+    if(requestId!==essCache.requestSeq || !rebatesEnabled() || $('retryLiveRebate')?.hidden!==false || !detail || status?.available!==false) return;
+    switch(status.code){
+      case 'certificate_error': detail.textContent='The NSW rebate service has a security certificate issue.'; break;
+      case 'timeout': detail.textContent='The NSW rebate service is taking too long to respond.'; break;
+      case 'unavailable': detail.textContent='The NSW rebate service is not responding normally.'; break;
+    }
+  }catch(e){
+    // The calculation failure is already visible; the diagnostic is optional.
+  }
+}
+async function retryLiveRebate(){
+  if(liveRebateLoading || $('retryLiveRebate')?.hidden!==false || !rebatesEnabled()) return;
+  const calculation=refreshLiveRebateForCurrentProduct();
+  const requestId=essCache.requestSeq;
+  if(await calculation && requestId===essCache.requestSeq) refreshBestValueIndicator();
+}
 async function refreshLiveRebateForCurrentProduct(){
   const p=product();
   setLiveRebateLoading(false);
   const requestId=++essCache.requestSeq;
-  if(!p){setDcceewExclusionNote(null);setDcceewContractDisplay(null,null); return;}
+  if(!p){setDcceewExclusionNote(null);setDcceewContractDisplay(null,null);setCertificateBreakdown(null,'',false);return;}
   if(!rebatesEnabled()){
     clearCertificateRuntime();
     setDcceewExclusionNote(null);
@@ -7677,14 +7721,18 @@ async function refreshLiveRebateForCurrentProduct(){
     const eligibilityNote=result.eligibility&&result.eligibility.message?`NSW HVAC eligibility: ${result.eligibility.message}. `:'';
     const contractNote=effective.contractApplied?` DCCEEW $30 contract rate applied; uplift ${money(effective.contractUplift)}.`:'';
     setRebateCalcMeta(`${eligibilityNote}${result.lookupSource}: ESC ${certCountText(result.esc)} x ${money(result.escRate)} = ${money(result.escValue)} | PERC ${certCountText(result.prc)} x ${money(result.prcRate)} = ${money(result.prcValue)} | Total ${money(effective.rebate)}${contractNote} (${certValues.source}, ${result.zone}, ${result.bcaZone}, ${installType})`,false);
+    return true;
   }catch(e){
     if(requestId!==essCache.requestSeq) return;
     clearCertificateRuntime();
     if($('rebate')) $('rebate').value='0.00';
     render();
-    setCertificateBreakdown(null,`Unable to calculate live ESC/PERC counts. ${String(e.message||'Live data unavailable')}`,true);
-    setRebateCalcMeta(`Rebate set to $0.00. ${String(e.message||'Live data unavailable')}`,true);
-    setDcceewContractDisplay(dcceewMatch,null,`Unable to calculate certificates: ${String(e.message||'Live data unavailable')}`);
+    const message='Rebate unavailable. This is not a confirmed $0 rebate.';
+    setCertificateBreakdown(null,message,true);
+    setRebateCalcMeta(message,true);
+    setDcceewContractDisplay(dcceewMatch,null,message);
+    if(isLiveRebateNetworkError(e)) void showLiveRebateServiceDetail(requestId);
+    else if($('rebateServiceDetail')) $('rebateServiceDetail').textContent=liveRebateInputDetail(e);
   }finally{
     if(requestId===essCache.requestSeq) setLiveRebateLoading(false);
   }

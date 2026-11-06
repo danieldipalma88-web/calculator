@@ -33,8 +33,8 @@ assert.match(
 );
 assert.match(
   liveRefresh,
-  /setRebateCalcMeta\(`Rebate set to \$0\.00\./,
-  "The failure message must explicitly report a zero rebate.",
+  /const message='Rebate unavailable\. This is not a confirmed \$0 rebate\.';\s*setCertificateBreakdown\(null,message,true\)/,
+  "The visible failure message must distinguish an unavailable rebate from a confirmed zero rebate.",
 );
 assert.doesNotMatch(
   liveRefresh,
@@ -45,8 +45,8 @@ assert.doesNotMatch(
 const certificateBreakdown = functionSource("setCertificateBreakdown");
 assert.match(
   certificateBreakdown,
-  /certRebateValue'\)\.textContent=isError\?money\(0\):'-'/,
-  "The certificate result card must display $0.00 on calculation failure.",
+  /certRebateValue'\)\.textContent=isError\?'Unavailable':'-'/,
+  "The certificate result card must display Unavailable while the numeric failure guard stays at zero.",
 );
 
 const multiSplitCalculation = functionSource("calculateMultiSplitTrialRebate");

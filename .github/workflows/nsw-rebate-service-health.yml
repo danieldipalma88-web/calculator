@@ -1,0 +1,45 @@
+name: NSW rebate service health
+
+on:
+  schedule:
+    - cron: '43 * * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'lib/rebate-service-status.ts'
+      - 'scripts/*rebate-dependencies*'
+      - 'scripts/verify-rebate-service-status.mjs'
+      - 'scripts/verify-rebate-dependencies.mjs'
+      - 'scripts/verify-rebate-service-ui.mjs'
+      - 'scripts/verify-rebate-failure-zero.mjs'
+      - '.github/workflows/nsw-rebate-service-health.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nsw-rebate-service-health
+  cancel-in-progress: false
+
+jobs:
+  upstream-health:
+    # Avoid paid private-repository Actions minutes.
+    if: github.event.repository.private == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Verify service failure handling
+        run: |
+          node --experimental-strip-types scripts/verify-rebate-service-status.mjs
+          node --experimental-strip-types scripts/verify-rebate-dependencies.mjs
+          node scripts/verify-rebate-failure-zero.mjs
+      - name: Check live calculation service and certificate expiry
+        run: node --experimental-strip-types scripts/monitor-rebate-dependencies.mjs
