@@ -153,12 +153,99 @@ assert.equal(found[2].reason.code, "GEMS_MODEL_NOT_FOUND");
 clock += hour - 1;
 assert.equal((await lookup(brand, model)).verifiedAt, date, "In-window stale data retains original timestamp");
 clock++;
-await reject(lookup(brand, model), 503, "GEMS_UNAVAILABLE");
-cached = undefined;
-await reject(lookup(brand, model), 503, "GEMS_UNAVAILABLE");
-clock += 5000;
-assert.equal((await lookup(brand, model)).verifiedAt, clock);
+assert.equal((await lookup(brand, model)).verifiedAt, clock, "Hard expiry waits for fresh data without requiring user retry");
 assert.equal(reads, 2);
+clock += 1000;
+assert.equal((await lookup(brand, model)).verifiedAt, clock - 1000, "Bridge a still-stale framework cache without relabelling the refresh timestamp");
+assert.equal(reads, 2, "No repeated provider fetch while a just-completed refresh remains valid");
+clock += 300000;
+assert.equal((await lookup(brand, model)).verifiedAt, clock, "Short refresh bridge cannot become an indefinitely retained snapshot");
+assert.equal(reads, 3);
+
+let swrClock = date, swrCache, swrReads = 0, releaseRefresh, refreshPromise;
+const refreshGate = new Promise(resolve => { releaseRefresh = resolve; });
+const swr = create({ now: () => swrClock, fetchInventory: async () => { swrReads++; return swrReads === 1 ? [row] : refreshGate; },
+  wrapInventory: load => async key => {
+    if (!swrCache) swrCache = await load(key);
+    else if (swrClock - swrCache.verifiedAt >= hour) refreshPromise ??= load(key).then(value => { swrCache = value; });
+    return swrCache;
+  } });
+await swr(brand, model);
+swrClock += hour;
+const waiting = Promise.all([swr(brand, model), swr("Fujitsu", model)]);
+await new Promise(resolve => setImmediate(resolve));
+assert.equal(swrReads, 2, "Foreground recovery joins the existing background refresh");
+releaseRefresh([row]);
+const recovered = await waiting;
+assert.equal(recovered[0].verifiedAt, swrClock);
+assert.deepEqual(recovered[0], recovered[1]);
+await refreshPromise;
+assert.equal(swrReads, 2);
+
+let repeatedClock = date, repeatedCache, repeatedReads = 0;
+const repeatedBackground = create({ now: () => repeatedClock, fetchInventory: async () => { repeatedReads++; return [row]; },
+  wrapInventory: load => async key => {
+    if (!repeatedCache) repeatedCache = await load(key);
+    else if (repeatedClock - repeatedCache.verifiedAt >= hour) void load(key).catch(() => {});
+    return repeatedCache;
+  } });
+await repeatedBackground(brand, model);
+repeatedClock += hour;
+for (let i = 0; i < 4; i++) {
+  assert.equal((await repeatedBackground(brand, model)).verifiedAt, repeatedClock);
+  await new Promise(resolve => setImmediate(resolve));
+}
+assert.equal(repeatedReads, 2, "Even repeated background refresh attempts reuse the completed recovery, without extra provider reads");
+
+for (const timestamp of [String(date), NaN, Infinity, date + 1]) {
+  const malformedCache = create({ now: () => date, fetchInventory: async () => [row],
+    wrapInventory: load => async key => ({ ...await load(key), verifiedAt: timestamp }) });
+  await reject(malformedCache(brand, model), 503, "GEMS_UNAVAILABLE");
+}
+
+for (const refreshedRows of [
+  [{ ...row, "Availability Status": "Unavailable" }],
+  [row, { ...row, "C-Power_Inp_Rated": 0.99 }],
+  [{ ...row, ExpDate: "2000-01-01" }],
+]) {
+  let current = date, prior, count = 0;
+  const checkedRefresh = create({ now: () => current, fetchInventory: async () => ++count === 1 ? [row] : refreshedRows,
+    wrapInventory: load => async key => prior ??= await load(key) });
+  await checkedRefresh(brand, model);
+  current += hour;
+  const conflict = refreshedRows.length === 2;
+  await reject(checkedRefresh(brand, model), conflict ? 409 : 422, conflict ? "GEMS_MODEL_CONFLICT" : "GEMS_MODEL_REJECTED");
+}
+
+let failedClock = date, failedCache, failedReads = 0, failRefresh = false;
+const failedRefresh = create({ now: () => failedClock, fetchInventory: async () => {
+  failedReads++;
+  if (failRefresh) throw new Error("Registry unavailable during expiry recovery");
+  return [row];
+}, wrapInventory: load => async key => failedCache ??= await load(key) });
+await failedRefresh(brand, model);
+failedClock += hour;
+failRefresh = true;
+await reject(failedRefresh(brand, model), 503, "GEMS_UNAVAILABLE");
+await reject(failedRefresh(brand, model), 503, "GEMS_UNAVAILABLE");
+assert.equal(failedReads, 2, "Outage recovery is bounded and keeps the existing cooldown");
+failedClock += 5000;
+failRefresh = false;
+assert.equal((await failedRefresh(brand, model)).verifiedAt, failedClock);
+assert.equal(failedReads, 3);
+
+let slowClock = date, slowCache, slowReads = 0, slowSignal;
+const slowRecovery = create({ now: () => slowClock, deadlineMs: 30, fetchInventory: async (_names, signal) => {
+  slowReads++;
+  slowSignal = signal;
+  return slowReads === 1 ? [row] : new Promise(() => {});
+}, wrapInventory: load => async key => slowCache ??= await load(key) });
+await slowRecovery(brand, model);
+slowClock += hour;
+const timeoutStarted = performance.now();
+await reject(slowRecovery(brand, model), 503, "GEMS_UNAVAILABLE");
+assert.ok(performance.now() - timeoutStarted < 1000, "Hard-expiry recovery cannot hang the request");
+assert.equal(slowSignal.aborted, true);
 
 let remoteCalls = 0;
 let transient = true;

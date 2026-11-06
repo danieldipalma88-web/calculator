@@ -6,6 +6,7 @@ export const GEMS_INVENTORY_MAX_AGE_MS = 60 * 60 * 1000;
 const DEADLINE_MS = 8000;
 const FAILURE_COOLDOWN_MS = 5000;
 const MAX_IN_FLIGHT = 8;
+const MAX_RECENT_INVENTORIES = 8;
 const MAX_COOLDOWNS = 128;
 const MAX_INVENTORY_BYTES = 1_800_000;
 const SOURCE = "GEMS registry + NSW formula" as const;
@@ -301,20 +302,40 @@ const readGemsInventory: FetchInventory = (brands, signal) => fetchGemsDatastore
 export function createGemsCalculationMetadata({
   fetchInventory = readGemsInventory, now = Date.now, wrapInventory = load => load, deadlineMs = DEADLINE_MS,
 }: { fetchInventory?: FetchInventory; now?: () => number; wrapInventory?: (load: ReadInventory) => ReadInventory; deadlineMs?: number } = {}) {
+  const recent = new Map<string, Inventory>();
+  const recoveryBridges = new WeakSet<Inventory>();
   // Coalesce inside the cache loader too: Next can start background revalidation independently of the request read.
   const load = boundedSingleFlight(async (brand) => {
+    const previous = recent.get(brand);
+    const age = previous ? now() - previous.verifiedAt : Infinity;
+    if (previous && recoveryBridges.has(previous) && age >= 0 && age < GEMS_INVENTORY_REVALIDATE_SECONDS * 1000) return previous;
     const candidates = await withinDeadline(deadlineMs, async signal => inventoryCandidates(await fetchInventory(brandNames(brand), signal), brand));
     const inventory: Inventory = { brand, verifiedAt: now(), candidates };
     if (Buffer.byteLength(JSON.stringify(inventory)) > MAX_INVENTORY_BYTES) return fail("GEMS_UNAVAILABLE");
+    recent.delete(brand);
+    recent.set(brand, inventory);
+    if (recent.size > MAX_RECENT_INVENTORIES) recent.delete(recent.keys().next().value!);
     return inventory;
   }, now);
   const readCached = wrapInventory(load);
-  const read = boundedSingleFlight(async (brand) => {
-    const inventory = await withinDeadline(deadlineMs + 100, () => readCached(brand));
+  const read = boundedSingleFlight(brand => withinDeadline(deadlineMs + 100, async signal => {
+    const inventory = await readCached(brand);
+    signal.throwIfAborted();
     const age = now() - inventory?.verifiedAt;
-    if (inventory?.brand !== brand || !Array.isArray(inventory?.candidates) || !Number.isFinite(age) || age < 0 || age >= GEMS_INVENTORY_MAX_AGE_MS) return fail("GEMS_UNAVAILABLE");
-    return inventory;
-  }, now);
+    if (inventory?.brand !== brand || !Array.isArray(inventory?.candidates) || !Number.isSafeInteger(inventory.verifiedAt) || !Number.isFinite(age) || age < 0) return fail("GEMS_UNAVAILABLE");
+    if (age < GEMS_INVENTORY_MAX_AGE_MS) return inventory;
+    // SWR may return a hard-expired entry while load is already refreshing it.
+    // Join that refresh, or reuse its just-completed result without extending its age.
+    const refreshed = recent.get(brand);
+    const refreshedAge = refreshed ? now() - refreshed.verifiedAt : Infinity;
+    if (refreshed && refreshedAge >= 0 && refreshedAge < GEMS_INVENTORY_REVALIDATE_SECONDS * 1000) {
+      recoveryBridges.add(refreshed);
+      return refreshed;
+    }
+    const fresh = await load(brand);
+    recoveryBridges.add(fresh);
+    return fresh;
+  }), now);
 
   return async function lookup(rawBrand: string | null, rawModel: string | null) {
     const brand = text(rawBrand);
