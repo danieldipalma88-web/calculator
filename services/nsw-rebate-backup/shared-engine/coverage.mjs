@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Standalone AGPL service only. See ../LICENSE and ./README.md.
+
+export const coverageRelease = 'atlas-20261106t113910611z-3756476b802a';
+
+// Exact ranges compressed from the lab manifest's 552 audited postcodes.
+// These are inventory entries, not interpolated OpenFisca postcode brackets.
+const ranges = `2000 2007-2011 2015-2050 2060-2077 2079-2090 2092-2097 2099-2108 2110-2117
+2142-2148 2150-2153 2155-2156 2160 2164-2168 2170-2171 2173-2174 2176-2179 2190-2200
+2203-2214 2216-2234 2250-2251 2256-2265 2267 2278 2280-2287 2289-2300 2302-2308
+2311-2312 2315-2331 2333-2347 2350 2352-2361 2365 2369-2372 2379-2382 2386-2388 2390
+2395-2405 2408-2411 2415 2420 2422-2431 2439-2441 2443-2450 2452-2456 2460 2462-2466
+2469-2490 2500 2502 2505-2506 2508 2515-2519 2525-2530 2533-2539 2541 2575-2588 2590
+2594 2621-2633 2640-2653 2655-2656 2658-2661 2663 2665-2666 2668-2669 2671-2672 2675
+2680-2681 2700-2703 2705-2707 2710-2717 2720-2722 2725-2727 2729-2739 2745 2747-2750
+2752-2754 2756-2763 2765-2770 2773-2780 2782-2787 2790-2795 2797-2800 2803-2810 2817-2818
+2820-2836 2838-2840 2842-2850 2852 2864-2871 2873-2880`;
+
+const coveredPostcodes = new Set();
+for (const range of ranges.split(/\s+/)) {
+  const [start, end = start] = range.split('-').map(Number);
+  for (let postcode = start; postcode <= end; postcode++) coveredPostcodes.add(String(postcode));
+}
+
+export const coversPostcode = (postcode) => coveredPostcodes.has(postcode);
