@@ -75,7 +75,7 @@ try {
   assert.ok(inventories.every((item) => /LOWER\("Brand"\) = LOWER\('/.test(item.url.searchParams.get("sql"))));
   assert.ok(inventories.every((item) => item.url.searchParams.get("sql").includes('"SubmitStatus" = \'Approved\'') && item.url.searchParams.get("sql").includes('"Availability Status" = \'Available\'')));
   assert.ok(inventories.every((item) => [0, 3_600].includes(item.options.next.revalidate)));
-  assert.equal(inventories.filter((item) => item.options.next.revalidate === 0).length, 1, "Only a missing search should recheck fresh data.");
+  assert.equal(inventories.filter((item) => item.options.next.revalidate === 0).length, 2, "Only a missing search should recheck both datasets fresh.");
   await gems.fetchGemsDatastoreRecords({ brand: "Rinnai' OR 1=1 --", fields: ["Brand"], limit: 5, revalidateSeconds: 3_600 });
   assert.ok(requests.at(-1).url.searchParams.get("sql").includes("LOWER('Rinnai'' OR 1=1 --')"), "Brand SQL literals must be escaped.");
   await gems.fetchGemsDatastoreRecords({ query: legacy, limit: 25, revalidateSeconds: 3_600 });
@@ -93,7 +93,7 @@ try {
       assert.equal(result.cacheControl, "no-store");
       assert.equal(result.models.length, 1);
       assert.equal(result.models[0].model, model.Model_No, `Keep canonical register pairing for ${query}`);
-      assert.equal(requests.length - before, 1, "Successful cached searches need no fresh fetch.");
+      assert.equal(requests.length - before, 2, "Both cached datasets are checked without a fresh fetch.");
     }
   }
   assert.equal((await queryRoute("brand=Daikin&q=RXM35AVMA%20%2F%20FTXM50AVMA")).models.length, 0, "Never combine indoor and outdoor models from separate registrations.");

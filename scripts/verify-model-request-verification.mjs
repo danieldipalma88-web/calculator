@@ -42,7 +42,7 @@ const record = {
   ...Object.fromEntries(["tcec", "thec"].flatMap((kind) =>
     ["hot", "mixed", "cold"].map((zone) => [`Residential ${kind}_${zone}`, zone === "hot" ? "0" : "500"]))),
 };
-const certificates = { esc: 2.34, prc: 4.56, rebate: 999, lookupSource: "GEMS registry + NSW formula" };
+const certificates = { esc: 2.34, prc: 4.56, rebate: 999, lookupSource: "GEMS registry + NSW formula", calculationSource: "Verified NSW backup (ae8d778)" };
 const unavailable = new Error("Unexpected external fetch in offline tests");
 const originalFetch = globalThis.fetch;
 const savedEnv = { from: process.env.MODEL_REQUEST_FROM_EMAIL, key: process.env.RESEND_API_KEY };
@@ -74,7 +74,7 @@ try {
     brand: record.Brand, model: record.Model_No, series: "Example Series",
     systemType: "split", capacityKw: 7.1, phase: "Single",
   });
-  assert.deepEqual(verified.evidence.certificates, { esc: 2.34, prc: 4.56, lookupSource: certificates.lookupSource });
+  assert.deepEqual(verified.evidence.certificates, { esc: 2.34, prc: 4.56, lookupSource: certificates.lookupSource, calculationSource: certificates.calculationSource });
   assert.equal(verified.evidence.registry.registrationNumber, "AAC99999");
   assert.equal(verified.evidence.sourceUrl, "https://data.gov.au/data/api/3/action/datastore_search_sql");
   assert.equal(new Date(verified.evidence.verifiedAt).toISOString(), verified.evidence.verifiedAt);
@@ -176,7 +176,7 @@ try {
   };
   const defaultResult = await verifyRequestedModel(daikinRequest);
   assert.equal(defaultResult.kind, "verified");
-  assert.equal(inventoryCalls, 1);
+  assert.equal(inventoryCalls, 2);
   assert.equal(defaultResult.product.brand, "Daikin");
   assert.equal(defaultResult.evidence.registry.brand, "DAIKIN");
   assert.equal(defaultResult.product.model, daikin.Model_No);
@@ -184,7 +184,7 @@ try {
   assert.equal(defaultResult.evidence.certificates.esc, 2.34);
   assert.deepEqual(await calculateVerifiedGemsCertificates(calculationInput, daikin), {
     rebate: 6.9, esc: 2.34, prc: 4.56, escRate: 1, prcRate: 1, contractApplied: false,
-    lookupSource: "Exact GEMS registration + NSW formula", registryRecord: daikin,
+    lookupSource: "Exact GEMS registration + NSW formula", calculationSource: "NSW calculation service", registryRecord: daikin,
   });
 
   const emailInput = {

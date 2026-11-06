@@ -1675,6 +1675,7 @@ button.danger{background:#ffe8e8;color:#a82222;padding:8px 10px}
   font-size:22px;
   font-variant-numeric:tabular-nums;
 }
+#multiSplitCalculationSource:not(:empty){display:block;margin-top:3px;color:#475569;font-size:11px;line-height:1.35}
 .multiSplitRebateRates{
   display:flex;
   flex-wrap:wrap;
@@ -3772,7 +3773,7 @@ button.quoteDragHandle:active{cursor:grabbing}
             <div class="dcceewComparisonNote" id="multiSplitDcceewComparisonNote">The contract-rate rebate will be included in Costs when live certificate values are available. Missing a required compliance step means the standard market rate applies.</div>
           </div>
           <div class="multiSplitRebateResults">
-            <div class="multiSplitRebateResult primary"><span>Calculated rebate</span><strong id="multiSplitRebateValue">-</strong></div>
+            <div class="multiSplitRebateResult primary"><span>Calculated rebate</span><strong id="multiSplitRebateValue">-</strong><small id="multiSplitCalculationSource" aria-live="polite"></small></div>
             <div class="multiSplitRebateResult"><span>ESC generated</span><strong id="multiSplitEscCount">-</strong></div>
             <div class="multiSplitRebateResult"><span>PERC generated</span><strong id="multiSplitPrcCount">-</strong></div>
           </div>
@@ -4989,6 +4990,8 @@ const BUSINESS_CONFIGURATION_STORAGE_KEY='installerBusinessConfigurationV1';
 const COMMISSION_SETTINGS_STORAGE_KEY='installerCommissionSettingsV1';
 const ESS_ESTIMATOR_API='https://estimator-sfg-rac-prd.energy.nsw.gov.au';
 const ESS_CALCULATE_API='https://of-sfg-rac-prd.energy.nsw.gov.au/calculate';
+const NSW_BACKUP_CALCULATE_API='https://rebate-portal-nsw-backup.vercel.app/api/calculate';
+let nswPrimaryRetryAfter=0;
 const GEMS_DATASTORE_API='https://data.gov.au/data/api/3/action/datastore_search';
 const GEMS_AIRCON_RESOURCE_IDS=[
   '0973a476-eb0c-45e6-9a18-054f74307843',
@@ -5055,7 +5058,7 @@ function removeExpiredQuoteRows(rows){
 }
 function legacyLabourRetainKey(){return 'green'+'EnergyKeepsLabour';}
 let essCache={brands:null,modelsByBrand:{},metadata:{},gemsByLookup:{},zoneByPostcode:{},requestSeq:0};
-let essRuntime={lastEsc:0,lastPrc:0,lastOfficialEsc:0,lastOfficialPrc:0,lastZone:'',lastBcaZone:'',lastBrand:'',lastModel:''};
+let essRuntime={lastEsc:0,lastPrc:0,lastOfficialEsc:0,lastOfficialPrc:0,lastZone:'',lastBcaZone:'',lastBrand:'',lastModel:'',lastCalculationSource:''};
 let essBestValueRuntime={requestSeq:0,cache:{},pending:{},lastEntry:null};
 let bestValueRefreshTimer=null;
 function invalidateBestValueRecommendations(scheduleRefresh){
@@ -6516,6 +6519,9 @@ function applyDcceewContractRebate(match,result){
   const contractRebate=contractEscValue+prcValue;
   return {...result,rebate:contractRebate,contractApplied:true,contractEscValue,contractUplift:contractRebate-standardRebate};
 }
+function nswBackupSourceLabel(calculationSource){
+  return calculationSource==='Verified NSW backup (ae8d778)'?'Verified NSW backup':'';
+}
 function setCertificateBreakdown(result,message,isError){
   const box=$('certificateBreakdown');
   if(!box) return;
@@ -6535,9 +6541,12 @@ function setCertificateBreakdown(result,message,isError){
     if($('prcCertCount')) $('prcCertCount').textContent=certCountText(prc);
     if($('prcCertValue')) $('prcCertValue').textContent=`${certCountText(prc)} x ${money(prcRate)} = ${money(prcValue)}`;
     if($('certRebateValue')) $('certRebateValue').textContent=money(rebate);
-    if($('certRebateMeta')) $('certRebateMeta').textContent=result.contractApplied
-      ? `DCCEEW contract rate applied: standard rebate ${money(rebate-result.contractUplift)} + ${dcceewSignedMoney(result.contractUplift)} uplift`
-      : `${certValues.source}, ${result.zone||'zone pending'}, ${result.bcaZone||'BCA pending'}, ${installType}`;
+    if($('certRebateMeta')){
+      const detail=result.contractApplied
+        ? `DCCEEW contract rate applied: standard rebate ${money(rebate-result.contractUplift)} + ${dcceewSignedMoney(result.contractUplift)} uplift`
+        : `${certValues.source}, ${result.zone||'zone pending'}, ${result.bcaZone||'BCA pending'}, ${installType}`;
+      $('certRebateMeta').textContent=[detail,nswBackupSourceLabel(result.calculationSource)].filter(Boolean).join(' | ');
+    }
     return;
   }
   if($('escCertCount')) $('escCertCount').textContent='-';
@@ -6556,6 +6565,7 @@ function clearCertificateRuntime(){
   essRuntime.lastBcaZone='';
   essRuntime.lastBrand='';
   essRuntime.lastModel='';
+  essRuntime.lastCalculationSource='';
 }
 function updateCertificateBreakdownFromRuntime(){
   if(!rebatesEnabled()){
@@ -6571,7 +6581,7 @@ function updateCertificateBreakdownFromRuntime(){
   }
   const escValue=essRuntime.lastEsc*escRate;
   const prcValue=essRuntime.lastPrc*prcRate;
-  const result={esc:essRuntime.lastEsc,prc:essRuntime.lastPrc,officialEsc:essRuntime.lastOfficialEsc,officialPrc:essRuntime.lastOfficialPrc,zone:essRuntime.lastZone,bcaZone:essRuntime.lastBcaZone,escRate,prcRate,escValue,prcValue,rebate:escValue+prcValue};
+  const result={esc:essRuntime.lastEsc,prc:essRuntime.lastPrc,officialEsc:essRuntime.lastOfficialEsc,officialPrc:essRuntime.lastOfficialPrc,zone:essRuntime.lastZone,bcaZone:essRuntime.lastBcaZone,calculationSource:essRuntime.lastCalculationSource,escRate,prcRate,escValue,prcValue,rebate:escValue+prcValue};
   const match=getDcceewContractMatch(product(),undefined,{systemType,installType});
   const effective=applyDcceewContractRebate(match,result);
   setCertificateBreakdown(effective,'',false);
@@ -7154,7 +7164,69 @@ function loadEssSettings(){
 }
 const DEFAULT_FETCH_TIMEOUT_MS=12000;
 const LIVE_REBATE_TIMEOUT_MS=20000;
+async function requestNswCalculation(options){
+  if(!options||options.method!=='POST'||typeof options.body!=='string') throw new Error('Invalid NSW calculation request');
+  const request=async(url,timeoutMs)=>{
+    const controller=new AbortController();
+    const abort=()=>controller.abort();
+    if(options.signal?.aborted) controller.abort();
+    options.signal?.addEventListener('abort',abort,{once:true});
+    const timer=setTimeout(abort,timeoutMs);
+    try{
+      const response=await fetch(url,{
+        method:'POST',headers:{'Content-Type':'application/json'},body:options.body,
+        signal:controller.signal,cache:'no-store',redirect:'error'
+      });
+      if(!response.ok){
+        let detail='';
+        try{detail=(await response.text()).slice(0,300);}catch(e){}
+        const error=new Error(`HTTP ${response.status} - ${detail}`);
+        error.status=response.status;
+        throw error;
+      }
+      if(url===NSW_BACKUP_CALCULATE_API&&response.headers.get('X-NSW-Calculation-Source')!=='OpenFisca-ae8d778-HVAC1_PDRSAug24'){
+        throw new Error('Unverified NSW backup calculation source');
+      }
+      const result=await response.json();
+      if(url===NSW_BACKUP_CALCULATE_API){
+        const expected=JSON.parse(options.body).buildings?.building_1;
+        const actual=result?.buildings?.building_1;
+        if(!expected||!actual||Object.keys(expected).length!==Object.keys(actual).length) throw new Error('Invalid NSW backup response');
+        for(const field of Object.keys(expected)){
+          const periods=Object.keys(expected[field]);
+          if(periods.length!==1||!actual[field]||Object.keys(actual[field]).length!==1) throw new Error('Invalid NSW backup response period');
+          const period=periods[0],value=actual[field][period],input=expected[field][period];
+          const valid=input!==null?value===input
+            :field==='HVAC1_PDRSAug24_get_climate_zone_by_postcode'?['0','hot','mixed','cold'].includes(value)
+              :field==='HVAC1_PDRSAug24_BCA_climate_zone_by_postcode'?typeof value==='string'&&/^[1-8]$/.test(value)
+                :typeof value==='number'&&Number.isFinite(value);
+          if(!valid) throw new Error('Incomplete or mismatched NSW backup response');
+        }
+        result._nswCalculationSource='Verified NSW backup (ae8d778)';
+      }
+      return result;
+    }finally{
+      clearTimeout(timer);
+      options.signal?.removeEventListener('abort',abort);
+    }
+  };
+  if(Date.now()>=nswPrimaryRetryAfter){
+    try{
+      const result=await request(ESS_CALCULATE_API,4000);
+      nswPrimaryRetryAfter=0;
+      return result;
+    }catch(error){
+      if(options.signal?.aborted) throw error;
+      if(/no field of name 0/i.test(String(error?.message||''))) throw error;
+      const status=Number(error?.status);
+      if(status>=400&&status<500&&![408,429].includes(status)) throw error;
+      nswPrimaryRetryAfter=Date.now()+60000;
+    }
+  }
+  return request(NSW_BACKUP_CALCULATE_API,6000);
+}
 async function fetchJson(url,options){
+  if(url===ESS_CALCULATE_API && typeof requestNswCalculation==='function') return requestNswCalculation(options);
   const requestOptions={...(options||{})};
   const controller=!requestOptions.signal && typeof AbortController==='function'?new AbortController():null;
   const timeoutId=controller?setTimeout(()=>controller.abort(),DEFAULT_FETCH_TIMEOUT_MS):null;
@@ -7520,7 +7592,7 @@ async function calculateCertificatesWithPostcodeFallback(baseBuilding,climate,er
   if(Number.isFinite(electricitySavings) && Number.isFinite(regionalNetworkFactor)){
     merged.HVAC1_PDRSAug24_ESC_calculation={[ESS_CALC_DATE]:electricitySavings*regionalNetworkFactor*1.06};
   }
-  return {buildings:{building_1:merged},persons:{person1:{}}};
+  return {buildings:{building_1:merged},persons:{person1:{}},_nswCalculationSource:escResp?._nswCalculationSource||actualResp?._nswCalculationSource};
 }
 function nswCertificateCapsForAirType(airConditionerType,climateZone){
   if(airConditionerType==='non_ducted_multi_split_system' || airConditionerType==='ducted_multi_split_system'){
@@ -7585,7 +7657,7 @@ async function calculateCertificatesForModel(meta,climate,options){
   if(!Number.isFinite(escNum) || !Number.isFinite(prcNum)) throw new Error('Unable to calculate certificates');
   const escEffective=eligibility.essEligible?Math.min(escNum,caps.esc):0;
   const prcEffective=eligibility.prcEligible?Math.min(prcNum,caps.prc):0;
-  return {esc:escEffective, prc:prcEffective, officialEsc:Number.isFinite(escOfficial)?escOfficial:escNum, officialPrc:Number.isFinite(prcOfficial)?prcOfficial:prcNum, eligibility,caps,airConditionerType};
+  return {esc:escEffective, prc:prcEffective, officialEsc:Number.isFinite(escOfficial)?escOfficial:escNum, officialPrc:Number.isFinite(prcOfficial)?prcOfficial:prcNum, eligibility,caps,airConditionerType,calculationSource:resp?._nswCalculationSource||'NSW calculation service'};
 }
 async function estimateLiveEssRebate(localBrand,localModel,context,climatePromise,signal){
   signal?.throwIfAborted();
@@ -7608,7 +7680,7 @@ async function estimateLiveEssRebate(localBrand,localModel,context,climatePromis
   if(!(escRate>0)) throw new Error('Enter a valid ESS $ per ESC');
   if(!(prcRate>0)) throw new Error('Enter a valid PERC (PRC) $ per cert');
   const escValue=certs.esc*escRate, prcValue=certs.prc*prcRate;
-  return {apiBrand:resolved.brand,apiModel:resolved.model,lookupSource:resolved.source,esc:certs.esc,prc:certs.prc,officialEsc:certs.officialEsc,officialPrc:certs.officialPrc,eligibility:certs.eligibility,zone:climate.climateZone,bcaZone:climate.bcaZone,escRate,prcRate,escValue,prcValue,rebate:escValue+prcValue};
+  return {apiBrand:resolved.brand,apiModel:resolved.model,lookupSource:resolved.source,calculationSource:certs.calculationSource,esc:certs.esc,prc:certs.prc,officialEsc:certs.officialEsc,officialPrc:certs.officialPrc,eligibility:certs.eligibility,zone:climate.climateZone,bcaZone:climate.bcaZone,escRate,prcRate,escValue,prcValue,rebate:escValue+prcValue};
 }
 async function loadLiveCertificatePriceIfNeeded(){
   if(!rebatesEnabled()) return;
@@ -7668,7 +7740,7 @@ async function refreshLiveRebateForCurrentProduct(){
   const p=product();
   setLiveRebateLoading(false);
   const requestId=++essCache.requestSeq;
-  if(!p){setDcceewExclusionNote(null);setDcceewContractDisplay(null,null);setCertificateBreakdown(null,'',false);return;}
+  if(!p){clearCertificateRuntime();setDcceewExclusionNote(null);setDcceewContractDisplay(null,null);setCertificateBreakdown(null,'',false);return;}
   if(!rebatesEnabled()){
     clearCertificateRuntime();
     setDcceewExclusionNote(null);
@@ -7713,6 +7785,7 @@ async function refreshLiveRebateForCurrentProduct(){
     essRuntime.lastBcaZone=result.bcaZone;
     essRuntime.lastBrand=result.apiBrand;
     essRuntime.lastModel=result.apiModel;
+    essRuntime.lastCalculationSource=result.calculationSource||'';
     const effective=applyDcceewContractRebate(dcceewMatch,result);
     $('rebate').value=(Math.round(effective.rebate*100)/100).toFixed(2);
     render();
@@ -8833,7 +8906,10 @@ function renderAllModelsCalculation(result,effective,match,climate,lookupSource,
   const calculationContext=`${context.systemType==='multi_split'?'Multi-head ':''}${context.installType==='replacement'?'replacement':'new install'} at postcode ${climate.postcode}.`;
   const contractExcluded=isNewDuctedDcceewExclusion(context);
   if($('allModelsRebateTotal')) $('allModelsRebateTotal').textContent=money(effective.rebate);
-  if($('allModelsRebateSummary')) $('allModelsRebateSummary').textContent=match?`${calculationContext} Includes ${money(effective.contractUplift)} additional DCCEEW contract value.`:(contractExcluded?'New ducted installations are excluded from the DCCEEW contract rate.':calculationContext);
+  if($('allModelsRebateSummary')){
+    const detail=match?`${calculationContext} Includes ${money(effective.contractUplift)} additional DCCEEW contract value.`:(contractExcluded?'New ducted installations are excluded from the DCCEEW contract rate.':calculationContext);
+    $('allModelsRebateSummary').textContent=[detail,nswBackupSourceLabel(result.calculationSource)].filter(Boolean).join(' | ');
+  }
   if($('allModelsEscCount')) $('allModelsEscCount').textContent=certCountText(result.esc);
   if($('allModelsPrcCount')) $('allModelsPrcCount').textContent=certCountText(result.prc);
   if($('allModelsEscValue')) $('allModelsEscValue').textContent=`${certCountText(result.esc)} x ${money(escRate)} = ${money(escValue)}`;
@@ -8891,7 +8967,7 @@ async function calculateAllModelsMultiRebate(){
     }),LIVE_REBATE_TIMEOUT_MS,'Live multi-head rebate calculation timed out. Please try again.');
     const escRate=getEssEscRate(),prcRate=getEssPrcRate();
     if(!(escRate>0)||!(prcRate>0)) throw new Error('The current business certificate payout rates are unavailable.');
-    const result={apiBrand:outdoor.brand,apiModel:outdoor.rebateModel||outdoor.model,lookupSource:resolved.source,esc:certs.esc,prc:certs.prc,officialEsc:certs.officialEsc,officialPrc:certs.officialPrc,eligibility:certs.eligibility,zone:climate.climateZone,bcaZone:climate.bcaZone,escRate,prcRate,escValue:certs.esc*escRate,prcValue:certs.prc*prcRate,rebate:(certs.esc*escRate)+(certs.prc*prcRate)};
+    const result={apiBrand:outdoor.brand,apiModel:outdoor.rebateModel||outdoor.model,lookupSource:resolved.source,calculationSource:certs.calculationSource,esc:certs.esc,prc:certs.prc,officialEsc:certs.officialEsc,officialPrc:certs.officialPrc,eligibility:certs.eligibility,zone:climate.climateZone,bcaZone:climate.bcaZone,escRate,prcRate,escValue:certs.esc*escRate,prcValue:certs.prc*prcRate,rebate:(certs.esc*escRate)+(certs.prc*prcRate)};
     const calculationContext={systemType:'multi_split',installType:allModelsInstallType,airConditionerType:'non_ducted_multi_split_system'};
     const match=getDcceewContractMatch({brand:outdoor.brand,model:outdoor.rebateModel||outdoor.model},postcode,calculationContext);
     const effective=applyDcceewContractRebate(match,result);
@@ -8932,7 +9008,7 @@ async function calculateAllModelsRebate(){
     const certs=await withTimeout(calculateCertificatesForModel(meta,climate,{airConditionerType:calculationContext.airConditionerType,installType:calculationContext.installType}),LIVE_REBATE_TIMEOUT_MS,'Live rebate calculation timed out. Please try again.');
     const escRate=getEssEscRate(),prcRate=getEssPrcRate();
     if(!(escRate>0)||!(prcRate>0)) throw new Error('The current business certificate payout rates are unavailable.');
-    const result={apiBrand:selected.brand,apiModel:selected.model,lookupSource,esc:certs.esc,prc:certs.prc,officialEsc:certs.officialEsc,officialPrc:certs.officialPrc,eligibility:certs.eligibility,zone:climate.climateZone,bcaZone:climate.bcaZone,escRate,prcRate,escValue:certs.esc*escRate,prcValue:certs.prc*prcRate,rebate:(certs.esc*escRate)+(certs.prc*prcRate)};
+    const result={apiBrand:selected.brand,apiModel:selected.model,lookupSource,calculationSource:certs.calculationSource,esc:certs.esc,prc:certs.prc,officialEsc:certs.officialEsc,officialPrc:certs.officialPrc,eligibility:certs.eligibility,zone:climate.climateZone,bcaZone:climate.bcaZone,escRate,prcRate,escValue:certs.esc*escRate,prcValue:certs.prc*prcRate,rebate:(certs.esc*escRate)+(certs.prc*prcRate)};
     const match=getDcceewContractMatch({brand:selected.brand,model:selected.model},postcode,calculationContext);
     const effective=applyDcceewContractRebate(match,result);
     if(requestId!==allModelsCalculationRequestSeq||allModelsSelected!==selected) return;
@@ -9434,7 +9510,12 @@ function renderMultiSplitFinancials(){
   if($('multiAgencyProfitAfterSalesRow')) $('multiAgencyProfitAfterSalesRow').classList.toggle('hidden',!showAgencyProfit);
   if($('multiNetProfitRow')) $('multiNetProfitRow').classList.toggle('hidden',!showNetProfit);
 }
+function setMultiSplitCalculationSource(calculationSource){
+  const el=$('multiSplitCalculationSource');
+  if(el) el.textContent=nswBackupSourceLabel(calculationSource);
+}
 function setMultiSplitStatus(message,type){
+  if(type==='error'||type==='loading') setMultiSplitCalculationSource();
   const el=$('multiSplitStatus');
   if(!el) return;
   el.textContent=message||'';
@@ -9482,6 +9563,7 @@ function updateMultiSplitRebateFreshness(state){
 }
 function resetMultiSplitRebateMetrics(message){
   multiSplitRebateFresh=false;
+  setMultiSplitCalculationSource();
   if($('multiSplitEscCount')) $('multiSplitEscCount').textContent='-';
   if($('multiSplitPrcCount')) $('multiSplitPrcCount').textContent='-';
   if($('multiSplitRebateValue')) $('multiSplitRebateValue').textContent='-';
@@ -9785,12 +9867,13 @@ async function calculateMultiSplitTrialRebate(revealResults){
     const prcRate=getEssPrcRate();
     const escValue=(Number(certs.esc)||0)*escRate;
     const prcValue=(Number(certs.prc)||0)*prcRate;
-    const standardResult={esc:certs.esc,prc:certs.prc,escRate,prcRate,escValue,prcValue};
+    const standardResult={esc:certs.esc,prc:certs.prc,escRate,prcRate,escValue,prcValue,calculationSource:certs.calculationSource};
     const effective=applyDcceewContractRebate(dcceewMatch,standardResult);
     const rebate=effective.rebate;
     if($('multiSplitEscCount')) $('multiSplitEscCount').textContent=certCountText(certs.esc);
     if($('multiSplitPrcCount')) $('multiSplitPrcCount').textContent=certCountText(certs.prc);
     if($('multiSplitRebateValue')) $('multiSplitRebateValue').textContent=money(rebate);
+    setMultiSplitCalculationSource(standardResult.calculationSource);
     if($('multiRebate')) $('multiRebate').value=rebate.toFixed(2);
     setMultiSplitDcceewContractDisplay(dcceewMatch,standardResult);
     multiSplitHasCalculated=true;
@@ -14181,6 +14264,7 @@ if(multiRebateInput){
   const applyManualMultiRebate=()=>{
     multiSplitHasCalculated=true;
     multiSplitRebateFresh=true;
+    setMultiSplitCalculationSource();
     if($('multiSplitRebateValue')) $('multiSplitRebateValue').textContent=money(Number(multiRebateInput.value)||0);
     setMultiSplitStatus('Manual rebate value entered. Recalculate to replace it with the live NSW certificate result.','');
     updateMultiSplitRebateFreshness();

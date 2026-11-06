@@ -1,4 +1,5 @@
 import catalogueData from "./public-rebate-catalogue.generated.json";
+import { requestNswCalculation } from "./nsw-calculation-transport";
 import {
   fetchGemsDatastoreRecords,
   isEligibleAustralianGemsRecord,
@@ -80,6 +81,7 @@ export type CurrentRebateResult = {
   prcRate: number;
   contractApplied: boolean;
   lookupSource: string;
+  calculationSource?: string;
 };
 
 const catalogue = catalogueData as {
@@ -153,6 +155,7 @@ function errorMessage(error: unknown) {
 }
 
 async function fetchJson(url: string, options: RequestInit & { next?: { revalidate: number } } = {}) {
+  if (url === ESS_CALCULATE_API) return requestNswCalculation(options);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
@@ -530,7 +533,8 @@ async function calculateWithPostcodeFallback(
   if (Number.isFinite(savings) && Number.isFinite(factor)) {
     merged.HVAC1_PDRSAug24_ESC_calculation = { [ESS_CALC_DATE]: savings * factor * 1.06 };
   }
-  return { buildings: { building_1: merged }, persons: { person1: {} } };
+  return { buildings: { building_1: merged }, persons: { person1: {} }, _nswCalculationSource:
+    (escResponse as { _nswCalculationSource?: string })._nswCalculationSource || (actualResponse as { _nswCalculationSource?: string })._nswCalculationSource };
 }
 
 function multiCapacityInputs(meta: Metadata, indoorHeads: SavedMultiHeadRating[]) {
@@ -614,6 +618,7 @@ async function calculateCertificates(
   return {
     esc: currentEligibility.escEligible ? Math.min(esc, escCap) : 0,
     prc: currentEligibility.prcEligible ? Math.min(prc, prcCap) : 0,
+    calculationSource: (response as { _nswCalculationSource?: string })._nswCalculationSource || "NSW calculation service",
   };
 }
 
@@ -645,6 +650,7 @@ export async function calculateCurrentNswRebate(input: CurrentRebateInput): Prom
     prcRate: input.prcRate,
     contractApplied,
     lookupSource: source,
+    calculationSource: certificates.calculationSource,
   };
 }
 
@@ -673,7 +679,7 @@ export async function calculateVerifiedGemsCertificates(
 
   // Use only the caller's validated registration, bypassing general lookup and contract pricing.
   const climate = await resolveClimate(input.postcode);
-  const { esc, prc } = await calculateCertificates(item.metadata, climate, input);
+  const { esc, prc, calculationSource } = await calculateCertificates(item.metadata, climate, input);
   return {
     rebate: roundMoney(esc + prc),
     esc,
@@ -682,6 +688,7 @@ export async function calculateVerifiedGemsCertificates(
     prcRate: 1,
     contractApplied: false,
     lookupSource: "Exact GEMS registration + NSW formula",
+    calculationSource,
     registryRecord: record,
   };
 }

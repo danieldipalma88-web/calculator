@@ -199,7 +199,7 @@ function extractConst(source, name) {
 }
 
 const FRONTEND_FUNCTIONS = [
-  "toNumber", "fetchJson", "normalizeEssClimateZone", "isEssClimateZoneFallbackPostcode",
+  "toNumber", "requestNswCalculation", "fetchJson", "normalizeEssClimateZone", "isEssClimateZoneFallbackPostcode",
   "fallbackEssClimateZoneFromPostcode", "electricFutureBcaClimateZoneOverride", "resolvePostcodeZones",
   "getClimateContext", "activityValueForInstall", "normalizeAirConditionerType", "normalizeHvacProductClass",
   "hvacProductClassNumber", "nswHvacRequirementForClass", "nswHvacMeasuredValue", "nswHvacPassesMetric",
@@ -209,7 +209,7 @@ const FRONTEND_FUNCTIONS = [
   "nswCertificateCapsForAirType", "calculateCertificatesForModel",
 ];
 const FRONTEND_CONSTS = [
-  "ESS_CALCULATE_API", "ESS_CALC_DATE", "DEFAULT_FETCH_TIMEOUT_MS", "HVAC_AIR_CONDITIONER_TYPE_ALIASES", "HVAC_AIR_CONDITIONER_TYPE_VALUES",
+  "ESS_CALCULATE_API", "NSW_BACKUP_CALCULATE_API", "ESS_CALC_DATE", "DEFAULT_FETCH_TIMEOUT_MS", "HVAC_AIR_CONDITIONER_TYPE_ALIASES", "HVAC_AIR_CONDITIONER_TYPE_VALUES",
   "HVAC_PRODUCT_CLASS_VALUES", "NSW_HVAC_ELIGIBLE_PRODUCT_CLASS_NUMBERS", "NSW_HVAC_EFFICIENCY_REQUIREMENTS",
   "CERTIFICATE_OUTPUT_FIELDS", "CERTIFICATE_ESC_PROXY_FIELDS", "CERTIFICATE_ACTUAL_POSTCODE_FIELDS",
   "pendingCertificateCalculations",
@@ -235,6 +235,7 @@ export async function createFrontendCalculator({ indexHtml, fetch }) {
     systemType: "split",
     installType: "replacement",
     essCache: { zoneByPostcode: {} },
+    nswPrimaryRetryAfter: 0,
   });
   vm.runInContext([...FRONTEND_CONSTS.map((name) => extractConst(source, name)), ...FRONTEND_FUNCTIONS.map((name) => extractFunction(source, name))].join("\n"), context, { timeout: 1_000 });
   return {

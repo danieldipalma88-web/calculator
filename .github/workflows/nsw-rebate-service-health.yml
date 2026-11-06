@@ -9,6 +9,9 @@ on:
     paths:
       - 'index.html'
       - 'lib/rebate-service-status.ts'
+      - 'services/nsw-rebate-backup/**'
+      - 'lib/nsw-calculation-transport.ts'
+      - 'scripts/nsw-backup-probe.mjs'
       - 'scripts/*rebate-dependencies*'
       - 'scripts/verify-rebate-service-status.mjs'
       - 'scripts/verify-rebate-dependencies.mjs'
@@ -41,5 +44,5 @@ jobs:
           node --experimental-strip-types scripts/verify-rebate-service-status.mjs
           node --experimental-strip-types scripts/verify-rebate-dependencies.mjs
           node scripts/verify-rebate-failure-zero.mjs
-      - name: Check live calculation service and certificate expiry
+      - name: Check primary service, certificate expiry and backup accuracy
         run: node --experimental-strip-types scripts/monitor-rebate-dependencies.mjs

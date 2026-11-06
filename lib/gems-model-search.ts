@@ -53,6 +53,7 @@ function recordValue(record: GemsSearchRecord, keys: string[]) {
 }
 
 function numberValue(value: unknown) {
+  if ((typeof value !== "number" && typeof value !== "string") || String(value).trim() === "") return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 }
@@ -196,6 +197,35 @@ function sqlLiteral(value: string) {
   return value.replace(/'/g, "''");
 }
 
+async function collectGemsDatasets(read: (resourceId: string) => Promise<GemsSearchRecord[]>, limit: number) {
+  // The two published datasets overlap, but neither contains every complete registration.
+  const results = await Promise.allSettled(GEMS_AIRCON_RESOURCE_IDS.map(read));
+  const records = results.flatMap((result) => result.status === "fulfilled" ? result.value : []);
+  const failure = results.find((result) => result.status === "rejected");
+  if (failure?.status === "rejected") {
+    if (failure.reason instanceof Error && failure.reason.name === "AbortError") {
+      throw new Error("GEMS registry search timed out");
+    }
+    throw failure.reason instanceof Error ? failure.reason : new Error("GEMS registry search is unavailable");
+  }
+  const capped = results.some((result) => result.status === "fulfilled" && result.value.length >= limit);
+  const seen = new Set<string>();
+  return records.filter((record) => {
+    // Preserve the raw cap signal used by automatic-verification inventory guards.
+    if (capped) return true;
+    const registration = String(record["Registration Number"] || "").trim();
+    if (!registration) return true;
+    // Dataset-local row IDs differ for mirrors. Keep any differing registration evidence.
+    const evidence = Object.keys(record).filter((key) => key !== "_id" && key !== "_full_text").sort()
+      .map((key) => [key, record[key]]);
+    const key = JSON.stringify([registration, evidence]);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).sort((a, b) => Number(mapGemsModelSearchItem(b)?.completeEnergyData === true)
+    - Number(mapGemsModelSearchItem(a)?.completeEnergyData === true));
+}
+
 export async function fetchGemsMultiSplitRecords(options: {
   brand?: string;
   fields: string[];
@@ -205,9 +235,7 @@ export async function fetchGemsMultiSplitRecords(options: {
   const fields = safeSqlFields(options.fields);
   const limit = Math.min(Math.max(Math.floor(options.limit || 10_000), 1), 10_000);
   const brand = cleanGemsBrand(options.brand || "");
-  let lastError: unknown = null;
-
-  for (const resourceId of GEMS_AIRCON_RESOURCE_IDS) {
+  return collectGemsDatasets(async (resourceId) => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 12_000);
     try {
@@ -238,19 +266,10 @@ export async function fetchGemsMultiSplitRecords(options: {
         throw new Error("GEMS registry returned an invalid response");
       }
       return records as GemsSearchRecord[];
-    } catch (error) {
-      lastError = error;
     } finally {
       clearTimeout(timeout);
     }
-  }
-
-  if (lastError instanceof Error && lastError.name === "AbortError") {
-    throw new Error("GEMS registry search timed out");
-  }
-  throw lastError instanceof Error
-    ? lastError
-    : new Error("GEMS registry search is unavailable");
+  }, limit);
 }
 
 export async function fetchGemsDatastoreRecords(options: {
@@ -260,14 +279,14 @@ export async function fetchGemsDatastoreRecords(options: {
   limit?: number;
   revalidateSeconds: number;
 }) {
-  let lastError: unknown = null;
-  for (const resourceId of GEMS_AIRCON_RESOURCE_IDS) {
+  const limit = Math.min(Math.max(Math.floor(options.limit || 1000), 1), 10_000);
+  return collectGemsDatasets(async (resourceId) => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 12_000);
     try {
       const params = new URLSearchParams({
         resource_id: resourceId,
-        limit: String(Math.min(Math.max(Math.floor(options.limit || 1000), 1), 10_000)),
+        limit: String(limit),
       });
       const brand = cleanGemsBrand(options.brand || "");
       // CKAN searches registered paired models by their original punctuation.
@@ -308,16 +327,8 @@ export async function fetchGemsDatastoreRecords(options: {
         throw new Error("GEMS registry returned an invalid response");
       }
       return records as GemsSearchRecord[];
-    } catch (error) {
-      lastError = error;
     } finally {
       clearTimeout(timeout);
     }
-  }
-  if (lastError instanceof Error && lastError.name === "AbortError") {
-    throw new Error("GEMS registry search timed out");
-  }
-  throw lastError instanceof Error
-    ? lastError
-    : new Error("GEMS registry search is unavailable");
+  }, limit);
 }

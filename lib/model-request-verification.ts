@@ -218,8 +218,8 @@ export async function verifyRequestedModel(
     throw error;
   }
 
-  const { esc, prc, lookupSource, registryRecord } = result;
-  evidence.certificates = { esc: Number.isFinite(esc) ? esc : null, prc: Number.isFinite(prc) ? prc : null, lookupSource };
+  const { esc, prc, lookupSource, calculationSource, registryRecord } = result;
+  evidence.certificates = { esc: Number.isFinite(esc) ? esc : null, prc: Number.isFinite(prc) ? prc : null, lookupSource, calculationSource };
   if (!Number.isFinite(esc) || !Number.isFinite(prc) || esc < 0 || prc < 0 || (esc === 0 && prc === 0)) {
     return review("NSW calculation did not confirm positive certificates", evidence);
   }
