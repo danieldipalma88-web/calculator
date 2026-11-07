@@ -7,7 +7,12 @@ const ui = await readFile(new URL("../index.html", import.meta.url), "utf8");
 assert.match(ui, /\.cloudSaveStatus\[data-tone="idle"\]\{opacity:0;visibility:hidden;/, "Idle save status must be hidden.");
 assert.match(raw, /var saveRequestTimeoutMs = 12000;/, "Cloud saves must have a bounded request time.");
 assert.match(raw, /controller\.abort\(\)/, "A stalled cloud save must be aborted.");
-assert.match(raw, /fetchOptions\.signal = controller\.signal;/, "The cloud-save request must use the timeout signal.");
+assert.match(raw, /fetch\(calculatorSyncUrl,\s*\{[^}]*signal:\s*controller\s*&&\s*controller\.signal[^}]*\}\)/,
+  "The cloud-save fetch must receive the deadline AbortController signal.");
+assert.match(raw, /plain\.stream\(\)\.pipeThrough\(new CompressionStream\('gzip'\),\s*signal\s*\?\s*\{signal:signal\}\s*:\s*\{\}\)/,
+  "Large-save encoding must receive the same abort signal as the request deadline.");
+assert.match(raw, /saveRequestBody\(envelope,\s*controller\s*&&\s*controller\.signal\)/,
+  "The encoding step must be inside the bounded save operation.");
 assert.match(raw, /inFlightSnapshotJson = request\.json;/, "The active snapshot must be tracked.");
 assert.match(raw, /nextJson === inFlightSnapshotJson/, "Unchanged in-flight data must not be queued again.");
 assert.match(raw, /setCloudSaveStatus\('Saving\.\.\.', 'saving'\);/, "An actual request must show Saving.");

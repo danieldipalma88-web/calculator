@@ -28,6 +28,7 @@ import { applyStoredQuoteAdminUnlocks } from "../../../lib/quote-family";
 import { BUSINESS_CONFIGURATION_STORAGE_KEY, validateBusinessCalculatorConfiguration, validatedBusinessConfigurationData, withoutBusinessConfiguration } from "../../../lib/business-calculator-configuration";
 import { calculatorReleaseVersion } from "../../../lib/calculator-release";
 import { injectCalculatorUpdateNotice } from "../../../lib/calculator-update-notice";
+import { calculatorTransferResponse } from "../../../lib/calculator-transfer-response";
 
 const calculatorHtmlPromise = readFile(
   path.join(process.cwd(), "index.html"),
@@ -524,6 +525,38 @@ function injectCloudStorageSync(
   function saveEnvelope(request){
     return {data:request.data, businessConfigurationRevision:businessConfigurationRevision, equipmentPriceEdits:equipmentPriceEditsForSnapshot(request.data), expectedWorkspace:expectedWorkspace};
   }
+  async function saveRequestBody(envelope, signal){
+    var json = JSON.stringify(envelope);
+    var plain = new Blob([json], {type:'application/json'});
+    var body = json;
+    var contentType = 'application/json';
+    if (plain.size > 32000000) throw saveSizeError();
+    if (plain.size > 262144 && typeof CompressionStream === 'function') {
+      try {
+        var compressed = plain.stream().pipeThrough(new CompressionStream('gzip'), signal ? {signal:signal} : {});
+        body = await new Response(compressed).blob();
+        contentType = 'application/vnd.rebate-portal.calculator-save+gzip';
+      } catch(error) {
+        if (signal && signal.aborted) throw error;
+        if (plain.size > 4400000) throw saveSizeError();
+      }
+    }
+    if (signal && signal.aborted) throw new Error('Save confirmation timed out.');
+    if ((typeof body === 'string' ? plain.size : body.size) > 4400000) throw saveSizeError();
+    if (!workspaceIsCurrent()) {
+      var changed = new Error('Workspace changed. Saving paused.');
+      changed.code = 'CALCULATOR_WORKSPACE_CHANGED'; changed.status = 409; changed.permanent = true;
+      throw changed;
+    }
+    return {body:body, headers:{'Content-Type':contentType}};
+  }
+  function saveSizeError(){
+    var error = new Error('This save is too large to transfer. Keep this tab open and download your pending changes before refreshing.');
+    error.code = 'CALCULATOR_SAVE_TOO_LARGE';
+    error.status = 413;
+    error.permanent = true;
+    return error;
+  }
   function retainPendingSnapshot(request){
     retainRecoveryEnvelope(saveEnvelope(request));
   }
@@ -816,18 +849,14 @@ function injectCloudStorageSync(
         reject(new Error('Save confirmation timed out.'));
       }, saveRequestTimeoutMs);
     });
-    var fetchOptions = {
-      method: 'PUT',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(envelope)
-    };
-    if (controller) fetchOptions.signal = controller.signal;
-    var saving = Promise.resolve().then(function(){ return fetch(calculatorSyncUrl, fetchOptions); }).then(function(response){
+    var saving = saveRequestBody(envelope, controller && controller.signal).then(function(encoded){
+      return fetch(calculatorSyncUrl, {method:'PUT', headers:encoded.headers, body:encoded.body, signal:controller && controller.signal});
+    }).then(function(response){
       return response.json().catch(function(){ return {}; }).then(function(result){
         if (response.ok && result && result.ok === true) return result;
-        var error = new Error(result && result.error ? result.error : 'Calculator sync failed');
+        var error = response.status === 413 ? saveSizeError() : new Error(result && result.error ? result.error : 'Calculator save was not confirmed. Keep this tab open and retry.');
         error.status = response.status;
-        error.code = result.code;
+        error.code = result.code || error.code;
         error.currentFamily = result.currentFamily;
         var retryAfter = response.headers && response.headers.get('Retry-After');
         error.retryAfterMs = retryAfter ? Math.min(60000, Math.max(0, Number(retryAfter) * 1000 || Date.parse(retryAfter) - Date.now() || 0)) : 0;
@@ -851,7 +880,7 @@ function injectCloudStorageSync(
         if (!pendingSnapshot) pendingSnapshot = request;
         syncRetryPaused = true;
         settleCloudSaveWaiters(request.json, error);
-        setCloudSaveStatus(error.code === 'EQUIPMENT_PRICE_CONFLICT' ? error.message : 'Save not confirmed. Keep this tab open and retry.', 'error');
+        setCloudSaveStatus(error.code === 'EQUIPMENT_PRICE_CONFLICT' || error.code === 'CALCULATOR_SAVE_TOO_LARGE' ? error.message : 'Save not confirmed. Keep this tab open and retry.', 'error');
         if (error.code === 'CALCULATOR_WORKSPACE_CHANGED') { workspaceChanged = true; showRecoveryGuard(); }
       } else {
         if (!pendingSnapshot) pendingSnapshot = request;
@@ -957,9 +986,9 @@ function injectCloudStorageSync(
     var timeout = setTimeout(function(){ controller.abort(); }, 15000);
     setCloudSaveStatus('Saving...', 'saving');
     try {
+      var encoded = await saveRequestBody({[kind]:JSON.parse(payloadJson), businessConfigurationRevision:businessConfigurationRevision, expectedWorkspace:expectedWorkspace}, controller.signal);
       var response = await fetch(calculatorSyncUrl, {
-        method:'PUT', headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({[kind]:JSON.parse(payloadJson), businessConfigurationRevision:businessConfigurationRevision, expectedWorkspace:expectedWorkspace}), signal:controller.signal
+        method:'PUT', headers:encoded.headers, body:encoded.body, signal:controller.signal
       });
       var result = await response.json().catch(function(){ return {}; });
       if (!response.ok || result.ok !== true) {
@@ -1217,7 +1246,9 @@ function injectCloudStorageSync(
         if (!quoteArrangeAttempt && !quoteConflictError) retainPendingSnapshot({data:data, json:JSON.stringify(data)});
         // Do not create a competing save when the result of another request is uncertain.
         if (quoteConflictError || quoteArrangeAttempt || syncRequestInFlight || syncRetryTimer || syncRetryPaused) return;
-        navigator.sendBeacon(calculatorSyncUrl, new Blob([JSON.stringify(saveEnvelope({data:data}))], {type: 'application/json'}));
+        var beacon = new Blob([JSON.stringify(saveEnvelope({data:data}))], {type:'application/json'});
+        // Browsers limit the combined unload queue to 64 KiB. Larger pending saves stay recoverable.
+        if (beacon.size <= 60000) navigator.sendBeacon(calculatorSyncUrl, beacon);
       } catch(e) {}
     });
     if (typeof shouldBackfillCloud !== 'undefined' && shouldBackfillCloud) {
@@ -1548,7 +1579,7 @@ export async function GET(request: Request) {
   );
 
   const currentHtml = injectCalculatorUpdateNotice(html, calculatorReleaseVersion());
-  return new NextResponse(currentHtml, {
+  return calculatorTransferResponse(request, currentHtml, {
     headers: {
       "Content-Type": "text/html; charset=utf-8",
       "Cache-Control": "no-store",

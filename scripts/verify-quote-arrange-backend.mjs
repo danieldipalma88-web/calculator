@@ -226,9 +226,11 @@ assert.ok(!rows(legacyDelete).some(value => value.id === 'unrelated'), 'unarrang
 const routeText = fs.readFileSync(new URL('../app/api/calculator-data/route.ts', import.meta.url), 'utf8');
 const routeAst = ts.createSourceFile('route.ts', routeText, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
 const saveHelpers = loadTsModule('lib/calculator-data-save.ts');
+const payloadHelpers = loadTsModule('lib/calculator-save-payload.ts');
+const responseHelpers = loadTsModule('lib/calculator-transfer-response.ts');
 const context = { applyQuoteArrange, applyQuoteLibraryCopy, applyQuoteLibraryEdit, quoteLibraryResponseRow, quoteLibraryVisibleRow,
   mergeCalculatorData, applyStoredQuoteAdminUnlocks, quoteFamilySnapshotViolation, quoteFamilySnapshotConflict, quoteFamilyUnlockRequested, validateNewWonJobTransitions, wonJobValidationMessage,
-  ...saveHelpers,
+  ...saveHelpers, ...payloadHelpers, ...responseHelpers,
   calculatorDataHasData: data => Object.keys(data || {}).length > 0 };
 vm.createContext(context);
 vm.runInContext(ts.transpileModule(['saveDatabaseTimeout', 'saveMergedUserData'].map(name => declaration(name, routeText)).join('\n'),
@@ -291,9 +293,10 @@ assert.equal(lockedDb.state.writes, 0);
 function endpoint({ role = 'user', locked = false, targetRole = 'user', initialData = initial } = {}) {
   const { db, state } = database(initialData);
   db.auth = { getUser: async () => ({ data: { user: { id: 'user', email: 'actor@example.test' } } }) };
-  const sandbox = { URL, canManageUsers, canSeeCommissionDetails, canSeeProfitDetails, isOwnerEmail,
-    ...saveHelpers, aadCataloguePrices: null,
-    NextResponse: { json: (body, options) => ({ body, status: options?.status ?? 200 }) },
+  const sandbox = { URL, Request, Response, Headers, AbortController, AbortSignal, Buffer, TextDecoder, setTimeout, clearTimeout,
+    canManageUsers, canSeeCommissionDetails, canSeeProfitDetails, isOwnerEmail,
+    ...saveHelpers, ...payloadHelpers, ...responseHelpers, aadCataloguePrices: null,
+    NextResponse: { json: (body, options) => Response.json(body, options) },
     createCalculatorSaveClient: async () => db,
     currentApprovedUser: async (_db, email) => ({ data: { role: email === 'actor@example.test' ? role : targetRole, is_locked: locked }, error: null }),
     resolveBusinessId: async () => null, sanitizeIncomingCalculatorData: value => value,
@@ -301,8 +304,13 @@ function endpoint({ role = 'user', locked = false, targetRole = 'user', initialD
     calculatorDataHasData: context.calculatorDataHasData, saveMergedUserData: context.saveMergedUserData };
   vm.runInNewContext(ts.transpileModule(['targetEmailFromRequest', 'mutationFinancialsVisible', 'saveCalculatorData', 'saveCalculatorDataWithDeadline']
     .map(name => declaration(name, routeText)).join('\n'), { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText, sandbox);
-  return { state, call: (body, query = '', method = 'PUT') => sandbox.saveCalculatorDataWithDeadline(new Request(`https://test.invalid/api/calculator-data${query}`, {
-    method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })) };
+  return { state, call: async (body, query = '', method = 'PUT') => {
+    const controller = new AbortController();
+    const response = await sandbox.saveCalculatorDataWithDeadline(new Request(`https://test.invalid/api/calculator-data${query}`, {
+      method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: controller.signal,
+    }));
+    return { status: response.status, body: await response.json() };
+  } };
 }
 for (const [settings, query, full] of [
   [{ role: 'admin' }, '?as=sales@example.test&preview=1', false],
@@ -527,18 +535,22 @@ function readEndpoint({ role = 'user', targetRole = 'user', locked = false, appr
       return { data: table === 'user_calculator_data' ? { data: clone(initialData) } : table === 'business_calculator_data' ? { data: clone(privateBusiness) } : null, error: null };
     } }; return query;
   } };
-  const sandbox = { URL, canManageUsers, isOwnerEmail, canSeeCommissionDetails, canSeeProfitDetails, visibleCalculatorData, applyStoredQuoteAdminUnlocks,
+  const sandbox = { URL, Request, Response, Headers, Buffer, TextDecoder, canManageUsers, isOwnerEmail, canSeeCommissionDetails, canSeeProfitDetails, visibleCalculatorData, applyStoredQuoteAdminUnlocks,
     validatedBusinessConfigurationData, withoutBusinessConfiguration,
     CERTIFICATE_VALUES_STORAGE_KEYS, PLATFORM_CERTIFICATE_VALUES_ID, overlayPlatformCertificateValues, platformCertificateValuesFromRow,
     DCCEEW_CONTRACT_RATE: 30, DCCEEW_ELIGIBLE_POSTCODES: [], DCCEEW_ELIGIBLE_PRODUCT_KEYS: [],
-    NextResponse: { json: (body, options) => ({ body, status: options?.status ?? 200 }) }, createSupabaseServerClient: async () => db,
+    calculatorJsonResponse: responseHelpers.calculatorJsonResponse,
+    NextResponse: { json: (body, options) => Response.json(body, options) }, createSupabaseServerClient: async () => db,
     currentApprovedUser: async (_db, email) => ({ data: approved ? { role: email === 'actor@example.test' ? role : targetRole, is_locked: locked } : null, error: null }),
     resolveBusinessId: async () => 'business', stripCertificateValueKeys: data => data };
   for (const name of ['targetEmailFromRequest', 'mutationFinancialsVisible', 'GET']) {
     const fn = routeAst.statements.find(value => ts.isFunctionDeclaration(value) && value.name?.text === name);
     vm.runInNewContext(ts.transpileModule(fn.getText(routeAst).replace(/^export /, ''), { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText, sandbox);
   }
-  return query => sandbox.GET(new Request(`https://test.invalid/api/calculator-data${query || ''}`));
+  return async query => {
+    const response = await sandbox.GET(new Request(`https://test.invalid/api/calculator-data${query || ''}`));
+    return { status: response.status, body: await response.json() };
+  };
 }
 for (const [settings, query, full] of [
   [{}, '', false], [{ role: 'admin' }, '?as=sales@test&preview=1', false],

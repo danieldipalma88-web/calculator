@@ -41,6 +41,31 @@ function snapshot(records: QuoteRecord[], financialsVisible: boolean): string {
   return quoteCanonical(records.map((record) => quoteLibraryVisibleRow(record, financialsVisible)).sort((a, b) => String(a.id).localeCompare(String(b.id))));
 }
 
+function legacyGstRegistration(row: QuoteRecord): boolean | undefined {
+  // Match the browser's salespersonGstRegistered(row) fallback on the visible row.
+  if (quoteObject(row.state) && typeof row.state.salespersonGstRegistered === "boolean") return row.state.salespersonGstRegistered;
+  const gst = row.salespersonCommissionGst;
+  try {
+    return !(Number(row.salespersonCommission) > 0 && gst !== undefined && gst !== null && gst !== "" && Number(gst) === 0);
+  } catch {
+    return undefined;
+  }
+}
+
+function comparableExpectedRows(storedRows: QuoteRecord[], expectedRows: QuoteRecord[], financialsVisible: boolean): QuoteRecord[] {
+  const storedById = new Map(storedRows.map((row) => [row.id, row]));
+  return expectedRows.map((expected) => {
+    const stored = storedById.get(expected.id);
+    if (!stored || Object.hasOwn(stored, "salespersonGstRegistered") || typeof expected.salespersonGstRegistered !== "boolean" ||
+        expected.salespersonGstRegistered !== legacyGstRegistration(quoteLibraryVisibleRow(stored, financialsVisible))) return expected;
+    // Rendering can materialize this one absent root flag without a new revision.
+    // Remove it only from the comparison copy, never from the request or saved row.
+    const comparable = { ...expected };
+    delete comparable.salespersonGstRegistered;
+    return comparable;
+  });
+}
+
 export function applyQuoteArrange(storedData: unknown, request: unknown, financialsVisible: boolean, now = Date.now()): QuoteArrangeResult {
   if (quoteObject(storedData)) storedData = applyStoredQuoteAdminUnlocks(storedData);
   const result = arrange(storedData, request, financialsVisible, now);
@@ -125,7 +150,7 @@ function arrange(storedData: unknown, request: unknown, financialsVisible: boole
   if (quoteObject(tombstones) && ((quoteObject(tombstones.options) && familyDefs.some((def) => (tombstones.options as QuoteRecord)[String(def.id)])) ||
       (quoteObject(tombstones.rows) && familyRows.some((row) => (tombstones.rows as QuoteRecord)[String(row.id)])))) return conflict();
   if (snapshot(familyDefs, financialsVisible) !== snapshot(request.expected.defs as QuoteRecord[], financialsVisible) ||
-      snapshot(familyRows, financialsVisible) !== snapshot(request.expected.rows as QuoteRecord[], financialsVisible)) return conflict();
+      snapshot(familyRows, financialsVisible) !== snapshot(comparableExpectedRows(familyRows, request.expected.rows as QuoteRecord[], financialsVisible), financialsVisible)) return conflict();
   const targetId = request.targetOptionId ?? source.id;
   if (!ids.has(targetId)) return conflict();
   const selected = rows.find((row) => row.id === request.rowId);

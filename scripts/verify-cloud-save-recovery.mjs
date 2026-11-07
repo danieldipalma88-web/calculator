@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
+import { gunzipSync } from 'node:zlib';
 import { bootstrapHtml } from './verify-business-configuration.mjs';
 
 const tick = async () => { for (let i = 0; i < 8; i += 1) await new Promise(resolve => setImmediate(resolve)); };
 const success = () => ({ ok: true, status: 200, json: async () => ({ ok: true }), headers: { get: () => null } });
 const unavailable = () => ({ ok: false, status: 503, json: async () => ({ error: 'offline' }), headers: { get: () => null } });
 
-function browser({ cloud = { draft: 'seed' }, businessId = '11111111-1111-4111-8111-111111111111', email = 'fixture@example.test', viewingEmail = email, session = new Map(), initialStorage = {}, initialStorageFailure = {} } = {}) {
+function browser({ cloud = { draft: 'seed' }, businessId = '11111111-1111-4111-8111-111111111111', email = 'fixture@example.test', viewingEmail = email, session = new Map(), initialStorage = {}, initialStorageFailure = {}, compression = false } = {}) {
   const storage = new Map(Object.entries(initialStorage).map(([key, value]) => [key, String(value)]));
   const timeouts = new Map(), intervals = new Map(), documentHandlers = new Map(), windowHandlers = new Map();
   const calls = [], beacons = [], storageWrites = [];
@@ -14,6 +15,7 @@ function browser({ cloud = { draft: 'seed' }, businessId = '11111111-1111-4111-8
   let nextTimer = 0, responder = () => success();
   const sandbox = {
     AbortController, Blob, Event, CustomEvent, performance: { now: () => 0 },
+    ...(compression ? { CompressionStream, Response } : {}),
     Math: Object.assign(Object.create(Math), { random: () => 0.25 }),
     setTimeout(fn, ms) { const id = ++nextTimer; timeouts.set(id, { fn, ms }); return id; },
     clearTimeout(id) { timeouts.delete(id); },
@@ -35,7 +37,14 @@ function browser({ cloud = { draft: 'seed' }, businessId = '11111111-1111-4111-8
       removeItem: key => session.delete(key),
     },
     navigator: { sendBeacon: (...args) => { beacons.push(args); return true; } },
-    fetch(url, options) { calls.push({ url, options, body: JSON.parse(options.body || '{}') }); return responder(url, options); },
+    fetch(url, options) {
+      if (typeof options.body !== 'string') return options.body.arrayBuffer().then(bytes => {
+        assert.equal(options.headers['Content-Type'], 'application/vnd.rebate-portal.calculator-save+gzip');
+        calls.push({ url, options, body: JSON.parse(gunzipSync(bytes).toString()) });
+        return responder(url, options);
+      });
+      calls.push({ url, options, body: JSON.parse(options.body || '{}') }); return responder(url, options);
+    },
   };
   let html = bootstrapHtml(cloud, businessId).replaceAll('fixture@example.test', email);
   if (viewingEmail !== email) html = html.replace(`"viewingEmail":"${email}"`, `"viewingEmail":"${viewingEmail}"`);
@@ -555,4 +564,41 @@ assert.equal(failedCleanup.storage.get('__calculatorSignedInEmail'), 'new-accoun
 assert.match(failedCleanup.storage.get('installerMasterQuoteLogV1'), /old-account-quote/);
 assert.equal(failedCleanup.sandbox.window.__calculatorCanRefresh(), false, 'failed pre-wrapper workspace cleanup blocks refresh');
 
-console.log('Cloud save recovery passed, including safe-refresh guards for dirty state, pending saves/mutations, conflicts, price edits, recovery and workspace changes.');
+const large = browser({ compression: true });
+const largeDraft = 'quote "entry" '.repeat(400000);
+large.edit(largeDraft);
+assert.ok(Buffer.byteLength(JSON.stringify({ data: { draft: largeDraft } })) > 5_200_000);
+await large.sandbox.window.__calculatorFlushCloudSave(60000); await tick();
+assert.equal(large.calls.length, 1);
+assert.ok(large.calls[0].options.body.size < 4_400_000);
+assert.equal(large.calls[0].body.data.draft, largeDraft);
+assert.equal(large.sandbox.window.__calculatorCloudSaveState.tone, 'saved');
+assert.equal(large.session.size, 0, 'Recovery is cleared only after the exact compressed save is acknowledged');
+
+const unsupported = browser();
+unsupported.edit(largeDraft);
+const rejectedLarge = unsupported.sandbox.window.__calculatorFlushCloudSave(60000).catch(error => error);
+await tick();
+assert.equal((await rejectedLarge).code, 'CALCULATOR_SAVE_TOO_LARGE');
+assert.equal(unsupported.calls.length, 0, 'Do not repeatedly transmit a known oversized body on older browsers');
+assert.equal(unsupported.storage.get('draft'), largeDraft);
+assert.equal(unsupported.session.size, 1, 'Unsupported transport preserves the complete recovery snapshot');
+assert.match(unsupported.sandbox.window.__calculatorCloudSaveState.message, /too large/i);
+
+const hostRejected = browser();
+hostRejected.setResponder(async () => ({ ok: false, status: 413, json: async () => { throw new Error('text/plain host error'); }, headers: { get: () => null } }));
+hostRejected.edit('pending after host rejection');
+const hostError = await hostRejected.sandbox.window.__calculatorFlushCloudSave(60000).catch(error => error);
+assert.equal(hostError.code, 'CALCULATOR_SAVE_TOO_LARGE');
+assert.equal(hostRejected.calls.length, 1, 'Host size rejection must not create a retry storm');
+assert.equal(hostRejected.session.size, 1);
+assert.match(hostRejected.sandbox.window.__calculatorCloudSaveState.message, /too large/);
+
+const brokenCompression = browser({ compression: true });
+brokenCompression.sandbox.CompressionStream = function() { throw new Error('Unsupported compression'); };
+brokenCompression.edit('small enough for uncompressed fallback'.repeat(10000));
+await brokenCompression.sandbox.window.__calculatorFlushCloudSave(60000); await tick();
+assert.equal(brokenCompression.calls[0].options.headers['Content-Type'], 'application/json');
+assert.equal(brokenCompression.calls[0].body.data.draft, brokenCompression.storage.get('draft'));
+
+console.log('Cloud save recovery passed, including lossless compressed large histories, older-browser safeguards, dirty state, pending saves/mutations, conflicts, price edits, recovery and workspace changes.');

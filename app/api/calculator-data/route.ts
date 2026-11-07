@@ -23,6 +23,8 @@ import {
   wonJobValidationMessage,
 } from "../../../lib/won-job-validation";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
+import { CalculatorSavePayloadError, readCalculatorSavePayload } from "../../../lib/calculator-save-payload";
+import { calculatorJsonResponse } from "../../../lib/calculator-transfer-response";
 import { revisionGuardedBusinessSnapshot, validatedBusinessConfigurationData, withoutBusinessConfiguration } from "../../../lib/business-calculator-configuration";
 import {
   calculatorSaveUnavailable,
@@ -655,7 +657,7 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json(
+  return calculatorJsonResponse(request,
     {
       dcceewContract: {
         rate: DCCEEW_CONTRACT_RATE,
@@ -679,6 +681,7 @@ async function saveCalculatorData(
   request: Request,
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   setPhase: (phase: string) => void,
+  saveSignal: AbortSignal,
 ) {
   const {
     data: { user },
@@ -725,7 +728,16 @@ async function saveCalculatorData(
   if (isCalculatorSaveDatabaseTimeout(membershipLookupError)) return calculatorSaveUnavailable("CALCULATOR_SAVE_TIMEOUT");
   if (membershipLookupError && !businessId) return calculatorSaveUnavailable("CALCULATOR_SAVE_UNAVAILABLE");
   setPhase("request-body");
-  const body = await request.json().catch(() => null);
+  let body: Awaited<ReturnType<typeof readCalculatorSavePayload>>;
+  try {
+    body = await readCalculatorSavePayload(request, saveSignal);
+  } catch (error) {
+    if (!(error instanceof CalculatorSavePayloadError)) throw error;
+    console.warn("Calculator save payload rejected", { code: error.code });
+    return NextResponse.json({ error: error.message, code: error.code }, {
+      status: error.status, headers: { "Cache-Control": "no-store" },
+    });
+  }
   const requestedBusinessId = String(searchParams.get("businessId") || "").trim();
   const expectedWorkspace = body?.expectedWorkspace;
   const hasExpectedWorkspace = body != null && Object.hasOwn(body, "expectedWorkspace");
@@ -788,20 +800,20 @@ async function saveCalculatorData(
   );
   if ("error" in userSave) {
     if ("code" in userSave && userSave.code === "CALCULATOR_SAVE_TIMEOUT") return calculatorSaveUnavailable("CALCULATOR_SAVE_TIMEOUT");
-    return NextResponse.json(
+    return calculatorJsonResponse(request,
       { error: userSave.error, code: "code" in userSave ? userSave.code : undefined,
         currentFamily: "currentFamily" in userSave ? userSave.currentFamily : undefined },
       { status: userSave.status },
     );
   }
-  return NextResponse.json(userSave);
+  return calculatorJsonResponse(request, userSave);
 }
 
 function saveCalculatorDataWithDeadline(request: Request) {
   let phase = "auth";
-  return withCalculatorSaveDeadline(request.signal, async (deadlineFetch) => {
+  return withCalculatorSaveDeadline(request.signal, async (deadlineFetch, signal) => {
     const supabase = await createCalculatorSaveClient(deadlineFetch);
-    return saveCalculatorData(request, supabase, (next) => { phase = next; });
+    return saveCalculatorData(request, supabase, (next) => { phase = next; }, signal);
   }, () => console.warn("Calculator save deadline exceeded", { method: request.method, phase }));
 }
 

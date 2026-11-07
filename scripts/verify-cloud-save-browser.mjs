@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import { gunzipSync } from 'node:zlib';
 import { bootstrapHtml } from './verify-business-configuration.mjs';
 
 const require = createRequire(import.meta.url);
@@ -13,7 +14,7 @@ const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_C
 try {
   for (const width of [1280, 390]) {
     const page = await browser.newPage({ viewport: { width, height: 900 } });
-    const errors = [], requests = [];
+    const errors = [], requests = [], wireSizes = [];
     let unavailable = true;
     page.on('pageerror', error => errors.push(error.message));
     await page.addInitScript(() => {
@@ -26,7 +27,10 @@ try {
       if (request.url().startsWith('blob:')) return route.continue();
       if (request.url() === origin + '/') return route.fulfill({ contentType: 'text/html', body: bootstrapHtml({}, null, true) });
       if (request.url().includes('/api/calculator-data') && request.method() === 'PUT') {
-        requests.push(request.postDataJSON());
+        const wire = request.postDataBuffer();
+        const compressed = request.headers()['content-type'] === 'application/vnd.rebate-portal.calculator-save+gzip';
+        requests.push(compressed ? JSON.parse(gunzipSync(wire)) : request.postDataJSON());
+        wireSizes.push({ bytes: wire.length, compressed });
         return route.fulfill(unavailable
           ? { status: 503, json: { error: 'Temporary save outage', code: 'CALCULATOR_SAVE_TIMEOUT' } }
           : { status: 200, json: { ok: true } });
@@ -55,6 +59,21 @@ try {
     await page.waitForFunction(() => window.__calculatorCloudSaveState?.tone === 'saved');
     assert.equal(requests.at(-1).data.saveRecoveryFixture, 'newest edit retained');
     assert.equal(await retry.count(), 0, 'Retry action disappears after confirmed recovery');
+    await page.evaluate(async () => {
+      localStorage.setItem('installerSavedQuoteSetsV1', JSON.stringify([{ id: 'synthetic-backup', name: 'Large test history',
+        quotes: [{ id: 'synthetic-row', model: 'TEST-OUT/TEST-IN', unitPriceInc: 962.98, notes: '"'.repeat(1400000) }] }]));
+      await window.__calculatorFlushCloudSave(20000);
+    });
+    assert.ok(Buffer.byteLength(JSON.stringify(requests.at(-1))) > 5_200_000, 'Reproduce a save above the host limit');
+    assert.ok(wireSizes.at(-1).compressed && wireSizes.at(-1).bytes < 4_400_000);
+    const savedBackup = JSON.parse(requests.at(-1).data.installerSavedQuoteSetsV1)[0];
+    assert.equal(savedBackup.quotes[0].notes.length, 1400000);
+    assert.equal(savedBackup.quotes[0].unitPriceInc, 962.98);
+    await page.screenshot({ path: fileURLToPath(new URL(`large-saved-${width}.png`, output)) });
+    await page.evaluate(async () => {
+      localStorage.removeItem('installerSavedQuoteSetsV1');
+      await window.__calculatorFlushCloudSave(20000);
+    });
     unavailable = true;
     await page.evaluate(() => {
       localStorage.setItem('saveRecoveryFixture', 'recover after refresh');
@@ -94,4 +113,4 @@ try {
 } finally {
   await browser.close();
 }
-console.log('Save recovery browser: desktop/mobile retries, native Storage fences, latest edits, reload recovery without replay, recovery download, and confirmed success passed. All external requests intercepted.');
+console.log('Save recovery browser: desktop/mobile 5 MB+ lossless compressed saves, retries, native Storage fences, latest edits, reload recovery without replay, recovery download, and confirmed success passed. All external requests intercepted.');

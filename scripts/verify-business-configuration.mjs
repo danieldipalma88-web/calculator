@@ -140,8 +140,10 @@ export function createSnapshotEndpoint(options = {}) {
     ...configurationModule, ...loadTsModule("lib/quote-sync.ts"), ...loadTsModule("lib/quote-family.ts"),
     ...loadTsModule("lib/quote-library-edit.ts"), ...loadTsModule("lib/won-job-validation.ts"),
     ...loadTsModule("lib/calculator-data-save.ts"),
+    ...loadTsModule("lib/calculator-save-payload.ts"), ...loadTsModule("lib/calculator-transfer-response.ts"),
     ...loadTsModule("lib/aad-catalogue-price-defaults.ts"), aadCataloguePrices: options.aadCataloguePrices ?? null,
     exports: {},
+    Request, Response, Headers, AbortController, Buffer, TextDecoder,
     URL,
     createSupabaseServerClient: async () => supabase,
     createCalculatorSaveClient: async () => supabase,
@@ -149,7 +151,7 @@ export function createSnapshotEndpoint(options = {}) {
     canManageUsers: () => false, isOwnerEmail: () => false,
     targetEmailFromRequest: () => "fixture@example.test", resolveBusinessId: async () => businessA,
     mutationFinancialsVisible: async () => ({ visible: true, canSeeSalespersonCommission: true, canUnlockWon: false }),
-    NextResponse: { json: (body, init) => ({ body, status: init?.status ?? 200 }) },
+    NextResponse: { json: (body, init) => Response.json(body, init) },
     CERTIFICATE_VALUES_STORAGE_KEYS: ["installerCertificateValuesV1"],
     Date: options.clock === undefined ? Date : class extends Date {
       constructor(value) { super(value === undefined ? options.clock : value); }
@@ -167,9 +169,12 @@ export function createSnapshotEndpoint(options = {}) {
   ].join("\n"), { compilerOptions: { target: ts.ScriptTarget.ES2017, module: ts.ModuleKind.CommonJS } }).outputText, context);
   return {
     state,
-    request: (body, method = "PUT") => context.routes[method](new Request("https://calculator.test/api/calculator-data", {
-      method, body: JSON.stringify(body),
-    })),
+    request: (body, method = "PUT") => {
+      const controller = new AbortController();
+      return context.routes[method](new Request("https://calculator.test/api/calculator-data", {
+        method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: controller.signal,
+      }));
+    },
   };
 }
 
@@ -271,7 +276,7 @@ async function verifyAadSnapshotRaces() {
   const conflict = await endpoint.request({ data: { [priceKey]: JSON.stringify({ [key]: row(600) }) },
     equipmentPriceEdits: { [key]: { before: 300, after: 600 } } });
   assert.equal(conflict.status, 409);
-  assert.equal(conflict.body.code, "EQUIPMENT_PRICE_CONFLICT");
+  assert.equal((await conflict.json()).code, "EQUIPMENT_PRICE_CONFLICT");
   const rollback = await endpoint.request({ data: { [priceKey]: "{}" }, equipmentPriceEdits: { [key]: { before: 400, after: 0 } } });
   assert.equal(rollback.status, 200);
   assert.equal(JSON.parse(endpoint.state.business.data[priceKey])[key].unitPriceInc, 0, "An acknowledged last-entry rollback leaves no positive override");

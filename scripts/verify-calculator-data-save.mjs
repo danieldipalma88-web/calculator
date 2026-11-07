@@ -6,6 +6,7 @@ import vm from "node:vm";
 import { fileURLToPath } from "node:url";
 import { createClient } from "@supabase/supabase-js";
 import ts from "typescript";
+import { gzipSync } from "node:zlib";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const require = createRequire(import.meta.url);
@@ -125,6 +126,47 @@ const retryable = async (response, code = "CALCULATOR_SAVE_TIMEOUT") => {
 };
 
 try {
+  reset();
+  const largeData = { draft: "Large history \"entry\" ".repeat(300000) };
+  const compressedSave = gzipSync(JSON.stringify({ data: largeData }));
+  assert.ok(Buffer.byteLength(JSON.stringify({ data: largeData })) > 5_200_000);
+  assert.ok(compressedSave.length < 4_400_000);
+  const compressedRequest = () => new Request("https://calculator.test/api/calculator-data", {
+    method: "PUT", headers: { "Content-Type": "application/vnd.rebate-portal.calculator-save+gzip" }, body: compressedSave,
+  });
+  await success(await route.PUT(compressedRequest()));
+  assert.deepEqual(state.user.data, largeData, "Large compressed snapshot reaches the unchanged merge/write path losslessly");
+  assert.equal(mutations().length, 1);
+  await success(await route.PUT(compressedRequest()));
+  assert.equal(mutations().length, 1, "Repeated compressed save is a no-op after acknowledgement loss");
+  reset(); state.auth.user = null;
+  assert.equal((await route.PUT(compressedRequest())).status, 401, "Compression does not bypass authentication");
+  assert.equal(mutations().length, 0);
+  reset(); state.approval.is_locked = true;
+  assert.equal((await route.PUT(compressedRequest())).status, 403, "Compression does not bypass account locks");
+  assert.equal(mutations().length, 0);
+  reset();
+  const invalidSave = await route.PUT(new Request("https://calculator.test/api/calculator-data", {
+    method: "PUT", headers: { "Content-Type": "application/vnd.rebate-portal.calculator-save+gzip" }, body: "not gzip",
+  }));
+  assert.equal(invalidSave.status, 400);
+  assert.equal((await invalidSave.json()).code, "CALCULATOR_SAVE_INVALID");
+  assert.equal(mutations().length, 0, "Malformed encoded saves cannot write empty snapshots");
+  reset(); shortDeadline = true;
+  let bodyCancelled = false;
+  const stalledBody = new ReadableStream({ cancel() { bodyCancelled = true; } });
+  const originalWarn = console.warn;
+  console.warn = () => {};
+  try {
+    await retryable(await route.PUT(new Request("https://calculator.test/api/calculator-data", {
+      method: "PUT", headers: { "Content-Type": "application/vnd.rebate-portal.calculator-save+gzip" }, body: stalledBody, duplex: "half",
+    })));
+  } finally { console.warn = originalWarn; }
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(bodyCancelled, true, "The existing deadline cancels stalled body readers");
+  assert.equal(mutations().length, 0, "A timed-out decode cannot continue to a write");
+  console.log("Large save: compressed 5 MB+ snapshot is exact, retry is a no-op, auth/locks remain enforced, malformed bodies write nothing.");
+
   reset();
   const noop = { data: { [priceKey]: ' { "split|0": { "locked": true, "unitPriceInc": 300 } }', draft: "stored" } };
   for (const method of ["PUT", "POST", "PUT"]) await success(await request(noop, { method }));

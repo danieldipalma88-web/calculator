@@ -64,7 +64,7 @@ export function isCalculatorSaveAuthUnavailable(error: { name?: string; status?:
 
 export async function withCalculatorSaveDeadline(
   requestSignal: AbortSignal,
-  operation: (deadlineFetch: typeof fetch) => Promise<Response>,
+  operation: (deadlineFetch: typeof fetch, signal: AbortSignal) => Promise<Response>,
   onDeadline: () => void,
   timeoutMs = SAVE_DEADLINE_MS,
 ): Promise<Response> {
@@ -86,7 +86,7 @@ export async function withCalculatorSaveDeadline(
     let response: Response | null = null;
     if (!signal.aborted) {
       try {
-        response = await Promise.race([aborted, operation(deadlineFetch)]);
+        response = await Promise.race([aborted, operation(deadlineFetch, signal)]);
       } catch (error) {
         if (!signal.aborted) throw error;
       }
