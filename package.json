@@ -17,6 +17,8 @@
     "verify:quote-options": "node --experimental-strip-types scripts/verify-quote-arrange-backend.mjs && node scripts/verify-quote-conflict-wrapper.mjs && node scripts/verify-quote-request-durability.mjs",
     "verify:save-recovery": "node scripts/verify-calculator-save-payload.mjs && node scripts/verify-calculator-data-save.mjs && node scripts/verify-cloud-save-baseline.mjs && node scripts/verify-cloud-save-recovery.mjs && node scripts/verify-quote-conflict-wrapper.mjs && node scripts/verify-quote-request-durability.mjs && node scripts/verify-quote-arrange-legacy-gst.mjs",
     "verify:save-browser": "node scripts/verify-cloud-save-browser.mjs && node scripts/verify-large-save-roundtrip-browser.mjs",
+    "qa:calculator": "node scripts/qa-calculator-server.mjs",
+    "verify:calculator-qa": "node scripts/verify-calculator-qa.mjs",
     "verify:loading": "node scripts/verify-loading-states.mjs && node scripts/verify-cloud-save-status.mjs && node scripts/verify-calculator-startup.mjs",
     "verify:performance": "node scripts/verify-calculator-performance.mjs && node scripts/verify-rebate-settings-refresh.mjs && node scripts/verify-admin-user-removal.mjs",
     "verify:power-circuit": "node scripts/verify-power-circuit-toggle.mjs && node scripts/verify-power-electrician-display.mjs",

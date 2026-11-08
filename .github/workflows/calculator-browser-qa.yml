@@ -1,0 +1,68 @@
+name: Calculator browser QA
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 21 * * 0'
+  pull_request:
+    paths:
+      - 'index.html'
+      - 'app/calculator/raw/**'
+      - 'app/api/calculator-data/**'
+      - 'lib/**'
+      - 'services/nsw-rebate-backup/**'
+      - 'scripts/qa-calculator-server.mjs'
+      - 'scripts/verify-calculator-qa.mjs'
+      - 'scripts/fixtures/**'
+      - 'package*.json'
+      - '.github/workflows/calculator-browser-qa.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'index.html'
+      - 'app/calculator/raw/**'
+      - 'app/api/calculator-data/**'
+      - 'lib/**'
+      - 'services/nsw-rebate-backup/**'
+      - 'scripts/qa-calculator-server.mjs'
+      - 'scripts/verify-calculator-qa.mjs'
+      - 'scripts/fixtures/**'
+      - 'package*.json'
+      - '.github/workflows/calculator-browser-qa.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  journeys:
+    if: github.event.repository.private == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, webkit]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - run: npm install --no-save --no-package-lock --ignore-scripts playwright@1.62.1
+      - run: npx --no-install playwright install --with-deps "$QA_BROWSER"
+        env:
+          QA_BROWSER: ${{ matrix.browser }}
+      - run: npm run verify:calculator-qa
+        env:
+          QA_BROWSER: ${{ matrix.browser }}
+          QA_SEED: ${{ github.run_number }}
+          QA_STEPS: ${{ github.event_name == 'schedule' && '36' || '8' }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: calculator-qa-${{ matrix.browser }}
+          path: outputs/calculator-qa/
+          if-no-files-found: ignore
+          retention-days: 7

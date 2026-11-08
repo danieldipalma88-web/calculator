@@ -3095,6 +3095,8 @@ body.postcodeAddressOpen{overflow:hidden}
     font-size:13px;
   }
   body.drawerOpen .floatingActionBar{display:none}
+  body.quoteWorkspaceVisible .floatingActionBar{display:none}
+  html{scroll-padding-bottom:calc(84px + env(safe-area-inset-bottom, 0px))}
   .quoteDrawer{
     left:0;
     right:0;
@@ -4965,6 +4967,7 @@ let loadedMultiSplitPrices=new Map();
 let loadedMultiSplitPriceDestination='';
 let multiSplitTrialRequestSeq=0;
 let multiSplitRebateFresh=false;
+let multiSplitRebateLoading=false;
 let multiSplitHasCalculated=false;
 let pendingMultiSplitPriceSave=null;
 let allModelsBrandsLoaded=false;
@@ -9621,11 +9624,10 @@ function updateQuotePriceValidationUi(){
   const multiMessage=$('multiUnitPriceMissingMessage');
   if(multiMessage && multiPriceMissing) multiMessage.textContent=`Price missing for ${formatPriceModelList(multiMissing)}. Equipment prices must be added before this system can be quoted.`;
   if(multiSplitViewActive()){
+    const readiness=multiSplitQuoteReadiness();
     document.querySelectorAll('button[onclick="addToQuote()"]:not(#multiSplitAddToQuoteBtn)').forEach(button=>{
-      button.disabled=multiPriceMissing;
-      button.title=multiPriceMissing
-        ? `Add prices for ${formatPriceModelList(multiMissing)} before adding this system.`
-        : 'Add this system to the selected quote.';
+      button.disabled=!readiness.ok;
+      button.title=readiness.ok?'Add this system to the selected quote.':readiness.message;
     });
   }
 }
@@ -9808,7 +9810,6 @@ function updateMultiSplitRebateFreshness(state){
   const indicator=$('multiSplitRebateFreshness');
   const buttons=[$('multiSplitQuickRebateBtn'),$('multiSplitCheckRebateBtn')].filter(Boolean);
   const totals=multiSplitEquipmentTotals();
-  const missingPrices=multiSplitMissingPriceModels(totals);
   const maxHeads=Number(totals.outdoor&&totals.outdoor.maxHeads)||0;
   const invalid=!totals.outdoor||!totals.headCount||(maxHeads&&totals.headCount>maxHeads);
   if(indicator){
@@ -9831,17 +9832,16 @@ function updateMultiSplitRebateFreshness(state){
   });
   const addButton=$('multiSplitAddToQuoteBtn');
   if(addButton){
-    const needsRebate=rebatesEnabled()&&!multiSplitRebateFresh;
-    addButton.disabled=!!invalid||needsRebate||missingPrices.length>0;
-    addButton.title=invalid
-      ? 'Complete a valid indoor-unit combination first.'
-      : (missingPrices.length
-        ? `Add prices for ${formatPriceModelList(missingPrices)} before adding this system.`
-        : (needsRebate?'Calculate the current rebate before adding this system.':'Add this system to the selected quote.'));
+    const readiness=multiSplitQuoteReadiness();
+    addButton.disabled=!readiness.ok;
+    addButton.title=readiness.ok?'Add this system to the selected quote.':readiness.message;
   }
   updateQuotePriceValidationUi();
 }
 function resetMultiSplitRebateMetrics(message){
+  multiSplitTrialRequestSeq++;
+  multiSplitRebateLoading=false;
+  setSectionLoading('multiSplitRebatePanel',false);
   multiSplitRebateFresh=false;
   setMultiSplitCalculationSource();
   if($('multiSplitEscCount')) $('multiSplitEscCount').textContent='-';
@@ -10111,9 +10111,9 @@ function updateMultiSplitIndoorRow(index,field,value){
   renderMultiSplitTrial();
 }
 async function calculateMultiSplitTrialRebate(revealResults){
-  setSectionLoading('multiSplitRebatePanel',false);
+  resetMultiSplitRebateMetrics();
   if(revealResults && $('multiSplitRebatePanel')) $('multiSplitRebatePanel').scrollIntoView({behavior:'smooth',block:'start'});
-  const requestId=++multiSplitTrialRequestSeq;
+  const requestId=multiSplitTrialRequestSeq;
   const totals=multiSplitEquipmentTotals();
   const {outdoor,total,headCount}=totals;
   if(!outdoor){setMultiSplitStatus('Select an outdoor unit first.','error'); return;}
@@ -10127,6 +10127,7 @@ async function calculateMultiSplitTrialRebate(revealResults){
   if(!/^\d{4}$/.test(postcode)){setMultiSplitStatus('Enter a valid 4-digit postcode for the rebate calculation.','error'); return;}
   let dcceewMatch=currentMultiSplitDcceewMatch(postcode);
   setMultiSplitDcceewContractDisplay(dcceewMatch,null);
+  multiSplitRebateLoading=true;
   setMultiSplitStatus('Checking GEMS data and NSW multi-split certificate calculation...','loading');
   setSectionLoading('multiSplitRebatePanel',true,'Calculating multi-head rebate...');
   updateMultiSplitRebateFreshness('loading');
@@ -10168,17 +10169,17 @@ async function calculateMultiSplitTrialRebate(revealResults){
   }catch(e){
     if(requestId!==multiSplitTrialRequestSeq) return;
     resetMultiSplitRebateMetrics();
-    if($('multiSplitRebateValue')) $('multiSplitRebateValue').textContent=money(0);
+    if($('multiSplitRebateValue')) $('multiSplitRebateValue').textContent='Unavailable';
     multiSplitHasCalculated=true;
-    multiSplitRebateFresh=true;
     renderMultiSplitFinancials();
     setMultiSplitDcceewContractDisplay(dcceewMatch,null,`Unable to calculate certificates: ${String(e.message||e||'Live data unavailable')}`);
-    setMultiSplitStatus(`Rebate set to $0.00 because the multi-head rebate could not be calculated. ${String(e.message||e||'Live data unavailable')}`,'error');
+    setMultiSplitStatus(`Rebate unavailable. This is not a confirmed $0 rebate. ${String(e.message||e||'Live data unavailable')}`,'error');
     updateMultiSplitRebateFreshness('error');
   }finally{
     if(requestId===multiSplitTrialRequestSeq){
+      multiSplitRebateLoading=false;
       setSectionLoading('multiSplitRebatePanel',false);
-      if(!multiSplitRebateFresh) updateMultiSplitRebateFreshness('error');
+      updateMultiSplitRebateFreshness(multiSplitRebateFresh?undefined:'error');
     }
   }
 }
@@ -11108,6 +11109,7 @@ async function loadMultiSplitQuote(q,s){
     setRebateCalcMeta('Multi-head split quotes are not available in this calculator.',true);
     return;
   }
+  resetMultiSplitRebateMetrics();
   setMultiSplitSection();
   loadedMultiSplitPrices.clear();
   if(s.customer!==undefined && $('customer')) $('customer').value=s.customer;
@@ -13832,6 +13834,7 @@ function multiSplitQuoteReadiness(){
     message:`Add prices for ${formatPriceModelList(missingPriceModels)} before adding this system to a quote.`
   };
   if(rebatesEnabled()&&!/^\d{4}$/.test(String(($('multiSplitPostcode')&&$('multiSplitPostcode').value)||'').trim())) return {ok:false,message:'Enter the customer postcode and calculate the rebate before adding this system.'};
+  if(rebatesEnabled()&&multiSplitRebateLoading) return {ok:false,message:'Wait for the rebate calculation to finish before adding this system.'};
   if(rebatesEnabled()&&!multiSplitRebateFresh) return {ok:false,message:'Calculate the current rebate before adding this system to the quote.'};
   return {ok:true,message:''};
 }
@@ -14617,6 +14620,9 @@ if(finalInput){ finalInput.addEventListener('input',()=>{ finalPriceLocked=true;
 const multiRebateInput=$('multiRebate');
 if(multiRebateInput){
   const applyManualMultiRebate=()=>{
+    multiSplitTrialRequestSeq++;
+    multiSplitRebateLoading=false;
+    setSectionLoading('multiSplitRebatePanel',false);
     multiSplitHasCalculated=true;
     multiSplitRebateFresh=true;
     setMultiSplitCalculationSource();
@@ -14671,6 +14677,14 @@ document.addEventListener('keydown',event=>{
 });
 setupMobileMoneySteppers();
 setupMobileHorizontalDragLock();
+function setupMobileQuoteActions(){
+  const workspace=$('standardCurrentOptionSection');
+  if(!workspace||typeof IntersectionObserver!=='function') return;
+  new IntersectionObserver(entries=>{
+    document.body.classList.toggle('quoteWorkspaceVisible',entries.some(entry=>entry.isIntersecting));
+  }).observe(workspace);
+}
+setupMobileQuoteActions();
 function announceCalculatorReady(){
   window.__calculatorReady=true;
   if(window.parent!==window){

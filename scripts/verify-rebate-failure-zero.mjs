@@ -52,23 +52,27 @@ assert.match(
 const multiSplitCalculation = functionSource("calculateMultiSplitTrialRebate");
 assert.match(
   multiSplitCalculation,
-  /catch\(e\)\{[\s\S]*?multiSplitRebateValue'\)\.textContent=money\(0\)/,
-  "A failed multi-head calculation must display a zero rebate.",
+  /catch\(e\)\{[\s\S]*?resetMultiSplitRebateMetrics\(\);[\s\S]*?multiSplitRebateValue'\)\.textContent='Unavailable'/,
+  "A failed multi-head calculation clears numeric costs but displays Unavailable.",
 );
 assert.match(
   multiSplitCalculation,
-  /multiSplitHasCalculated=true;\s*multiSplitRebateFresh=true;/,
-  "A failed multi-head calculation must be treated as a current zero result, not stale fallback data.",
+  /const requestId=multiSplitTrialRequestSeq;/,
+  "The request must use the revision from the initial invalidation.",
 );
 assert.match(
   multiSplitCalculation,
-  /Rebate set to \$0\.00 because the multi-head rebate could not be calculated/,
-  "The multi-head failure message must explain the zero result.",
+  /Rebate unavailable\. This is not a confirmed \$0 rebate\./,
+  "The multi-head failure message must not claim a confirmed zero result.",
 );
 assert.match(
   multiSplitCalculation,
-  /if\(!multiSplitRebateFresh\) updateMultiSplitRebateFreshness\('error'\)/,
-  "Final cleanup must not overwrite the current zero-result state.",
+  /updateMultiSplitRebateFreshness\(multiSplitRebateFresh\?undefined:'error'\)/,
+  "Final cleanup must restore the controls after a successful calculation.",
 );
+assert.doesNotMatch(multiSplitCalculation.slice(multiSplitCalculation.indexOf("}catch(e)")), /multiSplitRebateFresh=true/,
+  "Failures must never become quote-ready.");
+assert.match(functionSource("resetMultiSplitRebateMetrics"), /multiSplitTrialRequestSeq\+\+;[\s\S]*multiSplitRebateFresh=false;/,
+  "Selection changes invalidate both the old result and pending responses.");
 
 console.log("rebate failure zero checks passed");

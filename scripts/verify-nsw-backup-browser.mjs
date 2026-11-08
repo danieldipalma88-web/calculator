@@ -148,7 +148,7 @@ try {
       backupUnavailable = true;
       await page.evaluate(() => calculateMultiSplitTrialRebate());
       await expectSource("#multiSplitCalculationSource", false);
-      assert.match(await page.locator("#multiSplitStatus").innerText(), /could not be calculated/);
+      assert.match(await page.locator("#multiSplitStatus").innerText(), /Rebate unavailable\. This is not a confirmed \$0 rebate/);
     }
     assert.deepEqual(errors, []);
     console.log(`${width}px: ${liveBackup ? "standard" : "all four calculator paths"} show verified backup attribution; rate redraw preserves it, failures clear it`);
