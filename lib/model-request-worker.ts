@@ -1,6 +1,7 @@
 import { catalogueClient, mergedPublicCatalogue, modelIdentity, readAddedModels } from "./model-catalogue";
 import { verifyRequestedModel } from "./model-request-verification";
 import { sendModelRequestConfirmation, sendModelRequestContact, type ModelRequestContactMail } from "./model-request-email";
+import { processModelResearch, researchAutomationEnabled, researchRpc } from "./model-request-research";
 
 export function modelAutomationEnabled() {
   return process.env.MODEL_REQUEST_AUTOMATION_ENABLED === "true" && Boolean(process.env.MODEL_REQUEST_WORKER_SECRET);
@@ -33,8 +34,21 @@ export async function processModelRequestContact(id?: string) {
   return true;
 }
 
-export async function processModelRequest(requestId?: string) {
+export async function processModelRequest(requestId?: string, researchJobId?: string) {
   if (!modelAutomationEnabled()) return { processed: false };
+  const researchEnabled = researchAutomationEnabled();
+  const currentRequest = researchEnabled && requestId ? await researchRpc("current", requestId) : null;
+  const manualSystem = currentRequest && !["split", "ducted"].includes(currentRequest.system_type);
+  if (researchEnabled && !manualSystem) {
+    const result = await processModelResearch({ requestId, researchJobId });
+    const currentId = requestId || result.requestId;
+    const confirmation = await researchRpc("confirmation_claim", currentId);
+    if (confirmation) {
+      return deliverConfirmation(confirmation.request, confirmation.job);
+    }
+    await processModelRequestContact(currentId);
+    return result;
+  }
   const client = catalogueClient();
   const rpc = async (action: string, id?: string, lease?: string, data: unknown = {}) => {
     const result = await client.rpc("model_request_worker", {
@@ -66,6 +80,10 @@ export async function processModelRequest(requestId?: string) {
         await rpc("review", id, lease, result);
         return { processed: true, state: "review" };
       }
+      if (result.kind === "no_rebate") {
+        await rpc("review", id, lease, { reason: "The verified calculation returned no certificates for this installation.", evidence: result.evidence });
+        return { processed: true, state: "review" };
+      }
       const identity = modelIdentity(result.product.brand, result.product.model);
       const current = mergedPublicCatalogue(await readAddedModels());
       const compact = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, "");
@@ -84,6 +102,22 @@ export async function processModelRequest(requestId?: string) {
       return { processed: true, state: "retry" };
     }
   }
+  return deliverConfirmation(request, resultJob);
+}
+
+type ConfirmationRequest = { id: string; requester_email: string };
+type ConfirmationJob = { lease_token: string; product: { brand: string; model: string; systemType: string }; existing: boolean };
+async function deliverConfirmation(request: ConfirmationRequest, resultJob: ConfirmationJob) {
+  const id = request.id;
+  const lease = resultJob.lease_token;
+  const rpc = async (action: string, requestId: string, leaseToken: string, data: unknown = {}) => {
+    const response = await catalogueClient().rpc("model_request_worker", {
+      p_secret: process.env.MODEL_REQUEST_WORKER_SECRET, p_action: action,
+      p_id: requestId, p_lease: leaseToken, p_data: data,
+    });
+    if (response.error) throw new Error(`Model request ${action} failed: ${response.error.code}`);
+    return response.data;
+  };
   try {
     const published = await readAddedModels();
     if (!published.some(p => modelIdentity(p.product.brand, p.product.model) === modelIdentity(resultJob.product.brand, resultJob.product.model))) {

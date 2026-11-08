@@ -1,0 +1,47 @@
+name: Model request research safeguards
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'lib/model-request*.ts'
+      - 'lib/model-research/**'
+      - 'app/api/**/model-requests/**'
+      - 'app/api/internal/model-research/**'
+      - 'supabase/*model_request*.sql'
+      - 'scripts/verify-model-request*.mjs'
+      - 'scripts/verify-model-research*.mjs'
+      - 'package*.json'
+      - '.github/workflows/model-request-research-safeguards.yml'
+  pull_request:
+    paths:
+      - 'lib/model-request*.ts'
+      - 'lib/model-research/**'
+      - 'app/api/**/model-requests/**'
+      - 'app/api/internal/model-research/**'
+      - 'supabase/*model_request*.sql'
+      - 'scripts/verify-model-request*.mjs'
+      - 'scripts/verify-model-research*.mjs'
+      - 'package*.json'
+      - '.github/workflows/model-request-research-safeguards.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  offline-safeguards:
+    if: github.event.repository.private == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - run: npm install --no-save --no-package-lock --ignore-scripts @electric-sql/pglite@0.5.14
+      - run: npm run verify:model-research
+        env:
+          PGLITE_MODULE: node_modules/@electric-sql/pglite/dist/index.js

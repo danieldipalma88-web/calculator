@@ -33,6 +33,7 @@ type VerifiedProduct = {
 
 export type ModelRequestVerificationResult =
   | { kind: "verified"; product: VerifiedProduct; evidence: Evidence }
+  | { kind: "no_rebate"; product: VerifiedProduct; evidence: Evidence }
   | { kind: "clarify"; reason: string; candidates: string[]; evidence?: Evidence }
   | { kind: "review"; reason: string; evidence?: Evidence };
 
@@ -220,8 +221,8 @@ export async function verifyRequestedModel(
 
   const { esc, prc, lookupSource, calculationSource, registryRecord } = result;
   evidence.certificates = { esc: Number.isFinite(esc) ? esc : null, prc: Number.isFinite(prc) ? prc : null, lookupSource, calculationSource };
-  if (!Number.isFinite(esc) || !Number.isFinite(prc) || esc < 0 || prc < 0 || (esc === 0 && prc === 0)) {
-    return review("NSW calculation did not confirm positive certificates", evidence);
+  if (!Number.isFinite(esc) || !Number.isFinite(prc) || esc < 0 || prc < 0) {
+    return review("NSW calculation did not return valid certificates", evidence);
   }
 
   // Certificate evidence must identify the same registration and ratings.
@@ -233,7 +234,7 @@ export async function verifyRequestedModel(
   }
 
   return {
-    kind: "verified",
+    kind: esc === 0 && prc === 0 ? "no_rebate" : "verified",
     product: {
       systemType,
       brand: CATALOGUE_BRANDS.get(item.brand.toUpperCase()) ?? item.brand,

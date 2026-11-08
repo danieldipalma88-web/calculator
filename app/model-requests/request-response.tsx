@@ -15,6 +15,10 @@ type RequestData = {
   next_at: string | null;
   round: number | null;
   product?: { model: string };
+  outcome?: string;
+  summary?: string;
+  matchedModel?: string;
+  no_rebate?: boolean;
 };
 
 const labels: Record<string, string> = {
@@ -23,9 +27,11 @@ const labels: Record<string, string> = {
   escalated: "Referred for human review",
   queued: "Response received",
   checking: "Being checked",
+  researching: "Researching",
   review: "Under review",
   added: "Model added",
   declined: "Request declined",
+  no_rebate: "No rebate for this installation",
 };
 
 export default function RequestResponse({ id, request }: { id: string; request: RequestData }) {
@@ -77,7 +83,13 @@ export default function RequestResponse({ id, request }: { id: string; request: 
   }
 
   return <>
-    <p className={styles.status} aria-live="polite">{labels[data.state] || "Request status"}</p>
+    <p className={styles.status} aria-live="polite">{data.no_rebate || data.outcome === "no_rebate" ? labels.no_rebate : labels[data.state] || "Request status"}</p>
+    {(data.summary || data.matchedModel) && <div className={styles.question}>
+      {data.matchedModel && <h2>Registered model pair</h2>}
+      {data.matchedModel && <p style={{ overflowWrap: "anywhere" }}>{data.matchedModel}</p>}
+      {data.summary && <p>{data.summary}</p>}
+      {(data.no_rebate || data.outcome === "no_rebate") && <p>The verified calculation returned 0 ESC and 0 PRC certificates for the submitted installation.</p>}
+    </div>}
     {canRespond && data.question && <div className={styles.question}><h2>More information needed</h2><p>{data.question}</p></div>}
     {data.state === "closed" && <p>Sending the requested details will reopen this request.</p>}
     {canRespond ? <form className={styles.form} onSubmit={submit} aria-busy={busy}>

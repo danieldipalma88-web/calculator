@@ -50,11 +50,16 @@ assert.equal(restore.lookup({brand:'Disabled brand',model:'SAME / CODE',productM
 assert.equal(restore.storedType('split|verified_removed'),'','addition prices never enter model-only legacy migration');
 
 process.env.MODEL_REQUEST_AUTOMATION_ENABLED='true';process.env.MODEL_REQUEST_WORKER_SECRET='test-only';
-async function scenario({verification,claimState='checking',sendFails=false,publishState='added'}) {
+async function scenario({verification,claimState='checking',sendFails=false,publishState='added',researchOn=false,manualScope=false}) {
   const calls=[];let emails=0;let published=false;
   const request={id:'request',requester_email:'person@example.invalid',...p};
   const job={lease_token:'lease',state:claimState,product:p,existing:false};
   const worker=moduleAt('lib/model-request-worker.ts',{
+    './model-request-research': {
+      researchAutomationEnabled: () => researchOn,
+      processModelResearch: async () => { assert.equal(manualScope,false,'Unsupported requests must not enter paid research'); return {processed:true,requestId:'request',state:'complete'}; },
+      researchRpc: async (action) => { calls.push(action); return action==='current'&&manualScope?{system_type:'multi-head'}:action==='confirmation_claim'?{request,job}:null; },
+    },
     './model-catalogue':{
       catalogueClient:()=>({rpc:async(rpcName,args)=>{
         calls.push(args.p_action);
@@ -81,6 +86,11 @@ result=await scenario({verification:new Error('Registry timeout')});assert.deepE
 result=await scenario({verification:{kind:'verified',product:p,evidence:{}},sendFails:true});assert.deepEqual(result.calls,['claim','verified','email_start','email_error']);
 result=await scenario({claimState:'added'});assert.deepEqual(result.calls,['claim','email_start','email_sent'],'email retry cannot republish');
 result=await scenario({verification:{kind:'verified',product:p,evidence:{}},publishState:'review'});assert.equal(result.emails,0);
+result=await scenario({claimState:'added',researchOn:true,sendFails:true});
+assert.equal(result.result.state,'email_pending','research confirmations must retain a failed delivery state');
+assert.deepEqual(result.calls,['current','confirmation_claim','email_start','email_error']);
+result=await scenario({researchOn:true,manualScope:true,verification:{kind:'review',reason:'Unsupported system type'}});
+assert.deepEqual(result.calls,['current','claim','review']);assert.equal(result.emails,0);
 const sql=read('supabase/model_request_automation_upgrade.sql');
 assert.match(sql,/for update skip locked/);
 assert.match(sql,/identity text not null unique/);

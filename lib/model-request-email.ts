@@ -62,7 +62,7 @@ export async function sendModelRequestConfirmation(input: ModelRequestEmailInput
 export type ModelRequestContactMail = {
   mail_key: string;
   request_id: string | null;
-  kind: "question" | "reminder" | "escalation" | "weekly";
+  kind: "question" | "reminder" | "escalation" | "weekly" | "no_rebate";
   recipient: string;
   payload: Record<string, unknown>;
   lease: string;
@@ -76,16 +76,29 @@ export async function sendModelRequestContact(mail: ModelRequestContactMail) {
   const product = [label("brand"), label("model")].filter(Boolean).join(" ");
   const admin = mail.kind === "weekly" || mail.kind === "escalation";
   if (!admin && !/^[0-9a-f-]{36}$/i.test(mail.request_id || "")) throw new Error("Invalid request link");
-  const url = admin ? "https://calculator.rebateportal.com.au/admin/model-requests"
+  const url = mail.kind === "no_rebate" ? CALCULATOR_URL
+    : admin ? "https://calculator.rebateportal.com.au/admin/model-requests"
     : `https://calculator.rebateportal.com.au/model-requests/${mail.request_id}`;
-  const action = admin ? "Open model requests" : "Update your request";
+  const action = mail.kind === "no_rebate" ? "Browse other models" : admin ? "Open model requests" : "Update your request";
   const subject = mail.kind === "weekly" ? "Rebate Portal: Weekly model request summary"
     : mail.kind === "escalation" ? "Rebate Portal: A model requester needs help"
+    : mail.kind === "no_rebate" ? "Rebate Portal: Your model request has been checked"
     : mail.kind === "reminder" ? "Rebate Portal: Reminder about your model request"
     : "Rebate Portal: One more detail for your model request";
-  const details = mail.kind === "weekly" ? [
+  const details = mail.kind === "no_rebate" ? [
+    "We have completed the research and rebate check for your request.",
+    `Registered system: ${product}`,
+    `GEMS registration: ${label("registration")}`,
+    `Installation checked: postcode ${label("postcode")}, ${label("install_type") === "replacement" ? "replacement" : "new installation"}.`,
+    "The verified calculation returned 0 ESC and 0 PRC certificates for this installation. We have not added it as a rebate-generating option.",
+    "You can browse the calculator for other models. This result applies to the installation details checked, not every possible installation.",
+    "If those details are incorrect or you have another model to check, reply to this email and we can help.",
+    `Request reference: ${mail.request_id}`,
+  ] : mail.kind === "weekly" ? [
     `Week beginning ${label("week")}`,
     `Added: ${label("added")} | Already available: ${label("existing")} | Closed without response: ${label("closed")}`,
+    ...(payload.no_rebate !== undefined ? [`No rebate for the submitted installation: ${label("no_rebate")}`] : []),
+    ...(payload.research_paused !== undefined ? [`Research paused for budget or review: ${label("research_paused")}`] : []),
     `Waiting for details: ${label("waiting")} | Needs attention: ${label("review")}`,
     ...lines("models"),
   ] : mail.kind === "escalation" ? [
@@ -101,6 +114,7 @@ export async function sendModelRequestContact(mail: ModelRequestContactMail) {
   ];
   return sendModelRequestMail(admin ? REPLY_TO : mail.recipient, `model-request-contact/${mail.mail_key}`, {
     subject,
+    ...(mail.kind === "no_rebate" ? { reply_to: REPLY_TO } : {}),
     text: ["Rebate Portal", ...details, `${action}: ${url}`].join("\n\n"),
     html: `<!doctype html><html lang="en"><body style="margin:0;background:#f3f6f8;color:#0f172a;font-family:Arial,sans-serif">
 <div style="max-width:600px;margin:auto;padding:24px"><div style="background:white;border:1px solid #dbe4ec">

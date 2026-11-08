@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import styles from "./model-requests.module.css";
 
-type Job = { state: "queued" | "checking" | "review" | "added" | "declined"; contact_state: "waiting" | "closed" | "escalated" | null; contact_next_at: string | null; activity?: { at: string; kind: string; detail: string }[]; existing: boolean; reason: string; attempts: number; evidence: Record<string, unknown>; product: Record<string, unknown> | null; email_state: "pending" | "sending" | "sent" | "failed"; email_error: string; email_sent_at: string | null };
+type Research = { id?: string; state: string; round: number; result?: { summary?: string; canonical?: Record<string, unknown> | null; sourceUrls?: string[]; question?: string | null }; events?: { kind: string; detail: string; at: string }[]; updated_at?: string };
+type Job = { state: "queued" | "checking" | "researching" | "review" | "added" | "declined" | "no_rebate" | "pending_verification" | "waiting_for_details" | "complete" | "superseded"; contact_state: "waiting" | "closed" | "escalated" | null; contact_next_at: string | null; activity?: { at: string; kind: string; detail: string }[]; existing: boolean; reason: string; attempts: number; evidence: Record<string, unknown>; product: Record<string, unknown> | null; email_state: "pending" | "sending" | "sent" | "failed"; email_error: string; email_sent_at: string | null; outcome_email?: { state: string; sent_at: string | null } | null; research?: Research };
 type Request = { id: string; requester_name: string; requester_email: string; business_name: string; system_type: string; brand: string; model: string; capacity: string | number; phase: string; notes: string; postcode: string; install_type: string; created_at: string; status: string; job: Job | null };
 type Product = { id: string; product: { brand: string; model: string; systemType: string; capacityKw: string | number; phase: string }; active: boolean; created_at: string };
 type Digest = { state: string; week: string; sent_at: string | null };
-type Payload = { requests: Request[]; products: Product[]; hasMore: boolean; digest?: Digest | null };
+type Payload = { requests: Request[]; products: Product[]; hasMore: boolean; digest?: Digest | null; researchBudget?: { month: string; spentMicros: number; reservedMicros: number; limitMicros: number; pricingReviewBy: string } | null; researchAutomation?: { enabled: boolean; keyConfigured: boolean } | null };
 type Filter = "review" | "checking" | "waiting" | "added" | "closed" | "all";
 
 const filters: { value: Filter; label: string }[] = [
@@ -18,6 +19,13 @@ const filters: { value: Filter; label: string }[] = [
 
 const stateLabel: Record<string, string> = {
   review: "Needs review", queued: "Queued", checking: "Checking", added: "Added",
+  researching: "Researching", pending_verification: "Awaiting calculator verification",
+  waiting_for_details: "Waiting for details", complete: "Completed", superseded: "Superseded",
+  no_rebate: "No rebate for this installation",
+  budget_paused: "Paused: budget", reconciliation_required: "Paused: spend reconciliation", uncertain: "Paused: spend reconciliation",
+  registry_search: "Registry search", api_usage: "API usage", web_research: "Web research",
+  imported: "Imported", applied: "Applied", continuation_deferred: "Continuation deferred", recovered: "Recovered",
+  no_rebate_sent: "No-rebate email accepted",
   already_available: "Already available", declined: "Declined", waiting: "Waiting for details",
   closed: "Closed: no response", escalated: "Requester needs help",
   response_received: "Response received", question_sent: "Details requested",
@@ -55,6 +63,32 @@ function failureMessage(cause: unknown, fallback: string) {
   return fallback;
 }
 
+function safeHttpsUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" ? url.href : null;
+  } catch { return null; }
+}
+
+function moneyMicros(value: number) {
+  return Number.isFinite(value) && value >= 0 ? `$${(value / 1_000_000).toFixed(2)}` : "Unavailable";
+}
+
+function outcomeEmailStatus(job: Job, noRebate: boolean) {
+  if (!noRebate) return job.state === "added"
+    ? `${job.email_state}${job.email_error ? ` - ${job.email_error}` : ""}${job.email_sent_at ? ` (${date(job.email_sent_at)})` : ""}`
+    : "Confirmation held until verified";
+  const state = job.outcome_email?.state;
+  const accepted = state === "sent" || (!job.outcome_email && job.activity?.some(event => event.kind === "no_rebate_sent"));
+  if (accepted) {
+    const sentAt = job.outcome_email?.sent_at;
+    return `Accepted by email provider${sentAt ? ` (${date(sentAt)})` : ""}`;
+  }
+  if (state === "failed") return "Delivery needs review";
+  if (state === "pending" || state === "sending" || state === "queued" || !state) return "Outcome email queued";
+  return "Outcome email status unavailable";
+}
+
 export default function RequestList() {
   const [data, setData] = useState<Payload>({ requests: [], products: [], hasMore: false });
   const [loading, setLoading] = useState(true);
@@ -87,6 +121,8 @@ export default function RequestList() {
         products: Array.isArray(payload.products) ? payload.products : previous.products,
         hasMore: Boolean(payload.hasMore),
         digest: payload.digest,
+        researchBudget: payload.researchBudget ?? previous.researchBudget,
+        researchAutomation: payload.researchAutomation,
       }));
     } catch (cause) {
       if (sequence === requestSequence.current && !(cause instanceof DOMException && cause.name === "AbortError")) setError(failureMessage(cause, "Could not load model requests."));
@@ -135,12 +171,19 @@ export default function RequestList() {
       Weekly summary for {data.digest.week}: {data.digest.state === "sent" ? "accepted by email provider"
         : data.digest.state === "failed" ? "delivery needs review" : "queued"}
     </p>}
+    {data.researchAutomation && <p className={styles.count} role="status">{data.researchAutomation.enabled && data.researchAutomation.keyConfigured ? "Research active" : "Research paused"}</p>}
+    {data.researchBudget && <aside className={styles.researchBudget} aria-label="Model research budget">
+      <strong>Research budget · {data.researchBudget.month}</strong>
+      <span>{moneyMicros(data.researchBudget.spentMicros)} spent + {moneyMicros(data.researchBudget.reservedMicros)} reserved of {moneyMicros(data.researchBudget.limitMicros)} (A$20 monthly ceiling)</span>
+      <span>Pricing review by {data.researchBudget.pricingReviewBy}</span>
+    </aside>}
     {loading ? <p className={styles.state} role="status">Loading model requests...</p> : <>
       <p className={styles.count} role="status">{data.requests.length} requests loaded</p>
       <div className={styles.list}>
         {data.requests.map((item) => {
           const job = item.job;
-          const state = job?.contact_state || (job?.state === "added" && job.existing ? "already_available" : job?.state);
+          const noRebate = job?.research?.state === "no_rebate" || job?.state === "no_rebate";
+          const state = noRebate ? "no_rebate" : job?.contact_state || (job?.state === "added" && job.existing ? "already_available" : job?.state);
           const modelName = [item.brand, item.model].filter(Boolean).join(" ") || "Unspecified model";
           return <article className={styles.request} key={item.id}>
             <div className={styles.requestHead}>
@@ -166,8 +209,26 @@ export default function RequestList() {
               <details><summary>Verification details</summary>
                 <dl className={styles.evidence}>{Object.entries(job.evidence || {}).length ? Object.entries(job.evidence).map(([key, value]) => <div key={key}><dt>{key.replace(/[_-]/g, " ")}</dt><dd>{readable(value)}</dd></div>) : <div><dt>Evidence</dt><dd>None recorded</dd></div>}</dl>
               </details>
-              <p><strong>Confirmation email:</strong> {job.state === "added" ? `${job.email_state}${job.email_error ? ` - ${job.email_error}` : ""}${job.email_sent_at ? ` (${date(job.email_sent_at)})` : ""}` : "Confirmation held until verified"}</p>
+              <p><strong>{noRebate ? "Outcome email" : "Confirmation email"}:</strong> {outcomeEmailStatus(job, noRebate)}</p>
               {job.product && <p><strong>Matched product:</strong> {readable(job.product)}</p>}
+              {job.research && <section className={styles.research} aria-label="Model research progress">
+                <div className={styles.researchHead}><strong>Research: {stateLabel[job.research.state] || job.research.state}</strong><span>Round {job.research.round}{job.research.updated_at ? ` · Updated ${date(job.research.updated_at)}` : ""}</span></div>
+                {job.research.result?.summary && <p>{job.research.result.summary}</p>}
+                {job.research.result?.canonical && <dl className={styles.researchPair}>
+                  {Object.entries(job.research.result.canonical).filter(([, value]) => value != null && value !== "").map(([key, value]) => <div key={key}><dt>{key.replace(/([A-Z])/g, " $1").replace(/[_-]/g, " ")}</dt><dd>{readable(value)}</dd></div>)}
+                </dl>}
+                {job.research.result?.question && <p><strong>Question:</strong> {job.research.result.question}</p>}
+                {!!job.research.result?.sourceUrls?.some(source => safeHttpsUrl(source)) && <details><summary>Evidence sources ({job.research.result.sourceUrls.filter(source => safeHttpsUrl(source)).length})</summary>
+                  <ul className={styles.sourceList}>{job.research.result.sourceUrls.map((source, index) => {
+                    const href = safeHttpsUrl(source);
+                    return href ? <li key={`${source}-${index}`}><a href={href} target="_blank" rel="noreferrer">{href}</a></li> : null;
+                  })}</ul>
+                </details>}
+                {!!job.research.events?.length && <details><summary>Research events ({job.research.events.length})</summary>
+                  <dl className={styles.evidence}>{[...job.research.events].reverse().map((event, index) => <div key={`${event.at}-${index}`}><dt>{stateLabel[event.kind] || event.kind}</dt><dd>{date(event.at)}{event.detail ? ` | ${event.detail}` : ""}</dd></div>)}</dl>
+                </details>}
+                {noRebate && <p className={styles.noRebateNote}>This result applies only to the submitted installation.</p>}
+              </section>}
             </div>}
             <div className={styles.actions}>
               <button type="button" className={styles.copy} disabled={Boolean(busy)} onClick={async () => { try { await navigator.clipboard.writeText(modelName); setNotice("Model copied."); } catch { setError("Could not access the clipboard."); } }}>Copy model</button>

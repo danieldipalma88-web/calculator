@@ -122,12 +122,18 @@ try {
     assert.equal((await verify(overrides, rows, {}, async () => assert.fail("Unverified input must not calculate"))).kind, "clarify");
   }
   for (const result of [
-    { esc: 0, prc: 0 }, { esc: null }, { prc: -1 },
+    { esc: null }, { prc: -1 },
     { registryRecord: undefined }, { registryRecord: { ...record, Brand: "Other" } },
     { registryRecord: { ...record, "Rated AEER": "4.9" } },
+    { esc: 0, prc: 0, registryRecord: undefined },
+    { esc: 0, prc: 0, registryRecord: { ...record, Model_No: "OTHER / IN" } },
   ]) {
     assert.equal((await verify({}, [record], result)).kind, "review");
   }
+  const verifiedZero = await verify({}, [record], { esc: 0, prc: 0 });
+  assert.equal(verifiedZero.kind, "no_rebate");
+  assert.deepEqual(verifiedZero.product, verified.product);
+  assert.equal(verifiedZero.evidence.certificates.esc, 0);
   assert.equal((await verify({}, [record], {}, async () => { throw new Error("Unable to calculate certificates"); })).kind, "review");
   const timeout = new Error("Live rebate service timed out");
   await assert.rejects(verify({}, [record], {}, async () => { throw timeout; }), (error) => error === timeout);

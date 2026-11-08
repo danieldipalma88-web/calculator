@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { maintainModelRequestContacts, modelAutomationEnabled, processModelRequest, processModelRequestContact } from "../../../../lib/model-request-worker";
+import { researchAutomationEnabled } from "../../../../lib/model-request-research";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -17,7 +18,7 @@ export async function GET(request: Request) {
   let failed = false;
   // Bounded backstop. Normal new submissions run immediately after their response.
   try {
-    while (results.length < 3 && Date.now() - started < 120_000) {
+    while (results.length < (researchAutomationEnabled() ? 1 : 3) && Date.now() - started < 120_000) {
       const result = await processModelRequest();
       if (!result.processed) break;
       results.push(result);
