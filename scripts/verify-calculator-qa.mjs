@@ -235,6 +235,7 @@ async function quoteJourney(page, qa, width) {
   await waitFor(() => qa.snapshot().rows.length === 1, "one system removed");
   await textIs(page, "#quoteChoicesStatus", "System removed.");
   const totals = assertTotals(qa, ids);
+  await page.waitForFunction(() => window.__calculatorCanRefresh?.() === true, null, { timeout: 20000 });
   await page.reload();
   await textIs(page, "#currentOptionTitle", "QA Quote Journey");
   for (const [id, total] of Object.entries(totals)) await textIs(page, `section[data-option-id="${id}"] .quoteChoiceTotal strong`, money(total));
