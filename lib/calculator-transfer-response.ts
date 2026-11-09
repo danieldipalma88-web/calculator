@@ -1,28 +1,29 @@
-import { gzip } from "node:zlib";
-
-function acceptsGzip(request: Request) {
-  const encodings = (request.headers.get("accept-encoding") || "").split(",").map((entry) => {
-    const [name, ...parameters] = entry.trim().toLowerCase().split(";");
-    const quality = parameters.find((parameter) => parameter.trim().startsWith("q="));
-    const weight = quality ? Number(quality.trim().slice(2)) : 1;
-    return { name: name.trim(), weight: Number.isFinite(weight) && weight >= 0 && weight <= 1 ? weight : 0 };
-  });
-  return ((encodings.find(({ name }) => name === "gzip") || encodings.find(({ name }) => name === "*"))?.weight ?? 0) > 0;
-}
-
-// Compress before the hosting response-size check. Browser fetch transparently decodes this.
-export async function calculatorTransferResponse(request: Request, body: string, init: ResponseInit = {}) {
+export async function calculatorTransferResponse(_request: Request, body: string, init: ResponseInit = {}) {
   const headers = new Headers(init.headers);
-  const vary = (headers.get("Vary") || "").split(",").map((value) => value.trim()).filter(Boolean);
-  if (!vary.some((value) => value === "*" || value.toLowerCase() === "accept-encoding")) vary.push("Accept-Encoding");
-  headers.set("Vary", vary.join(", "));
-  if (Buffer.byteLength(body) < 262144 || !acceptsGzip(request)) return new Response(body, { ...init, headers });
-  const encoded = await new Promise<Buffer>((resolve, reject) => {
-    gzip(body, { level: 1 }, (error, output) => error ? reject(error) : resolve(output));
-  });
-  headers.set("Content-Encoding", "gzip");
+  // Next/Vercel can strip a custom Content-Encoding then compress the bytes again.
+  // Send UTF-8 and let the host negotiate compression; stream large quote histories.
+  headers.delete("Content-Encoding");
   headers.delete("Content-Length");
-  return new Response(new Uint8Array(encoded), { ...init, headers });
+  if (!headers.has("Content-Type")) headers.set("Content-Type", "text/plain; charset=utf-8");
+  if (Buffer.byteLength(body) < 262144) return new Response(body, { ...init, headers });
+  let bytes: Buffer | null = Buffer.from(body, "utf8");
+  let offset = 0;
+  const stream = new ReadableStream<Uint8Array>({
+    pull(controller) {
+      if (!bytes) return;
+      const end = Math.min(offset + 65536, bytes.length);
+      controller.enqueue(bytes.subarray(offset, end));
+      offset = end;
+      if (offset === bytes.length) {
+        bytes = null;
+        controller.close();
+      }
+    },
+    cancel() {
+      bytes = null;
+    },
+  });
+  return new Response(stream, { ...init, headers });
 }
 
 export function calculatorJsonResponse(request: Request, value: unknown, init: ResponseInit = {}) {

@@ -16,6 +16,7 @@ on:
       - 'lib/business-calculator-configuration.ts'
       - 'index.html'
       - 'scripts/verify-*save*.mjs'
+      - 'scripts/verify-calculator-transfer-next.mjs'
       - 'scripts/verify-quote*.mjs'
       - 'scripts/verify-business-configuration.mjs'
       - 'package*.json'
@@ -31,6 +32,7 @@ on:
       - 'lib/business-calculator-configuration.ts'
       - 'index.html'
       - 'scripts/verify-*save*.mjs'
+      - 'scripts/verify-calculator-transfer-next.mjs'
       - 'scripts/verify-quote*.mjs'
       - 'scripts/verify-business-configuration.mjs'
       - 'package*.json'
@@ -59,6 +61,8 @@ jobs:
       - run: npm install --no-package-lock --ignore-scripts
       - name: Simulate timeouts, conflicts and lost save responses
         run: npm run verify:save-recovery
+      - name: Verify large HTML and JSON through production Next.js transport
+        run: npm run verify:transfer-next
       - name: Verify quote and business data protection
         run: |
           npm run verify:quote-sync

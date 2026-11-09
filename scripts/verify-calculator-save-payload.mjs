@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { gzipSync, gunzipSync } from 'node:zlib';
+import { gzipSync } from 'node:zlib';
 import { loadTsModule } from './verify-business-configuration.mjs';
 
 const { readCalculatorSavePayload: read, CALCULATOR_GZIP_CONTENT_TYPE: gzipType } = loadTsModule('lib/calculator-save-payload.ts');
@@ -51,21 +51,37 @@ const abort = new AbortController(); abort.abort();
 await assert.rejects(read(new Request('https://calculator.test/api/calculator-data', {
   method: 'PUT', body: compressed, headers: { 'Content-Type': gzipType }, signal: abort.signal,
 })), error => error.name === 'AbortError');
-for (const acceptEncoding of ['gzip', 'br, gzip, deflate', '*;q=0.5']) {
-  const response = await calculatorJsonResponse(new Request('https://calculator.test', { headers: { 'Accept-Encoding': acceptEncoding } }), payload,
-    { headers: { 'Cache-Control': 'no-store', Vary: 'Cookie' } });
-  assert.equal(response.headers.get('Content-Encoding'), 'gzip');
-  assert.equal(response.headers.get('Cache-Control'), 'no-store');
-  assert.equal(response.headers.get('Vary'), 'Cookie, Accept-Encoding');
-  const wire = Buffer.from(await response.arrayBuffer());
-  assert.ok(wire.length < 4_400_000);
-  assert.deepEqual(JSON.parse(gunzipSync(wire)), payload, 'Reopening a large history is also lossless');
-}
-for (const acceptEncoding of ['', 'br', 'gzip;q=0', '*;q=1, gzip;q=0']) {
+const unicode = 'start-' + 'a'.repeat(65529) + '\u00e9\ud83d\ude80-end';
+const largeText = unicode + 'x'.repeat(262144 - Buffer.byteLength(unicode) + 1);
+assert.ok(Buffer.byteLength(largeText) >= 262144);
+for (const acceptEncoding of ['gzip', 'br, gzip, deflate', '*;q=0.5', '', 'br', 'gzip;q=0', '*;q=1, gzip;q=0']) {
   const response = await calculatorTransferResponse(new Request('https://calculator.test', { headers: { 'Accept-Encoding': acceptEncoding } }), json);
-  assert.equal(response.headers.get('Content-Encoding'), null, 'Respect clients that cannot accept gzip');
+  assert.equal(response.headers.get('Content-Encoding'), null, 'Leave encoding negotiation to the hosting layer');
   assert.equal(await response.text(), json);
 }
+const transfer = await calculatorTransferResponse(
+  new Request('https://calculator.test', { headers: { 'Accept-Encoding': 'gzip, br' } }), largeText,
+  { status: 202, headers: {
+    'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', Vary: 'Cookie',
+    'Content-Encoding': 'gzip', 'Content-Length': '123',
+  } },
+);
+assert.equal(transfer.status, 202);
+assert.equal(transfer.headers.get('Content-Type'), 'text/html; charset=utf-8');
+assert.equal(transfer.headers.get('Cache-Control'), 'no-store');
+assert.equal(transfer.headers.get('Vary'), 'Cookie', 'Preserve explicit Vary without taking over host negotiation');
+assert.equal(transfer.headers.get('Content-Encoding'), null, 'Remove stale encoding metadata');
+assert.equal(transfer.headers.get('Content-Length'), null, 'Remove stale length metadata when streaming');
+const chunks = [];
+const reader = transfer.body.getReader();
+while (true) {
+  const { done, value } = await reader.read();
+  if (done) break;
+  chunks.push(Buffer.from(value));
+  assert.ok(value.byteLength <= 65536, 'Large bodies are emitted in chunks no larger than 64 KiB');
+}
+assert.ok(chunks.length > 1, 'Large body is streamed across multiple chunks');
+assert.equal(Buffer.concat(chunks).toString('utf8'), largeText, 'Unicode is exact across a UTF-8 chunk boundary');
 const smallResponse = await calculatorJsonResponse(new Request('https://calculator.test', { headers: { 'Accept-Encoding': 'gzip' } }), { ok: true });
 assert.deepEqual(await smallResponse.json(), { ok: true });
 assert.equal(smallResponse.headers.get('Content-Encoding'), null);

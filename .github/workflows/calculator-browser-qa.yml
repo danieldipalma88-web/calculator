@@ -13,6 +13,7 @@ on:
       - 'services/nsw-rebate-backup/**'
       - 'scripts/qa-calculator-server.mjs'
       - 'scripts/verify-calculator-qa.mjs'
+      - 'scripts/verify-large-save-roundtrip-browser.mjs'
       - 'scripts/fixtures/**'
       - 'package*.json'
       - '.github/workflows/calculator-browser-qa.yml'
@@ -27,6 +28,7 @@ on:
       - 'services/nsw-rebate-backup/**'
       - 'scripts/qa-calculator-server.mjs'
       - 'scripts/verify-calculator-qa.mjs'
+      - 'scripts/verify-large-save-roundtrip-browser.mjs'
       - 'scripts/fixtures/**'
       - 'package*.json'
       - '.github/workflows/calculator-browser-qa.yml'
@@ -52,6 +54,10 @@ jobs:
           node-version: '24'
       - run: npm install --no-save --no-package-lock --ignore-scripts playwright@1.62.1
       - run: npx --no-install playwright install --with-deps "$QA_BROWSER"
+        env:
+          QA_BROWSER: ${{ matrix.browser }}
+      - name: Verify large calculator loads through edge compression
+        run: node scripts/verify-large-save-roundtrip-browser.mjs
         env:
           QA_BROWSER: ${{ matrix.browser }}
       - run: npm run verify:calculator-qa
