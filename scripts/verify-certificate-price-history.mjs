@@ -26,6 +26,9 @@ assert.match(page, /\.from\("platform_certificate_value_history"\)/);
 assert.match(page, /async function saveAuthoritativePlatformCertificateValues/);
 assert.match(page, /async function listPlatformCertificateValueHistory/);
 assert.match(component, /The fixed DCCEEW \$30 contract rate is separate/);
+assert.match(component, /1 ESC \+ 1 PERC before fees/);
+assert.match(component, /<th>Combined<\/th>/);
+assert.match(page, /combinedCertificateSpotPrice\(certificateValues\)/);
 assert.match(styles, /\.certificate-current-trends/);
 assert.match(styles, /\.certificate-chart-grid/);
 assert.match(styles, /\.certificate-history-table-wrap/);
@@ -48,7 +51,7 @@ assert.ok(authoritativeWrite > 0 && historyRead > 0, "Current values and history
 
 const helperTests = `
 import assert from 'node:assert/strict';
-import { certificateHistoryCutoff, certificateHistoryChartPoints, filterCertificateHistory, sortCertificateHistory } from ${JSON.stringify(new URL("../lib/certificate-history.ts", import.meta.url).href)};
+import { certificateHistoryCutoff, certificateHistoryChartPoints, combinedCertificateSpotPrice, filterCertificateHistory, previousCertificateObservation, sortCertificateHistory } from ${JSON.stringify(new URL("../lib/certificate-history.ts", import.meta.url).href)};
 const rows = [
   { id: 2, effectiveWeek: '2026-06-01', observedAt: '2026-06-01T00:00:00Z', escSpotPrice: 31, prcSpotPrice: 20, source: 'manual', observedByEmail: '' },
   { id: 1, effectiveWeek: '2026-01-01', observedAt: '2026-01-01T00:00:00Z', escSpotPrice: 30, prcSpotPrice: 19, source: 'manual', observedByEmail: '' },
@@ -63,6 +66,18 @@ assert.equal(certificateHistoryChartPoints(rows.slice(0,1), 'escSpotPrice', 640,
 const points = certificateHistoryChartPoints(sortCertificateHistory(rows), 'escSpotPrice', 640, 230);
 assert.ok(points[0].x < points[1].x && points[1].x < points[2].x);
 assert.equal(points[0].x, 56);
+const opposingPrices = [
+  { ...rows[0], escSpotPrice: 27.36, prcSpotPrice: 2.91 },
+  { ...rows[2], escSpotPrice: 27.51, prcSpotPrice: 2.56 },
+];
+const combined = certificateHistoryChartPoints(opposingPrices, 'combinedSpotPrice', 640, 230);
+assert.deepEqual(combined.map(point => point.value), [30.27, 30.07]);
+assert.ok(combined[1].y > combined[0].y, 'Combined value can fall while ESC increases');
+assert.equal(combinedCertificateSpotPrice({escSpotPrice: 0.10, prcSpotPrice: 0.20}), 0.30);
+assert.equal(combinedCertificateSpotPrice({escSpotPrice: 27.71, prcSpotPrice: 2.56}), 30.27);
+assert.equal(previousCertificateObservation(opposingPrices, { ...opposingPrices[1], updatedAt: opposingPrices[1].observedAt }), opposingPrices[0]);
+assert.equal(previousCertificateObservation(opposingPrices, { ...opposingPrices[0], updatedAt: '2026-09-02T00:00:00Z' }), opposingPrices[1], 'A repeat save skipped by history dedup compares against the last recorded price');
+assert.equal(previousCertificateObservation([], { ...rows[0], updatedAt: rows[0].observedAt }), null);
 `;
 const helperResult = spawnSync(process.execPath, ["--experimental-strip-types", "--input-type=module", "-e", helperTests], {
   encoding: "utf8",

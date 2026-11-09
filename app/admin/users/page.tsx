@@ -26,8 +26,9 @@ import {
 import PageLoadingOverlay from "../../page-loading-overlay";
 import BusinessMultiSelect from "./business-multi-select";
 import CertificateHistory from "./certificate-history";
+import { combinedCertificateSpotPrice, previousCertificateObservation } from "../../../lib/certificate-history";
 import DirectoryList from "./directory-list";
-import AdminWorkspace, { AdminPanel, AdminSaveStatus } from "./admin-workspace";
+import AdminWorkspace, { AdminPanel, AdminSaveStatus, SpotPriceSaveForm } from "./admin-workspace";
 import UserActivity from "./user-activity";
 import RemoveUserButton from "./remove-user-button";
 import PaymentFollowUpNotice from "./payment-follow-up-notice";
@@ -4769,12 +4770,16 @@ export default async function AdminUsersPage({
   const certificateValues = certificateResult.data;
   const businessCertificateValues = certificateResult.businessValuesById;
   const certificateHistory = certificateHistoryResult.data;
-  const previousCertificateHistory = certificateHistory.at(-2) || null;
+  const previousCertificateHistory = previousCertificateObservation(certificateHistory, certificateValues);
   const escTrend = previousCertificateHistory
     ? certificateValues.escSpotPrice - previousCertificateHistory.escSpotPrice
     : null;
   const prcTrend = previousCertificateHistory
     ? certificateValues.prcSpotPrice - previousCertificateHistory.prcSpotPrice
+    : null;
+  const combinedSpotPrice = combinedCertificateSpotPrice(certificateValues);
+  const combinedTrend = previousCertificateHistory
+    ? combinedSpotPrice - combinedCertificateSpotPrice(previousCertificateHistory)
     : null;
   const setupBusiness = businesses.find((business) => business.id === params?.setupBusiness) || null;
   const setupAction = setupBusiness && ["choose", "create", "assign"].includes(params?.setupAction || "")
@@ -4883,6 +4888,10 @@ export default async function AdminUsersPage({
                 <div><span>PERC per certificate</span><strong>{formatMoneyNumber(certificateValues.prcSpotPrice)}</strong></div>
                 <p className={`certificate-trend ${certificateTrendClass(prcTrend)}`}>{certificateTrendLabel(prcTrend)}</p>
               </article>
+              <article className="certificate-current-trend-card certificate-combined-trend-card">
+                <div><span>Combined spot value</span><strong>{formatMoneyNumber(combinedSpotPrice)}</strong><small>1 ESC + 1 PERC before fees</small></div>
+                <p className={`certificate-trend ${certificateTrendClass(combinedTrend)}`}>{certificateTrendLabel(combinedTrend)}</p>
+              </article>
             </div>
             <p className="certificate-update-note">
               {certificateValues.updatedAt ? `Updated ${new Date(certificateValues.updatedAt).toLocaleString("en-AU", { timeZone: "Australia/Sydney", dateStyle: "medium", timeStyle: "short" })}` : "No update recorded"}
@@ -4891,7 +4900,7 @@ export default async function AdminUsersPage({
             </p>
             <details className="admin-create certificate-price-editor" data-admin-record="edit-spot-prices">
               <summary><span className="when-closed">Edit spot prices</span><span className="when-open">Close price editor</span><span className="section-chevron" aria-hidden="true" /></summary>
-              <form action={savePlatformCertificateValues} className="certificate-admin-form" data-loading-label="Saving spot prices...">
+              <SpotPriceSaveForm saveAction={savePlatformCertificateValues}>
                 <div>
                   <label htmlFor="certificateEscSpotPrice">ESC spot price ($)</label>
                   <input id="certificateEscSpotPrice" name="escSpotPrice" type="number" min="0.01" step="0.01" defaultValue={certificateValues.escSpotPrice.toFixed(2)} required />
@@ -4908,10 +4917,7 @@ export default async function AdminUsersPage({
                   <input type="checkbox" name="locked" value="1" defaultChecked={certificateValues.locked} />
                   <span>Prevent price edits in calculators</span>
                 </label>
-                <button className="orange" type="submit">Save spot prices</button>
-                <p className="help form-full-width">Applies to all NSW businesses. Each business keeps its own certificate fees.</p>
-              <AdminSaveStatus />
-                </form>
+              </SpotPriceSaveForm>
             </details>
             <CertificateHistory rows={certificateHistory} initialRange={certificateHistoryRange} initialOpen={Boolean(params?.certificateHistoryRange)} />
             <details className="admin-advanced">

@@ -3,8 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   certificateHistoryChartPoints,
+  certificateHistoryValue,
   filterCertificateHistory,
   sortCertificateHistory,
+  type CertificateHistoryMetric,
   type CertificateHistoryRange,
   type CertificateHistoryRow,
 } from "../../../lib/certificate-history";
@@ -26,11 +28,17 @@ const rangeLabels: Record<CertificateHistoryRange, string> = {
   "4w": "Last 4 weeks", "3m": "Last 3 months", "6m": "Last 6 months", "1y": "Last year", all: "All time",
 };
 
+const charts = [
+  { metric: "escSpotPrice", label: "ESC", title: "ESC spot price", unit: "$ per certificate", color: "#0f766e" },
+  { metric: "prcSpotPrice", label: "PERC", title: "PERC spot price", unit: "$ per certificate", color: "#c2410c" },
+  { metric: "combinedSpotPrice", label: "Combined", title: "Combined spot value", unit: "1 ESC + 1 PERC", color: "#1d4ed8" },
+] as const;
+
 function HistoryChart({
   rows, metric, label, color,
 }: {
   rows: CertificateHistoryRow[];
-  metric: "escSpotPrice" | "prcSpotPrice";
+  metric: CertificateHistoryMetric;
   label: string;
   color: string;
 }) {
@@ -55,7 +63,7 @@ function HistoryChart({
   if (!rows.length) return <div className="certificate-chart-empty">No observations in this range.</div>;
   if (rows.length === 1) return (
     <div className="certificate-chart-empty">
-      <strong>{money(rows[0][metric])} · {dateLabel(rows[0].observedAt)}</strong>
+      <strong>{money(certificateHistoryValue(rows[0], metric))} · {dateLabel(rows[0].observedAt)}</strong>
       <span>Insufficient history to show a trend.</span>
     </div>
   );
@@ -164,10 +172,6 @@ export default function CertificateHistory({
   const visible = useMemo(() => filterCertificateHistory(chronological, range), [chronological, range]);
   const tableRows = [...visible].reverse();
   const latest = chronological.at(-1);
-  const extrema = (metric: "escSpotPrice" | "prcSpotPrice") => visible.length
-    ? { high: Math.max(...visible.map((row) => row[metric])), low: Math.min(...visible.map((row) => row[metric])) }
-    : { high: null, low: null };
-
   return (
     <details
       className="certificate-history-panel"
@@ -189,20 +193,19 @@ export default function CertificateHistory({
           <div>
             <h3>Spot-price trend</h3>
             <p>{rangeLabels[range]}. The fixed DCCEEW $30 contract rate is separate from these market prices.</p>
+            <p>Combined value is 1 ESC + 1 PERC before fees. Actual payouts depend on certificate counts and business fees.</p>
           </div>
           <CertificateHistoryRangeSelect value={range} onChange={setRange} />
         </div>
         <div className="certificate-chart-grid">
-          {([[
-            "escSpotPrice", "ESC", "#0f766e",
-          ], ["prcSpotPrice", "PERC", "#c2410c"]] as const).map(([metric, label, color]) => {
-            const limits = extrema(metric);
-            return <article className="certificate-chart-card" key={metric}>
+          {charts.map(({ metric, label, title, unit, color }) => {
+            const values = visible.map((row) => certificateHistoryValue(row, metric));
+            return <article className={`certificate-chart-card${metric === "combinedSpotPrice" ? " certificate-combined-chart" : ""}`} key={metric}>
               <div className="certificate-chart-heading">
-                <div><span>{label} spot price</span><strong>$ per certificate</strong></div>
+                <div><span>{title}</span><strong>{unit}</strong></div>
                 <div className="certificate-chart-extremes">
-                  <span>High {limits.high === null ? "-" : money(limits.high)}</span>
-                  <span>Low {limits.low === null ? "-" : money(limits.low)}</span>
+                  <span>High {values.length ? money(Math.max(...values)) : "-"}</span>
+                  <span>Low {values.length ? money(Math.min(...values)) : "-"}</span>
                 </div>
               </div>
               <HistoryChart rows={visible} metric={metric} label={label} color={color} />
@@ -211,15 +214,16 @@ export default function CertificateHistory({
         </div>
         <div className="certificate-history-table-wrap">
           <table className="certificate-history-table">
-            <thead><tr><th>Date</th><th>ESC spot</th><th>PERC spot</th><th>Source</th></tr></thead>
+            <thead><tr><th>Date</th><th>ESC spot</th><th>PERC spot</th><th>Combined</th><th className="certificate-history-source">Source</th></tr></thead>
             <tbody>{tableRows.length ? tableRows.map((row) => (
               <tr key={row.id}>
                 <td><strong>{dateLabel(row.effectiveWeek)}</strong><span>{dateTimeLabel(row.observedAt)} Sydney</span></td>
                 <td>{money(row.escSpotPrice)}</td>
                 <td>{money(row.prcSpotPrice)}</td>
-                <td><strong>{/automation|automated|system|refresh|bot/i.test(`${row.source} ${row.observedByEmail}`) ? "Automated" : row.source}</strong></td>
+                <td><strong>{money(certificateHistoryValue(row, "combinedSpotPrice"))}</strong></td>
+                <td className="certificate-history-source"><strong>{/automation|automated|system|refresh|bot/i.test(`${row.source} ${row.observedByEmail}`) ? "Automated" : row.source}</strong></td>
               </tr>
-            )) : <tr><td colSpan={4} className="certificate-history-empty">No spot-price observations fall within this range.</td></tr>}</tbody>
+            )) : <tr><td colSpan={5} className="certificate-history-empty">No spot-price observations fall within this range.</td></tr>}</tbody>
           </table>
         </div>
       </div>

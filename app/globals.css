@@ -844,7 +844,7 @@ button.danger {
 
 .certificate-current-trends {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
   margin-top: 12px;
 }
@@ -877,6 +877,13 @@ button.danger {
   color: var(--ink);
   font-size: 24px;
   line-height: 1;
+}
+
+.certificate-combined-trend-card small {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .certificate-trend {
@@ -1015,6 +1022,10 @@ button.danger {
   border: 1px solid #dbe6ef;
   border-radius: 8px;
   background: #fff;
+}
+
+.certificate-combined-chart {
+  grid-column: 1 / -1;
 }
 
 .certificate-chart-heading strong {
@@ -3619,6 +3630,12 @@ select {
 .admin-workspace :is(.business-edit-form, .user-edit-grid) { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: end; }
 .admin-workspace .form-full-width, .admin-save-status { grid-column: 1 / -1; margin: 0; }
 .admin-save-status { padding: 10px 0; color: #0f766e; font-size: 13px; }
+.spot-price-save-dialog { width: min(360px, calc(100% - 48px)); color: var(--ink); }
+.spot-price-save-dialog:not([open]) { display: none; }
+.spot-price-save-dialog::backdrop { background: rgba(238, 243, 247, .82); backdrop-filter: blur(5px); }
+@media (prefers-reduced-motion: reduce) {
+  .spot-price-save-dialog .page-loading-spinner { animation: none; }
+}
 .admin-workspace form[aria-busy="true"] { opacity: .7; }
 .admin-workspace .business-summary { grid-template-columns: minmax(0, 1.6fr) repeat(4, minmax(0, .8fr)) minmax(0, 1.6fr) auto; gap: 14px; }
 .admin-workspace .business-summary > div { min-width: 0; overflow-wrap: anywhere; }
@@ -3711,13 +3728,17 @@ select {
   .admin-workspace .user-card-actions { display: grid; grid-template-columns: 1fr; }
   .admin-workspace .user-card-actions :is(form,button,.button) { width: 100%; }
   .admin-workspace .certificate-current-trends { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-workspace .certificate-combined-trend-card { grid-column: 1 / -1; }
   .admin-workspace .certificate-current-trend-card { padding: 14px 10px; gap: 10px; }
   .admin-workspace .certificate-current-trend-card strong { font-size: 24px; }
   .admin-workspace .certificate-trend { font-size: 12px; }
   .admin-workspace .certificate-chart-heading { flex-direction: row; }
   .admin-workspace .certificate-chart-extremes { justify-content: flex-end; }
   .admin-workspace .certificate-history-table :is(td,th) { padding: 10px 6px; font-size: 12px; }
-  .admin-workspace .certificate-history-table :is(th,td):last-child { display: none; }
+  .admin-workspace .certificate-history-table th { letter-spacing: 0; text-transform: none; }
+  .admin-workspace .certificate-history-table th:first-child { width: 29%; }
+  .admin-workspace .certificate-history-table th:nth-child(4) { width: 27%; }
+  .admin-workspace .certificate-history-table .certificate-history-source { display: none; }
   .admin-reset-values { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .admin-workspace .won-filter-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .admin-workspace .won-mobile-salesperson-field, .admin-workspace .won-sort-field { grid-column: auto; }

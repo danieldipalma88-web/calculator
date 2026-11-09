@@ -10,6 +10,29 @@ export type CertificateHistoryRow = {
   observedByEmail: string;
 };
 
+type CertificateSpotPrices = Pick<CertificateHistoryRow, "escSpotPrice" | "prcSpotPrice">;
+export type CertificateHistoryMetric = keyof CertificateSpotPrices | "combinedSpotPrice";
+
+export function combinedCertificateSpotPrice(prices: CertificateSpotPrices) {
+  return Math.round((prices.escSpotPrice + prices.prcSpotPrice) * 100) / 100;
+}
+
+export function certificateHistoryValue(prices: CertificateSpotPrices, metric: CertificateHistoryMetric) {
+  return metric === "combinedSpotPrice" ? combinedCertificateSpotPrice(prices) : prices[metric];
+}
+
+export function previousCertificateObservation(
+  chronologicalRows: CertificateHistoryRow[],
+  current: CertificateSpotPrices & { updatedAt: string },
+) {
+  const latest = chronologicalRows.at(-1);
+  if (!latest) return null;
+  // A same-week repeat can be saved without inserting a new history row.
+  const recordsCurrentSave = Date.parse(latest.observedAt) === Date.parse(current.updatedAt)
+    && latest.escSpotPrice === current.escSpotPrice && latest.prcSpotPrice === current.prcSpotPrice;
+  return (recordsCurrentSave ? chronologicalRows.at(-2) : latest) ?? null;
+}
+
 export function sortCertificateHistory(rows: CertificateHistoryRow[]) {
   return [...rows].sort((a, b) => Date.parse(a.observedAt) - Date.parse(b.observedAt));
 }
@@ -56,14 +79,14 @@ export function filterCertificateHistory(
 
 export function certificateHistoryChartPoints(
   rows: CertificateHistoryRow[],
-  metric: "escSpotPrice" | "prcSpotPrice",
+  metric: CertificateHistoryMetric,
   width: number,
   height: number,
   padding = { left: 56, right: 12, top: 12, bottom: 34 },
 ) {
   if (rows.length < 2) return [];
   const times = rows.map((row) => Date.parse(row.observedAt));
-  const values = rows.map((row) => row[metric]);
+  const values = rows.map((row) => certificateHistoryValue(row, metric));
   const minTime = Math.min(...times);
   const maxTime = Math.max(...times);
   const minValue = Math.min(...values);

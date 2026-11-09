@@ -1,7 +1,7 @@
 "use client";
 
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { useFormStatus } from "react-dom";
+import { createContext, startTransition, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal, useFormStatus } from "react-dom";
 import { useSearchParams } from "next/navigation";
 
 const VIEWS = [
@@ -51,6 +51,60 @@ export function AdminSaveStatus() {
   return <p ref={marker} className="admin-save-status" role="status" hidden={!pending}>
     {slow ? "This is taking longer than usual. Your request is still processing." : "Saving changes..."}
   </p>;
+}
+
+export function SpotPriceSaveForm({ children, saveAction }: {
+  children: ReactNode; saveAction: (data: FormData) => Promise<void>;
+}) {
+  const submitting = useRef(false);
+  const submitButton = useRef<HTMLButtonElement>(null);
+  const overlay = useRef<HTMLDialogElement>(null);
+  const [pending, setPending] = useState(false);
+  const [slow, setSlow] = useState(false);
+
+  useEffect(() => {
+    const dialog = overlay.current;
+    if (!pending || !dialog) return;
+    dialog.showModal();
+    const timer = setTimeout(() => setSlow(true), 15000);
+    return () => {
+      clearTimeout(timer);
+      dialog.close();
+      submitButton.current?.focus({ preventScroll: true });
+    };
+  }, [pending]);
+
+  return <form action={saveAction} className="certificate-admin-form" aria-busy={pending || undefined}
+    onSubmit={(event) => {
+      if (event.defaultPrevented) return;
+      event.preventDefault();
+      if (submitting.current) return;
+      const data = new FormData(event.currentTarget);
+      submitting.current = true;
+      setSlow(false);
+      setPending(true);
+      startTransition(async () => {
+        try {
+          await saveAction(data);
+        } finally {
+          submitting.current = false;
+          setPending(false);
+        }
+      });
+    }}>
+    {children}
+    <button ref={submitButton} className="orange" type="submit" disabled={pending}>Save spot prices</button>
+    <p className="help form-full-width">Applies to all NSW businesses. Each business keeps its own certificate fees.</p>
+    {pending ? createPortal(
+      <dialog ref={overlay} className="page-loading-panel spot-price-save-dialog" aria-labelledby="spot-price-save-title"
+        onCancel={(event) => event.preventDefault()}>
+        <span className="page-loading-spinner" aria-hidden="true" />
+        <strong id="spot-price-save-title">Saving spot prices...</strong>
+        <span role="status">{slow ? "Still saving. Please keep this tab open." : "Applying the updated rates across NSW calculators."}</span>
+      </dialog>,
+      document.body,
+    ) : null}
+  </form>;
 }
 
 export default function AdminWorkspace({ children, storageScope, initialView }: {
