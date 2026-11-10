@@ -407,26 +407,63 @@ function injectCloudStorageSync(
   var calculatorSettingsUrl = calculatorSyncUrl + (calculatorSyncUrl.indexOf('?') >= 0 ? '&' : '?') + 'mode=rebate-settings';
   var profileStorageKey = '__calculatorProfileEmail';
   var accountStorageKey = '__calculatorSignedInEmail';
+  var recoveryIsolationKey = '__calculatorRecoveryIsolatedCache';
   var profileEmail = (calculatorUser.viewingEmail || calculatorUser.email || '') + '|' + (calculatorUser.businessId || '');
   var expectedWorkspace = {accountEmail:calculatorUser.email, viewingEmail:calculatorUser.viewingEmail || calculatorUser.email, businessId:calculatorUser.businessId || null};
   var pendingStorageKey = '__calculatorPendingSaveV1:' + calculatorUser.email + '|' + profileEmail;
+  var recoverySlotPrefix = pendingStorageKey + ':draft:';
+  var recoveryWriteKey = pendingStorageKey;
   var pendingRecovery = null;
-  var recoveryRequired = false;
+  var recoveredDrafts = [];
+  var confirmedDrafts = [];
+  var recoveryDetected = false;
+  var recoveryHydrating = false;
+  var recoveryBaselineFailed = false;
+  var recoverySavedSnapshot = null;
+  var recoveryUiSnapshot = null;
   var workspaceChanged = false;
+  var nativeCacheRetired = false;
   var recoveryStorageFailed = false;
+  var persistedRecovery = null;
   var refreshBlockedStorageKeys = Object.create(null);
   try {
-    var storedRecovery = sessionStorage.getItem(pendingStorageKey);
-    if (storedRecovery) {
-      var parsedRecovery = JSON.parse(storedRecovery);
-      if (parsedRecovery && parsedRecovery.version === 1 && parsedRecovery.profile === pendingStorageKey && parsedRecovery.envelope && (parsedRecovery.envelope.data || parsedRecovery.envelope.quoteArrange || parsedRecovery.envelope.quoteEdit || parsedRecovery.envelope.quoteCopy)) {
-        pendingRecovery = parsedRecovery;
-        recoveryRequired = true;
-      }
+    var recoveryKeys = [pendingStorageKey];
+    for (var i = 0; i < sessionStorage.length; i++) {
+      var storedKey = sessionStorage.key(i);
+      if (storedKey && storedKey.indexOf(recoverySlotPrefix) === 0) recoveryKeys.push(storedKey);
+    }
+    recoveryKeys.forEach(function(key){
+      var stored = sessionStorage.getItem(key);
+      if (stored === null) return;
+      recoveryDetected = true;
+      try {
+        var draft = JSON.parse(stored);
+        if (!draft || draft.version !== 1 || draft.profile !== pendingStorageKey || !draft.envelope ||
+            !sameRecoveryWorkspace(draft.envelope.expectedWorkspace) ||
+            !(draft.envelope.data || draft.envelope.quoteEdit || draft.envelope.quoteArrange || draft.envelope.quoteCopy)) return;
+        if (draft.compatibilityMarker === true || recoveryIsAlreadySaved(draft.envelope)) confirmedDrafts.push({key:key, stored:stored});
+        else recoveredDrafts.push(draft);
+      } catch(e) { /* Keep unrecognised records intact. */ }
+    });
+    if (recoveryDetected) {
+      // Existing slots stay intact. New saves must not replace an older draft.
+      var slotId = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
+      recoveryWriteKey = recoverySlotPrefix + slotId;
+      while (recoveryKeys.indexOf(recoveryWriteKey) >= 0) recoveryWriteKey += '-new';
     }
   } catch(e) { recoveryStorageFailed = true; }
+  // Later tabs must not reuse the native cache left behind by an unconfirmed save.
+  var isolateWorkspace = recoveryDetected;
+  try {
+    isolateWorkspace = isolateWorkspace || (localStorage.getItem(recoveryIsolationKey) === '1' &&
+      localStorage.getItem(accountStorageKey) === calculatorUser.email &&
+      localStorage.getItem(profileStorageKey) === profileEmail);
+  } catch(e) {}
+  var recoveryStorage = isolateWorkspace ? Object.create(null) : null;
+  recoveryHydrating = isolateWorkspace;
   var trustedManagedPriceKeys = {};
   var syncing = false;
+  var shouldBackfillCloud = false;
   var timer = null;
   var lastSnapshotJson = '';
   var pendingSnapshot = null;
@@ -483,6 +520,12 @@ function injectCloudStorageSync(
     return status;
   }
   function setCloudSaveStatus(message, tone){
+    if (nativeCacheRetired) {
+      message = pendingRecovery && recoveryStorageFailed
+        ? 'Saving paused. Back up this draft before reopening the calculator.'
+        : 'Another tab opened the saved calculator. Reopen this tab before saving.';
+      tone = 'error';
+    }
     window.__calculatorCloudSaveState = {message:message || '', tone:tone || 'idle'};
     window.dispatchEvent(new Event('calculator-cloud-save-status'));
     var status = ensureCloudSaveStatus();
@@ -493,7 +536,7 @@ function injectCloudStorageSync(
     status.textContent = message || '';
     status.dataset.tone = nextTone;
     status.setAttribute('aria-hidden', nextTone === 'idle' ? 'true' : 'false');
-    if (nextTone === 'error' && syncRetryPaused && !workspaceChanged && !recoveryRequired && !quoteConflictError && !quoteArrangeAttempt) {
+    if (nextTone === 'error' && syncRetryPaused && !workspaceChanged && !recoveryBaselineFailed && !quoteConflictError && !quoteArrangeAttempt) {
       var retry = document.createElement('button');
       retry.type = 'button';
       retry.className = 'secondary';
@@ -501,13 +544,13 @@ function injectCloudStorageSync(
       retry.onclick = function(){ window.__calculatorFlushCloudSave(20000).catch(function(){}); };
       status.appendChild(retry);
     }
-    if (nextTone === 'error' && pendingRecovery && !workspaceChanged && !recoveryRequired) {
+    if (nextTone === 'error' && pendingRecovery && (!workspaceChanged || nativeCacheRetired)) {
       var download = document.createElement('button');
       download.type = 'button';
       download.className = 'secondary';
       download.textContent = 'Back up';
       download.title = 'Download pending changes before closing this tab';
-      download.onclick = downloadPendingRecovery;
+      download.onclick = function(){ downloadRecovery(pendingRecovery); };
       status.appendChild(download);
     }
     if (nextTone === 'saved') {
@@ -520,7 +563,40 @@ function injectCloudStorageSync(
     }
   }
   function isAppStorageKey(key){
-    return !!key && key.indexOf('sb-') !== 0 && key !== profileStorageKey && key !== accountStorageKey;
+    return !!key && key.indexOf('sb-') !== 0 && key !== profileStorageKey && key !== accountStorageKey && key !== recoveryIsolationKey &&
+      ['length', 'key', 'getItem', 'setItem', 'removeItem', 'clear'].indexOf(key) < 0;
+  }
+  function sameRecoveryWorkspace(scope){
+    return !!scope && scope.accountEmail === expectedWorkspace.accountEmail &&
+      scope.viewingEmail === expectedWorkspace.viewingEmail && scope.businessId === expectedWorkspace.businessId;
+  }
+  function sameRecoveryValue(a, b){
+    if (a === b) return true;
+    if (!a || !b || typeof a !== 'object' || typeof b !== 'object' || Array.isArray(a) !== Array.isArray(b)) return false;
+    var keys = Object.keys(a);
+    return keys.length === Object.keys(b).length && keys.every(function(key){
+      return Object.prototype.hasOwnProperty.call(b, key) && sameRecoveryValue(a[key], b[key]);
+    });
+  }
+  function parseRecoveryValue(value){
+    if (typeof value !== 'string') return value;
+    try {
+      var parsed = JSON.parse(value);
+      return parsed && typeof parsed === 'object' ? parsed : value;
+    } catch(e) { return value; }
+  }
+  function recoveryIsAlreadySaved(envelope){
+    if (!envelope.data || typeof envelope.data !== 'object' || Array.isArray(envelope.data) ||
+        envelope.businessConfigurationRevision !== businessConfigurationRevision ||
+        Object.keys(envelope).some(function(key){ return ['data', 'businessConfigurationRevision', 'expectedWorkspace', 'equipmentPriceEdits'].indexOf(key) < 0; }) ||
+        (envelope.equipmentPriceEdits !== undefined && (!envelope.equipmentPriceEdits ||
+          typeof envelope.equipmentPriceEdits !== 'object' || Array.isArray(envelope.equipmentPriceEdits) ||
+          Object.keys(envelope.equipmentPriceEdits).length))) return false;
+    var keys = Object.keys(envelope.data).filter(isAppStorageKey);
+    return keys.length > 0 && keys.every(function(key){
+      return Object.prototype.hasOwnProperty.call(cloudData, key) &&
+        (envelope.data[key] === cloudData[key] || sameRecoveryValue(parseRecoveryValue(envelope.data[key]), parseRecoveryValue(cloudData[key])));
+    });
   }
   function saveEnvelope(request){
     return {data:request.data, businessConfigurationRevision:businessConfigurationRevision, equipmentPriceEdits:equipmentPriceEditsForSnapshot(request.data), expectedWorkspace:expectedWorkspace};
@@ -561,90 +637,238 @@ function injectCloudStorageSync(
     retainRecoveryEnvelope(saveEnvelope(request));
   }
   function retainRecoveryEnvelope(envelope){
-    pendingRecovery = {version:1, profile:pendingStorageKey, savedAt:new Date().toISOString(), envelope:envelope};
+    pendingRecovery = {version:1, profile:pendingStorageKey, savedAt:new Date().toISOString(), envelope:envelope, visibility:recoveryVisibility()};
     try {
-      sessionStorage.setItem(pendingStorageKey, JSON.stringify(pendingRecovery));
+      // A different document may have claimed the slot since this page loaded.
+      if (sessionStorage.getItem(recoveryWriteKey) !== persistedRecovery) {
+        recoveryWriteKey = recoverySlotPrefix + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
+        while (sessionStorage.getItem(recoveryWriteKey) !== null) recoveryWriteKey += '-new';
+        persistedRecovery = null;
+      }
+      var serialized = JSON.stringify(pendingRecovery);
+      if (recoveryWriteKey !== pendingStorageKey && sessionStorage.getItem(pendingStorageKey) === null) {
+        // An older release must not mistake a workspace with archived drafts for an empty recovery queue.
+        sessionStorage.setItem(pendingStorageKey, recoveryCompatibilityMarker());
+      }
+      sessionStorage.setItem(recoveryWriteKey, serialized);
+      persistedRecovery = serialized;
       recoveryStorageFailed = false;
     } catch(e) { recoveryStorageFailed = true; }
   }
+  function recoveryCompatibilityMarker(){
+    return JSON.stringify({version:1, profile:pendingStorageKey, compatibilityMarker:true,
+      envelope:{data:{}, expectedWorkspace:expectedWorkspace}});
+  }
   function clearAcknowledgedRecovery(envelope){
     if (!pendingRecovery || JSON.stringify(pendingRecovery.envelope) !== JSON.stringify(envelope)) return;
-    try { sessionStorage.removeItem(pendingStorageKey); pendingRecovery = null; recoveryStorageFailed = false; }
+    try {
+      if (persistedRecovery && sessionStorage.getItem(recoveryWriteKey) === persistedRecovery) sessionStorage.removeItem(recoveryWriteKey);
+      persistedRecovery = null;
+      pendingRecovery = null;
+      recoveryStorageFailed = false;
+    }
     catch(e) { recoveryStorageFailed = true; }
   }
-  function downloadPendingRecovery(){
-    if (!pendingRecovery) return;
-    var url = URL.createObjectURL(new Blob([JSON.stringify(pendingRecovery, null, 2)], {type:'application/json'}));
+  function recoveryVisibility(){
+    return JSON.stringify([calculatorUser.role, !!calculatorUser.isPreviewMode, !!calculatorUser.canSeeOwnerDetails,
+      !!calculatorUser.canSeeCommissionDetails, !!calculatorUser.canSeeProfitDetails, !!calculatorUser.canSeeAgencyProfit]);
+  }
+  function downloadRecovery(draft){
+    if (!draft) return;
+    if (!workspaceIsCurrent()) {
+      // Same-workspace retirement can leave the only draft in memory if storage is full.
+      try {
+        if (!nativeCacheRetired || localStorage.getItem(accountStorageKey) !== calculatorUser.email ||
+            localStorage.getItem(profileStorageKey) !== profileEmail) return;
+      } catch(e) { return; }
+    }
+    var url = URL.createObjectURL(new Blob([JSON.stringify(draft, null, 2)], {type:'application/json'}));
     var link = document.createElement('a');
     link.href = url;
     link.download = 'rebate-portal-unsaved-changes.json';
     link.click();
     setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
   }
-  function showRecoveryGuard(){
-    if (!document.body || (!workspaceChanged && !recoveryRequired)) return;
-    var overlay = document.getElementById('calculatorSaveRecovery');
-    if (overlay) return;
-    overlay = document.createElement('dialog');
-    overlay.id = 'calculatorSaveRecovery';
+  function showWorkspaceGuard(){
+    if (!document.body || !workspaceChanged || nativeCacheRetired || document.getElementById('calculatorWorkspaceGuard')) return;
+    showRecoveredDrafts('currentQuoteRecovery');
+    showRecoveredDrafts('quoteLibraryRecovery');
+    var overlay = document.createElement('dialog');
+    overlay.id = 'calculatorWorkspaceGuard';
     overlay.className = 'calculatorSaveRecovery';
-    overlay.setAttribute('aria-labelledby', 'calculatorSaveRecoveryTitle');
+    overlay.setAttribute('aria-labelledby', 'calculatorWorkspaceGuardTitle');
     overlay.addEventListener('cancel', function(event){ event.preventDefault(); });
     var title = document.createElement('h2');
-    title.id = 'calculatorSaveRecoveryTitle';
-    title.textContent = workspaceChanged ? 'Workspace changed in another tab' : 'Unsaved changes found';
+    title.id = 'calculatorWorkspaceGuardTitle';
+    title.textContent = 'Workspace changed in another tab';
     var description = document.createElement('p');
-    description.textContent = workspaceChanged ? 'This tab has paused to keep different businesses and accounts separate. Reopen this workspace to continue.' : 'A previous save was not confirmed. Your saved calculator is unchanged. Review and download the pending changes before continuing.';
-    overlay.append(title, description);
-    if (pendingRecovery) {
-      var details = document.createElement('details');
-      var summary = document.createElement('summary');
-      summary.textContent = 'Review pending changes';
-      var preview = document.createElement('pre');
-      preview.textContent = JSON.stringify(pendingRecovery.envelope.data || pendingRecovery.envelope.quoteArrange || pendingRecovery.envelope.quoteEdit || pendingRecovery.envelope.quoteCopy, null, 2);
-      details.append(summary, preview);
-      var download = document.createElement('button');
-      download.type = 'button';
-      download.textContent = 'Download recovery file';
-      download.onclick = function(){ downloadPendingRecovery(); proceed.disabled = false; };
-      overlay.append(details, download);
-    }
-    var proceed = document.createElement('button');
-    proceed.type = 'button';
-    proceed.className = 'secondary';
-    proceed.textContent = workspaceChanged ? 'Reopen this workspace' : 'Use saved calculator';
-    proceed.disabled = !!pendingRecovery;
-    proceed.onclick = function(){
-      if (workspaceChanged) { window.location.reload(); return; }
-      if (!window.confirm('Continue with the saved cloud version? Pending changes will remain in the recovery file you downloaded and will not be applied automatically.')) return;
-      try { sessionStorage.removeItem(pendingStorageKey); }
-      catch(e) { description.textContent = 'Recovery storage is unavailable. Keep this tab open and try again.'; return; }
-      pendingRecovery = null;
-      recoveryRequired = false;
-      overlay.close(); overlay.remove();
-      scheduleSync();
-    };
-    overlay.appendChild(proceed);
+    description.textContent = 'This tab has paused to keep different businesses and accounts separate. Reopen this workspace to continue.';
+    var reopen = document.createElement('button');
+    reopen.type = 'button';
+    reopen.className = 'secondary';
+    reopen.textContent = 'Reopen this workspace';
+    reopen.onclick = function(){ window.location.reload(); };
+    overlay.append(title, description, reopen);
     document.body.appendChild(overlay);
     overlay.showModal();
   }
+  function recoveryCollection(data, suffix){
+    var value = data && (data['installer' + suffix] ?? data['greenEnergy' + suffix] ?? data[suffix]);
+    var parsed = parseRecoveryValue(value);
+    return Array.isArray(parsed) ? parsed : [];
+  }
+  function recoveryQuoteVersions(data){
+    var groups = new Map();
+    recoveryCollection(data, 'MasterQuoteLogV1').forEach(function(row){
+      if (!row || !row.optionId) return;
+      var id = String(row.optionId);
+      var group = groups.get(id) || {name:row.optionName || 'Quote', rows:[]};
+      group.rows.push(row);
+      groups.set(id, group);
+    });
+    recoveryCollection(data, 'QuoteOptionDefsV1').forEach(function(def){
+      if (def && groups.has(String(def.id))) groups.get(String(def.id)).name = def.name || 'Quote';
+    });
+    groups.forEach(function(group, id){
+      if (!group.rows.every(function(row){ return (row.state && row.state.businessId || null) === expectedWorkspace.businessId; })) groups.delete(id);
+    });
+    return groups;
+  }
+  function recoveryVersionText(group){
+    if (!group) return 'No systems in this version';
+    return group.rows.map(function(row){
+      var model = [row.brand, row.size, row.model].filter(function(value){ return typeof value === 'string' && value; }).join(' ');
+      var total = typeof row.finalInc === 'number' && Number.isFinite(row.finalInc) ? ' - $' + row.finalInc.toFixed(2) + ' inc GST' : '';
+      return (model || 'System') + total;
+    }).join('\\n');
+  }
+  function appendRecoveryReview(container, draft, optionId){
+    var saved = recoveryQuoteVersions(cloudData);
+    var envelope = draft.envelope;
+    var pending = recoveryQuoteVersions(envelope.data);
+    var edit = envelope.quoteEdit;
+    if (edit && edit.row && saved.has(String(edit.optionId))) {
+      var edited = saved.get(String(edit.optionId));
+      if (edited.rows.some(function(row){ return row.id === edit.rowId; })) {
+        pending.set(String(edit.optionId), {name:edited.name, rows:edited.rows.map(function(row){
+          return row.id === edit.rowId ? Object.assign({}, row, edit.row) : row;
+        })});
+      }
+    }
+    var ids = new Set(pending.keys());
+    if (envelope.data && ['installer', 'greenEnergy', ''].some(function(prefix){
+      return Array.isArray(parseRecoveryValue(envelope.data[prefix + 'MasterQuoteLogV1']));
+    })) saved.forEach(function(_, id){ ids.add(id); });
+    var hasChanges = false;
+    ids.forEach(function(id){
+      if (optionId && id !== optionId) return;
+      var previous = saved.get(id);
+      var next = pending.get(id);
+      if (sameRecoveryValue(previous, next)) return;
+      var section = document.createElement('section');
+      var title = document.createElement('strong');
+      title.textContent = String((next || previous).name);
+      var versions = document.createElement('div');
+      versions.className = 'calculatorRecoveryVersions';
+      [['Saved when opened', previous], ['Recovered draft', next]].forEach(function(pair){
+        var version = document.createElement('div');
+        var label = document.createElement('strong');
+        label.textContent = pair[0];
+        var systems = document.createElement('p');
+        systems.textContent = recoveryVersionText(pair[1]);
+        version.append(label, systems);
+        versions.appendChild(version);
+      });
+      section.append(title, versions);
+      container.appendChild(section);
+      hasChanges = true;
+    });
+    if (!hasChanges) {
+      var note = document.createElement('p');
+      note.textContent = envelope.quoteArrange || envelope.quoteCopy || envelope.quoteEdit
+        ? 'A quote action could not be confirmed. Check the saved quote before repeating it.'
+        : 'No quote details to compare for this draft.';
+      container.appendChild(note);
+    }
+    var canDownload = draft.visibility === recoveryVisibility() && !calculatorUser.isPreviewMode &&
+      calculatorUser.email === calculatorUser.viewingEmail && calculatorUser.canSeeOwnerDetails &&
+      calculatorUser.canSeeCommissionDetails && calculatorUser.canSeeProfitDetails && calculatorUser.canSeeAgencyProfit;
+    var download = document.createElement('button');
+    download.type = 'button';
+    download.className = 'secondary';
+    download.textContent = canDownload ? 'Download draft copy' : 'Download comparison';
+    download.onclick = function(){
+      if (!workspaceIsCurrent()) return;
+      if (canDownload) downloadRecovery(draft);
+      else downloadRecovery({savedAt:draft.savedAt, comparison:container.innerText});
+    };
+    container.appendChild(download);
+  }
+  function showRecoveredDrafts(hostId, optionId){
+    var host = document.getElementById(hostId);
+    if (!host) return;
+    if (workspaceChanged || !recoveredDrafts.length) { host.hidden = true; host.replaceChildren(); return; }
+    var selected = optionId || '';
+    if (host.dataset.option === selected) return;
+    host.dataset.option = selected;
+    var records = selected ? recoveredDrafts.filter(function(draft){
+      var envelope = draft.envelope;
+      var action = envelope.quoteEdit || envelope.quoteArrange || envelope.quoteCopy;
+      if (action) return action.optionId === selected || action.targetOptionId === selected;
+      if (!envelope.data) return false;
+      var prior = recoveryQuoteVersions(cloudData).get(selected);
+      var next = recoveryQuoteVersions(envelope.data).get(selected);
+      return !sameRecoveryValue(prior, next);
+    }) : recoveredDrafts;
+    if (!records.length) { host.hidden = true; host.replaceChildren(); return; }
+    var details = document.createElement('details');
+    var summary = document.createElement('summary');
+    summary.textContent = records.length === 1 ? 'Unsaved draft available - Review draft' : records.length + ' unsaved drafts - Review drafts';
+    details.appendChild(summary);
+    details.addEventListener('toggle', function(){
+      if (!details.open || details.dataset.loaded || !workspaceIsCurrent()) return;
+      details.dataset.loaded = 'true';
+      var note = document.createElement('p');
+      note.textContent = 'These drafts are kept in this tab and are not applied to saved quotes.';
+      details.appendChild(note);
+      records.forEach(function(draft){
+        var review = document.createElement('div');
+        review.className = 'calculatorRecoveryRecord';
+        var date = document.createElement('strong');
+        var savedAt = new Date(draft.savedAt);
+        date.textContent = Number.isFinite(savedAt.getTime()) ? savedAt.toLocaleString('en-AU') : 'Recovered draft';
+        review.appendChild(date);
+        appendRecoveryReview(review, draft, selected);
+        details.appendChild(review);
+      });
+    });
+    host.replaceChildren(details);
+    host.hidden = false;
+  }
+  window.__calculatorShowQuoteRecovery = function(optionId){ showRecoveredDrafts('quoteLibraryRecovery', optionId); };
   function workspaceIsCurrent(){
     if (workspaceChanged) return false;
     var activeProfile;
     var activeAccount;
-    try { activeProfile = localStorage.getItem(profileStorageKey); activeAccount = localStorage.getItem(accountStorageKey); } catch(e) { return false; }
-    if (activeProfile === profileEmail && activeAccount === calculatorUser.email) return true;
+    try {
+      activeProfile = localStorage.getItem(profileStorageKey);
+      activeAccount = localStorage.getItem(accountStorageKey);
+      if (activeProfile === profileEmail && activeAccount === calculatorUser.email) {
+        nativeCacheRetired = !recoveryStorage && localStorage.getItem(recoveryIsolationKey) === '1';
+        if (!nativeCacheRetired) return true;
+      }
+    } catch(e) { return false; }
     workspaceChanged = true;
     clearTimeout(syncRetryTimer); syncRetryTimer = null;
     cloudSaveWaiters.slice().forEach(function(waiter){ settleCloudSaveWaiters(waiter.json, new Error('Workspace changed in another tab. Reopen this workspace to continue.')); });
     setCloudSaveStatus('Workspace changed. Saving paused.', 'error');
-    showRecoveryGuard();
+    showWorkspaceGuard();
     return false;
   }
   function snapshot(){
-    var output = {};
+    var output = recoveryStorage ? Object.assign({}, recoveryStorage) : {};
     try {
-      for (var i = 0; i < localStorage.length; i++) {
+      for (var i = 0; !recoveryStorage && i < localStorage.length; i++) {
         var key = localStorage.key(i);
         if (isAppStorageKey(key)) output[key] = localStorage.getItem(key);
       }
@@ -657,6 +881,42 @@ function injectCloudStorageSync(
       ['greenEnergyManagedPricesV1', 'ManagedPricesV1', 'greenEnergyDefaultCostRulesV1', 'DefaultCostRulesV1'].forEach(function(key){ delete output[key]; });
       var businessValues = window.calculatorBusinessSnapshotData();
       Object.keys(businessValues).forEach(function(key){ output[key] = businessValues[key]; });
+    }
+    // UI-only startup normalization must not become a write to a recovered quote.
+    if (recoveryUiSnapshot && recoverySavedSnapshot) {
+      Object.keys(recoveryUiSnapshot).sort(function(a,b){
+        return Number(a.indexOf('QuoteOptionDefs') >= 0) - Number(b.indexOf('QuoteOptionDefs') >= 0);
+      }).forEach(function(key){
+        var suffix = key.replace(/^(installer|greenEnergy)/, '');
+        var neededDefs = suffix === 'QuoteOptionDefsV1'
+          ? new Set(recoveryCollection(output, 'MasterQuoteLogV1').filter(Boolean).map(function(row){ return row.optionId; }))
+          : null;
+        if (output[key] === recoveryUiSnapshot[key]) {
+          if (neededDefs) {
+            var originalDefs = recoveryCollection(recoverySavedSnapshot, suffix);
+            var originalIds = new Set(originalDefs.filter(Boolean).map(function(def){ return def.id; }));
+            var startupDefs = parseRecoveryValue(output[key]);
+            var required = Array.isArray(startupDefs) ? startupDefs.filter(function(def){
+              return def && neededDefs.has(def.id) && !originalIds.has(def.id);
+            }) : [];
+            if (required.length) { output[key] = JSON.stringify(originalDefs.concat(required)); return; }
+          }
+          if (Object.prototype.hasOwnProperty.call(recoverySavedSnapshot, key)) output[key] = recoverySavedSnapshot[key];
+          else delete output[key];
+        } else if (/^(?:installer|greenEnergy)?(?:MasterQuoteLog|QuoteOptionDefs)V1$/.test(key)) {
+          var current = parseRecoveryValue(output[key]);
+          var startup = parseRecoveryValue(recoveryUiSnapshot[key]);
+          var saved = recoveryCollection(recoverySavedSnapshot, suffix);
+          if (!Array.isArray(current) || !Array.isArray(startup)) return;
+          var startupRows = new Map(startup.filter(Boolean).map(function(row){ return [row.id, row]; }));
+          var savedRows = new Map(saved.filter(Boolean).map(function(row){ return [row.id, row]; }));
+          output[key] = JSON.stringify(current.flatMap(function(row){
+            if (!row || !row.id || !sameRecoveryValue(row, startupRows.get(row.id))) return [row];
+            if (savedRows.has(row.id)) return [savedRows.get(row.id)];
+            return neededDefs && !neededDefs.has(row.id) ? [] : [row];
+          }));
+        }
+      });
     }
     return output;
   }
@@ -829,7 +1089,7 @@ function injectCloudStorageSync(
     } catch(e) { return {}; }
   }
   function sendPendingSnapshot(){
-    if (recoveryRequired || !workspaceIsCurrent() || quoteConflictError || quoteArrangeAttempt || syncRetryPaused || syncRetryTimer || syncRequestInFlight || !pendingSnapshot) return;
+    if (recoveryHydrating || recoveryBaselineFailed || !workspaceIsCurrent() || quoteConflictError || quoteArrangeAttempt || syncRetryPaused || syncRetryTimer || syncRequestInFlight || !pendingSnapshot) return;
     clearTimeout(syncRetryTimer);
     syncRetryTimer = null;
     var request = pendingSnapshot;
@@ -881,7 +1141,7 @@ function injectCloudStorageSync(
         syncRetryPaused = true;
         settleCloudSaveWaiters(request.json, error);
         setCloudSaveStatus(error.code === 'EQUIPMENT_PRICE_CONFLICT' || error.code === 'CALCULATOR_SAVE_TOO_LARGE' ? error.message : 'Save not confirmed. Keep this tab open and retry.', 'error');
-        if (error.code === 'CALCULATOR_WORKSPACE_CHANGED') { workspaceChanged = true; showRecoveryGuard(); }
+        if (error.code === 'CALCULATOR_WORKSPACE_CHANGED') { workspaceChanged = true; showWorkspaceGuard(); }
       } else {
         if (!pendingSnapshot) pendingSnapshot = request;
         syncFailures += 1;
@@ -907,7 +1167,7 @@ function injectCloudStorageSync(
     });
   }
   function writeSnapshot(force){
-    if (recoveryRequired || !workspaceIsCurrent() || quoteConflictError || quoteArrangeAttempt) return;
+    if (recoveryHydrating || recoveryBaselineFailed || !workspaceIsCurrent() || quoteConflictError || quoteArrangeAttempt) return;
     var data = snapshot();
     var nextJson = JSON.stringify(data);
     var hasPriceEdits = typeof window.aadEquipmentPriceEditSnapshot === 'function' && Object.keys(window.aadEquipmentPriceEditSnapshot()).length > 0;
@@ -921,7 +1181,7 @@ function injectCloudStorageSync(
     sendPendingSnapshot();
   }
   window.__calculatorFlushCloudSave = function(timeoutMs){
-    if (recoveryRequired || !workspaceIsCurrent()) return Promise.reject(new Error('Review the pending recovery or reopen this workspace before saving.'));
+    if (recoveryHydrating || recoveryBaselineFailed || !workspaceIsCurrent()) return Promise.reject(new Error('Reopen this workspace before saving.'));
     if (quoteConflictError) return Promise.reject(quoteConflictError);
     if (quoteArrangeAttempt) return Promise.reject(new Error('Confirm the pending option change before saving more changes.'));
     var data = snapshot();
@@ -942,7 +1202,7 @@ function injectCloudStorageSync(
   };
   window.__calculatorCanRefresh = function(){
     try {
-      if (syncing || recoveryRequired || workspaceChanged || recoveryStorageFailed || quoteConflictError || quoteArrangeAttempt ||
+      if (syncing || recoveryHydrating || recoveryBaselineFailed || workspaceChanged || recoveryStorageFailed || quoteConflictError || quoteArrangeAttempt ||
           syncRequestInFlight || pendingSnapshot || pendingRecovery || syncRetryTimer || syncRetryPaused) return false;
       if (Object.keys(refreshBlockedStorageKeys).length) return false;
       if ((typeof currentQuoteTotalsEditing !== 'undefined' && currentQuoteTotalsEditing) ||
@@ -950,6 +1210,7 @@ function injectCloudStorageSync(
           (typeof quoteArrangeBusy !== 'undefined' && quoteArrangeBusy) ||
           (typeof quoteArrangePending !== 'undefined' && quoteArrangePending)) return false;
       if (localStorage.getItem(accountStorageKey) !== calculatorUser.email || localStorage.getItem(profileStorageKey) !== profileEmail) return false;
+      if (!recoveryStorage && localStorage.getItem(recoveryIsolationKey) === '1') return false;
       if (typeof window.aadEquipmentPriceEditSnapshot === 'function' && Object.keys(window.aadEquipmentPriceEditSnapshot()).length) return false;
       return JSON.stringify(snapshot()) === lastSnapshotJson;
     } catch(e) { return false; }
@@ -968,7 +1229,7 @@ function injectCloudStorageSync(
     return window.__calculatorFlushCloudSave(20000);
   };
   window.__calculatorQuoteRequest = async function(kind, payload, onProgress){
-    if (recoveryRequired || !workspaceIsCurrent()) throw new Error('Review recovery or reopen this workspace before saving.');
+    if (recoveryHydrating || recoveryBaselineFailed || !workspaceIsCurrent()) throw new Error('Reopen this workspace before saving.');
     if (kind !== 'quoteEdit' && kind !== 'quoteCopy' && kind !== 'quoteArrange') throw new Error('Unsupported quote action.');
     var arrangement = kind === 'quoteArrange';
     var payloadJson = JSON.stringify(payload);
@@ -1017,7 +1278,7 @@ function injectCloudStorageSync(
       // A rejected retry cannot disprove an earlier committed request with a lost reply.
       if (!retryArrange && error.status >= 400 && error.status < 500 && error.status !== 408 && error.status !== 429) quoteArrangeAttempt = null;
       setCloudSaveStatus('Quote save not confirmed', 'error');
-      if (error.code === 'CALCULATOR_WORKSPACE_CHANGED') { workspaceChanged = true; showRecoveryGuard(); }
+      if (error.code === 'CALCULATOR_WORKSPACE_CHANGED') { workspaceChanged = true; showWorkspaceGuard(); }
       if (error.name === 'AbortError') throw new Error('The save could not be confirmed. Retry to check the same save without creating a duplicate.');
       throw error;
     } finally {
@@ -1037,7 +1298,7 @@ function injectCloudStorageSync(
   };
   window.__calculatorAcknowledgeQuoteArrange = function(saveId){ return window.__calculatorAcknowledgeQuoteMutation('quoteArrange', saveId); };
   function retainLocalEdit(){
-    if (syncing || recoveryRequired || quoteArrangeAttempt || quoteConflictError) return;
+    if (syncing || recoveryHydrating || recoveryBaselineFailed || quoteArrangeAttempt || quoteConflictError) return;
     try {
       var data = snapshot();
       if (JSON.stringify(data) !== lastSnapshotJson) retainPendingSnapshot({data:data});
@@ -1047,20 +1308,23 @@ function injectCloudStorageSync(
     }
   }
   function scheduleSync(force){
-    if (syncing || recoveryRequired || !workspaceIsCurrent() || quoteConflictError || quoteArrangeAttempt) return;
+    if (syncing || recoveryHydrating || recoveryBaselineFailed || !workspaceIsCurrent() || quoteConflictError || quoteArrangeAttempt) return;
     clearTimeout(timer);
     timer = setTimeout(function(){
       writeSnapshot(!!force);
     }, 700);
   }
-  function clearAppStorage(){
+  function clearAppStorage(removeItem){
     try {
       var keys = [];
       for (var i = 0; i < localStorage.length; i++) {
         var key = localStorage.key(i);
         if (isAppStorageKey(key)) keys.push(key);
       }
-      keys.forEach(function(key){ localStorage.removeItem(key); });
+      keys.forEach(function(key){
+        if (removeItem) removeItem.call(localStorage, key);
+        else localStorage.removeItem(key);
+      });
     } catch (e) { refreshBlockedStorageKeys.__bootstrap = true; }
   }
   function applyCommissionSettings(){
@@ -1167,60 +1431,115 @@ function injectCloudStorageSync(
     });
     hideProfitAndCommissionUi();
   }
-  try {
-    syncing = true;
-    var existingProfile = localStorage.getItem(profileStorageKey) || '';
-    var existingAccount = localStorage.getItem(accountStorageKey) || '';
-    // Claim the workspace before changing shared storage so older tabs can fence immediately.
-    localStorage.setItem(accountStorageKey, calculatorUser.email);
-    localStorage.setItem(profileStorageKey, profileEmail);
-    if (recoveryRequired || (existingAccount && existingAccount !== calculatorUser.email) || (existingProfile && profileEmail && existingProfile !== profileEmail)) clearAppStorage();
-    // Configuration is authoritative business data, never a local/account fallback.
-    localStorage.removeItem(${safeScriptJson(BUSINESS_CONFIGURATION_STORAGE_KEY)});
-    stripLocalCertificateRates();
-    stripLocalManagedRebateOverrides();
-    Object.keys(cloudData || {}).forEach(function(key){
-      setCloudValue(key, cloudData[key]);
-      if (key === 'installerManagedPricesV1' || key === 'greenEnergyManagedPricesV1' || key === 'ManagedPricesV1') {
-        trustedManagedPriceKeys[key] = true;
+  function loadSavedWorkspace(){
+    try {
+      syncing = true;
+      var existingProfile = localStorage.getItem(profileStorageKey) || '';
+      var existingAccount = localStorage.getItem(accountStorageKey) || '';
+      var scopeChanged = (existingAccount && existingAccount !== calculatorUser.email) ||
+        (existingProfile && profileEmail && existingProfile !== profileEmail);
+      if (recoveryStorage && (existingAccount !== calculatorUser.email || existingProfile !== profileEmail)) {
+        // Fence the previous owner before clearing the native cache, not the isolated draft storage.
+        localStorage.setItem(accountStorageKey, '__calculatorCacheNeedsHydration');
+        clearAppStorage(originalRemoveItem);
+        if (refreshBlockedStorageKeys.__bootstrap) throw new Error('Could not clear the previous workspace cache');
       }
+      if (recoveryStorage) localStorage.setItem(recoveryIsolationKey, '1');
+      else if (scopeChanged) localStorage.removeItem(recoveryIsolationKey);
+      if (recoveryDetected && !scopeChanged) clearParkedDraftCache();
+      // Claim the workspace before changing shared storage so older tabs can fence immediately.
+      localStorage.setItem(accountStorageKey, calculatorUser.email);
+      localStorage.setItem(profileStorageKey, profileEmail);
+      if (!recoveryStorage && scopeChanged) clearAppStorage();
+      // Configuration is authoritative business data, never a local/account fallback.
+      localStorage.removeItem(${safeScriptJson(BUSINESS_CONFIGURATION_STORAGE_KEY)});
+      stripLocalCertificateRates();
+      stripLocalManagedRebateOverrides();
+      Object.keys(cloudData || {}).forEach(function(key){
+        setCloudValue(key, cloudData[key]);
+        if (key === 'installerManagedPricesV1' || key === 'greenEnergyManagedPricesV1' || key === 'ManagedPricesV1') {
+          trustedManagedPriceKeys[key] = true;
+        }
+      });
+      stripLocalCertificateRates();
+      stripLocalManagedRebateOverrides();
+      applyCommissionSettings();
+      localStorage.setItem(profileStorageKey, profileEmail);
+      var loadedSnapshot = snapshot();
+      shouldBackfillCloud = !recoveryStorage && !snapshotHasData(cloudData) && snapshotHasData(loadedSnapshot);
+      if (recoveryStorage) recoverySavedSnapshot = loadedSnapshot;
+      lastSnapshotJson = JSON.stringify(loadedSnapshot);
+    } catch (e) {
+      refreshBlockedStorageKeys.__bootstrap = true;
+      recoveryBaselineFailed = isolateWorkspace;
+    } finally {
+      syncing = false;
+    }
+  }
+  function clearParkedDraftCache(){
+    // Replace only bytes preserved in an older draft. Do not clear unrelated work in another tab.
+    recoveredDrafts.forEach(function(draft){
+      var data = draft.envelope.data;
+      if (!data || typeof data !== 'object' || Array.isArray(data)) return;
+      Object.keys(data).filter(isAppStorageKey).forEach(function(key){
+        if (typeof data[key] !== 'string' || originalGetItem.call(calculatorStorage, key) !== data[key]) return;
+        var saved = cloudData[key];
+        if (typeof saved === 'string') {
+          if (saved !== data[key]) originalSetItem.call(calculatorStorage, key, saved);
+        } else originalRemoveItem.call(calculatorStorage, key);
+      });
     });
-    stripLocalCertificateRates();
-    stripLocalManagedRebateOverrides();
-    applyCommissionSettings();
-    localStorage.setItem(profileStorageKey, profileEmail);
-    var shouldBackfillCloud = !snapshotHasData(cloudData) && snapshotHasData(snapshot());
-    lastSnapshotJson = JSON.stringify(snapshot());
-  } catch (e) {
-    refreshBlockedStorageKeys.__bootstrap = true;
-  } finally {
-    syncing = false;
   }
   try {
-    var originalSetItem = localStorage.setItem.bind(localStorage);
-    var originalRemoveItem = localStorage.removeItem.bind(localStorage);
-    var originalClear = localStorage.clear.bind(localStorage);
-    localStorage.setItem = function(key, value){
+    var calculatorStorage = localStorage;
+    // WebKit can serialize assignments on a Storage instance as stored values.
+    var storageMethods = typeof Storage === 'function' ? Storage.prototype : calculatorStorage;
+    var originalSetItem = storageMethods.setItem;
+    var originalGetItem = storageMethods.getItem;
+    var originalRemoveItem = storageMethods.removeItem;
+    var originalClear = storageMethods.clear;
+    if (recoveryStorage) {
+      Object.defineProperty(storageMethods, 'getItem', { configurable:true, writable:true, value:function(key){
+        if (this === calculatorStorage && isAppStorageKey(key)) return recoveryStorage[key] ?? null;
+        return originalGetItem.call(this, key);
+      } });
+    }
+    storageMethods.setItem = function(key, value){
+      if (this !== calculatorStorage) return originalSetItem.call(this, key, value);
       if (isAppStorageKey(key) && !workspaceIsCurrent()) return;
-      try { originalSetItem(key, value); delete refreshBlockedStorageKeys[key]; }
+      try {
+        if (recoveryStorage && isAppStorageKey(key)) recoveryStorage[key] = String(value);
+        else originalSetItem.call(this, key, value);
+        delete refreshBlockedStorageKeys[key];
+      }
       catch(e) { if (isAppStorageKey(key)) refreshBlockedStorageKeys[key] = true; throw e; }
       if (isAppStorageKey(key)) retainLocalEdit();
       scheduleSync();
     };
-    localStorage.removeItem = function(key){
+    storageMethods.removeItem = function(key){
+      if (this !== calculatorStorage) return originalRemoveItem.call(this, key);
       if (isAppStorageKey(key) && !workspaceIsCurrent()) return;
-      try { originalRemoveItem(key); delete refreshBlockedStorageKeys[key]; }
+      try {
+        if (recoveryStorage && isAppStorageKey(key)) delete recoveryStorage[key];
+        else originalRemoveItem.call(this, key);
+        delete refreshBlockedStorageKeys[key];
+      }
       catch(e) { if (isAppStorageKey(key)) refreshBlockedStorageKeys[key] = true; throw e; }
       if (isAppStorageKey(key)) retainLocalEdit();
       scheduleSync();
     };
-    localStorage.clear = function(){
+    storageMethods.clear = function(){
+      if (this !== calculatorStorage) return originalClear.call(this);
       if (!workspaceIsCurrent()) return;
-      try { originalClear(); }
+      try {
+        if (recoveryStorage) recoveryStorage = Object.create(null);
+        else originalClear.call(this);
+      }
       catch(e) { refreshBlockedStorageKeys.__clear = true; throw e; }
       retainLocalEdit();
       scheduleSync();
     };
+    loadSavedWorkspace();
     document.addEventListener('input', function(){ scheduleSync(); }, true);
     document.addEventListener('change', function(){ scheduleSync(); }, true);
     setInterval(function(){ writeSnapshot(false); }, 5000);
@@ -1234,7 +1553,7 @@ function injectCloudStorageSync(
     });
     window.addEventListener('beforeunload', function(event){
       try {
-        if (workspaceChanged || recoveryRequired) {
+        if (workspaceChanged || recoveryHydrating || recoveryBaselineFailed) {
           if (pendingRecovery && event) { event.preventDefault(); event.returnValue = ''; }
           return;
         }
@@ -1254,18 +1573,40 @@ function injectCloudStorageSync(
     if (typeof shouldBackfillCloud !== 'undefined' && shouldBackfillCloud) {
       setTimeout(function(){ writeSnapshot(true); }, 1000);
     }
-  } catch (e) {}
+  } catch (e) {
+    if (isolateWorkspace) recoveryBaselineFailed = true;
+  }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){ applyRoleUi(); wrapPrivacyRenderers(); });
   else { applyRoleUi(); wrapPrivacyRenderers(); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){ setCloudSaveStatus('', 'idle'); });
   else setCloudSaveStatus('', 'idle');
-  window.addEventListener('storage', function(event){ if (event.key === profileStorageKey || event.key === accountStorageKey) workspaceIsCurrent(); });
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', showRecoveryGuard);
-  else showRecoveryGuard();
+  window.addEventListener('storage', function(event){
+    if (event.key === profileStorageKey || event.key === accountStorageKey || event.key === recoveryIsolationKey) workspaceIsCurrent();
+  });
+  function finishRecoveryStartup(){
+    if (recoveryHydrating && !recoveryBaselineFailed && workspaceIsCurrent()) {
+      recoveryUiSnapshot = snapshot();
+      lastSnapshotJson = JSON.stringify(snapshot());
+      confirmedDrafts.forEach(function(record){
+        try {
+          if (sessionStorage.getItem(record.key) !== record.stored) return;
+          if (record.key === pendingStorageKey && recoveredDrafts.length) sessionStorage.setItem(record.key, recoveryCompatibilityMarker());
+          else sessionStorage.removeItem(record.key);
+        } catch(e) { /* Already saved; leave the recovery record alone if storage is unavailable. */ }
+      });
+      confirmedDrafts = [];
+    }
+    recoveryHydrating = false;
+    if (recoveryBaselineFailed) setCloudSaveStatus('Could not open saved quotes on this tab. Reopen the calculator before saving.', 'error');
+    showRecoveredDrafts('currentQuoteRecovery');
+    showWorkspaceGuard();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', finishRecoveryStartup);
+  else finishRecoveryStartup();
 })();
 </script>`;
 
-  return html.replace("<script>", `${bootstrap}\n<script>`);
+  return html.replace("<script>", () => `${bootstrap}\n<script>`);
 }
 
 function isMissingBaselineColumn(error: { code?: string } | null) {

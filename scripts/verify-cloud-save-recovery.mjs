@@ -7,11 +7,12 @@ const tick = async () => { for (let i = 0; i < 8; i += 1) await new Promise(reso
 const success = () => ({ ok: true, status: 200, json: async () => ({ ok: true }), headers: { get: () => null } });
 const unavailable = () => ({ ok: false, status: 503, json: async () => ({ error: 'offline' }), headers: { get: () => null } });
 
-function browser({ cloud = { draft: 'seed' }, businessId = '11111111-1111-4111-8111-111111111111', email = 'fixture@example.test', viewingEmail = email, session = new Map(), initialStorage = {}, initialStorageFailure = {}, compression = false } = {}) {
+function browser({ cloud = { draft: 'seed' }, businessId = '11111111-1111-4111-8111-111111111111', email = 'fixture@example.test', viewingEmail = email, session = new Map(), initialStorage = {}, initialStorageFailure = {}, startupStorage = {}, compression = false } = {}) {
   const storage = new Map(Object.entries(initialStorage).map(([key, value]) => [key, String(value)]));
   const timeouts = new Map(), intervals = new Map(), documentHandlers = new Map(), windowHandlers = new Map();
   const calls = [], beacons = [], storageWrites = [];
   const storageFailure = { set: false, remove: false, ...initialStorageFailure };
+  const sessionFailure = { set: false };
   let nextTimer = 0, responder = () => success();
   const sandbox = {
     AbortController, Blob, Event, CustomEvent, performance: { now: () => 0 },
@@ -32,8 +33,9 @@ function browser({ cloud = { draft: 'seed' }, businessId = '11111111-1111-4111-8
       clear: () => { storageWrites.push(['clear']); storage.clear(); },
     },
     sessionStorage: {
+      get length() { return session.size; }, key: index => [...session.keys()][index] ?? null,
       getItem: key => session.get(key) ?? null,
-      setItem: (key, value) => session.set(key, String(value)),
+      setItem: (key, value) => { if (sessionFailure.set) throw new Error('session storage full'); session.set(key, String(value)); },
       removeItem: key => session.delete(key),
     },
     navigator: { sendBeacon: (...args) => { beacons.push(args); return true; } },
@@ -51,8 +53,10 @@ function browser({ cloud = { draft: 'seed' }, businessId = '11111111-1111-4111-8
   const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
   assert.ok(script, 'generated calculator bootstrap script exists');
   vm.runInNewContext(script, sandbox);
+  Object.entries(startupStorage).forEach(([key, value]) => sandbox.localStorage.setItem(key, value));
+  documentHandlers.get('DOMContentLoaded')?.find(fn => fn.name === 'finishRecoveryStartup')?.();
   return {
-    sandbox, storage, session, storageWrites, storageFailure, timeouts, intervals, documentHandlers, windowHandlers, calls, beacons,
+    sandbox, storage, session, storageWrites, storageFailure, sessionFailure, timeouts, intervals, documentHandlers, windowHandlers, calls, beacons,
     setResponder(fn) { responder = fn; },
     timer(ms) {
       const entry = [...timeouts].find(([, timer]) => timer.ms === ms);
@@ -269,18 +273,127 @@ await tick();
 const interruptedKey = recoveryKey();
 const interruptedStash = interruptedSession.get(interruptedKey);
 assert.ok(interruptedStash, 'attempted save persisted pending envelope in tab session storage');
+const savedCloudRows = JSON.stringify([{ id: 'cloud-row', model: 'CLOUD' }]);
+const normalizedRows = JSON.stringify([{ id: 'cloud-row', model: 'CLOUD', optionId: 'option_1', syncUpdatedAt: 99 }]);
 const reloaded = browser({
-  cloud: { draft: 'cloud-current', installerMasterQuoteLogV1: JSON.stringify([{ id: 'cloud-row', model: 'CLOUD' }]) },
+  cloud: { draft: 'cloud-current', installerMasterQuoteLogV1: savedCloudRows },
   session: interruptedSession,
+  startupStorage: { installerMasterQuoteLogV1: normalizedRows },
 });
-const cloudQuote = reloaded.storage.get('installerMasterQuoteLogV1');
+const cloudQuote = reloaded.sandbox.localStorage.getItem('installerMasterQuoteLogV1');
 const writesAfterBootstrap = reloaded.storageWrites.length;
-await assert.rejects(reloaded.sandbox.window.__calculatorFlushCloudSave(60000), /pending recovery/);
+await reloaded.sandbox.window.__calculatorFlushCloudSave(60000);
 reloaded.input(); reloaded.periodic(); await tick();
-assert.equal(reloaded.calls.length, 0, 'recovery-required page performs no automatic or manual save');
-assert.equal(reloaded.storage.get('installerMasterQuoteLogV1'), cloudQuote, 'old pending quote never overwrites loaded cloud quote');
-assert.equal(reloaded.storageWrites.length, writesAfterBootstrap, 'paused recovery performs no further app-storage writes');
+assert.equal(reloaded.calls.length, 0, 'recovery startup does not send its old draft or normalize saved quotes on the server');
+assert.equal(reloaded.sandbox.localStorage.getItem('installerMasterQuoteLogV1'), cloudQuote, 'old pending quote never overwrites loaded cloud quote');
+assert.equal(reloaded.storageWrites.length, writesAfterBootstrap, 'recovery performs no idle app-storage writes');
 assert.equal(interruptedSession.get(interruptedKey), interruptedStash);
+assert.equal(reloaded.sandbox.window.__calculatorCanRefresh(), true, 'a retained older draft does not block refresh');
+reloaded.storage.set('draft', 'another tab unconfirmed');
+reloaded.storage.set('installerMasterQuoteLogV1', '[{"id":"other-tab-quote","netProfit":999}]');
+reloaded.periodic(); await tick();
+assert.equal(reloaded.calls.length, 0, 'a same-workspace tab cannot upload edits through the recovered tab');
+assert.equal(reloaded.sandbox.localStorage.getItem('draft'), 'cloud-current', 'review uses the isolated authoritative baseline');
+reloaded.edit('fresh-edit');
+await reloaded.sandbox.window.__calculatorFlushCloudSave(60000); await tick();
+assert.equal(reloaded.calls[0].body.data.draft, 'fresh-edit');
+assert.equal(reloaded.calls[0].body.data.installerMasterQuoteLogV1, savedCloudRows, 'an unrelated save leaves the authoritative quote untouched');
+assert.equal(interruptedSession.get(interruptedKey), interruptedStash, 'saving new work cannot clear the old slot');
+reloaded.sandbox.localStorage.setItem('installerMasterQuoteLogV1', JSON.stringify([...JSON.parse(normalizedRows), { id: 'fresh-row', model: 'NEW' }]));
+await reloaded.sandbox.window.__calculatorFlushCloudSave(60000); await tick();
+assert.deepEqual(JSON.parse(reloaded.calls.at(-1).body.data.installerMasterQuoteLogV1), [...JSON.parse(savedCloudRows), { id: 'fresh-row', model: 'NEW' }]);
+assert.equal(interruptedSession.get(interruptedKey), interruptedStash, 'adding another quote leaves the older draft intact');
+const generatedDef = { id: 'option_1', name: 'Quote 1', syncUpdatedAt: 99 };
+const freshDef = { id: 'new-quote', name: 'New quote', syncUpdatedAt: 100 };
+const noDefinitions = browser({
+  cloud: { installerMasterQuoteLogV1: savedCloudRows }, session: interruptedSession,
+  startupStorage: { installerMasterQuoteLogV1: normalizedRows, installerQuoteOptionDefsV1: JSON.stringify([generatedDef]) },
+});
+noDefinitions.sandbox.localStorage.setItem('installerQuoteOptionDefsV1', JSON.stringify([generatedDef, freshDef]));
+await noDefinitions.sandbox.window.__calculatorFlushCloudSave(60000); await tick();
+assert.deepEqual(JSON.parse(noDefinitions.calls[0].body.data.installerQuoteOptionDefsV1), [freshDef], 'new work does not publish startup-generated quote definitions');
+const addToLegacyQuote = browser({
+  cloud: { installerMasterQuoteLogV1: savedCloudRows }, session: interruptedSession,
+  startupStorage: { installerMasterQuoteLogV1: normalizedRows, installerQuoteOptionDefsV1: JSON.stringify([generatedDef]) },
+});
+addToLegacyQuote.sandbox.localStorage.setItem('installerMasterQuoteLogV1', JSON.stringify([
+  ...JSON.parse(normalizedRows), { id: 'new-system', model: 'NEW', optionId: generatedDef.id },
+]));
+await addToLegacyQuote.sandbox.window.__calculatorFlushCloudSave(60000); await tick();
+assert.deepEqual(JSON.parse(addToLegacyQuote.calls[0].body.data.installerQuoteOptionDefsV1), [generatedDef], 'a new system retains the generated definition it actually needs');
+
+const scopedEnvelope = JSON.parse(interruptedStash);
+const committed = structuredClone(scopedEnvelope);
+committed.envelope.data = { draft: '{"b":2,"a":1}' };
+const committedSession = new Map([[interruptedKey, JSON.stringify(committed)]]);
+const alreadySaved = browser({ cloud: { draft: '{"a":1,"b":2}' }, session: committedSession });
+assert.equal(committedSession.size, 0, 'an exact authoritative match clears only its recorded slot');
+alreadySaved.periodic(); await tick();
+assert.equal(alreadySaved.calls.length, 0, 'confirmation uses the saved read, not a write');
+const priceDraft = structuredClone(committed);
+priceDraft.envelope.equipmentPriceEdits = { test: { before: 500, after: 600 } };
+const extraDraft = structuredClone(committed);
+extraDraft.envelope.data.notPresentInCloud = 'draft only';
+const wrongWorkspaceDraft = structuredClone(committed);
+wrongWorkspaceDraft.envelope.expectedWorkspace.businessId = '22222222-2222-4222-8222-222222222222';
+for (const kept of [priceDraft, extraDraft, wrongWorkspaceDraft]) {
+  const records = new Map([[interruptedKey, JSON.stringify(kept)]]);
+  browser({ cloud: { draft: '{"a":1,"b":2}' }, session: records });
+  assert.equal(records.get(interruptedKey), JSON.stringify(kept), 'a price edit, missing data, or workspace mismatch is not silently cleared');
+}
+const parkedSlot = interruptedKey + ':draft:legacy-test';
+const rollbackSession = new Map([[interruptedKey, JSON.stringify(committed)], [parkedSlot, JSON.stringify(priceDraft)]]);
+browser({ cloud: { draft: '{"a":1,"b":2}' }, session: rollbackSession });
+assert.equal(JSON.parse(rollbackSession.get(interruptedKey)).compatibilityMarker, true, 'pre-upgrade code can still detect outstanding recovery after the legacy slot is confirmed');
+assert.equal(rollbackSession.get(parkedSlot), JSON.stringify(priceDraft));
+
+const hydrationFailure = browser({ session: interruptedSession, initialStorage: { draft: 'stale local' }, initialStorageFailure: { set: true } });
+await assert.rejects(hydrationFailure.sandbox.window.__calculatorFlushCloudSave(60000), /Reopen this workspace/);
+hydrationFailure.periodic(); await tick();
+assert.equal(hydrationFailure.calls.length, 0, 'an incomplete saved baseline cannot be written back');
+
+const newFailure = browser({ session: interruptedSession, cloud: { draft: 'cloud-current' } });
+newFailure.setResponder(() => new Promise(() => {}));
+newFailure.edit('second unsaved draft');
+void newFailure.sandbox.window.__calculatorFlushCloudSave(60000).catch(() => {});
+await tick();
+const newSlot = [...interruptedSession.keys()].find(key => key.startsWith(interruptedKey + ':draft:'));
+assert.ok(newSlot);
+assert.equal(JSON.parse(interruptedSession.get(newSlot)).envelope.data.draft, 'second unsaved draft');
+const fullStorage = browser({ session: interruptedSession, cloud: { draft: 'cloud-current' } });
+fullStorage.sessionFailure.set = true;
+fullStorage.setResponder(() => new Promise(() => {}));
+fullStorage.edit('new edit despite quota');
+void fullStorage.sandbox.window.__calculatorFlushCloudSave(60000).catch(() => {});
+await tick();
+assert.equal(fullStorage.calls[0].body.data.draft, 'new edit despite quota');
+assert.equal(fullStorage.sandbox.window.__calculatorCanRefresh(), false);
+assert.equal(interruptedSession.get(interruptedKey), interruptedStash);
+assert.equal(JSON.parse(interruptedSession.get(newSlot)).envelope.data.draft, 'second unsaved draft', 'quota failure never evicts earlier drafts');
+const retiredFullTab = browser();
+retiredFullTab.sessionFailure.set = true;
+let failRetiredSave;
+retiredFullTab.setResponder(() => new Promise((resolve, reject) => { failRetiredSave = reject; }));
+retiredFullTab.edit('only copy of draft in memory');
+void retiredFullTab.sandbox.window.__calculatorFlushCloudSave(60000).catch(() => {});
+await tick();
+const backedUp = [];
+const status = { dataset: {}, children: [], set textContent(value) { this.children = []; }, setAttribute() {}, appendChild(child) { this.children.push(child); } };
+retiredFullTab.sandbox.document.body = {};
+retiredFullTab.sandbox.document.getElementById = id => id === 'cloudSaveStatus' ? status : null;
+retiredFullTab.sandbox.document.createElement = () => ({ click() {} });
+retiredFullTab.sandbox.URL = { createObjectURL(blob) { backedUp.push(blob); return 'blob:fixture'; }, revokeObjectURL() {} };
+retiredFullTab.storage.set('__calculatorRecoveryIsolatedCache', '1');
+retiredFullTab.windowHandlers.get('storage')({ key: '__calculatorRecoveryIsolatedCache' });
+failRetiredSave(new Error('late connection failure'));
+await tick();
+const backup = status.children.find(child => child.textContent === 'Back up');
+assert.ok(backup, 'retired tab still offers a backup when recovery storage is full');
+backup.onclick();
+assert.match(await backedUp[0].text(), /only copy of draft in memory/);
+retiredFullTab.storage.set('__calculatorSignedInEmail', 'other@example.test');
+backup.onclick();
+assert.equal(backedUp.length, 1, 'old backup control cannot export after an actual account change');
 
 const emptyCloudRecovery = browser({
   cloud: {}, session: interruptedSession,
@@ -291,13 +404,60 @@ const emptyCloudRecovery = browser({
     installerMasterQuoteLogV1: JSON.stringify([{ id: 'old-local-row', model: 'OLD-LOCAL' }]),
   },
 });
-assert.equal(emptyCloudRecovery.storage.has('installerMasterQuoteLogV1'), false, 'recovery-required empty-cloud boot clears discarded local quote');
-assert.equal(emptyCloudRecovery.storage.has('draft'), false, 'recovery-required empty-cloud boot clears old draft before backfill');
+assert.equal(emptyCloudRecovery.sandbox.localStorage.getItem('installerMasterQuoteLogV1'), null, 'a verified empty cloud does not hydrate a stale local quote');
+assert.equal(emptyCloudRecovery.sandbox.localStorage.getItem('draft'), null, 'a verified empty cloud does not backfill an old draft');
+assert.equal(emptyCloudRecovery.storage.get('draft'), 'old-local-draft', 'isolated hydration does not wipe shared local edits');
 const backfillTimer = [...emptyCloudRecovery.timeouts.values()].find(timer => timer.ms === 1000);
 if (backfillTimer) emptyCloudRecovery.timer(1000);
 await tick();
 assert.equal(emptyCloudRecovery.calls.length, 0, 'empty-cloud recovery never uploads cleared old local data');
 assert.equal(interruptedSession.get(interruptedKey), interruptedStash, 'pending recovery remains available for review');
+const freshSameWorkspace = browser({ cloud: {}, initialStorage: Object.fromEntries(emptyCloudRecovery.storage) });
+assert.equal(freshSameWorkspace.sandbox.localStorage.getItem('installerMasterQuoteLogV1'), null, 'a new tab cannot display the same workspace\'s old native draft');
+freshSameWorkspace.edit('fresh tab edit');
+await freshSameWorkspace.sandbox.window.__calculatorFlushCloudSave(60000); await tick();
+assert.doesNotMatch(JSON.stringify(freshSameWorkspace.calls[0].body), /OLD-LOCAL|old-local-draft/, 'a new tab cannot upload the old native draft');
+assert.equal(interruptedSession.get(interruptedKey), interruptedStash);
+const olderTab = browser();
+olderTab.storage.set('draft', 'another tab\'s unconfirmed edit');
+olderTab.storage.set('__calculatorRecoveryIsolatedCache', '1');
+olderTab.windowHandlers.get('storage')({ key: '__calculatorRecoveryIsolatedCache' });
+olderTab.periodic(); await tick();
+assert.equal(olderTab.calls.length, 0, 'a previously opened tab cannot autosave the retired shared cache');
+await assert.rejects(olderTab.sandbox.window.__calculatorFlushCloudSave(60000), /Reopen this workspace/);
+const oldNativeQuote = '[{"id":"previously-failed","model":"FAILED-NATIVE-QUOTE"}]';
+const parkedNativeDraft = structuredClone(scopedEnvelope);
+parkedNativeDraft.envelope.data = { installerMasterQuoteLogV1: oldNativeQuote, draft: 'captured before reload' };
+const parkedNativeSession = new Map([[interruptedKey, JSON.stringify(parkedNativeDraft)]]);
+const clearedNative = browser({
+  cloud: {}, session: parkedNativeSession, initialStorage: {
+    __calculatorSignedInEmail: 'fixture@example.test',
+    __calculatorProfileEmail: 'fixture@example.test|11111111-1111-4111-8111-111111111111',
+    installerMasterQuoteLogV1: oldNativeQuote,
+    draft: 'different and newer local work',
+  },
+});
+assert.equal(clearedNative.storage.has('installerMasterQuoteLogV1'), false, 'older readers cannot pick up the already preserved draft');
+assert.equal(clearedNative.storage.get('draft'), 'different and newer local work', 'cleanup leaves unmatched native values alone');
+assert.equal(parkedNativeSession.get(interruptedKey), JSON.stringify(parkedNativeDraft), 'cache cleanup never removes the preserved draft');
+const olderReader = browser({ cloud: {}, initialStorage: Object.fromEntries([...clearedNative.storage].filter(([key]) => key !== '__calculatorRecoveryIsolatedCache')) });
+olderReader.edit('new user edit');
+await olderReader.sandbox.window.__calculatorFlushCloudSave(60000); await tick();
+assert.doesNotMatch(JSON.stringify(olderReader.calls[0].body), /FAILED-NATIVE-QUOTE/, 'even a reader without the marker cannot replay the parked quote');
+const foreignCache = browser({
+  cloud: {}, session: interruptedSession,
+  initialStorage: {
+    __calculatorSignedInEmail: 'another@example.test',
+    __calculatorProfileEmail: 'another@example.test|22222222-2222-4222-8222-222222222222',
+    installerMasterQuoteLogV1: '[{"id":"foreign-row","model":"DO-NOT-IMPORT"}]',
+  },
+});
+assert.equal(foreignCache.storage.has('installerMasterQuoteLogV1'), false, 'a recovered workspace cannot relabel another account\'s native cache');
+const freshTab = browser({ cloud: {}, initialStorage: Object.fromEntries(foreignCache.storage) });
+assert.equal(freshTab.sandbox.localStorage.getItem('installerMasterQuoteLogV1'), null);
+freshTab.edit('new account edit');
+await freshTab.sandbox.window.__calculatorFlushCloudSave(60000); await tick();
+assert.doesNotMatch(JSON.stringify(freshTab.calls[0].body), /DO-NOT-IMPORT/);
 
 // Recovery keys prefix the unchanged legacy viewing-profile marker with account.
 // Neither account nor business may consume another workspace's envelope.
@@ -457,7 +617,7 @@ await fencedConfirmation;
 const writesBeforeBlockedEdit = fenced.storageWrites.length;
 fenced.edit('account-b-draft');
 fenced.periodic(); await tick();
-await assert.rejects(fenced.sandbox.window.__calculatorFlushCloudSave(60000), /Review the pending recovery or reopen this workspace/);
+await assert.rejects(fenced.sandbox.window.__calculatorFlushCloudSave(60000), /Reopen this workspace/);
 assert.equal(fenced.storageWrites.length, writesBeforeBlockedEdit, 'profile fence blocks further local app-storage writes');
 assert.equal(fenced.calls.length, 1, 'no save or retry is sent after profile switch');
 assert.equal(fenced.calls[0].body.expectedWorkspace.accountEmail, 'fixture@example.test');
@@ -495,12 +655,11 @@ const lostCopyReload = browser({
   session: lostCopySession,
   cloud: { draft: 'saved-cloud', installerMasterQuoteLogV1: JSON.stringify([{ id: 'saved-row', model: 'SAVED' }]) },
 });
-const savedRowsOnReload = lostCopyReload.storage.get('installerMasterQuoteLogV1');
-await assert.rejects(lostCopyReload.sandbox.window.__calculatorFlushCloudSave(60000), /pending recovery/);
-await assert.rejects(lostCopyReload.sandbox.window.__calculatorQuoteRequest('quoteCopy', { ...lostCopyPayload, saveId: 'new-copy-id' }), /Review recovery/);
+const savedRowsOnReload = lostCopyReload.sandbox.localStorage.getItem('installerMasterQuoteLogV1');
+await lostCopyReload.sandbox.window.__calculatorFlushCloudSave(60000);
 lostCopyReload.periodic(); await tick();
-assert.equal(lostCopyReload.calls.length, 0, 'reload stash pauses autosave and new copy requests');
-assert.equal(lostCopyReload.storage.get('installerMasterQuoteLogV1'), savedRowsOnReload, 'reload retains saved cloud quote without replaying uncertain local mutation');
+assert.equal(lostCopyReload.calls.length, 0, 'reload does not replay an unconfirmed copy');
+assert.equal(lostCopyReload.sandbox.localStorage.getItem('installerMasterQuoteLogV1'), savedRowsOnReload, 'reload retains saved cloud quote without replaying uncertain local mutation');
 assertRecoverySemantic(lostCopySession.get(lostCopyKey), originalCopyEnvelope, 'reload preserves original profile and mutation envelope');
 
 const originalCopyRecovery = lostCopy.sandbox.window.__calculatorQuoteRequest('quoteCopy', lostCopyPayload);
@@ -524,7 +683,7 @@ refresh.sandbox.window.aadEquipmentPriceEditSnapshot = () => { throw new Error('
 assert.equal(refresh.sandbox.window.__calculatorCanRefresh(), false, 'guard errors fail closed');
 assert.equal(conflict.sandbox.window.__calculatorCanRefresh(), false, 'quote conflict blocks refresh');
 assert.equal(fenced.sandbox.window.__calculatorCanRefresh(), false, 'changed workspace blocks refresh');
-assert.equal(lostCopyReload.sandbox.window.__calculatorCanRefresh(), false, 'pending recovery blocks refresh');
+assert.equal(lostCopyReload.sandbox.window.__calculatorCanRefresh(), true, 'an archived copy does not block refresh');
 const refreshingMutation = browser();
 refreshingMutation.setResponder(() => new Promise(() => {}));
 void refreshingMutation.sandbox.window.__calculatorQuoteRequest('quoteCopy', { saveId: 'refresh-copy', sourceOptionId: 'option-1' });

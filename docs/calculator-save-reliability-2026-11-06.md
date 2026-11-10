@@ -30,7 +30,11 @@ It did establish two application-level amplifiers:
 - Pending envelopes are retained in account/business-scoped session storage.
   An exact acknowledgement clears only that envelope. On refresh, recovery is
   offered separately from current cloud data; stale financial snapshots are not
-  silently replayed. A download is required before choosing the saved version.
+  silently replayed. A fresh page opens the saved calculator. Recovery records
+  that exactly match the saved state clear silently; others stay in this tab
+  under Review draft, without blocking new work or requiring a download.
+- Recovery uses an isolated copy of the saved calculator, not shared browser
+  edits. Fresh tabs in the same workspace also ignore the old shared cache.
 - Workspace switches fence old tabs. New requests carry an expected account,
   viewed profile and business; explicit legacy targets cannot silently retarget.
 - Failed required cloud reads return a script-free, no-store retry page instead
@@ -56,8 +60,8 @@ database client, with synthetic records and intercepted network requests:
   latest draft retention, storage recovery, reload and workspace isolation.
 - `verify-cloud-save-baseline.mjs`: required-read failures, valid legacy
   fallback and successful empty accounts against the actual raw GET handler.
-- `verify-cloud-save-browser.mjs`: real Chromium at 1280px and 390px, native
-  Storage interception, recovery downloads and manual retry.
+- `verify-cloud-save-browser.mjs`: Chromium and WebKit at 1280px and 390px,
+  separate-tab isolation, optional review exports and continued quote saving.
 - Existing quote sync/options/library, business configuration, loading,
   performance and authentication suites; production Next.js build.
 
@@ -73,6 +77,9 @@ External outages can still prevent saving. During an outage, keep the tab open,
 retry when available, or download recovery data before leaving. Session storage
 survives refresh in the same tab but is not guaranteed after the tab is closed.
 Storage failures are surfaced and do not become a false Saved state.
+
+If a rollback is necessary, retain the recovery slot detection and cache
+isolation guard. A pre-recovery build cannot recognise those scoped markers.
 
 The server improvements apply to already-open tabs through their next request.
 New browser safeguards load on the next normal page load. Do not force a reload

@@ -106,6 +106,17 @@ body.drawerOpen{overflow:hidden}
 .calculatorSaveRecovery details{margin:16px 0}
 .calculatorSaveRecovery pre{max-height:250px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px}
 .calculatorSaveRecovery button{margin:4px;min-height:44px}
+.calculatorRecoveryNotice{margin:10px 0;padding:10px 12px;border-left:3px solid #b45309;background:#fffbeb;color:#713f12;overflow-wrap:anywhere;font-size:13px}
+.calculatorRecoveryNotice[hidden]{display:none}
+.calculatorRecoveryNotice summary{cursor:pointer;font-weight:700;padding:6px 0}
+.calculatorRecoveryNotice p{margin:8px 0}
+.calculatorRecoveryRecord{border-top:1px solid #fde68a;padding:10px 0}
+.calculatorRecoveryRecord section{margin:10px 0}
+.calculatorRecoveryRecord button{min-height:44px}
+.calculatorRecoveryVersions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:6px;color:var(--dark)}
+.calculatorRecoveryVersions p{white-space:pre-line}
+#quoteLibraryRecovery{margin:8px 24px}
+@media(max-width:520px){.calculatorRecoveryVersions{grid-template-columns:1fr;gap:4px}#quoteLibraryRecovery{margin:8px 14px}}
 
 h1,h2,h3{
   font-family:'Space Grotesk','Manrope','Segoe UI',sans-serif;
@@ -3966,6 +3977,7 @@ button.quoteDragHandle:active{cursor:grabbing}
       <div class="actions"><button id="copyQuoteInfoBtn" class="secondary" type="button" onclick="copyAllQuoteChoices()" aria-describedby="copyQuoteInfoStatus" disabled>Copy quote info</button><button class="secondary" type="button" onclick="openDrawer()">View Quotes</button><button class="green" type="button" onclick="openWonJobsDrawer()">Won Jobs (<span data-won-jobs-count>0</span>)</button><button id="currentOptionWonBtn" class="secondary" type="button" onclick="toggleCurrentOptionWon()">Mark won</button></div>
     </div>
     <div id="copyQuoteInfoStatus" class="tiny" role="status" aria-live="polite"></div>
+    <div id="currentQuoteRecovery" class="calculatorRecoveryNotice" hidden></div>
     <div id="currentOptionBody"></div>
   </div>
 
@@ -4014,6 +4026,7 @@ button.quoteDragHandle:active{cursor:grabbing}
       <div class="quoteLibraryStatusTabs" role="group" aria-label="Quote status"><button type="button" class="secondary" data-quote-status="open" aria-pressed="true" onclick="setQuoteLibraryStatus('open')">Open</button><button type="button" class="secondary" data-quote-status="won" aria-pressed="false" onclick="setQuoteLibraryStatus('won')">Won</button><button type="button" class="secondary" data-quote-status="all" aria-pressed="false" onclick="setQuoteLibraryStatus('all')">All</button></div>
     </div>
   </div>
+  <div id="quoteLibraryRecovery" class="calculatorRecoveryNotice" hidden></div>
   <div id="quoteLibraryContent" class="quoteLibraryContent"></div>
   <details id="quoteLibraryAdvanced" class="quoteLibraryAdvanced"><summary>Advanced</summary>
     <h3>Quote backups</h3><div class="quoteLibraryAdvancedFields"><div><label for="savedQuoteName">Backup name</label><input id="savedQuoteName" placeholder="Optional backup name"></div><button class="secondary" type="button" onclick="saveCurrentQuoteSet()">Back up all quotes</button></div>
@@ -12896,6 +12909,7 @@ function renderQuoteLibrary(){
   }
   document.querySelectorAll('[data-quote-status]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.quoteStatus===quoteLibraryView.status)));
   const group=selectedQuoteLibraryGroup();
+  window.__calculatorShowQuoteRecovery?.(group?.def.id);
   $('quoteLibraryFilters').hidden=!!group;
   $('quoteLibraryAdvanced').hidden=!!group||!!quoteLibraryView.backupId;
   if(group){
