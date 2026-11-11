@@ -94,7 +94,7 @@ const labelled = await fixed([{ ...otherRatings, "Rated Total Cool Capacity kW":
 assert.equal(labelled.meta["Cooling Capacity"], legacyCooling);
 assert.equal(labelled.meta["Heating Capacity"], legacyHeating);
 const from = (index, row) => ({ ...row, [GEMS_VERIFIED_INVENTORY_SOURCE]: GEMS_AIRCON_RESOURCE_IDS[index] });
-for (const [registration, precise, rounded] of [["AAC8714", "4.8352", "4.835"], ["AAC10167", "4.1832", "4.183"]]) {
+for (const [registration, precise, rounded] of [["AAC8714", "4.8352", "4.835"], ["AAC10167", "4.1832", "4.183"], ["AAC8788", "3.9555", "3.955"]]) {
   const legacy = from(1, { ...row, "Registration Number": registration, "Rated ACOP": precise });
   const labelled = from(0, { ...modernIdentity, "Registration Number": registration, "Rated ACOP": rounded });
   for (const ordered of [[labelled, legacy], [legacy, labelled]]) assert.equal((await fixed(ordered)(brand, model)).meta["Rated ACOP"], precise);
@@ -103,6 +103,35 @@ for (const [registration, precise, rounded] of [["AAC8714", "4.8352", "4.835"], 
     { ...labelled, "Rated ACOP": `${rounded}0` }, { ...labelled, "Rated Total Cool Capacity kW": 3.5 },
     { ...labelled, "Availability Status": "Available" }, { ...labelled, [GEMS_VERIFIED_INVENTORY_SOURCE]: undefined },
   ]) await reject(fixed([legacy, conflict])(brand, model), 409, "GEMS_MODEL_CONFLICT");
+}
+for (const field of ["Rated AEER", "Rated ACOP"]) {
+  const testPrecision = async (precise, rounded, accepted) => {
+    const legacy = from(1, { ...row, "Registration Number": "AAC8788", [field]: precise });
+    const labelled = from(0, { ...modernIdentity, "Registration Number": "AAC8788", [field]: rounded });
+    for (const ordered of [[legacy, labelled], [labelled, legacy]]) {
+      if (accepted) assert.equal((await fixed(ordered)(brand, model)).meta[field], precise);
+      else await reject(fixed(ordered)(brand, model), 409, "GEMS_MODEL_CONFLICT");
+    }
+  };
+  for (const [precise, rounded] of [
+    ["3.9555", "3.955"], ["3.9555", "3.956"], ["3.9555000", "3.955"],
+    ["3.9995", "4.000"], ["3.9995", "3.999"], ["3.9554", "3.955"], ["3.9556", "3.956"],
+  ]) await testPrecision(precise, rounded, true);
+  for (const [precise, rounded] of [
+    ["3.9555001", "3.955"], ["3.9554999", "3.956"], ["3.9555", "3.954"],
+    ["3.9555", "3.957"], ["3.9555", "3.9550"], ["3.9556", "3.955"],
+  ]) await testPrecision(precise, rounded, false);
+}
+const tclFixture = JSON.parse(await readFile(new URL("./fixtures/tcl-gems-rounding-20261112.json", import.meta.url), "utf8"));
+const tclRecords = tclFixture.records.map(({ resource, record }) => ({ ...record, [GEMS_VERIFIED_INVENTORY_SOURCE]: resource }));
+const tclPrecise = tclRecords.find(record => record[GEMS_VERIFIED_INVENTORY_SOURCE] === GEMS_AIRCON_RESOURCE_IDS[1]);
+for (const ordered of [tclRecords, [...tclRecords].reverse()]) {
+  const before = await fixed([tclPrecise])("TCL", tclFixture.model);
+  assert.deepEqual(await fixed(ordered)("TCL", tclFixture.model), before, "Export reconciliation must not change precise metadata");
+}
+for (const change of [{ "Rated ACOP": "3.954" }, { "Registration Number": "OTHER" }, { "Residential HSPF_mixed": "4.504" }]) {
+  const conflicting = tclRecords.map(record => record === tclPrecise ? record : { ...record, ...change });
+  await reject(fixed(conflicting)("TCL", tclFixture.model), 409, "GEMS_MODEL_CONFLICT");
 }
 const hisenseLegacy = from(1, { ...hisense, "Rated AEER": "4.7582", "Rated ACOP": "4.7379", "C-Total Cool Rated": "3.5302" });
 const hisenseMirror = from(0, { ...hisense, "Availability Status": undefined, "Rated AEER": "4.758", "Rated ACOP": "4.738", "C-Total Cool Rated": "3.5302" });

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { createRequire } from "node:module";
+import { createRequire, register } from "node:module";
 import { readFile, mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
@@ -11,6 +11,12 @@ assert.ok(chromiumPath, "Set PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH to the local Ch
 const { chromium } = createRequire(import.meta.url)(playwrightPath);
 const html = await readFile(resolve(root, "index.html"), "utf8");
 const fixture = JSON.parse(await readFile(resolve(root, "scripts/fixtures/gems-gap-regressions-20261106.json"), "utf8"));
+register("./monitor-nsw-postcodes-loader.mjs", import.meta.url);
+const { createGemsCalculationMetadata } = await import("../lib/gems-calculation-metadata.ts");
+const { GEMS_VERIFIED_INVENTORY_SOURCE } = await import("../lib/gems-model-search.ts");
+const tcl = JSON.parse(await readFile(resolve(root, "scripts/fixtures/tcl-gems-rounding-20261112.json"), "utf8"));
+const tclLookup = createGemsCalculationMetadata({ fetchInventory: async () => tcl.records
+  .map(({ resource, record }) => ({ ...record, [GEMS_VERIFIED_INVENTORY_SOURCE]: resource })) });
 const item = fixture.models.find((model) => model.brand === "Fujitsu General");
 assert.ok(item, "The fixed Fujitsu GEMS fixture is present.");
 const origin = "http://server-model-lookup.test";
@@ -106,6 +112,10 @@ async function pageFor(scenario) {
     if (url.origin !== origin && request.method() === "OPTIONS") return fulfill({ status: 204, body: "" });
     if (url.origin === origin && url.pathname === "/") return fulfill({ status: 200, contentType: "text/html", body: html });
     if (url.origin === origin && url.pathname === "/api/gems-model-metadata") {
+      if (scenario.lookup) {
+        try { return fulfill({ json: await scenario.lookup(url.searchParams.get("brand"), url.searchParams.get("model")) }); }
+        catch (error) { return fulfill({ status: error.status || 503, json: { code: error.code, error: error.message } }); }
+      }
       if (scenario.holdMetadata) {
         await holdMetadata;
         metadataBehavior = "ok";
@@ -154,17 +164,18 @@ async function pageFor(scenario) {
     return route.abort();
   });
   await page.goto(origin, { waitUntil: "load" });
-  await page.evaluate(({ brand, model, selectedType }) => {
+  await page.evaluate(({ brand, model, selectedType, capacity, postcode, installation }) => {
     window.CALCULATOR_USER.rebatesEnabled = true;
-    product = () => ({ brand, model, capacity: "2.5kW", capacityNum: 2.5, unitPriceInc: 777, rebate: 0, series: "fixed browser fixture" });
+    product = () => ({ brand, model, capacity: capacity + "kW", capacityNum: capacity, unitPriceInc: 777, rebate: 0, series: "fixed browser fixture" });
     systemType = selectedType;
-    installType = "new";
-    $("essPostcode").value = "2213";
+    installType = installation;
+    $("essPostcode").value = postcode;
     $("essClimateZone").value = "auto";
     $("essEscRate").value = "23";
     $("essPrcRate").value = "2.6";
     $("unitPriceInc").value = "777.00";
-  }, { brand: selectedBrand, model: selectedModel, selectedType: selectedSystemType });
+  }, { brand: selectedBrand, model: selectedModel, selectedType: selectedSystemType,
+    capacity: scenario.capacity || 2.5, postcode: scenario.postcode || "2213", installation: scenario.installation || "new" });
   await page.evaluate(({ quoteKey, sentinelQuote }) => localStorage.setItem(quoteKey, JSON.stringify(sentinelQuote)), { quoteKey, sentinelQuote });
   const baseline = await page.evaluate((key) => ({ price: $("unitPriceInc")?.value, quoteStorage: localStorage.getItem(key) }), quoteKey);
   return {
@@ -220,6 +231,21 @@ function check(name, details = {}) {
 }
 
 try {
+  for (const installation of ["new", "replacement"]) {
+    const test = await pageFor({ brand: "TCL", model: tcl.model, capacity: 7.1, postcode: "2756", installation, lookup: tclLookup });
+    currentTest = test;
+    await test.startLookup();
+    const state = await test.state();
+    assert.equal(test.metadataRequests, 1);
+    assert.equal(state.retryVisible, false);
+    assert.equal(state.spinner, false);
+    assert.equal(state.savedGemsFallback, false);
+    assert.equal(state.source, "Verified NSW backup (ae8d778)");
+    assert.equal(state.price, test.baseline.price);
+    assert.equal(state.quoteStorage, test.baseline.quoteStorage);
+    check(`TCL AAC8788 captured exports resolve for ${installation} at 2756`, { outcome: "success", systemPriceUnchanged: true, savedQuoteUnchanged: true });
+    await test.close();
+  }
   // Healthy server metadata with public lookups blocked and primary TLS failing.
   {
     const test = await pageFor({ name: "healthy" });

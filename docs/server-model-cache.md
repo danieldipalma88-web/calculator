@@ -12,6 +12,11 @@ to saved quotes, equipment prices, business settings or payment data.
   cannot stand in for a complete system.
 - Both GEMS feeds must load completely. Conflicting active records, missing
   ratings and rejected registrations remain unavailable.
+- AEER/ACOP mirrors at three decimals may round an exact half-thousandth either
+  way, only for the same registration across the two verified feeds. The eligible
+  source's full precision is retained; no capacity, seasonal-rating or
+  different-registration conflicts are relaxed. The captured TCL AAC8788 case
+  is covered by the metadata verifier.
 - The shared Next.js inventory cache revalidates after five minutes. Every
   response also enforces a one-hour hard maximum age, including failed background
   revalidation. Expiring registrations can shorten that interval.
@@ -35,7 +40,7 @@ node scripts/verify-best-value-recommendations.mjs
 
 The weekly NSW safeguard workflow runs the first two checks using fixtures.
 The parity check compares the existing mapping with the server mapping over
-five registered systems, four postcodes and both installation types. It uses
+six registered systems (including TCL AAC8788), five postcodes and both installation types. It uses
 the actual backup calculation engine while injecting a primary outage.
 
 Browser transport/UI checks are in `scripts/verify-server-model-lookup-browser.mjs`.

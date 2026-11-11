@@ -213,8 +213,13 @@ function matchesRoundedLegacy(modern: string | number, legacy: string | number) 
   const decimal = String(legacy).trim().match(/^(\d+)(?:\.(\d+))?$/);
   if (!decimal) return false;
   const fraction = decimal[2] ?? "";
-  const scaled = Number(decimal[1]) * 1000 + Number(fraction.slice(0, 3).padEnd(3, "0")) + Number((fraction[3] ?? "0") >= "5");
-  return Number.isSafeInteger(scaled) && scaled / 1000 === Number(modern);
+  const lower = Number(decimal[1]) * 1000 + Number(fraction.slice(0, 3).padEnd(3, "0"));
+  const rounded = lower + Number((fraction[3] ?? "0") >= "5");
+  // Same-registration exports can resolve an exact half-thousandth either way.
+  // This only reconciles the mirror; calculations retain the precise source value.
+  const exactHalf = fraction[3] === "5" && /^0*$/.test(fraction.slice(4));
+  return Number.isSafeInteger(rounded) && (rounded / 1000 === Number(modern)
+    || (exactHalf && lower / 1000 === Number(modern)));
 }
 
 function checkRatingEvidence(current: Candidate[], active: Candidate[], field: string) {
