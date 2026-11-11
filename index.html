@@ -4973,6 +4973,7 @@ let systemType='split', installType='new', activeCalculatorView='standard', quot
 let currentOptionEditMessage='';
 let currentQuoteTotalsEditing=false;
 let finalPriceLocked=false;
+let loadedTclQuotePrice=null;
 let multiFinalPriceLocked=false;
 let priceLocks={};
 let multiSplitIndoorSelections=[];
@@ -6099,6 +6100,72 @@ async function fetchGemsRecordsForQuery(query,limit=50){
   }
   return all;
 }
+function tclRegistrationEstimateIds(brand,model){
+  if(normalizeLookup(brand)!=='TCL') return null;
+  const key=normalizeLookup(model);
+  if(['TAC10CHSDVEIH','VEIHTAC10CHSD'].includes(key)) return ['AAC8585','AAC8789'];
+  if(['TAC13CHSDVEIH','VEIHTAC13CHSD'].includes(key)) return ['AAC8581','AAC8790'];
+  return null;
+}
+function lowestRegistrationCertificates(results,escRate,prcRate){
+  if(!Array.isArray(results)||results.length!==2||![escRate,prcRate].every(n=>Number.isFinite(n)&&n>=0)||
+    results.some(row=>![row.esc,row.prc,row.esc*escRate+row.prc*prcRate].every(n=>Number.isFinite(n)&&n>=0))) throw new Error('Unable to calculate both registered rebate options.');
+  const selected=[...results].sort((a,b)=>(a.esc*escRate+a.prc*prcRate)-(b.esc*escRate+b.prc*prcRate)||a.registration.localeCompare(b.registration))[0];
+  return {...selected,registrationResults:results,registrationEstimate:{policy:'lower-total-v1',selectedRegistration:selected.registration,
+    registrations:results.map(row=>row.registration),esc:selected.esc,prc:selected.prc,escRate,prcRate}};
+}
+async function calculateResolvedCertificates(resolved,climate,options,escRate,prcRate){
+  if(!resolved.registrationEstimate) return calculateCertificatesForModel(resolved.meta,climate,options);
+  if(options.airConditionerType!=='non_ducted_single_split_system') throw new Error('These registrations require a single split system.');
+  const results=await Promise.all(resolved.registrationEstimate.candidates.map(async row=>({
+    ...await calculateCertificatesForModel(row.meta,climate,options),registration:row.registration,
+  })));
+  if(resolved.expiresAt<=Date.now()) throw new Error('Registered model data expired. Please retry the rebate.');
+  return {...lowestRegistrationCertificates(results,escRate,prcRate),expiresAt:resolved.expiresAt};
+}
+function registrationEstimateContext(){
+  const p=product();
+  return JSON.stringify([normalizeLookup(p?.brand),normalizeLookup(p?.model),systemType,installType,getEssPostcode(),getEssZoneSelection(),String(calculatorUserContext().businessId||'')]);
+}
+function currentRegistrationEstimate(){
+  const p=product();
+  if(!rebatesEnabled()||systemType!=='split'||!p||!tclRegistrationEstimateIds(p.brand,p.model)||hasManualRebateOverride(systemType,p)||
+    !essRuntime.registrationResults||essRuntime.registrationContext!==registrationEstimateContext()||!(essRuntime.registrationExpiresAt>Date.now())) return null;
+  const match=getDcceewContractMatch(p,undefined,{systemType,installType});
+  const escRate=match?match.rate:getEssEscRate(),prcRate=getEssPrcRate();
+  if(!(escRate>0)||!(prcRate>0)) return null;
+  const result=lowestRegistrationCertificates(essRuntime.registrationResults,escRate,prcRate);
+  return {...result,rebate:result.esc*escRate+result.prc*prcRate,
+    registrationEstimate:{...result.registrationEstimate,postcode:getEssPostcode(),climateZone:essRuntime.lastZone,bcaZone:essRuntime.lastBcaZone,
+      installType,expiresAt:essRuntime.registrationExpiresAt}};
+}
+function standardRegistrationRebateReady(){
+  const p=product();
+  return !rebatesEnabled()||!p||!tclRegistrationEstimateIds(p.brand,p.model)||hasManualRebateOverride(systemType,p)||!!currentRegistrationEstimate();
+}
+function requireStandardRegistrationRebate(){
+  if(standardRegistrationRebateReady()){
+    syncCurrentRegistrationRebate();
+    if(!finalPriceLocked&&currentRegistrationEstimate()) autoFinal();
+    return true;
+  }
+  setCertificateBreakdown(null,'Calculate the rebate successfully before adding this system to a quote.',true);
+  if($('rebateServiceDetail')) $('rebateServiceDetail').textContent='Retry the rebate to refresh the registered model data.';
+  return false;
+}
+function syncCurrentRegistrationRebate(){
+  const estimate=currentRegistrationEstimate();
+  if(estimate&&$('rebate')) $('rebate').value=estimate.rebate.toFixed(2);
+  return estimate;
+}
+function releaseLoadedTclPriceForDestination(optionId){
+  if(!loadedTclQuotePrice) return;
+  const p=product();
+  if(loadedTclQuotePrice.optionId===optionId&&p?.brand===loadedTclQuotePrice.brand&&p?.model===loadedTclQuotePrice.model) return;
+  loadedTclQuotePrice=null;
+  finalPriceLocked=false;
+  autoFinal();
+}
 async function fetchGemsModelMetadata(localBrand,localModel,signal){
   signal?.throwIfAborted();
   const key=`${normalizeLookup(localBrand)}|${normalizeLookup(normaliseModelName(localModel))}`;
@@ -6115,7 +6182,8 @@ async function fetchGemsModelMetadata(localBrand,localModel,signal){
       const deadline=new Promise((resolve,reject)=>{timeoutId=setTimeout(()=>{controller.abort();reject(unavailable());},10000);});
       try{
         const result=await Promise.race([deadline,(async()=>{
-          const response=await fetch(`/api/gems-model-metadata?brand=${encodeURIComponent(normaliseBrandName(localBrand))}&model=${encodeURIComponent(normaliseModelName(localModel))}`,{
+          const estimateIds=tclRegistrationEstimateIds(localBrand,localModel);
+          const response=await fetch(`/api/gems-model-metadata?brand=${encodeURIComponent(normaliseBrandName(localBrand))}&model=${encodeURIComponent(normaliseModelName(localModel))}${estimateIds?'&registrationEstimate=lower-total-v1':''}`,{
             signal:controller.signal,cache:'no-store',credentials:'omit',redirect:'error',headers:{Accept:'application/json'}
           });
           let payload;
@@ -6152,7 +6220,15 @@ async function fetchGemsModelMetadata(localBrand,localModel,signal){
              normalizeLookup(payload.meta?.brand)!==normalizeLookup(payload.brand) || normalizeLookup(payload.meta?.model)!==normalizeLookup(payload.model) ||
              !isUsableModelMeta(payload.meta) || !Number.isFinite(payload.verifiedAt) || !Number.isFinite(payload.expiresAt) ||
              payload.verifiedAt>now+60000 || payload.expiresAt<=now || payload.expiresAt<=payload.verifiedAt || payload.expiresAt-payload.verifiedAt>3600000) throw invalid();
-          return {meta:payload.meta,brand:payload.brand,model:payload.model,source:'GEMS registry + NSW formula',expiresAt:payload.expiresAt};
+          if(estimateIds){
+            const estimate=payload.registrationEstimate;
+            if(estimate?.policy!=='lower-total-v1'||!Array.isArray(estimate.candidates)||estimate.candidates.length!==2||
+              new Set(estimate.candidates.map(row=>row.registration)).size!==2||estimate.candidates.some(row=>
+                !estimateIds.includes(row.registration)||normalizeLookup(row.meta?.brand)!==normalizeLookup(payload.brand)||
+                normalizeLookup(row.meta?.model)!==normalizeLookup(payload.model)||!isUsableModelMeta(row.meta))) throw invalid();
+          }else if(payload.registrationEstimate) throw invalid();
+          return {meta:payload.meta,brand:payload.brand,model:payload.model,source:'GEMS registry + NSW formula',expiresAt:payload.expiresAt,
+            registrationEstimate:payload.registrationEstimate};
         })()]);
         if(controller.signal.aborted) throw unavailable();
         entry.result=result;
@@ -6196,7 +6272,7 @@ async function resolveModelMetadataForRebate(localBrand,localModel,signal){
     return await fetchGemsModelMetadata(localBrand,localModel,signal);
   }catch(gemsError){
     signal?.throwIfAborted();
-    if(localMeta&&['GEMS_UNAVAILABLE','GEMS_MODEL_NOT_FOUND'].includes(gemsError?.code)) return {meta:localMeta,brand:localMeta.brand||localBrand,model:localMeta.model||localModel,source:'Saved GEMS fallback + NSW formula'};
+    if(!tclRegistrationEstimateIds(localBrand,localModel)&&localMeta&&['GEMS_UNAVAILABLE','GEMS_MODEL_NOT_FOUND'].includes(gemsError?.code)) return {meta:localMeta,brand:localMeta.brand||localBrand,model:localMeta.model||localModel,source:'Saved GEMS fallback + NSW formula'};
     throw gemsError;
   }
 }
@@ -6263,7 +6339,7 @@ function refreshAuthoritativeRebateResults(){
   const allModelsHadResult=!!($('allModelsRebateTotal')&&$('allModelsRebateTotal').textContent!=='-');
   const allModelsWasLoading=!!($('allModelsCalculateBtn')&&$('allModelsCalculateBtn').getAttribute('aria-busy')==='true');
   const multiSplitWasLoading=!!($('multiSplitRebatePanel')&&$('multiSplitRebatePanel').getAttribute('aria-busy')==='true');
-  const mainHasResult=!hasManualRebateOverride(systemType,product()) && (essRuntime.lastEsc>0 || essRuntime.lastPrc>0);
+  const mainHasResult=!hasManualRebateOverride(systemType,product()) && (essRuntime.registrationResults || essRuntime.lastEsc>0 || essRuntime.lastPrc>0);
   // Keep certificate caches and draft inputs; only contract-dependent results are stale.
   invalidateBestValueRecommendations(false);
   essCache.requestSeq++;
@@ -6678,6 +6754,9 @@ function clearCertificateRuntime(){
   essRuntime.lastBrand='';
   essRuntime.lastModel='';
   essRuntime.lastCalculationSource='';
+  essRuntime.registrationResults=null;
+  essRuntime.registrationContext='';
+  essRuntime.registrationExpiresAt=0;
 }
 function updateCertificateBreakdownFromRuntime(){
   if(!rebatesEnabled()){
@@ -6686,7 +6765,16 @@ function updateCertificateBreakdownFromRuntime(){
   }
   const escRate=getEssEscRate();
   const prcRate=getEssPrcRate();
-  if(!((essRuntime.lastEsc>0 || essRuntime.lastPrc>0) && escRate>0 && prcRate>0)){
+  const estimate=currentRegistrationEstimate();
+  if(essRuntime.registrationResults){
+    if(!estimate){clearCertificateRuntime();setCertificateBreakdown(null,'Retry the rebate to refresh the registered model data.',true);return 0;}
+    essRuntime.lastEsc=estimate.esc;
+    essRuntime.lastPrc=estimate.prc;
+    essRuntime.lastOfficialEsc=estimate.officialEsc;
+    essRuntime.lastOfficialPrc=estimate.officialPrc;
+    essRuntime.lastCalculationSource=estimate.calculationSource||'';
+  }
+  if(!((estimate || essRuntime.lastEsc>0 || essRuntime.lastPrc>0) && escRate>0 && prcRate>0)){
     setCertificateBreakdown(null,'Waiting for live lookup',false);
     setDcceewContractDisplay(getDcceewContractMatch(product(),undefined,{systemType,installType}),null);
     return 0;
@@ -7969,12 +8057,13 @@ async function estimateLiveEssRebate(localBrand,localModel,context,climatePromis
   signal?.throwIfAborted();
   const meta=resolved.meta;
   const airConditionerType=calculationContext.airConditionerType||normalizeAirConditionerType(HVAC_AIR_CONDITIONER_TYPES[calculationContext.systemType]||HVAC_AIR_CONDITIONER_TYPES.split);
-  const certs=await calculateCertificatesForModel(meta,climate,{airConditionerType,installType:calculationContext.installType,signal});
   const escRate=calculationContext.escRate??getEssEscRate(), prcRate=calculationContext.prcRate??getEssPrcRate();
   if(!(escRate>0)) throw new Error('Enter a valid ESS $ per ESC');
   if(!(prcRate>0)) throw new Error('Enter a valid PERC (PRC) $ per cert');
+  const match=getDcceewContractMatch({brand:localBrand,model:localModel},climate.postcode,calculationContext);
+  const certs=await calculateResolvedCertificates(resolved,climate,{airConditionerType,installType:calculationContext.installType,signal},match?match.rate:escRate,prcRate);
   const escValue=certs.esc*escRate, prcValue=certs.prc*prcRate;
-  return {apiBrand:resolved.brand,apiModel:resolved.model,lookupSource:resolved.source,calculationSource:certs.calculationSource,esc:certs.esc,prc:certs.prc,officialEsc:certs.officialEsc,officialPrc:certs.officialPrc,eligibility:certs.eligibility,zone:climate.climateZone,bcaZone:climate.bcaZone,escRate,prcRate,escValue,prcValue,rebate:escValue+prcValue};
+  return {apiBrand:resolved.brand,apiModel:resolved.model,lookupSource:resolved.source,calculationSource:certs.calculationSource,esc:certs.esc,prc:certs.prc,officialEsc:certs.officialEsc,officialPrc:certs.officialPrc,eligibility:certs.eligibility,zone:climate.climateZone,bcaZone:climate.bcaZone,escRate,prcRate,escValue,prcValue,rebate:escValue+prcValue,registrationResults:certs.registrationResults,registrationEstimate:certs.registrationEstimate,expiresAt:resolved.expiresAt};
 }
 async function loadLiveCertificatePriceIfNeeded(){
   if(!rebatesEnabled()) return;
@@ -8063,8 +8152,9 @@ async function refreshLiveRebateForCurrentProduct(){
   setCertificateBreakdown(null,'Loading live certificate counts...',false);
   setRebateCalcMeta('Loading live ESS/PERC rebate...',false);
   setLiveRebateLoading(true);
+  const registrationContext=registrationEstimateContext();
   try{
-    const result=await withTimeout(
+    let result=await withTimeout(
       estimateLiveEssRebate(p.brand,p.model,calculationContext),
       LIVE_REBATE_TIMEOUT_MS,
       'Live rebate calculation timed out. Please try again.'
@@ -8072,6 +8162,7 @@ async function refreshLiveRebateForCurrentProduct(){
     if(requestId!==essCache.requestSeq) return;
     const current=product();
     if(!current || current.brand!==p.brand || current.model!==p.model) return;
+    if(result.registrationResults&&registrationContext!==registrationEstimateContext()) return;
     dcceewMatch=getDcceewContractMatch(p,undefined,calculationContext);
     essRuntime.lastEsc=result.esc;
     essRuntime.lastPrc=result.prc;
@@ -8082,6 +8173,17 @@ async function refreshLiveRebateForCurrentProduct(){
     essRuntime.lastBrand=result.apiBrand;
     essRuntime.lastModel=result.apiModel;
     essRuntime.lastCalculationSource=result.calculationSource||'';
+    essRuntime.registrationResults=result.registrationResults||null;
+    essRuntime.registrationContext=registrationContext;
+    essRuntime.registrationExpiresAt=result.expiresAt||0;
+    const currentEstimate=currentRegistrationEstimate();
+    if(result.registrationResults&&!currentEstimate) throw new Error('Registered model data expired. Please retry the rebate.');
+    if(currentEstimate){
+      const escRate=getEssEscRate(),prcRate=getEssPrcRate();
+      result={...result,...currentEstimate,escRate,prcRate,escValue:currentEstimate.esc*escRate,prcValue:currentEstimate.prc*prcRate,rebate:currentEstimate.esc*escRate+currentEstimate.prc*prcRate};
+      essRuntime.lastEsc=result.esc;essRuntime.lastPrc=result.prc;
+      essRuntime.lastOfficialEsc=result.officialEsc;essRuntime.lastOfficialPrc=result.officialPrc;
+    }
     const effective=applyDcceewContractRebate(dcceewMatch,result);
     $('rebate').value=(Math.round(effective.rebate*100)/100).toFixed(2);
     render();
@@ -8110,6 +8212,7 @@ function onProductChange(options){
   const p=product();
   $('unitPriceInc').value=(p.unitPriceInc||p.priceIncGst||0).toFixed(2);
   $('rebate').value=rebatesEnabled()?(p.rebate||0).toFixed(2):'0.00';
+  if(loadedTclQuotePrice) releaseLoadedTclPriceForDestination(currentAddOptionId());
   applyDefaults();
   if(options&&options.skipAsyncRefresh) return;
   refreshLiveRebateForCurrentProduct();
@@ -8402,7 +8505,8 @@ function applyRebateSchemeUi(){
       rebate.value='0.00';
       rebate.readOnly=true;
     }else if(!rebate.classList.contains('fixedMoneyInput')){
-      rebate.readOnly=false;
+      const p=product();
+      rebate.readOnly=!!(p&&tclRegistrationEstimateIds(p.brand,p.model)&&!hasManualRebateOverride(systemType,p));
     }
   }
   if(!enabled){
@@ -8572,11 +8676,14 @@ function autoFinal(){
   const p=product(), c=cap(p), installAddons=installAddonTotals();
   const unitEx=num('unitPriceInc')/1.1, labour=num('labour')+installAddons.labour, matsEx=(num('materials')+installAddons.materialsInc)/1.1;
   const miscEx=num('misc')/1.1, service=systemType==='split'?powerCost(c):num('electrician'), addons=airCost();
-  $('finalInc').value=((unitEx+labour+matsEx+miscEx+service+addons+350)*1.1).toFixed(2);
+  const estimate=currentRegistrationEstimate();
+  const rebate=estimate?Math.round(estimate.rebate*100)/100:0;
+  const base=unitEx+labour+matsEx+miscEx+service+addons+350;
+  $('finalInc').value=((estimate?Math.max(0,base-rebate):base)*1.1).toFixed(2);
   updatePriceLockNote();
 }
 function updatePriceLockNote(){const n=$('priceLockNote'); if(!n) return; n.textContent='';}
-function resetSuggestedPrice(){finalPriceLocked=false; autoFinal(); render();}
+function resetSuggestedPrice(){finalPriceLocked=false; loadedTclQuotePrice=null; autoFinal(); render();}
 function renderProductSupportDetails(p){
   const warrantyChip=$('warrantySupportChip'), warrantyText=$('warrantyMeta');
   const wifiChip=$('wifiSupportChip'), wifiText=$('wifiMeta');
@@ -9291,9 +9398,10 @@ async function calculateAllModelsRebate(){
   setSectionLoading('allModelsResultCard',true,'Calculating live rebate...');
   try{
     let meta=selected.metadata;
+    let resolved={meta};
     let lookupSource='GEMS registry + NSW formula';
-    if(!selected.completeEnergyData||!isUsableModelMeta(meta)){
-      const resolved=await resolveModelMetadataForRebate(selected.brand,selected.model);
+    if(tclRegistrationEstimateIds(selected.brand,selected.model)||!selected.completeEnergyData||!isUsableModelMeta(meta)){
+      resolved=await resolveModelMetadataForRebate(selected.brand,selected.model);
       meta=resolved.meta;
       lookupSource=resolved.source;
     }
@@ -9301,11 +9409,11 @@ async function calculateAllModelsRebate(){
     if(!airConditionerType) throw new Error('This model needs an indoor-head combination. Use the Multi-head Split System calculator.');
     const calculationContext=allModelsCalculationContext(airConditionerType);
     const climate=await getClimateContext(postcode);
-    const certs=await withTimeout(calculateCertificatesForModel(meta,climate,{airConditionerType:calculationContext.airConditionerType,installType:calculationContext.installType}),LIVE_REBATE_TIMEOUT_MS,'Live rebate calculation timed out. Please try again.');
     const escRate=getEssEscRate(),prcRate=getEssPrcRate();
     if(!(escRate>0)||!(prcRate>0)) throw new Error('The current business certificate payout rates are unavailable.');
-    const result={apiBrand:selected.brand,apiModel:selected.model,lookupSource,calculationSource:certs.calculationSource,esc:certs.esc,prc:certs.prc,officialEsc:certs.officialEsc,officialPrc:certs.officialPrc,eligibility:certs.eligibility,zone:climate.climateZone,bcaZone:climate.bcaZone,escRate,prcRate,escValue:certs.esc*escRate,prcValue:certs.prc*prcRate,rebate:(certs.esc*escRate)+(certs.prc*prcRate)};
     const match=getDcceewContractMatch({brand:selected.brand,model:selected.model},postcode,calculationContext);
+    const certs=await withTimeout(calculateResolvedCertificates(resolved,climate,{airConditionerType:calculationContext.airConditionerType,installType:calculationContext.installType},match?match.rate:escRate,prcRate),LIVE_REBATE_TIMEOUT_MS,'Live rebate calculation timed out. Please try again.');
+    const result={apiBrand:selected.brand,apiModel:selected.model,lookupSource,calculationSource:certs.calculationSource,esc:certs.esc,prc:certs.prc,officialEsc:certs.officialEsc,officialPrc:certs.officialPrc,eligibility:certs.eligibility,zone:climate.climateZone,bcaZone:climate.bcaZone,escRate,prcRate,escValue:certs.esc*escRate,prcValue:certs.prc*prcRate,rebate:(certs.esc*escRate)+(certs.prc*prcRate)};
     const effective=applyDcceewContractRebate(match,result);
     if(requestId!==allModelsCalculationRequestSeq||allModelsSelected!==selected) return;
     renderAllModelsCalculation(result,effective,match,climate,lookupSource,calculationContext);
@@ -9620,8 +9728,8 @@ function updateQuotePriceValidationUi(){
   const standardMessage=$('unitPriceMissingMessage');
   if(standardMessage && standardMissing) standardMessage.textContent=standardReadiness.message;
   document.querySelectorAll('button[onclick="addToQuote()"]:not(#multiSplitAddToQuoteBtn)').forEach(button=>{
-    button.disabled=standardMissing||liveRebateLoading;
-    button.title=standardMissing?standardReadiness.message:(liveRebateLoading?'Wait for the rebate calculation to finish.':'Add this system to the selected quote.');
+    button.disabled=standardMissing||liveRebateLoading||!standardRegistrationRebateReady();
+    button.title=standardMissing?standardReadiness.message:(liveRebateLoading?'Wait for the rebate calculation to finish.':!standardRegistrationRebateReady()?'Calculate the rebate before adding this system.':'Add this system to the selected quote.');
   });
 
   const totals=multiSplitEquipmentTotals();
@@ -10217,6 +10325,8 @@ function initMultiSplitTrial(){
   }
 }
 function render(){
+  syncCurrentRegistrationRebate();
+  if(!finalPriceLocked&&tclRegistrationEstimateIds(product()?.brand,product()?.model)) autoFinal();
   syncLabourInstallerControls();
   syncPowerCircuitControl();
   const x=calculate();
@@ -10674,6 +10784,7 @@ function resetAllManagedPrices(){
 }
 
 function currentState(){
+  const registrationEstimate=syncCurrentRegistrationRebate();
   const x=calculate();
   const productIndex=Number($('product').value);
   const managedKey=managedKeyForProduct(systemType,x.p);
@@ -10688,6 +10799,7 @@ function currentState(){
     productIndex:Number.isFinite(productIndex)?productIndex:null,
     productManagedKey:managedKey||'',
     unitPriceInc:$('unitPriceInc').value, labour:$('labour').value, rebate:rebatesEnabled()?$('rebate').value:'0',
+    ...(registrationEstimate?{rebateRegistrationEstimate:registrationEstimate.registrationEstimate}:{}),
     materials:$('materials').value, misc:$('misc').value, finalInc:$('finalInc').value,
     powerCircuit:$('powerCircuit').value, powerMode:$('powerMode').value,
     electrician:$('electrician').value, airtouch:$('airtouch').value, zones:$('zones').value, sensors:$('sensors').value,
@@ -10848,6 +10960,7 @@ function savedQuoteStoredRebate(r){
     s.savedRebate
   ];
   const numbers=candidates.map(finiteMoneyNumber).filter(n=>n!==null);
+  if(s.rebateRegistrationEstimate?.policy==='lower-total-v1') return numbers.length?numbers[0]:0;
   const positive=numbers.find(n=>Math.abs(n)>0.0001);
   if(positive!==undefined) return positive;
   const productRebate=savedQuoteProductRebate(r);
@@ -11228,6 +11341,7 @@ function loadQuote(i){
   if(s.salespersonCommissionRate===undefined) s.salespersonCommissionRate=q.salespersonCommissionRate!==undefined?q.salespersonCommissionRate:50;
   applyCommissionSettingsFromState(s);
   finalPriceLocked=true;
+  loadedTclQuotePrice=tclRegistrationEstimateIds(s.brand,s.model)?{optionId:q.optionId,brand:s.brand,model:s.model}:null;
   render(); refreshLiveRebateForCurrentProduct(); refreshBestValueIndicator(); closeDrawer();
   document.querySelector('.wrap').scrollIntoView({behavior:'smooth',block:'start'});
 }
@@ -12181,6 +12295,7 @@ function onOptionSelectionChange(value){
     showQuoteActionNotice('Finish the pending option save first.');return;
   }
   currentQuoteTotalsEditing=false;
+  releaseLoadedTclPriceForDestination(value);
   currentOptionEditMessage='';
   syncAddOptionSelects(value);
   updateMainOptionNameInput();
@@ -12229,7 +12344,7 @@ function createNewOptionNow(name,selectIt){
   ensureOptionDefs();
   const opt={id:'option_'+Date.now()+'_'+Math.floor(Math.random()*1000),name:String(name||'').trim(),syncUpdatedAt:Date.now()};
   quoteOptionDefs.push(opt); persistOptionDefs(); renderOptionSelectors();
-  if(selectIt) syncAddOptionSelects(opt.id);
+  if(selectIt){releaseLoadedTclPriceForDestination(opt.id);syncAddOptionSelects(opt.id);render();}
   updateMainOptionNameInput();
   renderQuotes();
   showQuoteActionNotice(`Created quote for ${opt.name}.`);
@@ -13903,6 +14018,7 @@ function addToQuote(){
     const readiness=multiSplitQuoteReadiness();
     if(!readiness.ok){showMultiSplitReadinessMessage(readiness);return;}
   }else{
+    if(!requireStandardRegistrationRebate()) return;
     const readiness=standardQuotePriceReadiness();
     if(!readiness.ok){showPriceReadinessMessage(readiness,'unitPriceCostField');return;}
   }
@@ -13917,6 +14033,8 @@ function addToQuote(){
 function addStandardSystemToQuoteNow(){
   const optionId=currentAddOptionId();
   if(!assertOptionEditable(optionId)) return;
+  releaseLoadedTclPriceForDestination(optionId);
+  if(!requireStandardRegistrationRebate()) return;
   const readiness=standardQuotePriceReadiness();
   if(!readiness.ok){showPriceReadinessMessage(readiness,'unitPriceCostField');return;}
   const x=calculate();
@@ -14083,7 +14201,7 @@ function initEssControls(){
       if(certValues.locked){ applyLockedCertValuesToMain(); return; }
       saveEssSettings();
       const escRate=getEssEscRate(), prcRate=getEssPrcRate();
-      if((essRuntime.lastEsc>0 || essRuntime.lastPrc>0) && escRate>0 && prcRate>0){
+      if((essRuntime.registrationResults || essRuntime.lastEsc>0 || essRuntime.lastPrc>0) && escRate>0 && prcRate>0){
         const total=updateCertificateBreakdownFromRuntime();
         $('rebate').value=(Math.round(total*100)/100).toFixed(2);
         render();
@@ -14097,7 +14215,7 @@ function initEssControls(){
       if(certValues.locked){ applyLockedCertValuesToMain(); return; }
       saveEssSettings();
       const escRate=getEssEscRate(), prcRate=getEssPrcRate();
-      if((essRuntime.lastEsc>0 || essRuntime.lastPrc>0) && escRate>0 && prcRate>0){
+      if((essRuntime.registrationResults || essRuntime.lastEsc>0 || essRuntime.lastPrc>0) && escRate>0 && prcRate>0){
         const total=updateCertificateBreakdownFromRuntime();
         $('rebate').value=(Math.round(total*100)/100).toFixed(2);
         render();
@@ -14495,6 +14613,10 @@ function buildProposalHtml(groups,details){
   </body></html>`;
 }
 function generateProposalPdf(){
+  if(proposalFieldValue('proposalSource')==='current'&&!multiSplitViewActive()&&!requireStandardRegistrationRebate()){
+    if($('proposalSourceSummary')) $('proposalSourceSummary').textContent='Calculate the rebate successfully before exporting the current system.';
+    return;
+  }
   saveProposalDetails();
   const groups=proposalGroupsForSource();
   if(!groups.length){renderProposalSourceSummary(); return;}
@@ -14623,7 +14745,7 @@ if(powerCircuitToggle) powerCircuitToggle.addEventListener('change',setPowerCirc
 ['unitPriceInc','labour','rebate','materials','misc','powerCircuit','powerMode','installerRetainsLabour','ductedInstallerRetainsLabour','electrician','airtouch','zones','sensors','commissionModelOn'].forEach(id=>{const el=$(id); if(el){ el.addEventListener('input',()=>{ if(!finalPriceLocked) autoFinal(); render(); }); el.addEventListener('change',()=>{ if(!finalPriceLocked) autoFinal(); render(); }); }});
 INSTALL_ADDONS.map(a=>a.type==='quantity'?a.qtyId:a.id).forEach(id=>{const el=$(id); if(el){ el.addEventListener('input',()=>{ render(); }); el.addEventListener('change',()=>{ if(el.type==='number') el.value=String(Math.max(0,Math.floor(Number(el.value)||0))); render(); }); }});
 const finalInput=$('finalInc');
-if(finalInput){ finalInput.addEventListener('input',()=>{ finalPriceLocked=true; render(); }); finalInput.addEventListener('change',()=>{ finalPriceLocked=true; render(); }); }
+if(finalInput){ finalInput.addEventListener('input',()=>{ finalPriceLocked=true; loadedTclQuotePrice=null; render(); }); finalInput.addEventListener('change',()=>{ finalPriceLocked=true; loadedTclQuotePrice=null; render(); }); }
 ['multiLabour','multiMaterials','multiMisc','multiPower','multiInstallerRetainsLabour'].forEach(id=>{
   const el=$(id);
   if(!el) return;

@@ -1,5 +1,5 @@
 import catalogue from "./public-rebate-catalogue.generated.json";
-import { fetchGemsDatastoreRecords, GEMS_AIRCON_RESOURCE_IDS, GEMS_VERIFIED_INVENTORY_SOURCE, isGemsMultiSplitOutdoorRecord, type GemsSearchRecord } from "./gems-model-search";
+import { conservativeRegistrationIds, fetchGemsDatastoreRecords, GEMS_AIRCON_RESOURCE_IDS, GEMS_VERIFIED_INVENTORY_SOURCE, isGemsMultiSplitOutdoorRecord, type GemsSearchRecord } from "./gems-model-search";
 
 export const GEMS_INVENTORY_REVALIDATE_SECONDS = 300;
 export const GEMS_INVENTORY_MAX_AGE_MS = 60 * 60 * 1000;
@@ -342,7 +342,7 @@ export function createGemsCalculationMetadata({
     return fresh;
   }), now);
 
-  return async function lookup(rawBrand: string | null, rawModel: string | null) {
+  return async function lookup(rawBrand: string | null, rawModel: string | null, options: { registrationEstimate?: boolean } = {}) {
     const brand = text(rawBrand);
     const model = text(rawModel);
     if (rawBrand === null || rawModel === null || rawBrand.length > 100 || rawModel.length > 160 || /[\x00-\x1f\x7f]/.test(rawBrand + rawModel)
@@ -352,13 +352,34 @@ export function createGemsCalculationMetadata({
     if (!identity) return fail("GEMS_INVALID_REQUEST");
     const related = aliases.get(`${key}:${identity}`);
     const identities = related ? new Set(related) : new Set([identity]);
+    const registrationIds = conservativeRegistrationIds(brand, model);
+    // Older clients interpret provider failures as permission to use a single bundled row.
+    if (registrationIds && !options.registrationEstimate) return fail("GEMS_MODEL_CONFLICT");
     const inventory = await read(key);
     const current = now();
     const maxAgeExpiry = inventory.verifiedAt + GEMS_INVENTORY_MAX_AGE_MS;
     if (current >= maxAgeExpiry) return fail("GEMS_UNAVAILABLE");
-    const candidate = selectCandidate(inventory.candidates, identities, current);
-    const expiresAt = Math.min(maxAgeExpiry, candidate.registryExpiresAt ?? Infinity);
+    const matches = inventory.candidates.filter(row => identities.has(row.identity));
+    if (registrationIds && matches.some(row => row.state !== "rejected" && (row.registryExpiresAt === null || current < row.registryExpiresAt)
+      && (!row.registration || !registrationIds.includes(row.registration)))) return fail("GEMS_MODEL_CONFLICT");
+    // This is an explicit estimate over two independently verified registrations, not a resolution of their disagreement.
+    const candidates = registrationIds
+      ? registrationIds.map(registration => {
+        const evidence = matches.filter(row => row.registration === registration);
+        if (GEMS_AIRCON_RESOURCE_IDS.some(resource => !evidence.some(row => row.resource === resource
+          && row.state !== "rejected" && row.registryExpiresAt !== null && current < row.registryExpiresAt
+          // The labelled export omits input power; its other ratings must corroborate the detailed export.
+          && ratingKeys.every(field => (resource === GEMS_AIRCON_RESOURCE_IDS[0] && field === "Input Power") || numeric(row.meta[field]))))) return fail("GEMS_MODEL_INCOMPLETE");
+        return selectCandidate(evidence, identities, current);
+      })
+      : [selectCandidate(inventory.candidates, identities, current)];
+    const candidate = candidates[0];
+    const evidenceExpiries = registrationIds ? matches.filter(row => row.state !== "rejected"
+      && row.registryExpiresAt !== null && current < row.registryExpiresAt).map(row => row.registryExpiresAt!) : [];
+    const expiresAt = Math.min(maxAgeExpiry, ...candidates.map(row => row.registryExpiresAt ?? Infinity), ...evidenceExpiries);
     return { schemaVersion: 1 as const, meta: candidate.meta, brand: candidate.meta.brand, model: candidate.meta.model,
-      source: SOURCE, verifiedAt: inventory.verifiedAt, expiresAt };
+      source: SOURCE, verifiedAt: inventory.verifiedAt, expiresAt,
+      ...(registrationIds ? { registrationEstimate: { policy: "lower-total-v1" as const,
+        candidates: candidates.map(row => ({ registration: row.registration!, meta: row.meta })) } } : {}) };
   };
 }

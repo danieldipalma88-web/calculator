@@ -286,6 +286,7 @@ let certificateCalls = 0;
 let metadataCalls = 0;
 const sharedMetadata = new Promise(resolve => { finishSharedMetadata = resolve; });
 const estimateSandbox = {
+  getDcceewContractMatch: () => null,
   HVAC_AIR_CONDITIONER_TYPES: { split: "non_ducted_split_system" },
   normalizeAirConditionerType: value => value,
   resolveModelMetadataForRebate: () => { metadataCalls += 1; return sharedMetadata; },
@@ -295,7 +296,8 @@ const estimateSandbox = {
     return { esc: 26.127, prc: 146.248 };
   },
 };
-vm.runInNewContext(`${html.slice(estimateStart, estimateEnd)}\nglobalThis.estimate=estimateLiveEssRebate;`, estimateSandbox);
+const resolvedCalculation=html.slice(html.indexOf('async function calculateResolvedCertificates('),html.indexOf('function registrationEstimateContext('));
+vm.runInNewContext(`${resolvedCalculation}\n${html.slice(estimateStart, estimateEnd)}\nglobalThis.estimate=estimateLiveEssRebate;`, estimateSandbox);
 const estimateContext = { systemType: "split", installType: "replacement", escRate: 23, prcRate: 2.6 };
 const stopEstimate = new AbortController();
 await assert.rejects(
@@ -355,6 +357,7 @@ let resolveGemsRequest;
 let gemsCalls = 0;
 const gemsResponse = new Promise((resolve) => { resolveGemsRequest = resolve; });
 const gemsSandbox = {
+  tclRegistrationEstimateIds: () => null,
   essCache: { gemsByLookup: {} },
   normalizeLookup: (value) => String(value).toLowerCase(),
   normaliseModelName: (value) => value,

@@ -144,6 +144,7 @@ Object.assign(sandbox, {
   persistCertValues: () => {}, applyLockedCertValuesToMain: () => {},
   updateAllModelsRates: () => {}, updateAllModelsCalculateState: () => { button.disabled = false; },
   isUsableModelMeta: () => true, allModelsAirConditionerType: () => "non_ducted_single_split_system",
+  tclRegistrationEstimateIds: () => null,
   allModelsCalculationContext: () => ({ systemType: "split", installType: "replacement" }),
   getClimateContext: async postcode => ({ postcode, climateZone: "mixed", bcaZone: "BCA_Climate_Zone_5" }),
   calculateCertificatesForModel: () => new Promise(resolve => pending.push(resolve)),
@@ -159,7 +160,8 @@ const certificateHandler = html.slice(html.indexOf("window.applyAuthoritativeCer
 const resetHandler = html.slice(html.indexOf("function resetAllModelsResult("), html.indexOf("function selectedAllModelsMultiOutdoor("));
 const calculation = html.slice(html.indexOf("async function calculateAllModelsRebate("), html.indexOf("function initAllModelsLookup("));
 const pricing = html.slice(html.indexOf("function applyDcceewContractRebate("), html.indexOf("function setCertificateBreakdown("));
-vm.runInNewContext(`${certificateHandler}\n${resetHandler}\n${pricing}\n${calculation}`, sandbox);
+const resolvedCalculation = html.slice(html.indexOf("async function calculateResolvedCertificates("), html.indexOf("function registrationEstimateContext("));
+vm.runInNewContext(`${certificateHandler}\n${resetHandler}\n${pricing}\n${resolvedCalculation}\n${calculation}`, sandbox);
 sandbox.activeCalculatorView = "allModels";
 sandbox.window.DCCEEW_CONTRACT_DATA = oldData;
 const first = sandbox.calculateAllModelsRebate();

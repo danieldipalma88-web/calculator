@@ -345,6 +345,10 @@ try {
   assert.ok(cacheOptions.keys[0].includes("inventory-v3"));
   const bad = await GET(new Request("https://calculator.test/api/gems-model-metadata?brand=Fujitsu&brand=Other&model=AB123"));
   assert.equal(bad.status, 400);
+  for (const suffix of ['registrationEstimate=yes', 'registrationEstimate=', 'registrationEstimate=lower-total-v1&registrationEstimate=lower-total-v1']) {
+    const invalid = await GET(new Request(`https://calculator.test/api/gems-model-metadata?brand=Fujitsu&model=AB123&${suffix}`));
+    assert.equal(invalid.status, 400, 'Reject unknown or repeated estimate policies');
+  }
   const before = fetches;
   const url = new URL("https://calculator.test/api/gems-model-metadata");
   url.search = new URLSearchParams({ brand, model });

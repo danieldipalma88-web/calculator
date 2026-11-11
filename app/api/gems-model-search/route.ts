@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   cleanGemsBrand,
+  conservativeRegistrationIds,
   fetchGemsDatastoreRecords,
   fetchGemsMultiSplitRecords,
   isEligibleAustralianGemsRecord,
@@ -116,7 +117,11 @@ function matchingModels(records: Record<string, unknown>[], brand: string, rawQu
         - Number(!normalizeGemsModelQuery(b.model).startsWith(query));
       return prefixDiff || a.model.localeCompare(b.model);
     })
-    .slice(0, 30);
+    .slice(0, 30)
+    // A search hit cannot choose between these registrations; use the verified metadata endpoint.
+    .map(item => conservativeRegistrationIds(item.brand, item.model)
+      ? { ...item, completeEnergyData: false, metadata: {} }
+      : item);
 }
 
 export async function GET(request: NextRequest) {

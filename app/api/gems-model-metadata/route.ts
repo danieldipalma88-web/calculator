@@ -14,7 +14,10 @@ export async function GET(request: Request) {
   const params = new URL(request.url).searchParams;
   try {
     if (params.getAll("brand").length !== 1 || params.getAll("model").length !== 1) throw new GemsCalculationMetadataError("GEMS_INVALID_REQUEST");
-    return NextResponse.json(await lookup(params.get("brand"), params.get("model")), { headers });
+    if (params.getAll("registrationEstimate").length > 1 || (params.has("registrationEstimate") && params.get("registrationEstimate") !== "lower-total-v1")) throw new GemsCalculationMetadataError("GEMS_INVALID_REQUEST");
+    return NextResponse.json(await lookup(params.get("brand"), params.get("model"), {
+      registrationEstimate: params.get("registrationEstimate") === "lower-total-v1",
+    }), { headers });
   } catch (error) {
     const failure = error instanceof GemsCalculationMetadataError ? error : new GemsCalculationMetadataError("GEMS_UNAVAILABLE");
     return NextResponse.json({ code: failure.code, error: failure.message }, {

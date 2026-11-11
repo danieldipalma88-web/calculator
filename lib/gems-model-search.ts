@@ -9,6 +9,15 @@ export const GEMS_AIRCON_RESOURCE_IDS = [
 ] as const;
 export const GEMS_VERIFIED_INVENTORY_SOURCE = Symbol("GEMS verified inventory source");
 
+export function conservativeRegistrationIds(brand: string, model: string): readonly string[] | null {
+  const compact = (value: string) => value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (compact(brand) !== "TCL") return null;
+  const key = compact(model);
+  if (key === "TAC10CHSDVEIH" || key === "VEIHTAC10CHSD") return ["AAC8585", "AAC8789"];
+  if (key === "TAC13CHSDVEIH" || key === "VEIHTAC13CHSD") return ["AAC8581", "AAC8790"];
+  return null;
+}
+
 const REQUIRED_SEARCH_FIELDS = [
   "Cooling Capacity",
   "Heating Capacity",

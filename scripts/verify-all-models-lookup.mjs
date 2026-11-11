@@ -24,7 +24,7 @@ assert.match(html, /id="allModelsCard"/);
 assert.match(html, /id="allModelsBrand"/);
 assert.match(html, /id="allModelsSearch"/);
 assert.match(html, /id="allModelsCalculateBtn"/);
-assert.match(html, /calculateCertificatesForModel\(meta,climate,\{airConditionerType:calculationContext\.airConditionerType,installType:calculationContext\.installType\}\)/);
+assert.match(html, /calculateResolvedCertificates\(resolved,climate,\{airConditionerType:calculationContext\.airConditionerType,installType:calculationContext\.installType\},match\?match\.rate:escRate,prcRate\)/);
 assert.match(html, /getDcceewContractMatch\(\{brand:selected\.brand,model:selected\.model\},postcode,calculationContext\)/);
 assert.match(html, /selected\.multiHead/);
 assert.match(html, /Rebate set to \$0\.00 because the calculation could not be completed/);

@@ -118,6 +118,17 @@ try {
   assert.equal(failedRefresh.status, 503, "A failed fresh recheck is an outage, not proof of no matching model.");
   assert.ok(failedRefresh.error);
   assert.equal(failedRefresh.cacheControl, "no-store");
+  freshUnavailable = false;
+  const tcl = JSON.parse(await readFile(new URL('./fixtures/tcl-registration-estimates-20261112.json', import.meta.url), 'utf8'));
+  cachedRecords = freshRecords = tcl.records.map(row => row.record);
+  for (const model of ['TAC-10CHSD/VEIH', 'TAC-13CHSD/VEIH']) {
+    const result = await queryRoute(`brand=TCL&q=${encodeURIComponent(model)}`);
+    assert.equal(result.status, 200);
+    assert.equal(result.models.length, 1);
+    assert.equal(result.models[0].model, model);
+    assert.equal(result.models[0].completeEnergyData, false, 'Search cannot bypass registration selection');
+    assert.deepEqual(result.models[0].metadata, {});
+  }
   unavailable = true;
   assert.equal((await queryRoute("brand=Rinnai&q=DONSR15B1")).status, 503);
 } finally {

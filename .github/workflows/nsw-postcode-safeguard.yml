@@ -18,6 +18,7 @@ on:
       - 'app/api/gems-model-metadata/**'
       - 'scripts/verify-gems-calculation-metadata.mjs'
       - 'scripts/verify-server-model-lookup-*.mjs'
+      - 'scripts/verify-tcl-registration-estimates.mjs'
       - 'lib/public-rebate-catalogue.generated.json'
       - 'scripts/*postcode*'
       - 'scripts/*rebate-sample*'
@@ -40,6 +41,7 @@ on:
       - 'app/api/gems-model-metadata/**'
       - 'scripts/verify-gems-calculation-metadata.mjs'
       - 'scripts/verify-server-model-lookup-*.mjs'
+      - 'scripts/verify-tcl-registration-estimates.mjs'
       - 'lib/public-rebate-catalogue.generated.json'
       - 'scripts/*postcode*'
       - 'scripts/*rebate-sample*'
@@ -76,6 +78,7 @@ jobs:
         run: |
           node --experimental-transform-types scripts/verify-gems-calculation-metadata.mjs
           node --experimental-transform-types scripts/verify-server-model-lookup-parity.mjs
+          node --experimental-transform-types scripts/verify-tcl-registration-estimates.mjs
 
   postcode-check:
     # Standard runners are free in public repos. Never incur private-repo minutes.
