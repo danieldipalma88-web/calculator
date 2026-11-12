@@ -142,20 +142,33 @@ assert.equal(multiSaved.manufacturerCashback.amount,200,'One SCM payment per com
 for(const key of ['finalInc','rebate','commissionInc','salespersonCommissionInc','netProfit']) assert.equal(multiSaved[key],pricedMulti[key]);
 
 const fakeBlock={dataset:{mhiCashback:JSON.stringify([[expiredOffer],2000,true])}};
+const unitLabel={},unitBadge={},unitPresentation={},unitSelect={selectedOptions:[{textContent:'5.0kW - Avanti Plus'}]};
+const unitParts={'.productSelectCashback':unitPresentation,'.productCashbackUnitName':unitLabel,'.mhiCashbackBadge':unitBadge,select:unitSelect};
+const unitWrap={
+  dataset:{mhiCashback:JSON.stringify([[expiredOffer],null,false]),mhiCashbackUnit:'true'},
+  classList:{toggle:(name,active)=>{unitWrap.active=active;}},
+  querySelector:selector=>unitParts[selector],
+};
 const listeners={};
 let callback;
 const view={
-  document:{querySelectorAll:()=>[fakeBlock],addEventListener:(event,fn)=>{listeners[event]=fn;}},
+  document:{querySelectorAll:()=>[fakeBlock,unitWrap],addEventListener:(event,fn)=>{listeners[event]=fn;}},
   addEventListener:(event,fn)=>{listeners[event]=fn;},
   setTimeout:fn=>{callback=fn;return 1;},clearTimeout(){},
 };
 window.__mhiCashbackClock={serverTime:end-100,wallTime:wall,elapsedTime:elapsed};
 watchMhiCashbackClock(view);
 assert.match(fakeBlock.innerHTML,/Estimated cost after receiving cashback \$1850\.00/);
+assert.equal(unitLabel.textContent,'5.0kW - Avanti Plus');
+assert.equal(unitBadge.textContent,'Potential $150 Cashback');
+assert.equal(unitPresentation.hidden,false);
 wall+=100;
 callback();
 assert.match(fakeBlock.innerHTML,/offer expired for new purchases/);
 assert.doesNotMatch(fakeBlock.innerHTML,/Estimated cost after receiving cashback/);
+assert.equal(unitPresentation.hidden,true,'The selected-unit badge disappears at the same expiry boundary');
+assert.equal(unitBadge.textContent,'');
+assert.equal(unitWrap.active,false,'The native selected label is restored after expiry');
 wall+=claimEnd-end;
 listeners.beforeprint();
 assert.match(fakeBlock.innerHTML,/claims closed/);

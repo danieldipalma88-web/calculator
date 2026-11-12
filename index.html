@@ -3631,6 +3631,14 @@ button.quoteDragHandle:active{cursor:grabbing}
 .mhiCashbackBlock{margin:8px 0;padding:8px 12px;border:1px solid #b8d9cf;border-radius:8px;background:#eff8f5;color:#164e43;font-size:.85rem;line-height:1.45;overflow-wrap:anywhere}
 .mhiCashbackBlock a{color:inherit;text-decoration:underline}
 .mhiCashbackBlock[hidden]{display:none}
+.productSelectWrap{display:grid;position:relative;min-width:0}
+.productSelectWrap>select,.productSelectCashback{grid-area:1/1;min-width:0}
+.productSelectWrap.hasCashback>select{height:100%;min-height:44px;appearance:none;color:transparent}
+.productSelectWrap.hasCashback>select option{color:#111827}
+.productSelectWrap.hasCashback:after{content:"";position:absolute;right:14px;top:50%;width:7px;height:7px;border-right:2px solid #111827;border-bottom:2px solid #111827;transform:translateY(-70%) rotate(45deg);pointer-events:none}
+.productSelectCashback{display:flex;align-items:center;flex-wrap:wrap;gap:6px;min-height:44px;padding:8px 34px 8px 12px;font-size:14px;line-height:20px;pointer-events:none}
+.productSelectCashback[hidden]{display:none}
+.mhiCashbackBadge{display:inline-flex;align-items:center;padding:3px 8px;border:1px solid #eab308;border-radius:999px;background:#fde047;color:#713f12;font-size:11px;font-weight:800;line-height:16px;white-space:nowrap}
 </style>
 <!-- Version: Option groups -->
 </head>
@@ -3644,7 +3652,7 @@ button.quoteDragHandle:active{cursor:grabbing}
     <main>
       <div class="card">
         <h2 class="sectionTitle">Product and install setup</h2>
-        <div class="row2"><div><label>Brand</label><select id="brand" onchange="populateProducts()"></select></div><div><div class="modelRequestSelectorHeader"><label>Unit</label><button class="modelRequestLink" type="button" onclick="openModelRequestModal('standard')">Can't find your system? Request a model</button></div><select id="product" onchange="onProductChange()"></select></div></div>
+        <div class="row2"><div><label>Brand</label><select id="brand" onchange="populateProducts()"></select></div><div><div class="modelRequestSelectorHeader"><label for="product">Unit</label><button class="modelRequestLink" type="button" onclick="openModelRequestModal('standard')">Can't find your system? Request a model</button></div><div class="productSelectWrap" id="productSelectWrap" data-mhi-cashback-unit="true"><select id="product" onchange="onProductChange()" aria-describedby="productCashbackBadge"></select><div class="productSelectCashback" hidden><span class="productCashbackUnitName" aria-hidden="true"></span><span class="mhiCashbackBadge" id="productCashbackBadge"></span></div></div></div></div>
         <div class="productSupportMeta" id="productSupportMeta">
           <div class="productSupportChip unknown" id="warrantySupportChip"><span>Warranty</span><strong id="warrantyMeta">Select a unit</strong></div>
           <div class="productSupportChip unknown" id="wifiSupportChip"><span>Wi-Fi</span><strong id="wifiMeta">Select a unit</strong></div>
@@ -6017,7 +6025,7 @@ function sortedProductOptions(list){
     return a.i-b.i;
   });
 }
-function populateProducts(options){const b=$('brand').value; const list=sortedProductOptions(selectableProductOptions(options).filter(x=>x.p.brand===b)); $('product').innerHTML=list.map(x=>`<option value="${x.i}">${unitSelectLabel(x.p)}</option>`).join(''); if(!(options&&options.skipProductChange)) onProductChange();}
+function populateProducts(options){const b=$('brand').value; const list=sortedProductOptions(selectableProductOptions(options).filter(x=>x.p.brand===b)); $('product').innerHTML=list.map(x=>`<option value="${x.i}">${unitSelectLabel(x.p)}</option>`).join(''); if(options&&options.skipProductChange) mhiCashbackUnitBadge(null); else onProductChange();}
 function unitSelectLabel(p){return `${p.capacity||p.size+'kW'}${p.series?' - '+p.series:''}${p.phase?' - '+p.phase:''}`;}
 function label(p){return `${unitSelectLabel(p)} - ${p.model}`;}
 function product(){return data()[Number($('product').value)||0]||data()[0]}
@@ -8922,9 +8930,26 @@ function mhiCashbackBlock(offers,customerTotal=null,includeTerms=true){
 function mhiCashbackQuoteBlock(rows,def,customerTotal,installDate){
   return mhiCashbackBlock(rows.map(row=>mhiCashbackQuoteOffer(row,def,installDate)),customerTotal);
 }
+function mhiCashbackUnitContents(wrap,offer,now){
+  const active=Boolean(offer?.amount&&!offer.outsideInstallPeriod&&mhiCashbackActive(now));
+  wrap.classList.toggle('hasCashback',active);
+  wrap.querySelector('.productSelectCashback').hidden=!active;
+  wrap.querySelector('.productCashbackUnitName').textContent=wrap.querySelector('select').selectedOptions[0]?.textContent||'';
+  wrap.querySelector('.mhiCashbackBadge').textContent=active?'Potential $'+offer.amount+' Cashback':'';
+}
+function mhiCashbackUnitBadge(offer){
+  const wrap=$('productSelectWrap');
+  wrap.dataset.mhiCashback=JSON.stringify([[offer].filter(Boolean),null,false]);
+  mhiCashbackUnitContents(wrap,offer,mhiCashbackNow());
+}
 function refreshMhiCashbackBlocks(doc,now){
   doc.querySelectorAll('[data-mhi-cashback]').forEach(block=>{
-    const display=mhiCashbackDisplay(...JSON.parse(block.dataset.mhiCashback),now);
+    const args=JSON.parse(block.dataset.mhiCashback);
+    if(block.dataset.mhiCashbackUnit==='true'){
+      mhiCashbackUnitContents(block,args[0][0],now);
+      return;
+    }
+    const display=mhiCashbackDisplay(...args,now);
     block.hidden=!display.lines.length;
     block.innerHTML=mhiCashbackBlockContents(display);
   });
@@ -10696,7 +10721,9 @@ function render(){
   $('summaryTrueCost').textContent=pricingMoney(x.trueCost);
   $('summaryRebateOut').textContent=money(x.rebate);
   $('finalBig').textContent=pricingMoney(x.finalInc);
-  if($('standardMhiCashback')) $('standardMhiCashback').innerHTML=mhiCashbackBlock([mhiCashbackCurrentOffer(systemType,x)],pricingReady?x.finalInc:null);
+  const cashbackOffer=mhiCashbackCurrentOffer(systemType,x);
+  mhiCashbackUnitBadge(cashbackOffer);
+  if($('standardMhiCashback')) $('standardMhiCashback').innerHTML=mhiCashbackBlock([cashbackOffer],pricingReady?x.finalInc:null);
   $('sellEx').textContent=pricingMoney(x.sellEx);
   $('originalInc').textContent=pricingMoney(x.finalInc+x.rebate);
   $('margin').textContent=pricingPercent(x.margin);
