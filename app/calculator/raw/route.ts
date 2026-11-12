@@ -1889,7 +1889,7 @@ export async function GET(request: Request) {
     catch { console.error("Verified model additions could not be loaded"); }
   }
   const prices = business?.id && String(business.operating_state || "").trim().toUpperCase() === "NSW" ? aadCataloguePrices : null;
-  const catalogueHtml = (await calculatorHtmlPromise).replace("<script>", `<script>window.__verifiedCatalogueAdditions=${safeScriptJson(additions)};window.__aadCataloguePrices=${safeScriptJson(prices)};</script>\n<script>`);
+  const catalogueHtml = (await calculatorHtmlPromise).replace("<script>", `<script>window.__verifiedCatalogueAdditions=${safeScriptJson(additions)};window.__aadCataloguePrices=${safeScriptJson(prices)};window.__mhiCashbackClock={serverTime:${Date.now()},wallTime:Date.now(),elapsedTime:performance.now()};</script>\n<script>`);
   const html = injectCloudStorageSync(
     catalogueHtml,
     effectiveSavedData,

@@ -12,7 +12,7 @@ const row = {type:'Split',brand:'Example',series:'Comfort',size:'2.5kW',model:pr
   commissionInc:123.45,salespersonCommissionInc:67.89,netProfit:333.77,labour:555.66,materialsInc:777.88,notes:'SECRET_INTERNAL_NOTE',
   state:{businessId:'test-business',systemType:'split',model:product.model,brand:'Example',installAddons:['addonPipe'],installAddonQuantities:{addonPipe:2}}};
 const context = {
-  console, setTimeout, clearTimeout, navigator:{},
+  console, setTimeout, clearTimeout, navigator:{}, window:{}, performance,
   productListFor:()=>[product], SPLIT_PRODUCTS:[product], DUCTED_PRODUCTS:[], ANDOS_SPLIT_PRODUCTS:[], ANDOS_DUCTED_PRODUCTS:[],
   INSTALL_ADDONS:[{id:'addonPipe',type:'quantity',label:'Extra 5m pipe run'}],
   normaliseBrandName:v=>v, normaliseModelName:v=>v,
@@ -21,8 +21,12 @@ const context = {
   groupTotals:rows=>({customer:rows.reduce((n,r)=>n+Number(r.finalInc),0)}),
 };
 const names = ['normalizeLookup','finiteMoneyNumber','quoteNeedsCustomerName','hasPositiveUnitPrice','uniquePriceModels','isMultiHeadQuoteType','quoteRowMissingPriceModels','quoteRowsMissingPriceModels','quoteStateDisablesRebates','installAddonDisplayLabel','quoteInfoText','quoteInfoSupport','quoteInfoProduct','quoteInfoExtras','currentQuoteInfoError','quoteInfoBusiness','buildCurrentQuoteInfo','updateCopyQuoteInfoButton','fallbackCopyQuoteInfo','copyCurrentQuoteInfo'];
+const cashbackSource=ast.statements.filter(node=>
+  (ts.isVariableStatement(node)&&node.declarationList.declarations.some(declaration=>String(declaration.name.getText(ast)).startsWith('MHI_CASHBACK_')))||
+  (ts.isFunctionDeclaration(node)&&node.name?.text.startsWith('mhiCashback'))
+).map(node=>node.getText(ast)).join('\n');
 vm.createContext(context);
-vm.runInContext('let currentQuoteTotalsEditing=false; let quoteInfoCopyBusy=false; let quoteInfoFeedbackTimer=null;\n'+names.map(n=>{assert.ok(functions.has(n),n);return functions.get(n);}).join('\n'),context);
+vm.runInContext(cashbackSource+'\nlet currentQuoteTotalsEditing=false; let quoteInfoCopyBusy=false; let quoteInfoFeedbackTimer=null;\n'+names.map(n=>{assert.ok(functions.has(n),n);return functions.get(n);}).join('\n'),context);
 
 const before=JSON.stringify(row);
 assert.equal(context.currentQuoteInfoError([row]),'');
@@ -34,6 +38,25 @@ assert.match(text,/Wi-Fi: Wi-Fi optional adaptor \(not confirmed as included/);
 assert.match(text,/Warranty: 5 yrs parts & labour/);
 assert.match(text,/Selected extras: Extra 5m pipe run x 2/);
 assert.match(text,/quoted rebate is already reflected/);
+const mhiRow={...row,brand:'Mitsubishi Heavy Industries',model:'SRC50ZSXA-W/SRK50ZSXA-WF',finalInc:2000};
+const active=Date.parse('2026-11-12T12:00:00+11:00');
+const setCashbackClock=serverTime=>{
+  context.window.__mhiCashbackClock={serverTime,wallTime:Date.now(),elapsedTime:performance.now()};
+};
+setCashbackClock(active);
+const activeCopy=context.buildCurrentQuoteInfo({name:'Taylor'},[mhiRow]);
+assert.match(activeCopy,/Final customer price including GST: \$2,000\.00/);
+assert.match(activeCopy,/Potential MHIAA manufacturer cashback \$150\.00/);
+assert.match(activeCopy,/Estimated cost after receiving cashback \$1,850\.00/);
+assert.match(activeCopy,/allows it to be combined with any other rebate or offer/);
+assert.match(activeCopy,/https:\/\/www\.mhiaa\.com\.au\/promotion\//);
+const recorded={...mhiRow,manufacturerCashback:context.mhiCashbackSnapshot(context.mhiCashbackQuoteOffer(mhiRow),active)};
+setCashbackClock(Date.parse('2027-02-01T00:00:00+11:00'));
+const expiredCopy=context.buildCurrentQuoteInfo({name:'Taylor'},[recorded]);
+assert.match(expiredCopy,/Final customer price including GST: \$2,000\.00/);
+assert.match(expiredCopy,/Recorded MHIAA cashback \$150\.00 .* offer expired for new purchases/);
+assert.doesNotMatch(expiredCopy,/\$1,850\.00|Potential MHIAA manufacturer cashback/);
+assert.doesNotMatch(context.buildCurrentQuoteInfo({name:'Taylor'},[mhiRow]),/MHIAA/);
 for(const secret of ['123.45','67.89','333.77','555.66','777.88','SECRET_INTERNAL_NOTE','test-business']) assert.ok(!text.includes(secret),`Excluded ${secret}`);
 assert.equal(JSON.stringify(row),before,'Copy must not change saved quote data');
 assert.equal(context.quoteInfoProduct({...row,model:'MISSING',state:{brand:'Example',model:'MISSING',productIndex:0}}),null,'Never guess from stale product index');
