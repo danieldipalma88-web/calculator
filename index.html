@@ -5862,7 +5862,17 @@ const ALL_MODELS_MULTI_EXTRA_INDOORS=[
   multiIndoor('Teco','Multi Slim Duct',2.65,'TDSM26HVAG',null,'','',{family:'teco-multi',ratedCoolingCapacity:2.65,ratedHeatingCapacity:2.8,note:'Manufacturer indoor code; rebate lookup only'}),
   multiIndoor('Teco','Multi Slim Duct',3.5,'TDSM35HVAG',null,'','',{family:'teco-multi',ratedCoolingCapacity:3.5,ratedHeatingCapacity:4.0,note:'Manufacturer indoor code; rebate lookup only'}),
   multiIndoor('Teco','Multi Slim Duct',5.0,'TDSM50HVAG',null,'','',{family:'teco-multi',ratedCoolingCapacity:5.0,ratedHeatingCapacity:5.5,note:'Manufacturer indoor code; rebate lookup only'}),
-  multiIndoor('Teco','Multi Slim Duct',7.0,'TDSM70HVAG',null,'','',{family:'teco-multi',ratedCoolingCapacity:7.0,ratedHeatingCapacity:8.0,note:'Manufacturer indoor code; rebate lookup only'})
+  multiIndoor('Teco','Multi Slim Duct',7.0,'TDSM70HVAG',null,'','',{family:'teco-multi',ratedCoolingCapacity:7.0,ratedHeatingCapacity:8.0,note:'Manufacturer indoor code; rebate lookup only'}),
+
+  // Append new heads to preserve saved indoor indexes. Australian manufacturer capacities:
+  // https://www.generalairstage.com.au/commercial-products/airstage-vrf-indoor/cassette/circular-flow
+  multiIndoor('Fujitsu General','Airstage VRF Circular Flow Cassette',5.6,'AUXK018GLEH',null,'','',{family:'fujitsu-airstage-vrf',ratedCoolingCapacity:5.6,ratedHeatingCapacity:6.3,note:'Reverse Cycle - R410A VRF cassette; confirm outdoor compatibility'}),
+  multiIndoor('Fujitsu General','Airstage VRF Circular Flow Cassette',7.1,'AUXK024GLEH',null,'','',{family:'fujitsu-airstage-vrf',ratedCoolingCapacity:7.1,ratedHeatingCapacity:8.0,note:'Reverse Cycle - R410A VRF cassette; confirm outdoor compatibility'}),
+  multiIndoor('Fujitsu General','Airstage VRF Circular Flow Cassette',9.0,'AUXK030GLEH',null,'','',{family:'fujitsu-airstage-vrf',ratedCoolingCapacity:9.0,ratedHeatingCapacity:10.0,note:'Reverse Cycle - R410A VRF cassette; confirm outdoor compatibility'}),
+  multiIndoor('Fujitsu General','Airstage VRF Circular Flow Cassette',10.0,'AUXK034GLEH',null,'','',{family:'fujitsu-airstage-vrf',ratedCoolingCapacity:10.0,ratedHeatingCapacity:11.2,note:'Reverse Cycle - R410A VRF cassette; confirm outdoor compatibility'}),
+  multiIndoor('Fujitsu General','Airstage VRF Circular Flow Cassette',11.2,'AUXK036GLEH',null,'','',{family:'fujitsu-airstage-vrf',ratedCoolingCapacity:11.2,ratedHeatingCapacity:12.5,note:'Reverse Cycle - R410A VRF cassette; confirm outdoor compatibility'}),
+  multiIndoor('Fujitsu General','Airstage VRF Circular Flow Cassette',12.5,'AUXK045GLEH',null,'','',{family:'fujitsu-airstage-vrf',ratedCoolingCapacity:12.5,ratedHeatingCapacity:14.0,note:'Reverse Cycle - R410A VRF cassette; confirm outdoor compatibility'}),
+  multiIndoor('Fujitsu General','Airstage VRF Circular Flow Cassette',14.0,'AUXK054GLEH',null,'','',{family:'fujitsu-airstage-vrf',ratedCoolingCapacity:14.0,ratedHeatingCapacity:16.0,note:'Reverse Cycle - R410A VRF cassette; confirm outdoor compatibility'})
 ];
 const ALL_MODELS_MULTI_INDOORS=[...MULTI_SPLIT_INDOORS,...ALL_MODELS_MULTI_EXTRA_INDOORS];
 function clearMultiSplitCataloguePrices(){
