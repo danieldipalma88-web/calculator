@@ -338,7 +338,11 @@ function endpointHarness({ role = "admin", targetRole = "user", email = "admin@e
   db.auth = { getUser: async () => ({ data: { user: { id: "user-1", email } } }) };
   const endpoint = {
     URL, canManageUsers, canSeeCommissionDetails, canSeeProfitDetails, isOwnerEmail,
-    ...saveHelpers, aadCataloguePrices: null,
+    ...saveHelpers, ...loadTsModule("lib/calculator-save-payload.ts"), aadCataloguePrices: null,
+    calculatorJsonResponse: async (request, value, options) => {
+      const response = await loadTsModule("lib/calculator-transfer-response.ts").calculatorJsonResponse(request, value, options);
+      return { body: await response.json(), status: response.status };
+    },
     NextResponse: { json: (body, options) => ({ body, status: options?.status ?? 200 }) },
     createCalculatorSaveClient: async () => db,
     currentApprovedUser: async (_db, requested) => requested === email

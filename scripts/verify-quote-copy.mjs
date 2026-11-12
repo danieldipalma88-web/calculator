@@ -22,8 +22,8 @@ const context = {
 };
 const names = ['normalizeLookup','finiteMoneyNumber','quoteNeedsCustomerName','hasPositiveUnitPrice','uniquePriceModels','isMultiHeadQuoteType','quoteRowMissingPriceModels','quoteRowsMissingPriceModels','quoteStateDisablesRebates','installAddonDisplayLabel','quoteInfoText','quoteInfoSupport','quoteInfoProduct','quoteInfoExtras','currentQuoteInfoError','quoteInfoBusiness','buildCurrentQuoteInfo','updateCopyQuoteInfoButton','fallbackCopyQuoteInfo','copyCurrentQuoteInfo'];
 const cashbackSource=ast.statements.filter(node=>
-  (ts.isVariableStatement(node)&&node.declarationList.declarations.some(declaration=>String(declaration.name.getText(ast)).startsWith('MHI_CASHBACK_')))||
-  (ts.isFunctionDeclaration(node)&&node.name?.text.startsWith('mhiCashback'))
+  (ts.isVariableStatement(node)&&node.declarationList.declarations.some(declaration=>/^(MHI|FUJITSU)_CASHBACK_/.test(declaration.name.getText(ast))))||
+  (ts.isFunctionDeclaration(node)&&/^(mhiCashback|fujitsuCashback)/.test(node.name?.text))
 ).map(node=>node.getText(ast)).join('\n');
 vm.createContext(context);
 vm.runInContext(cashbackSource+'\nlet currentQuoteTotalsEditing=false; let quoteInfoCopyBusy=false; let quoteInfoFeedbackTimer=null;\n'+names.map(n=>{assert.ok(functions.has(n),n);return functions.get(n);}).join('\n'),context);
@@ -57,6 +57,18 @@ assert.match(expiredCopy,/Final customer price including GST: \$2,000\.00/);
 assert.match(expiredCopy,/Recorded MHIAA cashback \$150\.00 .* offer expired for new purchases/);
 assert.doesNotMatch(expiredCopy,/\$1,850\.00|Potential MHIAA manufacturer cashback/);
 assert.doesNotMatch(context.buildCurrentQuoteInfo({name:'Taylor'},[mhiRow]),/MHIAA/);
+setCashbackClock(active);
+const fujitsuRow={...row,brand:'Fujitsu General',model:'AOTG09KMTC/ASTG09KMTC',finalInc:2000};
+assert.doesNotMatch(context.buildCurrentQuoteInfo({name:'Taylor'},[fujitsuRow]),/GENERAL Airstage/,'Existing quotes are not backfilled');
+fujitsuRow.manufacturerCashback=context.fujitsuCashbackSnapshot(fujitsuRow,'split',active);
+const fujitsuCopy=context.buildCurrentQuoteInfo({name:'Taylor'},[fujitsuRow]);
+assert.match(fujitsuCopy,/Final customer price including GST: \$2,000\.00/);
+assert.match(fujitsuCopy,/Potential GENERAL Airstage manufacturer reward \$150\.00/);
+assert.match(fujitsuCopy,/Combining this reward with other offers or government rebates is not confirmed/);
+assert.doesNotMatch(fujitsuCopy,/\$1,850\.00|Estimated cost after/);
+assert.match(fujitsuCopy,/claim information: https:\/\/www.generalairstage.com.au/);
+setCashbackClock(Date.parse('2027-01-12T00:00:00+11:00'));
+assert.match(context.buildCurrentQuoteInfo({name:'Taylor'},[fujitsuRow]),/Claims closed on 11 January 2027/);
 for(const secret of ['123.45','67.89','333.77','555.66','777.88','SECRET_INTERNAL_NOTE','test-business']) assert.ok(!text.includes(secret),`Excluded ${secret}`);
 assert.equal(JSON.stringify(row),before,'Copy must not change saved quote data');
 assert.equal(context.quoteInfoProduct({...row,model:'MISSING',state:{brand:'Example',model:'MISSING',productIndex:0}}),null,'Never guess from stale product index');

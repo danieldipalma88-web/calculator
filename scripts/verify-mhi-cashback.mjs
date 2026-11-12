@@ -13,8 +13,8 @@ const ast=ts.createSourceFile('calculator.js',source,ts.ScriptTarget.Latest,true
 const functions=['isMultiHeadQuoteType','htmlEscape','refreshMhiCashbackBlocks','watchMhiCashbackClock',
   'addMultiSplitToQuoteNow','groupTotals','proposalPricingHtml'];
 const cashbackSource=ast.statements.filter(node=>
-  (ts.isVariableStatement(node)&&node.declarationList.declarations.some(declaration=>declaration.name.getText(ast).startsWith('MHI_CASHBACK_')))||
-  (ts.isFunctionDeclaration(node)&&(node.name?.text.startsWith('mhiCashback')||functions.includes(node.name?.text)))
+  (ts.isVariableStatement(node)&&node.declarationList.declarations.some(declaration=>/^(MHI|FUJITSU)_CASHBACK_/.test(declaration.name.getText(ast))))||
+  (ts.isFunctionDeclaration(node)&&(/^(mhiCashback|fujitsuCashback|manufacturerCashback)/.test(node.name?.text)||functions.includes(node.name?.text)))
 ).map(node=>node.getText(ast)).join('\n');
 const start=Date.parse('2026-10-01T00:01:00+10:00');
 const end=Date.parse('2027-02-01T00:00:00+11:00');
