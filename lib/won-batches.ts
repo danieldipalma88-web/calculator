@@ -3,6 +3,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const WON_BATCH_MAX_JOBS = 50;
 export const WON_BATCH_PAGE_SIZE = 15;
+export function wonBatchReadyToResume(batch: Pick<WonBatch, "created_at">, now = Date.now()) {
+  const created = Date.parse(batch.created_at);
+  // Older deployments never resume a batch and have a 60-second action limit.
+  return Number.isFinite(created) && now - created >= 90_000;
+}
 export const WON_BATCH_LABELS = {
   manual: "Manual group",
   payment_requested: "Payment request",
@@ -15,6 +20,7 @@ export type WonBatchOutcome = { id: string; status: "confirmed" | "already_recor
 export type WonBatch = {
   id: string;
   actor_email: string;
+  actor_id: string;
   created_at: string;
   kind: WonBatchKind;
   label: string;
@@ -24,7 +30,7 @@ export type WonBatch = {
 
 const JOB_ID = /^[0-9a-f]{64}$/;
 const BATCH_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-const BATCH_SELECT = "id, actor_email, created_at, kind, label, items, outcomes";
+const BATCH_SELECT = "id, actor_id, actor_email, created_at, kind, label, items, outcomes";
 
 export function isWonBatchId(value: unknown): value is string {
   return typeof value === "string" && BATCH_ID.test(value);
@@ -92,16 +98,24 @@ export async function runWonBatch(
     start: (intent: BatchIntent) => Promise<"created" | "replayed" | "conflict" | "unavailable">;
     apply: (item: WonBatchItem, index: number) => Promise<Omit<WonBatchOutcome, "id">>;
     record: (outcomes: WonBatchOutcome[]) => Promise<boolean>;
+    resumeOutcomes?: WonBatchOutcome[];
+    deadline?: number;
   },
 ) {
-  const outcomes: WonBatchOutcome[] = [];
+  const outcomes: WonBatchOutcome[] = [...(operations.resumeOutcomes || [])];
+  if (new Set(outcomes.map(({ id }) => id)).size !== outcomes.length
+    || outcomes.some(({ id }) => !intent.items.some(item => item.id === id))) {
+    return { status: "conflict", outcomes: [] } as const;
+  }
   let started: Awaited<ReturnType<typeof operations.start>>;
   try { started = await operations.start(intent); }
   catch { started = "unavailable"; }
-  if (started !== "created") return { status: started, outcomes };
+  if (started !== "created" && !(started === "replayed" && operations.resumeOutcomes)) return { status: started, outcomes };
   if (intent.kind === "manual") return { status: "saved", outcomes } as const;
 
   for (const [index, item] of intent.items.entries()) {
+    if (outcomes.some(({ id }) => id === item.id)) continue;
+    if (operations.deadline && Date.now() >= operations.deadline) return { status: "interrupted", outcomes } as const;
     try {
       const outcome = { ...await operations.apply(item, index), id: item.id };
       if (!await operations.record([...outcomes, outcome])) return { status: "interrupted", outcomes } as const;

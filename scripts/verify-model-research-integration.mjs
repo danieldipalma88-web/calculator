@@ -122,6 +122,12 @@ try {
   assert.equal(runCount, 1); assert.equal(result.processed, true); assert.equal(kicks.length, 1);
   assert.equal(kicks[0].url, 'https://calculator.rebateportal.com.au/api/internal/model-research');
   assert.deepEqual(JSON.parse(kicks[0].options.body), { jobId: job.id });
+  next = { ...job, applied_at: null }; applied = []; kicks = [];
+  globalThis.fetch = async () => { throw Error('Recursive continuation unavailable'); };
+  result = await processor.processModelResearch({ requestId: request.id });
+  assert.equal(result.state, 'added'); assert.equal(applied.length, 1);
+  assert.equal(kicks.length, 0, 'Checkpointed candidate verifies in the same invocation without another HTTP hop');
+  globalThis.fetch = async (url, options) => { kicks.push({ url, options }); return Response.json({ accepted: true }, { status: 202 }); };
   active = { ...job, applied_at: null }; applied = []; runCount = 0; kicks = [];
   result = await processor.processModelResearch({ researchJobId: job.id });
   assert.equal(runCount, 0); assert.equal(applied.length, 1); assert.equal(kicks.length, 0);
@@ -130,6 +136,13 @@ try {
   await processor.processModelResearch({ researchJobId: job.id });
   assert.equal(kicks.length, 1, 'Finished work advances the next eligible request');
   assert.equal(JSON.parse(kicks[0].options.body).jobId, '22222222-2222-4222-8222-222222222222');
+  kicks = []; runCount = 0;
+  await processor.processModelResearch({ researchJobId: job.id, verificationOnly: true });
+  assert.equal(runCount, 0); assert.equal(kicks.length, 0, 'Verification-only resume never dispatches the paid backlog');
+  active = { ...active, state: 'queued' };
+  assert.equal((await processor.processModelResearch({ researchJobId: job.id, verificationOnly: true })).processed, false);
+  assert.equal(runCount, 0, 'A race back to queued must not start paid research');
+  active = { ...active, state: 'pending_verification' };
   store.enqueue = originalEnqueue; kicks = [];
   outcome = { kind: 'retry_verification', reason: 'Service unavailable' }; applied = [];
   await processor.processModelResearch({ researchJobId: job.id });
@@ -152,6 +165,8 @@ try {
   next = { ...active, state: 'queued', checkpoint: { round: 1 } };
   globalThis.fetch = async () => { throw Error('Network unavailable'); };
   await processor.processModelResearch(); assert.equal(events.at(-1)[1], 'continuation_deferred');
+  globalThis.fetch = async () => new Response('', { status: 508 });
+  await processor.processModelResearch(); assert.match(events.at(-1)[2], /HTTP 508/);
   process.env.MODEL_RESEARCH_ENABLED = 'false'; runCount = 0;
   assert.equal((await processor.processModelResearch()).processed, false); assert.equal(runCount, 0);
 
@@ -171,6 +186,53 @@ try {
   assert.equal((await post()).status, 202); assert.equal(callbacks.length, 1);
   await callbacks[0](); assert.deepEqual(calls, [[undefined, request.id]]);
   assert.equal((await route.GET(new Request('https://calculator.example/'))).status, 401);
+
+  let approved = true, pending = true, enqueues = 0;
+  callbacks = []; calls = [];
+  const adminRoute = load('app/api/admin/model-requests/route.ts', {
+    'next/server': { after: callback => callbacks.push(callback), NextResponse: { json: (body, options) => Response.json(body, options) } },
+    '../../../../lib/admin': { canManageUsers: () => approved },
+    '../../../../lib/supabase/approved-calculator-session': { getApprovedCalculatorSession: async () => ({ status: 200, session: { email: 'admin@example.test', approvedUser: { role: 'admin' } } }) },
+    '../../../../lib/model-request-worker': { processModelRequest: async (...args) => calls.push(args) },
+    '../../../../lib/model-request-research': { researchAutomationEnabled: () => enabled, researchRpc: async (action, id) => {
+      enqueues++; assert.equal(action, 'get'); assert.equal(id, request.id);
+      return { id: request.id, external_id: request.id, state: pending ? 'pending_verification' : 'queued', applied_at: null };
+    } },
+  });
+  const resume = (origin = 'https://calculator.example') => adminRoute.POST(new Request('https://calculator.example/api/admin/model-requests', {
+    method: 'POST', headers: { origin, 'Content-Type': 'application/json' }, body: JSON.stringify({ id: request.id, jobId: request.id, action: 'resume_verification' }),
+  }));
+  approved = false; assert.equal((await resume()).status, 403); assert.equal(enqueues, 0);
+  approved = true; assert.equal((await resume('https://untrusted.example')).status, 403); assert.equal(enqueues, 0);
+  enabled = false; assert.equal((await resume()).status, 409); assert.equal(enqueues, 0);
+  enabled = true; pending = false; assert.equal((await resume()).status, 409); assert.equal(callbacks.length, 0);
+  pending = true; assert.equal((await resume()).status, 200); assert.equal(callbacks.length, 1);
+  await callbacks[0](); assert.deepEqual(calls, [[undefined, request.id, true]], 'Resume addresses only the persisted research job without paid processing');
+
+  process.env.MODEL_REQUEST_AUTOMATION_ENABLED = 'true';
+  let processed = false, workerResearchCalls = 0, workerRpcCalls = [];
+  const worker = load('lib/model-request-worker.ts', {
+    './model-catalogue': { catalogueClient: () => assert.fail('Verification-only must not claim the legacy queue') },
+    './model-request-verification': {}, './model-request-email': {},
+    './model-request-research': {
+      researchAutomationEnabled: () => enabled,
+      processModelResearch: async input => {
+        assert.equal(input.verificationOnly, true); assert.equal(input.researchJobId, request.id);
+        workerResearchCalls++; return { processed, requestId: request.id };
+      },
+      researchRpc: async (action, id) => { workerRpcCalls.push([action, id]); return null; },
+    },
+  });
+  enabled = false;
+  assert.equal((await worker.processModelRequest(undefined, request.id, true)).processed, false);
+  enabled = true;
+  assert.equal((await worker.processModelRequest(undefined, undefined, true)).processed, false);
+  assert.equal(workerResearchCalls, 0);
+  await worker.processModelRequest(undefined, request.id, true);
+  assert.deepEqual(workerRpcCalls, [], 'A stale verification must not claim any confirmation');
+  processed = true;
+  await worker.processModelRequest(undefined, request.id, true);
+  assert.deepEqual(workerRpcCalls, [['confirmation_claim', request.id]], 'Only the verified request can claim a confirmation, not contact follow-ups');
 
   process.env.MODEL_REQUEST_FROM_EMAIL = 'notifications@mail.rebateportal.com.au'; process.env.RESEND_API_KEY = 'fixture-only';
   let sent;

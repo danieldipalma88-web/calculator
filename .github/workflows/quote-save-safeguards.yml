@@ -13,6 +13,10 @@ on:
       - 'lib/calculator-save-payload.ts'
       - 'lib/calculator-transfer-response.ts'
       - 'lib/quote*.ts'
+      - 'lib/won-*.ts'
+      - 'app/admin/users/**'
+      - 'supabase/won_*.sql'
+      - 'scripts/verify-won-*.mjs'
       - 'lib/business-calculator-configuration.ts'
       - 'index.html'
       - 'scripts/verify-*save*.mjs'
@@ -29,6 +33,10 @@ on:
       - 'lib/calculator-save-payload.ts'
       - 'lib/calculator-transfer-response.ts'
       - 'lib/quote*.ts'
+      - 'lib/won-*.ts'
+      - 'app/admin/users/**'
+      - 'supabase/won_*.sql'
+      - 'scripts/verify-won-*.mjs'
       - 'lib/business-calculator-configuration.ts'
       - 'index.html'
       - 'scripts/verify-*save*.mjs'
@@ -59,6 +67,11 @@ jobs:
         with:
           node-version: '24'
       - run: npm install --no-package-lock --ignore-scripts
+      - run: npm install --no-save --no-package-lock --ignore-scripts @electric-sql/pglite@0.5.14
+      - name: Verify payment batches, lost replies and protected status history
+        run: npm run verify:won-payment-save
+        env:
+          PGLITE_MODULE: node_modules/@electric-sql/pglite/dist/index.js
       - name: Simulate timeouts, conflicts and lost save responses
         run: npm run verify:save-recovery
       - name: Verify large HTML and JSON through production Next.js transport

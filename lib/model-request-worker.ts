@@ -34,19 +34,22 @@ export async function processModelRequestContact(id?: string) {
   return true;
 }
 
-export async function processModelRequest(requestId?: string, researchJobId?: string) {
+export async function processModelRequest(requestId?: string, researchJobId?: string, verificationOnly = false) {
   if (!modelAutomationEnabled()) return { processed: false };
   const researchEnabled = researchAutomationEnabled();
+  if (verificationOnly && (!researchEnabled || !researchJobId)) return { processed: false };
   const currentRequest = researchEnabled && requestId ? await researchRpc("current", requestId) : null;
   const manualSystem = currentRequest && !["split", "ducted"].includes(currentRequest.system_type);
+  if (verificationOnly && manualSystem) return { processed: false };
   if (researchEnabled && !manualSystem) {
-    const result = await processModelResearch({ requestId, researchJobId });
+    const result = await processModelResearch({ requestId, researchJobId, verificationOnly });
+    if (verificationOnly && !result.processed) return result;
     const currentId = requestId || result.requestId;
     const confirmation = await researchRpc("confirmation_claim", currentId);
     if (confirmation) {
       return deliverConfirmation(confirmation.request, confirmation.job);
     }
-    await processModelRequestContact(currentId);
+    if (!verificationOnly) await processModelRequestContact(currentId);
     return result;
   }
   const client = catalogueClient();

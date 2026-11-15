@@ -4,9 +4,10 @@ import vm from "node:vm";
 import ts from "typescript";
 import {
   isWonBatchId, isWonBatchKind, parseWonBatchIds, resolveWonBatchJobs, runWonBatch,
-  sameWonBatchSelection, wonBatchJobId, wonPaymentReviewFingerprint, WON_BATCH_MAX_JOBS,
+  sameWonBatchSelection, wonBatchJobId, wonPaymentReviewFingerprint, wonBatchReadyToResume, WON_BATCH_MAX_JOBS,
 } from "../lib/won-batches.ts";
 import { wonReportAmounts } from "../lib/won-reporting.ts";
+import { saveWonPaymentOverlay } from "../lib/won-payment-save.ts";
 
 const [page, schema, panels] = await Promise.all([
   readFile(new URL("../app/admin/users/page.tsx", import.meta.url), "utf8"),
@@ -35,7 +36,7 @@ const job = (optionId, overrides = {}) => ({
   wonAt: "2026-11-02T00:00:00Z", recoveredFromBackup: false, ...overrides,
 });
 const jobs = [job("First"), job("Second", { paidInAt: "already" }), job("Third")].map((job, index) => ({
-  ...job, review: { fingerprint: String(index + 1).repeat(64) },
+  ...job, review: { fingerprint: String(index + 1).repeat(64), amounts: { agencyCommissionTotal: 100, salespersonCommissionTotal: 50 } },
 }));
 const ids = jobs.map(wonBatchJobId);
 const reviews = jobs.map((job) => job.review.fingerprint);
@@ -57,13 +58,17 @@ let stored;
 let storedOutcomes = [];
 let lostOutcome = false;
 let existingBatch = null;
+let leaseAvailable = true;
+let leaseHeld = false;
+let leaseLost = false;
 const context = vm.createContext({
-  URLSearchParams, isWonBatchId, isWonBatchKind, parseWonBatchIds, resolveWonBatchJobs, runWonBatch, sameWonBatchSelection, WON_BATCH_MAX_JOBS,
+  randomUUID: () => "6aef478a-1b2c-4d6e-8899-123456789abc",
+  URLSearchParams, isWonBatchId, isWonBatchKind, parseWonBatchIds, resolveWonBatchJobs, runWonBatch, sameWonBatchSelection, wonBatchReadyToResume, WON_BATCH_MAX_JOBS,
   WON_PAYMENT_ALREADY_RECORDED: "already recorded",
   requireAdmin: async () => {
     if (denied) throw new Error("not admin");
     log.push("auth");
-    return { supabase: {}, email: admin };
+    return { supabase: {}, email: admin, actorId: 'admin-uid' };
   },
   listApprovedUsers: async () => ({ data: [], errorMessage: "" }),
   getWonBatch: async () => ({ batch: existingBatch, error: null }),
@@ -78,8 +83,18 @@ const context = vm.createContext({
     stored = plain(intent);
     return startStatus;
   },
-  recordWonBatchOutcomes: async (_supabase, id, outcomes) => {
-    assert.equal(id, token);
+  manageWonBatchLease: async (_supabase, change) => {
+    assert.equal(change.batchId, token);
+    assert.equal(change.token, "6aef478a-1b2c-4d6e-8899-123456789abc");
+    if (change.action === "claim") {
+      assert.deepEqual(plain(change.outcomes), existingBatch?.outcomes || []);
+      return leaseHeld = leaseAvailable;
+    }
+    if (change.action === "release") { leaseHeld = false; return true; }
+    if (change.action === "check") return leaseHeld && !leaseLost;
+    assert.equal(change.action, "record");
+    assert.equal(leaseHeld, true);
+    const outcomes = change.outcomes;
     log.push(`record ${outcomes.length}`);
     if (lostOutcome) return false;
     storedOutcomes = plain(outcomes);
@@ -95,6 +110,8 @@ const context = vm.createContext({
     assert.equal(sourceId, "current");
     assert.equal(wonAt, jobs[0].wonAt);
     assert.equal(review.fingerprint, jobs.find((job) => job.optionId === optionId).review.fingerprint);
+    assert.equal(review.batchLease.batchId, token);
+    assert.equal(leaseHeld, true);
     return optionId === "First" ? "Quote changed" : "";
   },
   revalidatePath: () => log.push("refresh"),
@@ -110,6 +127,7 @@ async function submit(body) {
   assert.fail("Expected a redirect");
 }
 const first = await submit(form("paid_in"));
+assert.equal(leaseHeld, false, "Batch lease is released after a completed update");
 assert.equal(first.hash, "#won-options");
 assert.equal(first.searchParams.get("wonBatch"), token);
 assert.equal(first.searchParams.get("checkBackups"), "1");
@@ -118,10 +136,38 @@ assert.deepEqual(log.splice(0), ["auth", "resolve", "intent", "update First", "r
 assert.deepEqual(stored.items.map(({ id }) => id), ids, "Persist all selected jobs, including ineligible ones");
 assert.deepEqual(storedOutcomes.map(({ status }) => status), ["failed", "already_recorded", "confirmed"]);
 assert.deepEqual(Object.keys(stored.items[0]).sort(), ["id", "quote", "recovered", "salesperson"]);
-existingBatch = { ...stored, actor_email: admin };
+existingBatch = { ...stored, actor_email: admin, actor_id: 'admin-uid', created_at: '2026-01-01T00:00:00Z' };
 assert.match((await submit(form("paid_in", ids, ["9".repeat(64), ...reviews.slice(1)]))).searchParams.get("message"), /already submitted/);
 assert.deepEqual(log.splice(0), ["auth"], "A matching token can reopen its existing batch without replaying stale reviews");
+existingBatch.outcomes = [{ id: ids[0], status: "confirmed" }];
+startStatus = "replayed";
+const resumeForm = form("paid_in");
+resumeForm.set("wonBatchResume", "1");
+assert.match((await submit(resumeForm)).searchParams.get("message"), /2 updated, 1 already recorded/);
+assert.deepEqual(log.splice(0), ["auth", "resolve", "intent", "record 2", "update Third", "record 3", "refresh"]);
+assert.equal(storedOutcomes[0].status, "confirmed", "The prior batch outcome is immutable on resume");
+const reorderedResume = form("paid_in", [...ids].reverse(), [...reviews].reverse());
+reorderedResume.set("wonBatchResume", "1");
+await submit(reorderedResume);
+assert.deepEqual(log.splice(0), ["auth", "resolve", "intent", "record 2", "update Third", "record 3", "refresh"], "Stored IDs, not submitted positions, identify resumed jobs");
+existingBatch.actor_id = 'different-account-same-email';
+assert.match((await submit(resumeForm)).searchParams.get("error"), /already used/);
+assert.deepEqual(log.splice(0), ["auth"], "A recreated admin identity cannot resume another account's batch");
+existingBatch.actor_id = 'admin-uid';
+existingBatch.created_at = new Date().toISOString();
+assert.match((await submit(resumeForm)).searchParams.get('error'), /may still be finishing/);
+assert.deepEqual(log.splice(0), ['auth']);
+existingBatch.created_at = '2026-01-01T00:00:00Z';
+const staleResume = form("paid_in", ids, ["9".repeat(64), ...reviews.slice(1)]);
+staleResume.set("wonBatchResume", "1");
+assert.match((await submit(staleResume)).searchParams.get("error"), /quote changed/);
+assert.deepEqual(log.splice(0), ["auth", "resolve"]);
+startStatus = "created";
 existingBatch = null;
+jobs[2].review.amounts.agencyCommissionTotal = null;
+assert.match((await submit(form('paid_in'))).searchParams.get('error'), /amount is unavailable/);
+assert.deepEqual(log.splice(0), ['auth', 'resolve']);
+jobs[2].review.amounts.agencyCommissionTotal = 100;
 const changed = await submit(form("paid_in", ids, ["9".repeat(64), ...reviews.slice(1)]));
 assert.match(changed.searchParams.get("error"), /quote changed/);
 assert.deepEqual(log.splice(0), ["auth", "resolve"]);
@@ -145,16 +191,26 @@ for (const status of ["unavailable", "replayed", "conflict"]) {
   assert.deepEqual(log.splice(0), ["auth", "resolve", "intent"]);
 }
 startStatus = "created";
+leaseAvailable = false;
+assert.match((await submit(form("paid_in"))).searchParams.get("error"), /Could not save the batch/);
+assert.deepEqual(log.splice(0), ["auth", "resolve", "intent"], "An active batch owner prevents a second runner from writing");
+leaseAvailable = true;
+leaseLost = true;
+assert.match((await submit(form("paid_in"))).searchParams.get("error"), /3 unconfirmed/);
+assert.deepEqual(log.splice(0), ["auth", "resolve", "intent", "refresh"], "An expired lease stops before any payment writes or outcomes");
+assert.equal(leaseHeld, false);
+leaseLost = false;
 lostOutcome = true;
 const interrupted = await submit(form("paid_in"));
 assert.match(interrupted.searchParams.get("error"), /3 unconfirmed/);
 assert.deepEqual(log.splice(0), ["auth", "resolve", "intent", "update First", "record 1", "refresh"]);
+assert.equal(leaseHeld, false, "Interrupted runs release their lease");
 denied = true;
 await assert.rejects(submit(form("paid_in")), /not admin/);
 assert.deepEqual(log, []);
 
 const snapshotContext = vm.createContext({
-  wonReportAmounts, wonPaymentReviewFingerprint, dbMessage: (error) => error.message,
+  wonReportAmounts, wonPaymentReviewFingerprint, saveWonPaymentOverlay, dbMessage: (error) => error.message,
 });
 const constants = [
   "CURRENT_WON_SOURCE_ID", "WON_PAYMENT_ALREADY_RECORDED", "WON_PAYMENT_KEYS", "OPTION_DEF_STORAGE_KEYS",
@@ -201,7 +257,25 @@ const currentJob = (row, sourceId) => {
 function mockDatabase(initial, casConflict = false) {
   const state = { row: structuredClone(initial), writes: 0, commits: 0, reads: 0, compared: [] };
   return {
-    state, db: { from(table) {
+    state, db: { rpc(name, args) {
+      assert.equal(name, "save_won_payment_overlay");
+      assert.equal(args.p_owner_id, initial.user_id);
+      assert.equal(args.p_owner_email, null);
+      assert.equal(args.p_storage_key, stateKey);
+      const records = JSON.parse(args.p_overlay);
+      const next = new Date(Math.max(Date.parse(records[0].updatedAt), Date.parse(args.p_expected_updated_at) + 1)).toISOString();
+      state.writes++;
+      state.compared.push(args.p_expected_updated_at);
+      const result = casConflict || args.p_expected_updated_at !== state.row.updated_at
+        ? { data: { status: "conflict" }, error: null }
+        : { data: { status: "saved", updated_at: next }, error: null };
+      if (result.data.status === "saved") {
+        state.row.data[stateKey] = typeof state.row.data[stateKey] === "string" || !state.row.data[stateKey] ? args.p_overlay : records;
+        state.row.updated_at = next;
+        state.commits++;
+      }
+      return { abortSignal: () => Promise.resolve(result) };
+    }, from(table) {
       assert.equal(table, "user_calculator_data", "No recovered backup access for payment writes");
       let pending;
       let expectedVersion;
@@ -248,7 +322,15 @@ for (const [mode, prior, at, by, expected] of [
   assert.equal(effective.paymentRequestedAt, reqAt);
   assert.equal(effective.paymentFields.paymentRequestedByEmail, "requester@example.test");
   assert.equal(db.state.row.data[defsKey][0][Object.keys(prior)[0]], expected);
+  assert.deepEqual(db.state.row.data[defsKey], initial.data[defsKey], "Payment save leaves quote definitions unchanged");
+  assert.deepEqual(db.state.row.data[rowsKey], initial.data[rowsKey], "Payment save leaves prices and quote rows unchanged");
 }
+
+const independentRequest = snapshot({ paidOutAt: payoutAt });
+const independentDb = mockDatabase(independentRequest);
+assert.equal(await changePayment(independentDb, "payment_requested", currentJob(independentRequest)), "");
+assert.ok(currentJob(independentDb.state.row).paymentRequestedAt, "A paid commission does not suppress an agency payment request");
+assert.equal(currentJob(independentDb.state.row).paidOutAt, payoutAt);
 
 const legacyBlank = snapshot({ agencyPaidInAt: receiptAt });
 legacyBlank.data[rowsKey][0].agencyPaidInAt = receiptAt;
@@ -262,6 +344,16 @@ assert.equal(currentJob(legacyBlank).paymentFields.paidInByEmail, "row-actor@exa
 const reset = snapshot({ paymentRequestedAt: reqAt, paidInAt: receiptAt, paidInByEmail: "old@example.test", paidOutAt: payoutAt });
 reset.data[setsKey] = [{ id: "stale-copy", optionDefs: structuredClone(reset.data[defsKey]), quotes: structuredClone(reset.data[rowsKey]) }];
 const resetDb = mockDatabase(reset);
+for (const malformed of ['{broken', '{}', 'null', null, 12, {}]) {
+  for (const mode of ['reset_payment', 'unlock']) {
+    const invalid = structuredClone(reset);
+    invalid.data[stateKey] = malformed;
+    const invalidDb = mockDatabase(invalid);
+    assert.match(await changePayment(invalidDb, mode), /history needs review/);
+    assert.equal(invalidDb.state.writes, 0, `${mode} must not write over malformed history`);
+    assert.deepEqual(invalidDb.state.row, invalid, `${mode} preserves the full original calculator`);
+  }
+}
 assert.equal(await changePayment(resetDb, "reset_payment"), "");
 assert.equal(currentJob(resetDb.state.row).paidInAt, "");
 assert.equal(currentJob(resetDb.state.row, "saved:stale-copy").paidInAt, "");
@@ -332,11 +424,14 @@ assert.equal(duplicateOptionDb.state.writes, 0);
 const sameMillisecond = snapshot();
 sameMillisecond.updated_at = "2026-11-06T00:00:00.000Z";
 const frozenDb = mockDatabase(sameMillisecond);
-const originalNow = vm.runInContext("Date.now", snapshotContext);
+const originalDate = vm.runInContext("Date", snapshotContext);
 for (const now of ["2026-11-06T00:00:00.000Z", "2026-11-05T23:59:59.999Z"]) {
   const versionDb = now === sameMillisecond.updated_at ? frozenDb : mockDatabase(sameMillisecond);
   try {
-    vm.runInContext(`Date.now = () => Date.parse(${JSON.stringify(now)})`, snapshotContext);
+    snapshotContext.Date = class extends originalDate {
+      constructor(...args) { super(...(args.length ? args : [originalDate.parse(now)])); }
+      static now() { return originalDate.parse(now); }
+    };
     assert.equal(await changePayment(versionDb, "paid_in", currentJob(sameMillisecond)), "");
     assert.equal(versionDb.state.row.updated_at, "2026-11-06T00:00:00.001Z");
     const savedData = structuredClone(versionDb.state.row.data);
@@ -346,7 +441,7 @@ for (const now of ["2026-11-06T00:00:00.000Z", "2026-11-05T23:59:59.999Z"]) {
     assert.deepEqual(versionDb.state.row.data, savedData);
     assert.deepEqual(versionDb.state.compared, [sameMillisecond.updated_at, sameMillisecond.updated_at]);
   } finally {
-    vm.runInContext("Date", snapshotContext).now = originalNow;
+    snapshotContext.Date = originalDate;
   }
 }
 const unrelated = structuredClone(beforeReview);
@@ -362,6 +457,21 @@ for (const mode of ["payment_requested", "paid_in", "paid_out", "reset_payment"]
   assert.match(await changePayment(readOnly, mode, reviewedJob, "backup:snapshot:current"), /read-only/);
 }
 assert.equal(readOnly.state.reads + readOnly.state.writes, 0);
+
+const history = Array.from({ length: 2000 }, (_, index) => ({
+  userEmail: 'rep@example.test', dataOwnerEmail: 'owner@example.test', dataUserId: 'owner-id',
+  sourceId: 'current', optionId: `historic-${index}`, wonAt, paidOutAt: payoutAt, customNote: `preserve-${index}`,
+}));
+const fullHistory = { [stateKey]: JSON.stringify(history) };
+const refused = snapshotContext.upsertWonAdminState(fullHistory, { ...history[0], optionId: 'new-job' }, 'paid_out', admin);
+assert.match(refused.error, /storage limit/);
+assert.equal(refused.data[stateKey], fullHistory[stateKey], 'Capacity must not evict any prior payment record');
+const existingHistoryUpdate = snapshotContext.upsertWonAdminState(fullHistory, history[0], 'payment_requested', admin);
+assert.equal(existingHistoryUpdate.updated, true);
+assert.deepEqual(JSON.parse(existingHistoryUpdate.data[stateKey]).slice(1), history.slice(1), 'Unrelated history is preserved verbatim, including additional fields');
+assert.equal(wonBatchReadyToResume({ created_at: new Date(Date.now() - 89_000).toISOString() }), false);
+assert.equal(wonBatchReadyToResume({ created_at: new Date(Date.now() - 91_000).toISOString() }), true);
+assert.equal(wonBatchReadyToResume({ created_at: 'invalid' }), false);
 
 const runtimeSource = {};
 vm.runInNewContext(js(find(ast, "wonExportScript")), runtimeSource);

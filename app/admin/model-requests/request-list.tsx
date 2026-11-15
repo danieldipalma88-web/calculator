@@ -141,10 +141,10 @@ export default function RequestList() {
     return () => { window.clearTimeout(timer); controller.abort(); requestSequence.current += 1; };
   }, [filter, query, loadPage]);
 
-  async function act(id: string, action: "retry" | "decline" | "disable") {
+  async function act(id: string, action: "retry" | "decline" | "disable" | "resume_verification", jobId?: string) {
     setBusy(id); setError(""); setNotice("");
     try {
-      const response = await fetch("/api/admin/model-requests", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, action }), signal: AbortSignal.timeout(15000) });
+      const response = await fetch("/api/admin/model-requests", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, action, ...(jobId ? { jobId } : {}) }), signal: AbortSignal.timeout(15000) });
       const result = await response.json() as { error?: string; message?: string };
       if (!response.ok) throw new Error(result.error || "The action could not be completed.");
       setNotice(result.message || (action === "retry" ? "Verification queued." : action === "decline" ? "Request closed." : "Product disabled."));
@@ -232,6 +232,9 @@ export default function RequestList() {
             </div>}
             <div className={styles.actions}>
               <button type="button" className={styles.copy} disabled={Boolean(busy)} onClick={async () => { try { await navigator.clipboard.writeText(modelName); setNotice("Model copied."); } catch { setError("Could not access the clipboard."); } }}>Copy model</button>
+              {job?.research?.state === "pending_verification" && <button type="button" disabled={Boolean(busy)} onClick={() => void act(item.id, "resume_verification", job.research?.id)}>
+                {busy === item.id ? "Working..." : "Resume verification"}
+              </button>}
               {job?.state === "review" && job.contact_state !== "waiting" && job.contact_state !== "closed" && <>
                 <button type="button" disabled={Boolean(busy)} onClick={() => void act(item.id, "retry")}>{busy === item.id ? "Working..." : "Retry verification"}</button>
                 <button type="button" className={styles.close} disabled={Boolean(busy)} onClick={() => void act(item.id, "decline")}>Close request</button>

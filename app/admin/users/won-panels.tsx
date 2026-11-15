@@ -1,4 +1,4 @@
-import { WON_BATCH_LABELS, type WonBatch } from "../../../lib/won-batches";
+import { WON_BATCH_LABELS, wonBatchReadyToResume, type WonBatch } from "../../../lib/won-batches";
 import {
   summarizeWonReport, wonReportPerson, wonReportRange, WON_MONEY_METRICS,
   type WonReportJob, type WonReportPerson, type WonReportPreset,
@@ -124,10 +124,18 @@ export type WonBatchHistoryProps = {
   unavailable: boolean;
   page: number;
   hasMore: boolean;
+  actorEmail: string;
+  actorId: string;
+  reviews: ReadonlyMap<string, {
+    fingerprint: string; quote: string; agency: number | null; commission: number | null;
+    requested: boolean; received: boolean; paid: boolean;
+  }>;
+  retryAction: (formData: FormData) => Promise<void>;
 };
 
 export function WonBatchHistory({
   batches, activeBatch, activeBatchId, availableIds, includeBackups, unavailable, page, hasMore,
+  actorEmail, actorId, reviews, retryAction,
 }: WonBatchHistoryProps) {
   const visible = activeBatch && !batches.some(({ id }) => id === activeBatch.id) ? [activeBatch, ...batches] : batches;
   function pageHref(next: number) {
@@ -161,6 +169,7 @@ export function WonBatchHistory({
             <ul>
               {batch.items.map((item) => {
                 const outcome = outcomes.get(item.id);
+                const review = reviews.get(item.id);
                 const status = outcome?.status === "confirmed" ? "Status update logged" : outcome?.status === "already_recorded"
                   ? "Already recorded" : outcome?.status === "failed" ? "Failed" : "Unconfirmed";
                 return <li key={item.id}>
@@ -169,11 +178,38 @@ export function WonBatchHistory({
                   {outcome?.detail && `: ${outcome.detail}`}
                   {item.recovered && " · Recovered backup"}
                   {!availableIds.has(item.id) && " · Unavailable in current view"}
+                  {!outcome && review && <div style={{ margin: "6px 0 12px", fontSize: 13 }}>
+                    <strong>{review.quote}</strong><br />
+                    Agency: {review.received ? "Received" : review.requested ? "Requested" : "Not requested"}
+                    {" · "}{review.agency === null ? "Amount unavailable" : money.format(review.agency)}<br />
+                    Commission: {review.paid ? "Paid" : "Not paid"}
+                    {" · "}{review.commission === null ? "Amount unavailable" : money.format(review.commission)}
+                  </div>}
                 </li>;
               })}
             </ul>
             {available < ids.length && <p>{ids.length - available} original quotes are unavailable in this view.</p>}
             <ReopenWonBatchButton ids={ids} available={available} />
+            {batch.kind !== "manual" && outcomes.size < ids.length && batch.actor_email === actorEmail && batch.actor_id === actorId
+              && ids.every(id => reviews.has(id)) && <form action={retryAction}
+                data-confirm-message={`Retry the ${ids.length - outcomes.size} unfinished ${WON_BATCH_LABELS[batch.kind].toLowerCase()} updates? Already recorded statuses and quote amounts will not change.`}
+                style={{ marginTop: 12 }}>
+                <input type="hidden" name="bulkMode" value={batch.kind} />
+                <input type="hidden" name="wonBatchToken" value={batch.id} />
+                <input type="hidden" name="wonBatchResume" value="1" />
+                <input type="hidden" name="wonBatchIds" value={JSON.stringify(ids)} />
+                <input type="hidden" name="wonBatchReviews" value={JSON.stringify(ids.map(id => reviews.get(id)?.fingerprint))} />
+                <input type="hidden" name="wonBatchIncludeBackups" value={includeBackups ? "1" : ""} />
+                {!wonBatchReadyToResume(batch) && <p>This batch may still be finishing. Refresh shortly to check its result.</p>}
+                <button className="secondary" type="submit" disabled={!wonBatchReadyToResume(batch) || batch.items.some(item => {
+                  if (outcomes.has(item.id)) return false;
+                  const review = reviews.get(item.id);
+                  if (!review) return true;
+                  if (batch.kind === "paid_out" ? review.paid : batch.kind === "paid_in" ? review.received : review.requested) return false;
+                  const amount = batch.kind === "paid_out" ? review.commission : review.agency;
+                  return amount === null || !Number.isFinite(amount);
+                })}>Retry unfinished updates</button>
+              </form>}
           </details>;
         })}
         {(page > 1 || hasMore) && <nav aria-label="Batch history pages" style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>

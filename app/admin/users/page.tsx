@@ -35,12 +35,14 @@ import PaymentFollowUpNotice from "./payment-follow-up-notice";
 import { sydneyToday } from "../../../lib/payment-follow-up";
 import {
   getWonBatch, isWonBatchId, isWonBatchKind, listWonBatches, parseWonBatchIds,
-  recordWonBatchOutcomes, resolveWonBatchJobs, runWonBatch, sameWonBatchSelection, startWonBatch, wonBatchJobId, wonPaymentReviewFingerprint,
+  resolveWonBatchJobs, runWonBatch, sameWonBatchSelection, startWonBatch, wonBatchJobId, wonPaymentReviewFingerprint, wonBatchReadyToResume,
   WON_BATCH_MAX_JOBS, type WonBatchKind,
 } from "../../../lib/won-batches";
 import { isWonReportDefaultPerson, wonReportAmounts, type WonReportAmounts } from "../../../lib/won-reporting";
 import { WonBatchHistory, WonSalesReport } from "./won-panels";
 import { WonSelectionScope } from "./won-controls";
+import { saveWonPaymentOverlay } from "../../../lib/won-payment-save";
+import { manageWonBatchLease } from "../../../lib/won-batch-lease";
 
 export const maxDuration = 60;
 
@@ -3086,12 +3088,26 @@ function upsertWonAdminState(
   patch: WonOptionAdminState,
   mode: Exclude<WonOptionUpdateMode, "delete">,
   adminEmail: string,
-) {
+): { data: Record<string, unknown>; updated: boolean; error?: string } {
   const data = { ...originalData };
   const storageKey = storedJsonKey(data, WON_OPTION_ADMIN_STATE_STORAGE_KEYS);
-  const existing = parseStoredJson<Record<string, unknown>[]>(data[storageKey], [])
+  const invalidHistory = { data, updated: false, error: "Existing payment history needs review. No payment status changed." };
+  let rawRecords: Record<string, unknown>[] = [];
+  if (Object.prototype.hasOwnProperty.call(data, storageKey)) {
+    let parsed: unknown = data[storageKey];
+    if (typeof parsed === "string") {
+      try { parsed = JSON.parse(parsed); }
+      catch { return invalidHistory; }
+    }
+    if (!Array.isArray(parsed)) return invalidHistory;
+    rawRecords = parsed;
+  }
+  const existing = rawRecords
     .map((record) => normalizeWonAdminStateRecord(record, patch.dataOwnerEmail, patch.dataUserId))
     .filter((record): record is WonOptionAdminState => Boolean(record));
+  if (existing.length !== rawRecords.length) {
+    return invalidHistory;
+  }
   const targetKey = wonAdminStateKey(patch, patch.dataOwnerEmail, patch.dataUserId);
   if (!targetKey) return { data, updated: false };
 
@@ -3136,10 +3152,13 @@ function upsertWonAdminState(
     nextRecord.unlockedByEmail = adminEmail;
   }
 
-  const nextRecords = existing.filter((record) => (
-    wonAdminStateKey(record, patch.dataOwnerEmail, patch.dataUserId) !== targetKey
+  const nextRecords = rawRecords.filter((_record, index) => (
+    wonAdminStateKey(existing[index], patch.dataOwnerEmail, patch.dataUserId) !== targetKey
   ));
-  data[storageKey] = serializeLikeStoredValue(data[storageKey], [nextRecord, ...nextRecords].slice(0, 2000));
+  if (nextRecords.length >= 2000) {
+    return { data, updated: false, error: "Payment history has reached its storage limit. Existing statuses were preserved; no payment status changed." };
+  }
+  data[storageKey] = serializeLikeStoredValue(data[storageKey], [nextRecord, ...nextRecords]);
   return { data, updated: true };
 }
 
@@ -3153,7 +3172,7 @@ async function updateWonOptionState(
   dataUserId = "",
   dataOwnerEmail = "",
   wonAt = "",
-  review?: { fingerprint: string; users: ApprovedUser[] },
+  review?: { fingerprint: string; users: ApprovedUser[]; batchLease?: { batchId: string; token: string } },
 ) {
   const ownerEmail = (dataOwnerEmail || userEmail).toLowerCase();
   const ownerColumn = dataUserId ? "user_id" : "email";
@@ -3437,11 +3456,13 @@ async function updateWonOptionState(
       return "Could not find that won quote in the saved source.";
     }
     paymentFields = latest.paymentFields;
-    if (mode === "payment_requested" ? latest.paymentRequestedAt || latest.paidInAt || latest.paidOutAt
+    if (mode === "payment_requested" ? latest.paymentRequestedAt
       : mode === "paid_in" ? latest.paidInAt : latest.paidOutAt) return WON_PAYMENT_ALREADY_RECORDED;
+    const amount = mode === "paid_out" ? latest.review?.amounts.salespersonCommissionTotal : latest.review?.amounts.agencyCommissionTotal;
+    if (review && (amount == null || !Number.isFinite(amount))) return "The payment amount is unavailable. Review the quote before recording this status.";
   }
-  const next = updateDataForSource(data, sourceId, paymentSavedSetIndex);
-  if (paymentStatusWrite && !next.updated) return "The quote is no longer won in the saved source.";
+  const next = paymentAction ? { data, updated: false } : updateDataForSource(data, sourceId, paymentSavedSetIndex);
+  if (paymentStatusWrite && !paymentAction && !next.updated) return "The quote is no longer won in the saved source.";
   const adminState = upsertWonAdminState(
     next.data,
     {
@@ -3457,8 +3478,18 @@ async function updateWonOptionState(
     adminEmail,
   );
   const updated = next.updated || adminState.updated;
+  if (adminState.error) return adminState.error;
 
   if (!updated) return "Could not find that won option in the saved calculator data.";
+
+  if (paymentAction) {
+    const storageKey = storedJsonKey(data, WON_OPTION_ADMIN_STATE_STORAGE_KEYS);
+    return saveWonPaymentOverlay(supabase, {
+      ownerColumn, ownerValue, storageKey, overlay: adminState.data[storageKey],
+      previousUpdatedAt: dataResult.data.updated_at ?? null,
+      batchLease: review?.batchLease,
+    });
+  }
 
   return saveWonCalculatorSnapshot(supabase, ownerColumn, ownerValue, adminState.data, dataResult.data.updated_at ?? null, Boolean(review));
 }
@@ -3508,7 +3539,7 @@ async function requireAdmin() {
     redirect("/calculator");
   }
 
-  return { supabase, email };
+  return { supabase, email, actorId: user.id };
 }
 
 async function upsertBusiness(formData: FormData) {
@@ -3981,7 +4012,7 @@ function wonOptionPaymentAlreadyRecorded(
     if (recordOptionId !== optionId) return false;
     if (wonAt && record.wonAt && String(record.wonAt) !== wonAt) return false;
     if (mode === "payment_requested") {
-      return Boolean(record.paymentRequestedAt || record.paidInAt || record.agencyPaidInAt || record.paidOutAt || record.salespersonPaidOutAt);
+      return Boolean(record.paymentRequestedAt);
     }
     return mode === "paid_in"
       ? Boolean(record.paidInAt || record.agencyPaidInAt)
@@ -4009,7 +4040,7 @@ function wonAdminPaymentAlreadyRecorded(
       || record.optionId !== optionId
       || record.wonAt !== wonAt
     ) return false;
-    if (mode === "payment_requested") return Boolean(record.paymentRequestedAt || record.paidInAt || record.paidOutAt);
+    if (mode === "payment_requested") return Boolean(record.paymentRequestedAt);
     return mode === "paid_in" ? Boolean(record.paidInAt) : Boolean(record.paidOutAt);
   });
 }
@@ -4464,13 +4495,16 @@ async function submitWonBatch(
   adminEmail: string,
   kind: WonBatchKind,
   formData: FormData,
+  actorId: string,
 ): Promise<never> {
+  const deadline = Date.now() + 40_000;
   const id = formData.get("wonBatchToken");
   const ids = parseWonBatchIds(formData.get("wonBatchIds"));
   const reviewed = kind === "manual" ? null : parseWonBatchIds(formData.get("wonBatchReviews"));
   const rawLabel = formData.get("wonBatchName");
   const label = kind === "manual" && typeof rawLabel === "string" ? rawLabel.trim() : "";
   const includeBackups = formData.get("wonBatchIncludeBackups") === "1";
+  const resume = formData.get("wonBatchResume") === "1";
   function finish(message: string, error: boolean, savedId?: string): never {
     const params = new URLSearchParams({ [error ? "error" : "message"]: message });
     if (includeBackups) params.set("checkBackups", "1");
@@ -4485,10 +4519,15 @@ async function submitWonBatch(
   const existing = await getWonBatch(supabase, id);
   if (existing.error) finish("Could not check batch storage. No payment statuses changed.", true);
   if (existing.batch) {
-    if (!sameWonBatchSelection(existing.batch, kind, label, ids, adminEmail)) {
+    if (existing.batch.actor_id !== actorId || !sameWonBatchSelection(existing.batch, kind, label, ids, adminEmail)) {
       finish("This submission token was already used. Refresh before trying again.", true);
     }
-    finish("This batch was already submitted. No updates were replayed.", false, id);
+    if (!resume || kind === "manual" || existing.batch.outcomes.length === existing.batch.items.length) {
+      finish("This batch was already submitted. No updates were replayed.", false, id);
+    }
+    if (!wonBatchReadyToResume(existing.batch)) finish("This batch may still be finishing. Wait a moment, refresh and review its statuses before retrying.", true, id);
+  } else if (resume) {
+    finish("The original batch could not be found. No payment statuses changed.", true);
   }
 
   const userResult = await listApprovedUsers(supabase, []);
@@ -4503,27 +4542,52 @@ async function submitWonBatch(
   if (kind !== "manual" && jobs.some((job, index) => !job.review || job.review.fingerprint !== reviewed?.[index])) {
     finish("At least one selected quote changed. Refresh and review the selection. No payment statuses changed.", true);
   }
+  if (kind !== "manual" && jobs.some((job, index) => {
+    if (existing.batch?.outcomes.some(outcome => outcome.id === ids[index])) return false;
+    if (kind === "payment_requested" ? job.paymentRequestedAt : kind === "paid_in" ? job.paidInAt : job.paidOutAt) return false;
+    const amount = kind === "paid_out" ? job.review?.amounts.salespersonCommissionTotal : job.review?.amounts.agencyCommissionTotal;
+    return amount == null || !Number.isFinite(amount);
+  })) finish("A selected payment amount is unavailable. Review the affected quote before recording payment statuses.", true);
 
   const items = jobs.map((job, index) => ({
     id: ids[index], quote: job.optionName.slice(0, 160), salesperson: job.userName.slice(0, 160),
     recovered: job.recoveredFromBackup,
   }));
-  const result = await runWonBatch({ id, kind, label, items }, {
-    start: (intent) => startWonBatch(supabase, intent, adminEmail),
-    record: (outcomes) => recordWonBatchOutcomes(supabase, id, outcomes),
-    apply: async (_item, index) => {
-      if (kind === "manual") throw new Error("Manual groups cannot update payments.");
-      const job = jobs[index];
-      if (kind === "payment_requested" ? job.paymentRequestedAt || job.paidInAt || job.paidOutAt
-        : kind === "paid_in" ? job.paidInAt : job.paidOutAt) return { status: "already_recorded" };
-      const fingerprint = reviewed?.[index];
-      if (!fingerprint) throw new Error("Missing payment review fingerprint.");
-      const error = await updateWonOptionState(supabase, job.userEmail, job.optionId, kind, adminEmail,
-        job.sourceId, job.dataUserId, job.dataOwnerEmail, job.wonAt, { fingerprint, users: userResult.data });
-      if (error === WON_PAYMENT_ALREADY_RECORDED) return { status: "already_recorded" };
-      return error ? { status: "failed", detail: error.slice(0, 240) } : { status: "confirmed" };
-    },
-  });
+  const batchLease = { batchId: id, token: randomUUID() };
+  let leaseClaimed = false;
+  let result: Awaited<ReturnType<typeof runWonBatch>>;
+  try {
+    result = await runWonBatch({ id, kind, label, items: existing.batch?.items || items }, {
+      resumeOutcomes: resume ? existing.batch?.outcomes : undefined,
+      deadline,
+      start: async (intent) => {
+        const status = await startWonBatch(supabase, intent, adminEmail);
+        if (kind === "manual" || (status !== "created" && !(status === "replayed" && resume))) return status;
+        leaseClaimed = await manageWonBatchLease(supabase, { ...batchLease, action: "claim", outcomes: existing.batch?.outcomes || [] });
+        return leaseClaimed ? status : "unavailable";
+      },
+      record: (outcomes) => manageWonBatchLease(supabase, { ...batchLease, action: "record", outcomes }),
+      apply: async (item) => {
+        if (kind === "manual") throw new Error("Manual groups cannot update payments.");
+        if (!await manageWonBatchLease(supabase, { ...batchLease, action: "check" })) {
+          throw new Error("The batch is no longer exclusively owned by this update.");
+        }
+        const index = ids.indexOf(item.id);
+        if (index < 0) throw new Error("The original batch selection changed.");
+        const job = jobs[index];
+        if (kind === "payment_requested" ? job.paymentRequestedAt
+          : kind === "paid_in" ? job.paidInAt : job.paidOutAt) return { status: "already_recorded" };
+        const fingerprint = reviewed?.[index];
+        if (!fingerprint) throw new Error("Missing payment review fingerprint.");
+        const error = await updateWonOptionState(supabase, job.userEmail, job.optionId, kind, adminEmail,
+          job.sourceId, job.dataUserId, job.dataOwnerEmail, job.wonAt, { fingerprint, users: userResult.data, batchLease });
+        if (error === WON_PAYMENT_ALREADY_RECORDED) return { status: "already_recorded" };
+        return error ? { status: "failed", detail: error.slice(0, 240) } : { status: "confirmed" };
+      },
+    });
+  } finally {
+    if (leaseClaimed) await manageWonBatchLease(supabase, { ...batchLease, action: "release" });
+  }
 
   if (result.status === "unavailable") finish("Could not save the batch. No payment statuses changed.", true);
   if (result.status === "conflict") finish("This submission token was already used. Refresh before trying again.", true);
@@ -4541,7 +4605,7 @@ async function submitWonBatch(
   }
   const summary = `${updatedCount} updated, ${alreadyRecordedCount} already recorded, ${failedCount} failed.`;
   if (result.status === "interrupted") {
-    finish(`${summary} ${items.length - result.outcomes.length} unconfirmed. Review the batch and current statuses before retrying.`, true, id);
+    finish(`${summary} ${items.length - result.outcomes.length} unconfirmed. Use Retry unfinished updates in this batch after reviewing the current statuses.`, true, id);
   }
   finish(summary, failedCount > 0, id);
 }
@@ -4549,9 +4613,9 @@ async function submitWonBatch(
 async function bulkUpdateWonOptions(formData: FormData) {
   "use server";
 
-  const { supabase, email: adminEmail } = await requireAdmin();
+  const { supabase, email: adminEmail, actorId } = await requireAdmin();
   const mode = String(formData.get("bulkMode") || "");
-  if (isWonBatchKind(mode)) return submitWonBatch(supabase, adminEmail, mode, formData);
+  if (isWonBatchKind(mode)) return submitWonBatch(supabase, adminEmail, mode, formData, actorId);
   const selections = parseWonOptionSelections(formData.get("selectedWonOptions"));
 
   if (!selections.length) {
@@ -4733,7 +4797,7 @@ export default async function AdminUsersPage({
   const activeWonBatchId = isWonBatchId(params?.wonBatch) ? params.wonBatch : undefined;
   const wonBatchPage = /^[1-9]\d{0,5}$/.test(params?.wonBatchPage || "") ? Number(params?.wonBatchPage) : 1;
   const certificateHistoryRange = normalizeCertificateHistoryRange(params?.certificateHistoryRange);
-  const { supabase, email: currentEmail } = await requireAdmin();
+  const { supabase, email: currentEmail, actorId } = await requireAdmin();
   const businessResult = await listBusinesses(supabase);
   const [usersResult, membershipsResult, certificateResult, certificateHistoryResult, activityResult, batchHistory, activeBatchResult] = await Promise.all([
     listApprovedUsers(supabase, businessResult.data),
@@ -5410,6 +5474,12 @@ export default async function AdminUsersPage({
             </div>
             <WonBatchHistory batches={batchHistory.batches} activeBatch={activeBatchResult?.batch}
               activeBatchId={activeWonBatchId} availableIds={availableBatchIds} includeBackups={includeBackupWonOptions}
+              actorEmail={currentEmail} actorId={actorId} retryAction={bulkUpdateWonOptions}
+              reviews={new Map(wonOptions.filter(job => !job.recoveredFromBackup && job.review).map(job => [wonBatchJobId(job), {
+                fingerprint: job.review!.fingerprint, quote: job.optionName,
+                agency: job.review!.amounts.agencyCommissionTotal, commission: job.review!.amounts.salespersonCommissionTotal,
+                requested: Boolean(job.paymentRequestedAt), received: Boolean(job.paidInAt), paid: Boolean(job.paidOutAt),
+              }]))}
               unavailable={batchHistory.unavailable} page={wonBatchPage} hasMore={batchHistory.hasMore} />
             <WonSalesReport jobs={reportJobs.flatMap((option) => option.review ? [{
               userEmail: option.userEmail, wonAt: option.wonAt, reportAmounts: option.review.amounts,
@@ -5535,7 +5605,7 @@ export default async function AdminUsersPage({
                 data-won-search={[option.optionName, option.userName, option.businessName, option.userEmail].join(" ").toLowerCase()}
                 data-won-time={Number.isFinite(new Date(option.wonAt).getTime()) ? new Date(option.wonAt).getTime() : 0}
                 data-won-outstanding={!option.paidInAt ? option.agencyCommissionTotal : 0}
-                data-payment-not-requested={!option.paymentRequestedAt && !option.paidInAt && !option.paidOutAt ? "true" : "false"}
+                data-payment-not-requested={!option.paymentRequestedAt && !option.paidInAt ? "true" : "false"}
                 data-payment-awaiting-agency={!option.paidInAt && (option.paymentRequestedAt || option.paidOutAt) ? "true" : "false"}
                 data-payment-commission-to-pay={option.paidInAt && !option.paidOutAt ? "true" : "false"}
                 data-payment-settled={option.paidInAt && option.paidOutAt ? "true" : "false"}
@@ -5702,7 +5772,7 @@ export default async function AdminUsersPage({
                   </div>
                 </div>
                 <div className="won-payment-details">
-                  <div className="won-payment-line"><span>Agency payment</span><strong>{formatMoney(option.agencyCommissionTotal)}</strong><em>{option.paidInAt ? "Received" : option.paymentRequestedAt || option.paidOutAt ? "Awaiting agency payment" : "Not requested"}</em><small>{option.paidInAt ? `Received ${formatShortDate(option.paidInAt)}` : option.paymentRequestedAt ? `Requested ${formatShortDate(option.paymentRequestedAt)}` : "No request date"}</small></div>
+                  <div className="won-payment-line"><span>Agency payment</span><strong>{formatMoney(option.agencyCommissionTotal)}</strong><em>{option.paidInAt ? "Received" : option.paymentRequestedAt ? "Awaiting agency payment" : "Not requested"}</em><small>{option.paidInAt ? `Received ${formatShortDate(option.paidInAt)}` : option.paymentRequestedAt ? `Requested ${formatShortDate(option.paymentRequestedAt)}` : "No request date"}</small></div>
                   <div className="won-payment-line"><span>Salesperson commission</span><strong>{formatMoney(option.salespersonCommissionTotal)}</strong><em>{option.paidOutAt ? "Paid" : option.paidInAt ? "Commission to pay" : "Not paid"}</em><small>{option.paidOutAt ? `Paid ${formatShortDate(option.paidOutAt)}` : option.userName}</small></div>
                 </div>
                 <details className="won-financial-details">

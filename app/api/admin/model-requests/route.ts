@@ -27,7 +27,15 @@ export async function POST(request: Request) {
   if (!session) return json({ error: "Not authorized" }, 403);
   if (request.headers.get("origin") && request.headers.get("origin") !== new URL(request.url).origin) return json({ error: "Invalid origin" }, 403);
   const body = await request.json().catch(() => null);
-  if (!body || !/^[0-9a-f-]{36}$/i.test(body.id || "") || !["retry", "decline", "disable", "restore_research"].includes(body.action)) return json({ error: "Invalid action" }, 400);
+  if (!body || !/^[0-9a-f-]{36}$/i.test(body.id || "") || !["retry", "decline", "disable", "restore_research", "resume_verification"].includes(body.action)) return json({ error: "Invalid action" }, 400);
+  if (body.action === "resume_verification") {
+    if (!researchAutomationEnabled()) return json({ error: "Research processing is not enabled." }, 409);
+    if (typeof body.jobId !== "string" || !/^[0-9a-f-]{36}$/i.test(body.jobId)) return json({ error: "Invalid research job" }, 400);
+    const job = await researchRpc("get", body.jobId);
+    if (!job || job.external_id !== body.id || job.state !== "pending_verification" || job.applied_at) return json({ error: "No completed research is awaiting verification. Refresh the request." }, 409);
+    after(async () => { await processModelRequest(undefined, job.id, true).catch(() => console.error("[model-research] verification deferred to scheduled recovery")); });
+    return json({ saved: true, message: "Saved research queued for verification. No new paid research requested." });
+  }
   if (body.action === "restore_research") {
     if (!researchAutomationEnabled()) return json({ error: "Research processing is not enabled." }, 409);
     if (typeof body.sourceJobId !== "string" || !/^[0-9a-f-]{36}$/i.test(body.sourceJobId)

@@ -93,6 +93,25 @@ assert.equal(resolveWonBatchJobs([nextId, id], [quote]), null, "Never quietly dr
 const intent = { id: "batch", kind: "paid_in", label: "", items: [id, nextId].map((id) => ({ id })) };
 const actor = "admin@example.test";
 const saved = { ...intent, actor_email: actor };
+const priorOutcome = { id, status: "confirmed" };
+let resumedWrites = [];
+let recordedResume;
+const resumed = await runWonBatch(intent, {
+  start: async () => "replayed", resumeOutcomes: [priorOutcome],
+  apply: async (item) => { resumedWrites.push(item.id); return { status: "confirmed" }; },
+  record: async outcomes => { recordedResume = outcomes; return true; },
+});
+assert.equal(resumed.status, "saved");
+assert.deepEqual(resumedWrites, [nextId], "Resume never replays a completed job");
+assert.deepEqual(recordedResume, [priorOutcome, { id: nextId, status: "confirmed" }]);
+assert.equal((await runWonBatch(intent, {
+  start: async () => "replayed", resumeOutcomes: [], deadline: Date.now() - 1,
+  apply: async () => assert.fail("Expired invocation started another write"), record: async () => true,
+})).status, "interrupted");
+assert.equal((await runWonBatch(intent, {
+  start: async () => assert.fail("Invalid resume reached storage"), resumeOutcomes: [priorOutcome, priorOutcome],
+  apply: async () => assert.fail(), record: async () => true,
+})).status, "conflict");
 assert.equal(sameWonBatchSelection(saved, intent.kind, intent.label, [nextId, id], actor), true);
 assert.equal(sameWonBatchSelection(saved, "paid_out", intent.label, [id, nextId], actor), false);
 assert.equal(sameWonBatchSelection(saved, intent.kind, intent.label, [id, nextId], other.email), false);

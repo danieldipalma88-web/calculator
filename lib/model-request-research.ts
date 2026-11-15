@@ -22,17 +22,22 @@ async function continueResearch(jobId: string) {
     headers: { Authorization: `Bearer ${secret}`, "Content-Type": "application/json" },
     body: JSON.stringify({ jobId }),
   });
-  if (!response.ok) throw new Error("Research continuation was not acknowledged");
+  if (!response.ok) throw new Error(`Research continuation HTTP ${response.status}`);
 }
 
-export async function processModelResearch({ requestId, researchJobId }: { requestId?: string; researchJobId?: string } = {}) {
+export async function processModelResearch({ requestId, researchJobId, verificationOnly = false }: { requestId?: string; researchJobId?: string; verificationOnly?: boolean } = {}) {
   if (!researchAutomationEnabled()) return { processed: false, requestId };
+  if (verificationOnly && !researchJobId) return { processed: false, requestId };
   const store = new PostgresResearchStore();
   let job = researchJobId ? await store.get(researchJobId) : await store.enqueue(requestId);
   if (!job || job.applied_at || ["complete", "no_rebate", "superseded"].includes(job.state)) {
     return { processed: false, requestId: job?.external_id, state: job?.state };
   }
   if (job.result?.researchPaused) return { processed: false, requestId: job.external_id, state: job.state };
+  if (verificationOnly) {
+    if (job.state !== "pending_verification") return { processed: false, requestId: job.external_id, state: job.state };
+    return applyResearchVerification(store, job, false);
+  }
   const externalId = job.external_id;
   if (job.state === "queued" || job.state === "researching") {
     const checkpointRound = Number(job.checkpoint?.round || 0);
@@ -43,21 +48,33 @@ export async function processModelResearch({ requestId, researchJobId }: { reque
     job = await agent.run(job.id);
     if (!job) return { processed: false, requestId: externalId };
     if (job.result?.researchPaused) return { processed: true, requestId: externalId, state: job.state };
-    if (["queued", "pending_verification", "waiting_for_details", "review", "budget_paused"].includes(job.state) && !job.applied_at) {
+    // Finish checkpointed evidence here; another recursive HTTP hop is unnecessary.
+    if (["pending_verification", "waiting_for_details", "review"].includes(job.state) && !job.applied_at) {
+      return applyResearchVerification(store, job);
+    }
+    if (["queued", "budget_paused"].includes(job.state) && !job.applied_at) {
       if (job.state === "queued" && Number(job.checkpoint?.round || 0) <= checkpointRound
         && !(recoveringTools && job.checkpoint?.pendingTools === false)) {
         await store.event(job.id, "continuation_deferred", "No checkpoint progress; immediate retries stopped. The scheduled recovery pass can resume this investigation.");
       } else {
         try { await continueResearch(job.id); }
-        catch { await store.event(job.id, "continuation_deferred", "The durable queue will resume this investigation on the scheduled recovery pass."); }
+        catch (error) {
+          const status = error instanceof Error ? error.message.match(/^Research continuation HTTP \d{3}$/)?.[0] : undefined;
+          await store.event(job.id, "continuation_deferred", `${status || "Research continuation could not be reached"}. Scheduled recovery will resume from the checkpoint.`);
+        }
       }
     }
     return { processed: true, requestId: externalId, state: job.state };
   }
+  return applyResearchVerification(store, job);
+}
+
+async function applyResearchVerification(store: PostgresResearchStore, job: NonNullable<Awaited<ReturnType<PostgresResearchStore["get"]>>>, advanceQueue = true) {
+  const externalId = job.external_id;
   const outcome = await verifyResearchJob(job, id => store.current(id));
   if (outcome.kind === "superseded") return { processed: true, requestId: externalId, state: "superseded" };
   const applied = await store.apply(job.id, outcome);
-  if (["added", "no_rebate", "review", "waiting"].includes(String(applied?.state))
+  if (advanceQueue && ["added", "no_rebate", "review", "waiting"].includes(String(applied?.state))
     && job.state !== "budget_paused" && outcome.kind !== "retry_verification") {
     try {
       const next = await store.enqueue();
