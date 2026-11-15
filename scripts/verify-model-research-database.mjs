@@ -51,7 +51,7 @@ async function submit(details = {}) {
   try {
     r = await one(`insert into public.calculator_model_requests(id,user_id,client_request_id,requester_email,business_id,system_type,brand,model,capacity,phase,notes,postcode,install_type)
       values(coalesce($12::uuid,gen_random_uuid()),$1,$2,'user@example.invalid',$3,$4,$5,$6,$7,$8,$9,$10,$11) returning *`,
-    [user, randomUUID(), business, details.system_type || 'split', details.brand || 'Fixture', details.model || 'OUT / IN',
+    [user, randomUUID(), details.business_id || business, details.system_type || 'split', details.brand || 'Fixture', details.model || 'OUT / IN',
       details.capacity || '3.5', details.phase || '', details.notes || '', details.postcode || '2145', details.install_type || 'new', details.id || null]);
     if (details.id) await db.exec('alter table calculator_model_requests enable trigger validate_new_model_request; commit');
   } catch (error) { if (details.id) await db.exec('rollback'); throw error; }
@@ -525,8 +525,246 @@ try {
     from model_automation_private.research_budget b where month='2026-11-01'`);
   assert.equal(ledger.spent, ledger.audit_spent); assert.equal(ledger.reserved, ledger.audit_reserved);
   pass('atomic monthly counters reconcile exactly to the durable cost audit ledger');
-  console.log(`Isolated PostgreSQL research checks passed (${checks} groups). PGlite executes PostgreSQL statements serially; true multi-session contention still needs staging verification.`);
+  const workflowSql = await readFile(new URL('../supabase/model_request_autonomous_workflow_upgrade.sql', import.meta.url), 'utf8');
+  const preWorkflowBudget = (await one('select jsonb_agg(to_jsonb(b) order by month) as value from model_automation_private.research_budget b')).value;
+  const marks = async (id, changes) => owner(`update public.calculator_model_request_jobs set ${changes} where request_id=$1`, [id]);
+  const workflowSelf = async (id, reply = null) => (await one('select public.model_request_self($1,$2) as value', [id, reply && JSON.stringify(reply)])).value;
+  const outbox = async id => (await owner('select mail_key,kind,state from model_automation_private.mail_outbox where request_id=$1 order by mail_key', [id])).rows;
+  const older = await submit({ system_type: 'ducted', model: 'AUTONOMOUS-CASE', notes: 'Exact case note' });
+  const duplicate = await submit({ system_type: 'ducted', model: 'autonomous-case', notes: 'exact   case note' });
+  const different = await submit({ system_type: 'ducted', model: 'AUTONOMOUS-CASE', notes: 'Different case note' });
+  const otherAllowedBusiness = randomUUID();
+  await owner("insert into businesses(id,name,operating_state) values($1,'Other allowed fixture NSW','NSW')", [otherAllowedBusiness]);
+  await q("insert into approved_user_businesses(email,business_id) values('user@example.invalid',$1)", [otherAllowedBusiness]);
+  const crossBusiness = await submit({ business_id: otherAllowedBusiness, system_type: 'ducted', model: 'AUTONOMOUS-CASE', notes: 'Exact case note' });
+  const closed = await submit({ model: 'WORKFLOW-CLOSED' });
+  const declined = await submit({ model: 'WORKFLOW-DECLINED' });
+  const unsupported = await submit({ system_type: 'multi-head', model: 'WORKFLOW-MULTI' });
+  const expired = await submit({ model: 'WORKFLOW-EXPIRED' });
+  const active = await submit({ model: 'WORKFLOW-ACTIVE' });
+  const historical = await submit({ model: 'WORKFLOW-NO-LEGACY-JOB' });
+  const legacyTemp = await saved('pending_verification', finding, { model: 'WORKFLOW-OLD-OUTAGE' });
+  await rpc('apply_result', legacyTemp.job.id, null, { outcome: { kind: 'review', evidence: { temporaryVerificationFailure: true } } });
+  await marks(older.id, "state='review',contact_state='escalated',contact_round=1");
+  await owner("update calculator_model_requests set created_at=now()-interval '2 days' where id=$1", [older.id]);
+  await marks(duplicate.id, "state='review',contact_state='waiting',contact_round=1");
+  await marks(closed.id, "state='review',contact_state='closed',contact_round=1");
+  await marks(declined.id, "state='declined'");
+  await owner("update calculator_model_requests set status='declined' where id=$1", [declined.id]);
+  await marks(expired.id, "state='checking',lease_token=gen_random_uuid(),lease_until=now()-interval '1 second'");
+  await marks(active.id, "state='checking',lease_token=gen_random_uuid(),lease_until=now()+interval '1 minute'");
+  await owner('delete from public.calculator_model_request_jobs where request_id=$1', [historical.id]);
+  await owner(`insert into model_automation_private.mail_outbox(mail_key,request_id,round,kind,recipient,payload)
+    values('workflow-old-help',$1,1,'escalation','admin@example.invalid','{}'),
+      ('workflow-old-duplicate-question',$2,1,'question','user@example.invalid','{}')`, [older.id, duplicate.id]);
+  const beforeWorkflow = (await one('select jsonb_agg(to_jsonb(r) order by id) as value from public.calculator_model_requests r')).value;
+  await db.exec(workflowSql);
+  await db.exec(workflowSql);
+  assert.deepEqual((await one('select jsonb_agg(to_jsonb(r) order by id) as value from public.calculator_model_requests r')).value, beforeWorkflow);
+  assert.deepEqual((await one('select jsonb_agg(to_jsonb(b) order by month) as value from model_automation_private.research_budget b')).value, preWorkflowBudget);
+  await as();
+  await assert.rejects(() => q("select public.model_request_research_worker('wrong','enqueue')"), /Not authorized/);
+  await assert.rejects(() => q('select * from model_automation_private.research_case_links'), /permission denied/);
+  await assert.rejects(() => q("select model_automation_private.research_worker_before_workflow($1,'enqueue')", [secret]), /permission denied/);
+  await assert.rejects(() => q("select model_automation_private.worker($1,'claim')", [secret]), /permission denied/);
+  await assert.rejects(() => q("select public.model_request_worker($1,'verified',$2)", [secret, older.id]), /Legacy research worker retired/);
+  assert.equal((await one("select public.model_request_worker($1,'claim',$2) as value", [secret, expired.id])).value, null);
+  assert.equal(await contact('claim', older.id), null);
+  assert.equal(await rpc('enqueue', older.id), null);
+  assert.equal(await rpc('claim'), null);
+  await assert.rejects(() => rpc('reserve', randomUUID(), randomUUID(), { micros: reservation, limit: 20000000 }), /workflow paused/);
+  await assert.rejects(() => q('update model_automation_private.settings set autonomous_workflow_enabled=true'), /permission denied/);
+  await owner('update model_automation_private.settings set autonomous_workflow_enabled=true where singleton');
+  await db.exec(workflowSql);
+  assert.equal((await one('select autonomous_workflow_enabled as value from model_automation_private.settings where singleton')).value, true);
+  await as();
+  assert.equal(await contact('claim', older.id), null);
+  pass('incremental migration is repeatable, preserves records/ledger, retires legacy work, and requires separate authorized activation');
+
+  assert.equal(await rpc('enqueue', duplicate.id), null);
+  assert.equal((await outbox(duplicate.id))[0].state, 'cancelled');
+  assert.equal((await one('select canonical_id from model_automation_private.research_case_links where duplicate_id=$1', [duplicate.id])).canonical_id, older.id);
+  await as();
+  const recovered = await rpc('enqueue', older.id);
+  assert.equal(recovered.external_id, older.id);
+  assert.equal((await rpc('enqueue', older.id)).id, recovered.id);
+  assert.equal((await rpc('enqueue', different.id)).external_id, different.id);
+  assert.equal((await rpc('enqueue', crossBusiness.id)).external_id, crossBusiness.id);
+  assert.equal((await rpc('enqueue', expired.id)).external_id, expired.id);
+  assert.equal((await rpc('enqueue', historical.id)).external_id, historical.id);
+  assert.equal(await rpc('enqueue', active.id), null);
+  assert.equal(await rpc('enqueue', closed.id, null, { retry: true }), null);
+  assert.equal(await rpc('enqueue', declined.id, null, { retry: true }), null);
+  assert.equal(await rpc('enqueue', unsupported.id), null);
+  assert.equal(await rpc('enqueue', inaccessibleOldest.id), null);
+  assert.equal((await rpc('enqueue', legacyTemp.request.id)).state, 'pending_verification');
+  pass('oldest exact normalized case is canonical; only eligible stalled requests and historical verification outages resume');
+
+  const caseClaim = await rpc('claim', recovered.id);
+  await rpc('finish', recovered.id, caseClaim.lease, { state: 'waiting_for_details', result: { outcome: 'needs_details', question: 'Confirm the exact model' } });
+  const needModel = { outcome: { kind: 'needs_details', question: 'Confirm the exact model' } };
+  await rpc('apply_result', recovered.id, null, needModel);
+  const question = await contact('claim', older.id);
+  assert.equal(question.kind, 'question');
+  assert.equal(await contact('claim', older.id), null);
+  await as('authenticated', admin, 'admin@example.invalid');
+  assert.equal(await workflowSelf(duplicate.id), null);
+  await as('authenticated');
+  const duplicateView = await workflowSelf(duplicate.id);
+  assert.equal(duplicateView.state, 'waiting');
+  const reply = { round: duplicateView.round, version: duplicateView.version, help: true,
+    model: 'MATCH-FOUND', postcode: '2150', install_type: 'replacement', message: 'Frustrated, but this is the label.' };
+  await assert.rejects(() => workflowSelf(duplicate.id, reply), /notification is sending/);
+  await as();
+  await assert.rejects(() => contact('sent', older.id, randomUUID(), { key: question.mail_key, provider_id: 'fixture' }), /lease expired/i);
+  await contact('sent', older.id, question.lease, { key: question.mail_key, provider_id: 'fixture' });
+  await as('authenticated');
+  const answered = await workflowSelf(duplicate.id, reply);
+  assert.equal(answered.state, 'queued'); assert.equal(answered.model, 'MATCH-FOUND');
+  assert.equal(answered.postcode, '2150'); assert.equal(answered.install_type, 'replacement');
+  await assert.rejects(() => workflowSelf(duplicate.id, reply), /no longer awaiting/);
+  assert.ok((await outbox(older.id)).filter(m => m.kind==='reminder').every(m => m.state==='cancelled'));
+  await as();
+  const resumedCase = await rpc('enqueue', older.id);
+  assert.deepEqual(resumedCase.request.messages, [reply.message]);
+  assert.equal(await rpc('enqueue', duplicate.id), null);
+  const resumedLease = await rpc('claim', resumedCase.id);
+  await rpc('finish', resumedCase.id, resumedLease.lease, { state: 'waiting_for_details', result: { outcome: 'needs_details' } });
+  await rpc('apply_result', resumedCase.id, null, { outcome: { kind: 'needs_details', question: '  confirm   the exact model ' } });
+  assert.equal(await contact('claim', older.id), null);
+  await as('authenticated');
+  await assert.rejects(() => workflowSelf(duplicate.id, { ...reply, version: (reply.version || 1) + 1 }), /already received/);
+  await as();
+  assert.equal((await outbox(older.id)).filter(m => m.kind==='question').length, 1);
+  assert.ok((await outbox(older.id)).filter(m => m.kind==='escalation').every(m => m.state==='cancelled'));
+  pass('authorized help through the linked case preserves supplied details, respects live leases and never repeats the same question or sends a help alert');
+
+  const outageFinding = { ...finding, canonical: { ...canonical, registrationNumber: 'FIXTURE-OUTAGE-REG' } };
+  const outageOutcome = outcome();
+  outageOutcome.evidence.verification.registry.registrationNumber = outageFinding.canonical.registrationNumber;
+  const outage = await saved('pending_verification', outageFinding, { model: 'WORKFLOW-NEW-OUTAGE' });
+  const retryOutcome = { outcome: { kind: 'retry_verification', reason: 'Registry offline' } };
+  const deferred = await rpc('apply_result', outage.job.id, null, retryOutcome);
+  assert.equal(deferred.state, 'pending_verification');
+  assert.equal(Date.parse(deferred.next_attempt_at), Date.parse('2026-11-09T03:05:00Z'));
+  assert.deepEqual(await rpc('apply_result', outage.job.id, null, retryOutcome), deferred);
+  assert.deepEqual((await rpc('get', outage.job.id)).result, outageFinding);
+  assert.equal(await rpc('enqueue', outage.request.id), null);
+  assert.equal((await rpc('apply_result', outage.job.id, null, { outcome: outageOutcome })).state, 'pending_verification');
+  assert.deepEqual(await outbox(outage.request.id), []);
+  await owner("update model_automation_private.research_jobs set next_attempt_at=now()-interval '1 second' where id=$1", [outage.job.id]);
+  await as();
+  assert.equal((await rpc('enqueue', outage.request.id)).id, outage.job.id);
+  assert.equal((await rpc('apply_result', outage.job.id, null, { outcome: outageOutcome })).state, 'no_rebate');
+  assert.equal((await rpc('apply_result', outage.job.id, null, { outcome: outageOutcome })).state, 'no_rebate');
+  assert.equal((await outbox(outage.request.id)).length, 1);
+  await as();
+  const newMirror = await submit({ model: 'WORKFLOW-NEW-OUTAGE' });
+  await owner("update calculator_model_requests set created_at=now()-interval '3 hours' where id=$1", [newMirror.id]);
+  await as();
+  assert.equal(await rpc('enqueue', newMirror.id), null);
+  assert.equal(await contact('claim', newMirror.id), null);
+  assert.equal((await contact('claim', outage.request.id)).kind, 'no_rebate');
+  assert.equal(await contact('claim', outage.request.id), null);
+  pass('verification retry backs off, preserves the result, and the canonical completion sends through one guarded outbox lease');
+
+  const unmatched = await saved('review', { outcome: 'review', summary: 'No matching registration' }, { model: 'WORKFLOW-NO-MATCH' });
+  const unavailable = await saved('review', { summary: 'Network unavailable' }, { model: 'WORKFLOW-INFRASTRUCTURE' });
+  const finalReview = { outcome: { kind: 'review', registry_match_unverified: true, reason: 'No matching registration after source checks' } };
+  const outageReview = await rpc('apply_result', unmatched.job.id, null, retryOutcome);
+  assert.equal(outageReview.state, 'review');
+  assert.ok(outageReview.next_attempt_at);
+  assert.equal((await rpc('get', unmatched.job.id)).applied_at, null);
+  assert.deepEqual(await outbox(unmatched.request.id), []);
+  await owner("update model_automation_private.research_jobs set next_attempt_at=now()-interval '1 second' where id=$1", [unmatched.job.id]);
+  await as();
+  await rpc('apply_result', unavailable.job.id, null, finalReview);
+  assert.deepEqual(await outbox(unavailable.request.id), []);
+  await as();
+  await rpc('apply_result', unmatched.job.id, null, finalReview);
+  await rpc('apply_result', unmatched.job.id, null, finalReview);
+  const alert = await contact('claim', unmatched.request.id);
+  assert.equal(alert.kind, 'escalation');
+  assert.equal(alert.payload.registry_unverified, true);
+  assert.equal(await contact('claim', unmatched.request.id), null);
+  await contact('sent', unmatched.request.id, alert.lease, { key: alert.mail_key, provider_id: 'fixture-unmatched-alert' });
+  assert.deepEqual((await outbox(unmatched.request.id)).map(m => m.state), ['sent']);
+  await as();
+  await contact('maintain');
+  assert.equal((await owner("select count(*)::int as n from model_automation_private.mail_outbox where kind='weekly' and state in ('pending','sending')")).rows[0].n, 0);
+  pass('only a completed explicit unmatched registry investigation queues a once-only admin notice; no digest is generated');
+
+  const hisenseDetails = { brand: 'Hisense', model: 'HAWH9KR-O/ HAWH9KR-I', capacity: '2.5kw', postcode: '2148' };
+  const hisenseProduct = { ...product, brand: 'Hisense', model: 'HAWH9KR', capacityKw: 2.5, series: 'X5' };
+  const hisenseRegistration = { brand: 'HISENSE', model: 'HAWH9KR', registrationNumber: 'AAC9478' };
+  const hisenseFinding = { outcome: 'candidate', canonical: { ...hisenseProduct, ...hisenseRegistration } };
+  const hisenseOutcome = (esc, prc) => ({ outcome: {
+    kind: 'ready_to_add', product: hisenseProduct, identity: 'HISENSE|HAWH9KR', evidence: {
+      verification: { kind: 'verified', registry: hisenseRegistration, certificates: { esc, prc } },
+    },
+  } });
+  const verifiedPair = async install_type => {
+    const original = await submit({ ...hisenseDetails, install_type, notes: 'X5 R32' });
+    const resubmitted = await submit({ ...hisenseDetails, install_type, notes: 'X5 R32 hi wall split' });
+    await marks(original.id, "state='review',contact_state='escalated',contact_round=1,activity=model_automation_private.event('escalated','X5')");
+    await owner("update calculator_model_requests set created_at=now()-interval '2 days' where id=$1", [original.id]);
+    await q("update model_automation_private.research_requests set messages='[\"X5\"]' where request_id=$1", [original.id]);
+    await as();
+    const jobs = [];
+    for (const row of [original, resubmitted]) {
+      const job = await rpc('enqueue', row.id);
+      assert.equal(job.external_id, row.id, 'different notes/replies must not merge before verification');
+      const lease = await rpc('claim', job.id);
+      await rpc('finish', job.id, lease.lease, { state: 'pending_verification', result: hisenseFinding });
+      jobs.push(job);
+    }
+    return jobs;
+  };
+  const [hisenseOriginal, hisenseDuplicate] = await verifiedPair('new');
+  assert.deepEqual(hisenseOriginal.request.messages, ['X5']);
+  assert.equal(hisenseDuplicate.request.notes, 'X5 R32 hi wall split');
+  const newInstall = hisenseOutcome(8.369632058, 86.646231);
+  assert.equal((await rpc('apply_result', hisenseOriginal.id, null, newInstall)).state, 'added');
+  assert.equal((await rpc('apply_result', hisenseDuplicate.id, null, newInstall)).state, 'added');
+  assert.equal(await rpc('confirmation_claim', hisenseDuplicate.external_id), null);
+  assert.equal((await rpc('confirmation_claim', hisenseOriginal.external_id)).request.id, hisenseOriginal.external_id);
+
+  const [replacementOriginal, replacementDuplicate] = await verifiedPair('replacement');
+  const replacement = hisenseOutcome(9.57368362, 124.965435);
+  assert.equal((await rpc('apply_result', replacementDuplicate.id, null, replacement)).state, 'added');
+  const earlyConfirmation = await rpc('confirmation_claim', replacementDuplicate.external_id);
+  const legacyMail = async (action, requestId, lease, data = {}) => (await one(
+    'select public.model_request_worker($1,$2,$3,$4,$5) as value',
+    [secret, action, requestId, lease, JSON.stringify(data)])).value;
+  await legacyMail('email_start', replacementDuplicate.external_id, earlyConfirmation.job.lease_token);
+  assert.equal((await rpc('apply_result', replacementOriginal.id, null, replacement)).state, 'added');
+  assert.equal(await rpc('confirmation_claim', replacementOriginal.external_id), null);
+  assert.equal(await rpc('confirmation_claim', replacementDuplicate.external_id), null);
+  await legacyMail('email_sent', replacementDuplicate.external_id, earlyConfirmation.job.lease_token, { id: 'fixture-started-before-link' });
+  assert.equal((await rpc('get', replacementOriginal.id)).completion_suppressed, true);
+  await owner('select 1');
+  for (const [primary, secondary] of [[hisenseOriginal, hisenseDuplicate], [replacementOriginal, replacementDuplicate]]) {
+    assert.equal((await one('select canonical_id from model_automation_private.research_case_links where duplicate_id=$1',
+      [secondary.external_id])).canonical_id, primary.external_id);
+  }
+  pass('Hisense AAC9478 different notes/replies link only after exact verified identity; new and replacement remain separate and each gets at most one completion');
+
+  await as();
+  const providerOutage = await queued({ model: 'WORKFLOW-PROVIDER-OUTAGE' });
+  const providerLease = await rpc('claim', providerOutage.job.id);
+  await rpc('checkpoint', providerOutage.job.id, providerLease.lease, cp(0));
+  await assert.rejects(() => rpc('retry_research', providerOutage.job.id, randomUUID(), { reason: 'Temporary provider failure' }), /lease/);
+  const providerRetry = await rpc('retry_research', providerOutage.job.id, providerLease.lease, { reason: 'Temporary provider failure' });
+  assert.equal(providerRetry.state, 'queued');
+  assert.equal(Date.parse(providerRetry.next_attempt_at), Date.parse('2026-11-09T03:05:00Z'));
+  assert.deepEqual((await rpc('get', providerOutage.job.id)).checkpoint, cp(0));
+  assert.equal(await rpc('claim', providerOutage.job.id), null);
+  assert.equal(await rpc('enqueue', providerOutage.request.id), null);
+  assert.deepEqual(await outbox(providerOutage.request.id), []);
+  pass('transient investigation deferral keeps the accounted checkpoint, checks leases and delays automatic pickup');
+
+  console.log(`Isolated PostgreSQL research checks passed (${checks} groups). PGlite serializes queries; real transaction contention is covered separately by the native harness.`);
 } catch (error) {
-  console.error(error.message, error.where || '');
+  console.error(error.stack || error.message, error.where || '');
   process.exitCode = 1;
 } finally { await db.close(); }

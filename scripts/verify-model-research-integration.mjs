@@ -4,6 +4,7 @@ import { createRequire } from 'node:module';
 import vm from 'node:vm';
 import ts from 'typescript';
 import * as registry from '../lib/model-research/registry.mjs';
+import * as manufacturer from '../lib/model-research/manufacturer.mjs';
 import { sendModelRequestContact } from '../lib/model-request-email.ts';
 
 const require = createRequire(import.meta.url);
@@ -15,7 +16,7 @@ function load(path, stubs) {
   return exports;
 }
 const { verifyResearchJob } = load('lib/model-research/verification.ts', {
-  './registry.mjs': registry, '../model-request-verification': {}, '../model-catalogue': {
+  './registry.mjs': registry, './manufacturer.mjs': manufacturer, '../model-request-verification': {}, '../model-catalogue': {
     modelIdentity: (brand, model) => brand.toUpperCase() + '|' + model.split('/').map(x => x.trim()).sort().join('/'),
   },
 });
@@ -42,6 +43,24 @@ result = await verifyResearchJob(job, current, verify, async () => catalogue);
 assert.equal(result.existing, true); assert.equal(catalogue.products[0].priceIncGst, 9876);
 result = await verifyResearchJob(job, current, verify, async () => ({ products: [{ ...product, systemType: 'split' }] }));
 assert.equal(result.kind, 'review');
+
+const packageMapping = { brand: 'DAIKIN', model: 'SYSTEM', indoor: 'IN', outdoor: 'OUT', sourceUrl: 'https://www.daikin.com.au/spec.pdf' };
+const packageJob = { ...job, result: { ...job.result, canonical: { ...canonical, model: 'SYSTEM' },
+  manufacturerMapping: packageMapping, sourceUrls: [packageMapping.sourceUrl] } };
+const packageVerify = async () => ({ kind: 'verified', product: { ...product, model: 'SYSTEM' },
+  evidence: { ...evidence, registry: { ...evidence.registry, model: 'SYSTEM' } } });
+let mappingChecks = 0;
+const mappingVerifier = { verify: async mapping => { mappingChecks++; assert.deepEqual(mapping, packageMapping); return { ...mapping, page: 1 }; } };
+result = await verifyResearchJob(packageJob, current, packageVerify, emptyCatalogue, mappingVerifier);
+assert.equal(result.kind, 'ready_to_add'); assert.equal(mappingChecks, 1);
+result = await verifyResearchJob(packageJob, current, packageVerify, emptyCatalogue, { verify: async () => { throw Error('PDF outage'); } });
+assert.equal(result.kind, 'retry_verification');
+result = await verifyResearchJob({ ...packageJob, result: { ...packageJob.result, manufacturerMapping: { ...packageMapping, indoor: 'OTHER' } } },
+  current, () => assert.fail('Mismatched components reached verifier'), emptyCatalogue, mappingVerifier);
+assert.equal(result.kind, 'review'); assert.equal(mappingChecks, 1);
+result = await verifyResearchJob({ ...packageJob, result: { ...packageJob.result, manufacturerMapping: undefined } }, current,
+  () => assert.fail('Forged package reached verifier'), emptyCatalogue, mappingVerifier);
+assert.equal(result.kind, 'review');
 result = await verifyResearchJob(job, current, async () => ({ kind: 'no_rebate', product, evidence: { ...evidence, certificates: { esc: 0, prc: 0 } } }), emptyCatalogue);
 assert.equal(result.kind, 'no_rebate'); assert.equal(result.evidence.verification.kind, 'no_rebate');
 result = await verifyResearchJob(job, current, async () => ({ kind: 'no_rebate', product, evidence: { ...evidence, registry: { ...evidence.registry, registrationNumber: 'OTHER' } } }), emptyCatalogue);
@@ -53,8 +72,15 @@ assert.equal(result.kind, 'superseded');
 let reads = 0;
 result = await verifyResearchJob(job, async () => ++reads === 1 ? request : { ...request, postcode: '2500' }, verify, emptyCatalogue);
 assert.equal(result.kind, 'superseded');
-result = await verifyResearchJob(job, current, async () => ({ kind: 'clarify', reason: 'Which installation postcode?', candidates: [] }), emptyCatalogue);
+result = await verifyResearchJob(job, current, async () => ({ kind: 'clarify', reason: 'Which installation postcode?', candidates: ['OUT / IN'], evidence }), emptyCatalogue);
 assert.equal(result.kind, 'needs_details'); assert.equal(result.question, 'Which installation postcode?');
+result = await verifyResearchJob(job, current, async () => ({ kind: 'clarify', reason: 'Code not registered', candidates: [] }), emptyCatalogue);
+assert.equal(result.kind, 'review'); assert.equal(result.registry_match_unverified, true);
+const reviewed = { ...job, state: 'review', result: { ...job.result, outcome: 'review' } };
+result = await verifyResearchJob(reviewed, current, async () => { throw Error('Registry offline'); }, emptyCatalogue);
+assert.equal(result.kind, 'retry_verification'); assert.equal(result.registry_match_unverified, undefined);
+result = await verifyResearchJob(reviewed, current, async () => ({ kind: 'clarify', reason: 'Not in registry', candidates: [] }), emptyCatalogue);
+assert.equal(result.registry_match_unverified, true);
 result = await verifyResearchJob({ ...job, state: 'waiting_for_details', result: { question: 'Which installation type?' } }, current, verify, emptyCatalogue);
 assert.equal(result.kind, 'needs_details');
 result = await verifyResearchJob({ ...job, state: 'budget_paused', result: { summary: 'Monthly budget reached' } }, current, verify, emptyCatalogue);
@@ -87,9 +113,16 @@ try {
   active = { ...job, applied_at: null }; applied = []; runCount = 0; kicks = [];
   result = await processor.processModelResearch({ researchJobId: job.id });
   assert.equal(runCount, 0); assert.equal(applied.length, 1); assert.equal(kicks.length, 0);
+  const originalEnqueue = store.enqueue;
+  store.enqueue = async () => ({ ...active, id: '22222222-2222-4222-8222-222222222222', state: 'queued', applied_at: null });
+  await processor.processModelResearch({ researchJobId: job.id });
+  assert.equal(kicks.length, 1, 'Finished work advances the next eligible request');
+  assert.equal(JSON.parse(kicks[0].options.body).jobId, '22222222-2222-4222-8222-222222222222');
+  store.enqueue = originalEnqueue; kicks = [];
   outcome = { kind: 'retry_verification', reason: 'Service unavailable' }; applied = [];
   await processor.processModelResearch({ researchJobId: job.id });
-  assert.equal(applied[0].value.kind, 'review'); assert.equal(applied[0].value.evidence.temporaryVerificationFailure, true);
+  assert.equal(applied[0].value.kind, 'retry_verification');
+  assert.equal(kicks.length, 0, 'An outage must not create a continuation storm');
   active = { ...job, applied_at: '2026-11-09' }; applied = [];
   assert.equal((await processor.processModelResearch()).processed, false); assert.equal(applied.length, 0);
   active = { ...job, state: 'queued', applied_at: null }; next = { ...active, state: 'researching' }; kicks = [];

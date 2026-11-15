@@ -21,7 +21,7 @@
     "verify:save-browser": "node scripts/verify-cloud-save-browser.mjs && node scripts/verify-large-save-roundtrip-browser.mjs",
     "verify:transfer-next": "node scripts/verify-calculator-transfer-next.mjs",
     "qa:calculator": "node scripts/qa-calculator-server.mjs",
-    "verify:model-research": "node scripts/verify-model-research-agent.mjs && node --experimental-strip-types scripts/verify-model-research-database.mjs && node --experimental-strip-types scripts/verify-model-research-integration.mjs && node --experimental-strip-types scripts/verify-model-request-verification.mjs && node scripts/verify-model-request-workflow.mjs",
+    "verify:model-research": "node scripts/verify-manufacturer-mapping.mjs && node scripts/verify-model-research-agent.mjs && node --experimental-strip-types scripts/verify-model-research-database.mjs && node --experimental-strip-types scripts/verify-model-research-integration.mjs && node --experimental-strip-types scripts/verify-model-request-verification.mjs && node scripts/verify-model-request-workflow.mjs",
     "verify:calculator-qa": "node scripts/verify-calculator-qa.mjs",
     "verify:loading": "node scripts/verify-loading-states.mjs && node scripts/verify-cloud-save-status.mjs && node scripts/verify-calculator-startup.mjs",
     "verify:performance": "node scripts/verify-calculator-performance.mjs && node scripts/verify-rebate-settings-refresh.mjs && node scripts/verify-admin-user-removal.mjs",
@@ -51,13 +51,14 @@
     "verify:all-models": "node --experimental-strip-types scripts/verify-all-models-lookup.mjs && node scripts/verify-all-models-multi-head.mjs && node scripts/verify-fujitsu-vrf-indoors.mjs && node --experimental-strip-types scripts/verify-gems-brand-search.mjs",
     "verify:all-models-browser": "node scripts/verify-all-models-search-browser.cjs",
     "generate:public-rebate-catalogue": "node --experimental-strip-types scripts/generate-public-rebate-catalogue.mjs",
-    "build": "node --experimental-strip-types scripts/generate-public-rebate-catalogue.mjs && next build",
+    "build": "node --experimental-strip-types scripts/generate-public-rebate-catalogue.mjs && next build && node scripts/verify-manufacturer-package.mjs",
     "start": "next start"
   },
   "dependencies": {
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.45.4",
     "next": "^15.0.0",
+    "pdfjs-dist": "6.5.438",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

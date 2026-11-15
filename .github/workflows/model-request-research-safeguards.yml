@@ -12,6 +12,7 @@ on:
       - 'supabase/*model_request*.sql'
       - 'scripts/verify-model-request*.mjs'
       - 'scripts/verify-model-research*.mjs'
+      - 'scripts/verify-manufacturer*.mjs'
       - 'package*.json'
       - '.github/workflows/model-request-research-safeguards.yml'
   pull_request:
@@ -23,6 +24,7 @@ on:
       - 'supabase/*model_request*.sql'
       - 'scripts/verify-model-request*.mjs'
       - 'scripts/verify-model-research*.mjs'
+      - 'scripts/verify-manufacturer*.mjs'
       - 'package*.json'
       - '.github/workflows/model-request-research-safeguards.yml'
 

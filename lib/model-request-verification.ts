@@ -156,13 +156,14 @@ export async function verifyRequestedModel(
   const records = await fetchRecords({ brand, fields: INVENTORY_FIELDS, limit: INVENTORY_LIMIT, revalidateSeconds: 0 });
   if (records.length >= INVENTORY_LIMIT) return review("GEMS brand inventory may be truncated");
   const matches = records.filter((record) => {
-    const key = pairKey(text(record.Model_No));
+    const registered = text(record.Model_No);
+    const key = pairKey(registered) || (componentCode(registered) ? registered.toUpperCase() : "");
     return Boolean(key) && text(record.Brand).toUpperCase() === brand.toUpperCase()
       && (requestedPair ? key === requestedPair : key.split("/").includes(requestedComponent))
       && activeAustralian(record);
   });
   if (matches.length !== 1) {
-    const pairs = new Map(matches.map(record => [pairKey(text(record.Model_No)), text(record.Model_No)]));
+    const pairs = new Map(matches.map(record => [pairKey(text(record.Model_No)) || text(record.Model_No).toUpperCase(), text(record.Model_No)]));
     if (!matches.length) return {
       kind: "clarify", reason: "We couldn't verify that code in the Australian register. Please check both model numbers on the equipment labels." + installationQuestion, candidates: [],
     };

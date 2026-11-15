@@ -131,6 +131,48 @@ try {
   assert.equal((await rpc('get', interrupted.job.id)).state, 'review');
   assert.equal((await rpc('budget')).reserved, reserve.micros);
   console.log('PASS uncertain interrupted charges remain reserved and are not replayed');
+
+  const workflowFile = 'model_request_autonomous_workflow_upgrade.sql';
+  const workflow = await readFile(new URL('../supabase/' + workflowFile, import.meta.url), 'utf8');
+  evidence.migrationHashes[workflowFile] = createHash('sha256').update(workflow).digest('hex');
+  await sql(workflow);
+  await sql('update model_automation_private.settings set autonomous_workflow_enabled=true where singleton;');
+  await sql(`update public.calculator_model_requests set created_at=now()-interval '1 day';
+    set role authenticated;
+    insert into public.calculator_model_requests(user_id,client_request_id,requester_email,business_id,system_type,brand,model,capacity,phase,postcode,install_type)
+      values('${user}',gen_random_uuid(),'fixture@example.invalid','${business}','ducted','Fixture','RACE MODEL','12','single','2145','new'),
+        ('${user}',gen_random_uuid(),'fixture@example.invalid','${business}','ducted','fixture',' race   model ','12','single','2145','new');`);
+  const [canonicalId, duplicateId] = JSON.parse(await sql("select jsonb_agg(id order by created_at,id) from calculator_model_requests where upper(btrim(model)) like 'RACE%';"));
+  const enqueueA = sql(`begin; set role anon; select ${call('enqueue', canonicalId)}; select pg_sleep(3); commit;`, 'qa-workflow-enqueue-a');
+  evidence.workflowEnqueueHolding = await barrier('qa-workflow-enqueue-a', 'PgSleep');
+  const enqueueB = sql(`set role anon; select ${call('enqueue', duplicateId)};`, 'qa-workflow-enqueue-b');
+  evidence.workflowEnqueueWaiting = await barrier('qa-workflow-enqueue-b', 'Lock');
+  assert.notEqual(evidence.workflowEnqueueHolding.pid, evidence.workflowEnqueueWaiting.pid);
+  const [caseJob] = parseLines(await enqueueA);
+  assert.equal(await enqueueB, '');
+  assert.equal(await sql(`select canonical_id from model_automation_private.research_case_links where duplicate_id=${literal(duplicateId)};`), canonicalId);
+  assert.equal(Number(await sql(`select count(*) from model_automation_private.research_jobs where external_id in (${literal(canonicalId)},${literal(duplicateId)});`)), 1);
+
+  const caseLease = await rpc('claim', caseJob.id);
+  await rpc('finish', caseJob.id, caseLease.lease, { state: 'review', result: { outcome: 'review', summary: 'No matching registration' } });
+  const review = { outcome: { kind: 'review', registry_match_unverified: true, reason: 'No matching registration' } };
+  const alertA = sql(`begin; set role anon; select ${call('apply_result', caseJob.id, null, review)}; select pg_sleep(3); commit;`, 'qa-workflow-alert-a');
+  evidence.workflowAlertHolding = await barrier('qa-workflow-alert-a', 'PgSleep');
+  const alertB = sql(`set role anon; select ${call('apply_result', caseJob.id, null, review)};`, 'qa-workflow-alert-b');
+  evidence.workflowAlertWaiting = await barrier('qa-workflow-alert-b', 'Lock');
+  await alertA;
+  assert.equal(JSON.parse(await alertB).already_applied, true);
+  assert.equal(Number(await sql(`select count(*) from model_automation_private.mail_outbox where request_id=${literal(canonicalId)};`)), 1);
+  const contactClaim = `select public.model_request_contact_worker(${literal(secret)},'claim',${literal(canonicalId)});`;
+  const sendA = sql(`begin; set role anon; ${contactClaim} select pg_sleep(3); commit;`, 'qa-workflow-send-a');
+  evidence.workflowSendHolding = await barrier('qa-workflow-send-a', 'PgSleep');
+  const sendB = sql(`set role anon; ${contactClaim}`, 'qa-workflow-send-b');
+  evidence.workflowSendWaiting = await barrier('qa-workflow-send-b', 'Lock');
+  assert.equal(parseLines(await sendA)[0].kind, 'escalation');
+  assert.equal(await sendB, '');
+  assert.equal((await rpc('budget')).reserved, reserve.micros);
+  console.log('PASS independent sessions serialize exact duplicate intake, unmatched alert creation, and send authorization without changing reserved spend');
+
   evidence.postgresVersion = await sql('show server_version;');
   passed = true;
 } finally {

@@ -35,13 +35,15 @@ export async function processModelResearch({ requestId, researchJobId }: { reque
   const externalId = job.external_id;
   if (job.state === "queued" || job.state === "researching") {
     const checkpointRound = Number(job.checkpoint?.round || 0);
+    const recoveringTools = job.checkpoint?.pendingTools === true;
     const config = configuration({ ...process.env, OPENAI_API_KEY: process.env.MODEL_RESEARCH_OPENAI_API_KEY || "" });
     const agent = new ResearchAgent({ store, provider: new OpenAIProvider(config.apiKey), registry: new Registry(), config,
       maxDurationMs: 180_000 });
     job = await agent.run(job.id);
     if (!job) return { processed: false, requestId: externalId };
     if (["queued", "pending_verification", "waiting_for_details", "review", "budget_paused"].includes(job.state) && !job.applied_at) {
-      if (job.state === "queued" && Number(job.checkpoint?.round || 0) <= checkpointRound) {
+      if (job.state === "queued" && Number(job.checkpoint?.round || 0) <= checkpointRound
+        && !(recoveringTools && job.checkpoint?.pendingTools === false)) {
         await store.event(job.id, "continuation_deferred", "No checkpoint progress; immediate retries stopped. The scheduled recovery pass can resume this investigation.");
       } else {
         try { await continueResearch(job.id); }
@@ -52,10 +54,16 @@ export async function processModelResearch({ requestId, researchJobId }: { reque
   }
   const outcome = await verifyResearchJob(job, id => store.current(id));
   if (outcome.kind === "superseded") return { processed: true, requestId: externalId, state: "superseded" };
-  const safeOutcome = outcome.kind === "retry_verification"
-    ? { kind: "review", reason: outcome.reason, evidence: { research: job.result, temporaryVerificationFailure: true } }
-    : outcome;
-  const applied = await store.apply(job.id, safeOutcome);
+  const applied = await store.apply(job.id, outcome);
+  if (["added", "no_rebate", "review", "waiting"].includes(String(applied?.state))
+    && job.state !== "budget_paused" && outcome.kind !== "retry_verification") {
+    try {
+      const next = await store.enqueue();
+      if (next && next.id !== job.id && !next.applied_at) await continueResearch(next.id);
+    } catch {
+      await store.event(job.id, "continuation_deferred", "The next eligible request will be picked up by scheduled recovery.");
+    }
+  }
   return { processed: true, requestId: externalId, state: String(applied?.state || "review") };
 }
 

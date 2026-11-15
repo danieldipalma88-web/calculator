@@ -343,9 +343,20 @@ test('crash after settlement but before durable post-call checkpoint never repla
 
 test('crash after full tool checkpoint resumes only the next provider round', async () => {
   const { store, agent, job, p } = await setup();
-  store.afterCheckpoint = value => { if (value.round === 1) store.offline = true; };
+  store.afterCheckpoint = value => { if (value.round === 1 && !value.pendingTools) store.offline = true; };
   await assert.rejects(() => agent.run(job.id), /Database unavailable/);
   store.offline = false; store.afterCheckpoint = null; store.time = new Date(store.time.getTime() + 181_000);
+  assert.equal((await agent.run(job.id)).state, 'pending_verification'); assert.equal(p.count, 2);
+});
+
+test('crash with a persisted paid response resumes only unfinished read-only tools', async () => {
+  let reads = 0;
+  const { store, agent, job, p } = await setup(provider(), { search: async () => { reads++; return registry.search(); } });
+  store.afterCheckpoint = value => { if (value.round === 1 && value.pendingTools) store.offline = true; };
+  await assert.rejects(() => agent.run(job.id), /Database unavailable/);
+  assert.equal(p.count, 1); assert.equal(reads, 0);
+  store.offline = false; store.afterCheckpoint = null; store.time = new Date(store.time.getTime() + 181000);
+  assert.equal((await agent.run(job.id)).state, 'queued'); assert.equal(p.count, 1); assert.equal(reads, 1);
   assert.equal((await agent.run(job.id)).state, 'pending_verification'); assert.equal(p.count, 2);
 });
 
@@ -424,10 +435,10 @@ test('outgoing provider request keeps model, domains, timeouts and strict read-o
   assert.equal(body.model, 'gpt-6.1-sol'); assert.equal(body.service_tier, 'default'); assert.equal(body.store, false);
   assert.equal(body.max_tool_calls, 2); assert.equal(body.max_output_tokens, 4096); assert.equal(body.parallel_tool_calls, false);
   assert.deepEqual(body.reasoning, { effort: 'medium' });
-  assert.equal(body.text.format.strict, true); assert.equal(body.tools.length, 2);
-  assert.deepEqual(tools.filter(tool => tool.type === 'function').map(tool => tool.name), ['search_registry']);
-  assert.ok(tools[1].filters.allowed_domains.includes('data.gov.au'));
-  assert.equal(tools[1].filters.allowed_domains.includes('example.com'), false);
+  assert.equal(body.text.format.strict, true); assert.equal(body.tools.length, 3);
+  assert.deepEqual(tools.filter(tool => tool.type === 'function').map(tool => tool.name), ['search_registry', 'verify_manufacturer_pair']);
+  assert.ok(tools.find(tool => tool.type === 'web_search').filters.allowed_domains.includes('data.gov.au'));
+  assert.equal(tools.find(tool => tool.type === 'web_search').filters.allowed_domains.includes('example.com'), false);
   assert.match(INSTRUCTIONS, /Never guess or strip model suffixes/);
 });
 
@@ -474,7 +485,32 @@ test('refuses expired, invalid-date, foreign, outdoor-only and unapproved regist
 test('does not infer component pairing from package-only registration', () => {
   const packageRow = { ...row, Model_No: 'HAWJ9KR' };
   assert.throws(() => validateFinding({ ...finding(), canonical: { ...finding().canonical, model: 'HAWJ9KR' } },
-    request, [packageRow], new Set([source]), now()), /package aliases/);
+    request, [packageRow], new Set([source]), now()), /without verified manufacturer mapping/);
+});
+
+test('manufacturer mappings survive durable checkpoints and do not permit uncollected URLs', async () => {
+  const url = 'https://dtc-aus-api.hisense.com/medias/spec.pdf';
+  const mapping = { brand: 'HISENSE', model: 'HAWH9KR', indoor: 'HAWH9KR-I', outdoor: 'HAWH9KR-O', sourceUrl: url };
+  const registered = { ...row, Brand: 'HISENSE', Model_No: 'HAWH9KR', 'Registration Number': 'AAC9478' };
+  const tool = response([{ type: 'web_search_call', action: { sources: [{ url }] } },
+    { type: 'function_call', name: 'verify_manufacturer_pair', call_id: 'manufacturer_1', arguments: JSON.stringify(mapping) }]);
+  const p = provider([tool, call(), final({ ...finding(registered), sourceUrls: [source, url] })]);
+  const store = new AsyncStore();
+  const job = await store.enqueue({ ...request, brand: 'Hisense', model: 'HAWH9KR-O/HAWH9KR-I' });
+  let checks = 0;
+  const agent = new ResearchAgent({ store, provider: p, config,
+    registry: { search: async () => ({ sourceUrl: source, truncated: false, records: [registered] }) },
+    manufacturer: { verify: async input => { checks++; assert.deepEqual(input, mapping); return { ...mapping, page: 22 }; } } });
+  let result = await agent.run(job.id);
+  assert.equal(result.checkpoint.mappings[0].page, 22);
+  while (result.state === 'queued') result = await agent.run(job.id);
+  assert.equal(result.state, 'pending_verification'); assert.equal(checks, 1);
+  assert.equal(result.result.manufacturerMapping.sourceUrl, url);
+  assert.equal(result.result.canonical.model, 'HAWH9KR');
+  const blocked = await setup(provider([response(tool.output.slice(1)), final()]));
+  blocked.agent.manufacturer = { verify: async () => assert.fail('Uncollected URL fetched') };
+  const pending = await blocked.agent.run(blocked.job.id);
+  assert.match(pending.checkpoint.input.at(-1).output, /not collected/);
 });
 test('research input excludes IDs/contact details and scrubs replies', () => {
   const input = researchInput({ ...request, requester_email: 'private@example.com', notes: 'Ask private@example.com or 0424 230 307', messages: ['Call 0424 230 307'] });

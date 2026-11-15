@@ -105,6 +105,11 @@ try {
   assert.equal(inferred.product.model, record.Model_No);
   assert.equal(inferred.evidence.matchedComponent, "IN-7");
   assert.equal((await verify({ model: "OUT-7" })).kind, "verified");
+  const registeredSystem = { ...record, Model_No: "SYSTEM-7" };
+  assert.equal((await verify({ model: "SYSTEM-7" }, [registeredSystem])).kind, "verified");
+  assert.equal((await verify({ model: "SYSTEM-7-I/SYSTEM-7-O" }, [registeredSystem])).kind, "clarify",
+    "Component suffixes must not be inferred by the registry verifier");
+  assert.equal((await verify({ model: "SYSTEM-7" }, [registeredSystem, { ...registeredSystem, _id: 10 }])).kind, "review");
   const alternate = { ...record, Model_No: "OUT-8 / IN-7" };
   const ambiguous = await verify({ model: "IN-7" }, [record, alternate], {}, async () => assert.fail("Ambiguous pair must not calculate"));
   assert.equal(ambiguous.kind, "clarify");

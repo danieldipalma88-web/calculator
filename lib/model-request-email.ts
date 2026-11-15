@@ -72,6 +72,7 @@ export type ModelRequestContactMail = {
 export async function sendModelRequestContact(mail: ModelRequestContactMail) {
   const payload = mail.payload;
   const label = (key: string) => String(payload[key] ?? "").trim();
+  const registryUnverified = mail.kind === "escalation" && payload.registry_unverified === true;
   const lines = (key: string) => Array.isArray(payload[key]) ? (payload[key] as unknown[]).filter((x): x is string => typeof x === "string") : [];
   const product = [label("brand"), label("model")].filter(Boolean).join(" ");
   const admin = mail.kind === "weekly" || mail.kind === "escalation";
@@ -81,6 +82,7 @@ export async function sendModelRequestContact(mail: ModelRequestContactMail) {
     : `https://calculator.rebateportal.com.au/model-requests/${mail.request_id}`;
   const action = mail.kind === "no_rebate" ? "Browse other models" : admin ? "Open model requests" : "Update your request";
   const subject = mail.kind === "weekly" ? "Rebate Portal: Weekly model request summary"
+    : registryUnverified ? "Rebate Portal: Registry model could not be verified"
     : mail.kind === "escalation" ? "Rebate Portal: A model requester needs help"
     : mail.kind === "no_rebate" ? "Rebate Portal: Your model request has been checked"
     : mail.kind === "reminder" ? "Rebate Portal: Reminder about your model request"
@@ -101,6 +103,12 @@ export async function sendModelRequestContact(mail: ModelRequestContactMail) {
     ...(payload.research_paused !== undefined ? [`Research paused for budget or review: ${label("research_paused")}`] : []),
     `Waiting for details: ${label("waiting")} | Needs attention: ${label("review")}`,
     ...lines("models"),
+  ] : registryUnverified ? [
+    product, [label("requester"), label("business")].filter(Boolean).join(" / "),
+    `Submitted: ${label("submitted")}`,
+    "Research finished without a verifiable matching registry model. No automatic addition was made.",
+    ...(label("reason") ? [label("reason")] : []),
+    `Request reference: ${mail.request_id}`,
   ] : mail.kind === "escalation" ? [
     product, [label("requester"), label("business")].filter(Boolean).join(" / "),
     `Submitted: ${label("submitted")}`, `Last question: ${label("question")}`,

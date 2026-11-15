@@ -1,4 +1,5 @@
-import { requestDetails } from "./registry.mjs";
+import { originalMatches, requestDetails } from "./registry.mjs";
+import { ManufacturerEvidence, mappingMatches } from "./manufacturer.mjs";
 import { verifyRequestedModel, type ModelRequestVerificationInput, type ModelRequestVerificationResult } from "../model-request-verification";
 import { mergedPublicCatalogue, modelIdentity, readAddedModels } from "../model-catalogue";
 
@@ -14,6 +15,7 @@ export type ResearchJob = {
     question?: string | null;
     canonical?: { brand: string; model: string; systemType: "split" | "ducted"; capacityKw: number; phase: "Single" | "Three"; registrationNumber: string };
     sourceUrls?: string[];
+    manufacturerMapping?: { brand: string; model: string; indoor: string; outdoor: string; sourceUrl: string };
   } | null;
 };
 
@@ -22,6 +24,7 @@ export async function verifyResearchJob(
   getCurrentRequest: (id: string) => Promise<unknown>,
   verify = verifyRequestedModel,
   readCatalogue = async () => mergedPublicCatalogue(await readAddedModels()),
+  manufacturer = new ManufacturerEvidence(),
 ) {
   const isCurrent = async () => {
     const current = await getCurrentRequest(job.external_id);
@@ -33,11 +36,36 @@ export async function verifyResearchJob(
     return { kind: "needs_details", question: job.result.question, evidence };
   }
   if (job.state !== "pending_verification" || job.result?.outcome !== "candidate" || !job.result.canonical) {
-    return { kind: "review", reason: job.result?.summary || "Research needs administrator review", evidence };
+    if (job.state === "review" && job.result?.outcome === "review") {
+      let checked: ModelRequestVerificationResult;
+      try { checked = await verify(requestDetails(job.request) as unknown as ModelRequestVerificationInput); }
+      catch { return { kind: "retry_verification", reason: "Registry could not be reached to confirm the research outcome." }; }
+      if (!await isCurrent()) return { kind: "superseded", reason: "Request details changed during review verification" };
+      evidence.verification = { ...checked.evidence, kind: checked.kind };
+      const hasRegistry = Boolean(checked.evidence?.registry);
+      if (checked.kind === "clarify" && hasRegistry) return { kind: "needs_details", question: checked.reason, evidence };
+      return { kind: "review", reason: checked.kind === "review" || checked.kind === "clarify" ? checked.reason : job.result.summary,
+        evidence, registry_match_unverified: checked.kind === "clarify" && !hasRegistry && checked.candidates.length === 0 };
+    }
+    return { kind: "review", reason: job.result?.summary || "Research could not complete", evidence,
+      registry_match_unverified: false };
   }
   const candidate = job.result.canonical;
   const original = requestDetails(job.request) as unknown as ModelRequestVerificationInput;
   if (candidate.systemType !== original.system_type) return { kind: "review", reason: "Researched system type conflicts with the request", evidence };
+  if (!originalMatches(original.model, candidate.model)) {
+    const mapping = job.result.manufacturerMapping;
+    if (!mappingMatches(mapping, original.model, candidate) || !job.result.sourceUrls?.includes(mapping!.sourceUrl)) {
+      return { kind: "review", reason: "No verified manufacturer mapping connects the requested equipment to this registration", evidence, registry_match_unverified: true };
+    }
+    try { evidence.manufacturerMapping = await manufacturer.verify(mapping); }
+    catch (error) {
+      if ((error as { code?: string })?.code === "MODEL_MAPPING_NOT_VERIFIED") return {
+        kind: "review", reason: "The current manufacturer document no longer confirms the registry mapping", evidence, registry_match_unverified: true,
+      };
+      return { kind: "retry_verification", reason: "Manufacturer identity evidence could not be rechecked. Retrying without changing the catalogue." };
+    }
+  }
   const corrected = {
     ...original, brand: candidate.brand, model: candidate.model,
     capacity: String(candidate.capacityKw), phase: candidate.phase.toLowerCase(),
@@ -47,11 +75,17 @@ export async function verifyResearchJob(
   catch { return { kind: "retry_verification", reason: "Registry or certificate service unavailable. This is not a no-rebate result." }; }
   if (!await isCurrent()) return { kind: "superseded", reason: "Request details changed during verification" };
   evidence.verification = { ...verification.evidence, kind: verification.kind };
-  if (verification.kind === "clarify") return { kind: "needs_details", question: verification.reason, evidence };
-  if (verification.kind === "review") return { kind: "review", reason: verification.reason, evidence };
+  if (verification.kind === "clarify") {
+    if (!verification.evidence?.registry && verification.candidates.length === 0) return {
+      kind: "review", reason: "The researched model no longer has an exact active Australian registry match", evidence, registry_match_unverified: true,
+    };
+    return { kind: "needs_details", question: verification.reason, evidence };
+  }
+  if (verification.kind === "review") return { kind: "review", reason: verification.reason, evidence,
+    registry_match_unverified: /registrations match|does not confirm a complete|Requested system type|phase is missing|capacity conflicts/.test(verification.reason) };
   const registry = verification.evidence.registry as { registrationNumber?: unknown; brand?: unknown; model?: unknown } | undefined;
   if (registry?.registrationNumber !== candidate.registrationNumber || registry.brand !== candidate.brand || registry.model !== candidate.model) {
-    return { kind: "review", reason: "The current registration differs from the researched registration. Reconciliation is required.", evidence };
+    return { kind: "review", reason: "The current registration differs from the researched registration. Reconciliation is required.", evidence, registry_match_unverified: true };
   }
   if (verification.kind === "no_rebate") return {
     kind: "no_rebate", product: verification.product, evidence,
