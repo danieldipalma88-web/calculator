@@ -114,6 +114,14 @@ class AsyncStore {
       job.state = state; job.result = structuredClone(value); job.lease = null;
     });
   }
+  async retryResearch(id, lease, reason) {
+    await this.yield(id, lease);
+    this.jobs.get(id).retryReason = reason;
+  }
+  async pauseProvider(id, lease, reason) {
+    this.providerPaused = true;
+    await this.finish(id, lease, 'review', { summary: reason, researchPaused: true });
+  }
   async event(id, kind, detail) { return await this.op('event', () => { this.jobs.get(id).events.push({ kind, detail }); }); }
   async related(identity, excludeId) {
     return await this.op('related', () => [...this.jobs.values()].filter(job => job.id !== excludeId && job.result?.identity === identity).map(job => job.id));
@@ -225,12 +233,25 @@ test('constructor-injected budget cannot bypass ceiling or FX review', async () 
 test('uncertain API outage holds reservation and never retries paid calls', async () => {
   const { store, agent, job, p, result } = await investigate(provider([new ProviderError('Uncertain API response')]));
   assert.equal(result.state, 'review'); assert.ok((await store.budget()).reserved > 0);
+  assert.equal(store.providerPaused, true); assert.equal(result.result.researchPaused, true);
   assert.equal((await agent.run(job.id)).state, 'review'); assert.equal(p.count, 1);
 });
 
-test('definitive rejection releases reservation without automatic retry', async () => {
-  const { store, p, result } = await investigate(provider([new ProviderError('Rejected 429', true)]));
+test('invalid provider credentials release reservation and pause the provider', async () => {
+  const { store, p, result } = await investigate(provider([new ProviderError('Rejected 401', true)]));
   assert.equal(result.state, 'review'); assert.equal((await store.budget()).reserved, 0); assert.equal(p.count, 1);
+  assert.equal(store.providerPaused, true); assert.equal(result.result.researchPaused, true);
+});
+
+test('confirmed unbilled rate limit queues a delayed retry, not terminal review', async () => {
+  const { store, p, agent, job } = await setup(provider([new ProviderError('Rejected 429', true, true), call(), final()]));
+  const result = await agent.run(job.id);
+  assert.equal(result.state, 'queued'); assert.equal(result.retryReason, 'Rejected 429');
+  assert.equal(p.count, 1); assert.equal((await store.budget()).reserved, 0);
+  assert.equal(store.providerPaused, undefined);
+  assert.equal((await agent.run(job.id)).state, 'queued');
+  assert.equal((await agent.run(job.id)).state, 'pending_verification');
+  assert.equal(p.count, 3);
 });
 
 test('missing/over-bound usage, extra searches, missing ID and unexpected billed models keep full reservation', async () => {
@@ -445,7 +466,7 @@ test('outgoing provider request keeps model, domains, timeouts and strict read-o
 test('transport/server/unreadable provider responses are uncertain; definitive rejections release only known failures', async () => {
   for (const status of [400, 401, 403, 404, 422, 429, 500, 502]) {
     await assert.rejects(() => new OpenAIProvider('fake', async () => new Response('', { status })).respond([]),
-      error => error.definitive === (status < 500));
+      error => error.definitive === (status < 500) && error.retryable === (status === 429));
   }
   await assert.rejects(() => new OpenAIProvider('fake', async () => { throw new Error('network'); }).respond([]), error => !error.definitive);
   await assert.rejects(() => new OpenAIProvider('fake', async () => new Response('{')).respond([]), error => !error.definitive);

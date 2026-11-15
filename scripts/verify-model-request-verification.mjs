@@ -77,6 +77,12 @@ try {
   assert.deepEqual(verified.evidence.certificates, { esc: 2.34, prc: 4.56, lookupSource: certificates.lookupSource, calculationSource: certificates.calculationSource });
   assert.equal(verified.evidence.registry.registrationNumber, "AAC99999");
   assert.equal(verified.evidence.sourceUrl, "https://data.gov.au/data/api/3/action/datastore_search_sql");
+  assert.equal((await verify({ model: "UNKNOWN" }, [])).evidence.registryLookup, "no_active_match");
+  const unsearched = await verifyRequestedModel({ ...request, model: "IN&OUT" }, {
+    fetchRecords: async () => assert.fail("Invalid input must not pretend to search the registry"),
+  });
+  assert.equal(unsearched.kind, "clarify");
+  assert.equal(unsearched.evidence?.registryLookup, undefined);
   assert.equal(new Date(verified.evidence.verifiedAt).toISOString(), verified.evidence.verifiedAt);
   assert.equal((await verify({ system_type: "ducted", phase: "unknown", capacity: "", install_type: "new" },
     [{ ...record, Configuration1: "Ducted", Phase: "Three-phase" }], { esc: 0 })).product.phase, "Three");

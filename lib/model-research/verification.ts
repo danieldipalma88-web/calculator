@@ -43,9 +43,10 @@ export async function verifyResearchJob(
       if (!await isCurrent()) return { kind: "superseded", reason: "Request details changed during review verification" };
       evidence.verification = { ...checked.evidence, kind: checked.kind };
       const hasRegistry = Boolean(checked.evidence?.registry);
+      if (checked.kind === "verified" || checked.kind === "no_rebate") return verifiedOutcome(checked, evidence, readCatalogue);
       if (checked.kind === "clarify" && hasRegistry) return { kind: "needs_details", question: checked.reason, evidence };
       return { kind: "review", reason: checked.kind === "review" || checked.kind === "clarify" ? checked.reason : job.result.summary,
-        evidence, registry_match_unverified: checked.kind === "clarify" && !hasRegistry && checked.candidates.length === 0 };
+        evidence, registry_match_unverified: checked.evidence?.registryLookup === "no_active_match" };
     }
     return { kind: "review", reason: job.result?.summary || "Research could not complete", evidence,
       registry_match_unverified: false };
@@ -76,7 +77,7 @@ export async function verifyResearchJob(
   if (!await isCurrent()) return { kind: "superseded", reason: "Request details changed during verification" };
   evidence.verification = { ...verification.evidence, kind: verification.kind };
   if (verification.kind === "clarify") {
-    if (!verification.evidence?.registry && verification.candidates.length === 0) return {
+    if (verification.evidence?.registryLookup === "no_active_match") return {
       kind: "review", reason: "The researched model no longer has an exact active Australian registry match", evidence, registry_match_unverified: true,
     };
     return { kind: "needs_details", question: verification.reason, evidence };
@@ -87,6 +88,14 @@ export async function verifyResearchJob(
   if (registry?.registrationNumber !== candidate.registrationNumber || registry.brand !== candidate.brand || registry.model !== candidate.model) {
     return { kind: "review", reason: "The current registration differs from the researched registration. Reconciliation is required.", evidence, registry_match_unverified: true };
   }
+  return verifiedOutcome(verification, evidence, readCatalogue);
+}
+
+async function verifiedOutcome(
+  verification: Extract<ModelRequestVerificationResult, { kind: "verified" | "no_rebate" }>,
+  evidence: Record<string, unknown>,
+  readCatalogue: () => Promise<ReturnType<typeof mergedPublicCatalogue>>,
+) {
   if (verification.kind === "no_rebate") return {
     kind: "no_rebate", product: verification.product, evidence,
     identity: modelIdentity(verification.product.brand, verification.product.model),

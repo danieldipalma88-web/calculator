@@ -32,6 +32,7 @@ export async function processModelResearch({ requestId, researchJobId }: { reque
   if (!job || job.applied_at || ["complete", "no_rebate", "superseded"].includes(job.state)) {
     return { processed: false, requestId: job?.external_id, state: job?.state };
   }
+  if (job.result?.researchPaused) return { processed: false, requestId: job.external_id, state: job.state };
   const externalId = job.external_id;
   if (job.state === "queued" || job.state === "researching") {
     const checkpointRound = Number(job.checkpoint?.round || 0);
@@ -41,6 +42,7 @@ export async function processModelResearch({ requestId, researchJobId }: { reque
       maxDurationMs: 180_000 });
     job = await agent.run(job.id);
     if (!job) return { processed: false, requestId: externalId };
+    if (job.result?.researchPaused) return { processed: true, requestId: externalId, state: job.state };
     if (["queued", "pending_verification", "waiting_for_details", "review", "budget_paused"].includes(job.state) && !job.applied_at) {
       if (job.state === "queued" && Number(job.checkpoint?.round || 0) <= checkpointRound
         && !(recoveringTools && job.checkpoint?.pendingTools === false)) {

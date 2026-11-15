@@ -73,6 +73,8 @@ export class PostgresResearchStore {
     reservedMicros: number; limitMicros: number; pricingReviewBy: string;
   }> { return this.rpc("budget"); }
   async yield(id: string, lease: string): Promise<void> { await this.rpc("yield", id, lease); }
+  async retryResearch(id: string, lease: string, reason: string): Promise<void> { await this.rpc("retry_research", id, lease, { reason }); }
+  async pauseProvider(id: string, lease: string, reason: string): Promise<void> { await this.rpc("pause_provider", id, lease, { reason }); }
   apply(jobId: string, outcome: unknown) { return this.rpc("apply_result", jobId, null, { outcome }); }
   confirmationClaim(externalId?: string) { return this.rpc("confirmation_claim", externalId); }
 }

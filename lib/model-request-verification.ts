@@ -166,6 +166,7 @@ export async function verifyRequestedModel(
     const pairs = new Map(matches.map(record => [pairKey(text(record.Model_No)) || text(record.Model_No).toUpperCase(), text(record.Model_No)]));
     if (!matches.length) return {
       kind: "clarify", reason: "We couldn't verify that code in the Australian register. Please check both model numbers on the equipment labels." + installationQuestion, candidates: [],
+      evidence: { sourceUrl: GEMS_SOURCE_URL, registryLookup: "no_active_match" },
     };
     if (!requestedPair && pairs.size > 1) return {
       kind: "clarify", reason: "More than one registered model pair contains that code. Please choose the exact pair on your equipment." + installationQuestion,
