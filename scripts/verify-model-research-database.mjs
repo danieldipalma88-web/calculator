@@ -52,7 +52,7 @@ async function submit(details = {}) {
     r = await one(`insert into public.calculator_model_requests(id,user_id,client_request_id,requester_email,business_id,system_type,brand,model,capacity,phase,notes,postcode,install_type)
       values(coalesce($12::uuid,gen_random_uuid()),$1,$2,'user@example.invalid',$3,$4,$5,$6,$7,$8,$9,$10,$11) returning *`,
     [user, randomUUID(), details.business_id || business, details.system_type || 'split', details.brand || 'Fixture', details.model || 'OUT / IN',
-      details.capacity || '3.5', details.phase || '', details.notes || '', details.postcode || '2145', details.install_type || 'new', details.id || null]);
+      details.capacity || '3.5', details.phase || '', details.notes || '', details.postcode ?? '2145', details.install_type ?? 'new', details.id || null]);
     if (details.id) await db.exec('alter table calculator_model_requests enable trigger validate_new_model_request; commit');
   } catch (error) { if (details.id) await db.exec('rollback'); throw error; }
   // Keep test fixtures out of the production submission quota, under owner only.
@@ -572,6 +572,7 @@ try {
   assert.equal(await contact('claim', older.id), null);
   assert.equal(await rpc('enqueue', older.id), null);
   assert.equal(await rpc('claim'), null);
+  assert.equal((await rpc('budget')).researchProviderBlocked, false);
   await assert.rejects(() => rpc('reserve', randomUUID(), randomUUID(), { micros: reservation, limit: 20000000 }), /workflow paused/);
   await assert.rejects(() => q('update model_automation_private.settings set autonomous_workflow_enabled=true'), /permission denied/);
   await owner('update model_automation_private.settings set autonomous_workflow_enabled=true where singleton');
@@ -694,6 +695,60 @@ try {
   assert.equal((await owner("select count(*)::int as n from model_automation_private.mail_outbox where kind='weekly' and state in ('pending','sending')")).rows[0].n, 0);
   pass('only a completed explicit unmatched registry investigation queues a once-only admin notice; no digest is generated');
 
+  const reviewFinding = { outcome: 'review', summary: 'Investigation did not produce a candidate' };
+  const reviewRegistry = { brand: 'FIXTURE', model: 'REVIEW-OUT / REVIEW-IN', registrationNumber: 'REVIEW-FIXTURE-REG' };
+  const reviewDetails = { model: 'REVIEW-IN / REVIEW-OUT', postcode: '', install_type: '' };
+  const installation = await saved('review', reviewFinding, reviewDetails);
+  const clarifyReview = { outcome: { kind: 'needs_details', question: 'Confirm installation details', evidence: {
+    verification: { kind: 'clarify', registry: reviewRegistry },
+  } } };
+  await assert.rejects(() => rpc('apply_result', installation.job.id, null, { outcome: { kind: 'needs_details' } }), /original exact registry/);
+  assert.equal((await rpc('apply_result', installation.job.id, null, clarifyReview)).state, 'review');
+  assert.equal((await rpc('apply_result', installation.job.id, null, clarifyReview)).already_applied, true);
+  const installationQuestion = await contact('claim', installation.request.id);
+  assert.equal(installationQuestion.kind, 'question');
+  assert.equal(installationQuestion.research_job_id, installation.job.id);
+  assert.equal(await contact('claim', installation.request.id), null);
+  assert.deepEqual((await outbox(installation.request.id)).map(m => m.kind), ['question']);
+
+  const exactReview = (kind, registry = reviewRegistry) => ({ outcome: { ...outcome(kind),
+    product: { ...product, model: registry.model }, identity: 'FIXTURE|REVIEW-IN/REVIEW-OUT', evidence: { verification: {
+      ...outcome(kind).evidence.verification, registry, postcode: '2145', installType: 'new',
+    } },
+  } });
+  const componentOnly = await saved('review', reviewFinding, { model: 'REVIEW-OUT', postcode: '', install_type: '' });
+  await assert.rejects(() => rpc('apply_result', componentOnly.job.id, null, clarifyReview), /original exact registry/);
+  await assert.rejects(() => rpc('apply_result', componentOnly.job.id, null, exactReview('ready_to_add')), /original exact registry/);
+  await assert.rejects(() => rpc('apply_result', componentOnly.job.id, null, exactReview('no_rebate')), /original exact registry/);
+  assert.deepEqual(await outbox(componentOnly.request.id), []);
+  await as();
+  const direct = await saved('review', reviewFinding, { model: reviewDetails.model });
+  await assert.rejects(() => rpc('apply_result', direct.job.id, null, clarifyReview), /not missing installation/);
+  await assert.rejects(() => rpc('apply_result', direct.job.id, null, exactReview('ready_to_add', { ...reviewRegistry, model: 'REVIEW-OUT-X / REVIEW-IN' })), /original exact registry/);
+  const wrongInstallation = exactReview('ready_to_add');
+  wrongInstallation.outcome.evidence.verification.installType = 'replacement';
+  await assert.rejects(() => rpc('apply_result', direct.job.id, null, wrongInstallation), /matching installation/);
+  const falseRebate = exactReview('ready_to_add');
+  falseRebate.outcome.evidence.verification.certificates = { esc: 0, prc: 0 };
+  await assert.rejects(() => rpc('apply_result', direct.job.id, null, falseRebate), /Positive deterministic certificates/);
+  assert.equal((await rpc('get', direct.job.id)).state, 'review');
+  assert.equal((await rpc('apply_result', direct.job.id, null, exactReview('ready_to_add'))).state, 'added');
+  assert.deepEqual((await rpc('get', direct.job.id)).result, reviewFinding);
+  const directZero = await saved('review', reviewFinding, { model: 'REVIEW-OUT / REVIEW-IN' });
+  assert.equal((await rpc('apply_result', directZero.job.id, null, exactReview('no_rebate'))).state, 'no_rebate');
+  assert.equal((await contact('claim', directZero.request.id)).kind, 'no_rebate');
+  const singlePackage = { brand: 'FIXTURE', model: 'REVIEW-PACKAGE', registrationNumber: 'REVIEW-PACKAGE-REG' };
+  const packaged = await saved('review', reviewFinding, { model: 'review-package' });
+  const packagedProof = exactReview('no_rebate', singlePackage);
+  packagedProof.outcome.identity = 'FIXTURE|REVIEW-PACKAGE';
+  assert.equal((await rpc('apply_result', packaged.job.id, null, packagedProof)).state, 'no_rebate');
+  const staleReview = await saved('review', reviewFinding, { model: 'REVIEW-OUT', notes: 'Will change' });
+  await owner("update calculator_model_requests set model='REVIEW-OUT-X' where id=$1", [staleReview.request.id]);
+  await as();
+  assert.equal((await rpc('apply_result', staleReview.job.id, null, exactReview('ready_to_add'))).state, 'superseded');
+  assert.deepEqual(await outbox(staleReview.request.id), []);
+  pass('review recovery requires an exact full pair or package, not one component, and preserves the installation, eligibility and snapshot fences');
+
   const hisenseDetails = { brand: 'Hisense', model: 'HAWH9KR-O/ HAWH9KR-I', capacity: '2.5kw', postcode: '2148' };
   const hisenseProduct = { ...product, brand: 'Hisense', model: 'HAWH9KR', capacityKw: 2.5, series: 'X5' };
   const hisenseRegistration = { brand: 'HISENSE', model: 'HAWH9KR', registrationNumber: 'AAC9478' };
@@ -740,19 +795,71 @@ try {
   assert.equal((await rpc('apply_result', replacementOriginal.id, null, replacement)).state, 'added');
   assert.equal(await rpc('confirmation_claim', replacementOriginal.external_id), null);
   assert.equal(await rpc('confirmation_claim', replacementDuplicate.external_id), null);
-  await legacyMail('email_sent', replacementDuplicate.external_id, earlyConfirmation.job.lease_token, { id: 'fixture-started-before-link' });
+  await marks(replacementDuplicate.external_id, "lease_until=now()-interval '1 second'");
+  await as();
+  const retriedConfirmation = await rpc('confirmation_claim', replacementDuplicate.external_id);
+  assert.equal(retriedConfirmation.request.id, earlyConfirmation.request.id, 'same request UUID gives the same provider key');
+  assert.notEqual(retriedConfirmation.job.lease_token, earlyConfirmation.job.lease_token);
+  assert.equal(await rpc('confirmation_claim', replacementOriginal.external_id), null);
+  await assert.rejects(() => legacyMail('email_sent', replacementDuplicate.external_id, earlyConfirmation.job.lease_token, { id: 'stale' }), /lease expired/i);
+  const restarted = await legacyMail('email_start', replacementDuplicate.external_id, retriedConfirmation.job.lease_token);
+  assert.equal(restarted.email_started_at, retriedConfirmation.job.email_started_at);
+  await legacyMail('email_sent', replacementDuplicate.external_id, retriedConfirmation.job.lease_token, { id: 'fixture-started-before-link' });
   assert.equal((await rpc('get', replacementOriginal.id)).completion_suppressed, true);
-  await owner('select 1');
+  await owner('begin read only');
   for (const [primary, secondary] of [[hisenseOriginal, hisenseDuplicate], [replacementOriginal, replacementDuplicate]]) {
     assert.equal((await one('select canonical_id from model_automation_private.research_case_links where duplicate_id=$1',
       [secondary.external_id])).canonical_id, primary.external_id);
   }
-  pass('Hisense AAC9478 different notes/replies link only after exact verified identity; new and replacement remain separate and each gets at most one completion');
+  const deliveryStates = (await q('select email_state,email_id from calculator_model_request_jobs where request_id=any($1::uuid[]) order by email_state',
+    [[replacementOriginal.external_id, replacementDuplicate.external_id]])).rows;
+  assert.deepEqual(deliveryStates, [{ email_state: 'pending', email_id: null }, { email_state: 'sent', email_id: 'fixture-started-before-link' }]);
+  await q('commit');
+  pass('Hisense AAC9478 remains distinct by installation; a linked newer confirmation times out and retries under its original request UUID');
 
   await as();
+  const zeroModel = { ...canonical, model: 'ZERO-RACE-OUT / ZERO-RACE-IN', registrationNumber: 'ZERO-RACE-REG' };
+  const zeroProof = { outcome: { ...outcome(), product: { ...product, model: zeroModel.model }, identity: 'FIXTURE|ZERO-RACE-IN/ZERO-RACE-OUT' } };
+  zeroProof.outcome.evidence.verification.registry = zeroModel;
+  const zeroOld = await saved('pending_verification', { outcome: 'candidate', canonical: zeroModel }, { model: zeroModel.model, notes: 'Old' });
+  const zeroNew = await saved('pending_verification', { outcome: 'candidate', canonical: zeroModel }, { model: zeroModel.model, notes: 'New' });
+  await owner("update calculator_model_requests set created_at=now()-interval '2 days' where id=$1", [zeroOld.request.id]);
+  await as();
+  await rpc('apply_result', zeroNew.job.id, null, zeroProof);
+  const firstZero = await contact('claim', zeroNew.request.id);
+  await rpc('apply_result', zeroOld.job.id, null, zeroProof);
+  assert.equal(await contact('claim', zeroNew.request.id), null);
+  assert.equal(await contact('claim', zeroOld.request.id), null);
+  await owner("update model_automation_private.mail_outbox set lease_until=now()-interval '1 second' where mail_key=$1", [firstZero.mail_key]);
+  await as();
+  const retriedZero = await contact('claim', zeroNew.request.id);
+  assert.equal(retriedZero.mail_key, firstZero.mail_key);
+  assert.deepEqual(retriedZero.payload, firstZero.payload);
+  assert.equal(retriedZero.started_at, firstZero.started_at);
+  assert.equal(retriedZero.attempts, 2);
+  await contact('sent', zeroNew.request.id, retriedZero.lease, { key: retriedZero.mail_key, provider_id: 'fixture-zero-retry' });
+  assert.deepEqual((await outbox(zeroOld.request.id)).map(m => m.state), ['cancelled']);
+  assert.deepEqual((await outbox(zeroNew.request.id)).map(m => m.state), ['sent']);
+  pass('linked no-rebate retry preserves the exact outbox key, recipient and payload and never reopens the older row');
+
+  await as();
+  const noCheckpoint = await queued({ model: 'WORKFLOW-NO-CHECKPOINT-OUTAGE' });
+  const freshLease = await rpc('claim', noCheckpoint.job.id);
+  const freshDeferral = await rpc('retry_research', noCheckpoint.job.id, freshLease.lease, { reason: 'Temporary upstream failure before reservation' });
+  assert.equal(freshDeferral.state, 'queued');
+  assert.equal((await rpc('get', noCheckpoint.job.id)).checkpoint, null);
+  assert.equal(await rpc('claim', noCheckpoint.job.id), null);
+
   const providerOutage = await queued({ model: 'WORKFLOW-PROVIDER-OUTAGE' });
   const providerLease = await rpc('claim', providerOutage.job.id);
   await rpc('checkpoint', providerOutage.job.id, providerLease.lease, cp(0));
+  const reserveData = { micros: reservation, limit: 20000000 };
+  const beforeProviderBudget = await rpc('budget');
+  const rejectedCost = await rpc('reserve', providerOutage.job.id, providerLease.lease, reserveData);
+  await assert.rejects(() => rpc('retry_research', providerOutage.job.id, providerLease.lease), /reconciliation/);
+  await assert.rejects(() => rpc('pause_provider', providerOutage.job.id, providerLease.lease), /reconciliation/);
+  await rpc('rejected', rejectedCost);
+  assert.deepEqual(await rpc('budget'), beforeProviderBudget);
   await assert.rejects(() => rpc('retry_research', providerOutage.job.id, randomUUID(), { reason: 'Temporary provider failure' }), /lease/);
   const providerRetry = await rpc('retry_research', providerOutage.job.id, providerLease.lease, { reason: 'Temporary provider failure' });
   assert.equal(providerRetry.state, 'queued');
@@ -761,7 +868,61 @@ try {
   assert.equal(await rpc('claim', providerOutage.job.id), null);
   assert.equal(await rpc('enqueue', providerOutage.request.id), null);
   assert.deepEqual(await outbox(providerOutage.request.id), []);
-  pass('transient investigation deferral keeps the accounted checkpoint, checks leases and delays automatic pickup');
+  for (const minutes of [10, 20, 40, 80, 160, 240, 240]) {
+    await owner("update model_automation_private.research_jobs set next_attempt_at=now()-interval '1 second' where id=$1", [providerOutage.job.id]);
+    await as();
+    const retryLease = await rpc('claim', providerOutage.job.id);
+    const retry = await rpc('retry_research', providerOutage.job.id, retryLease.lease);
+    assert.equal(Date.parse(retry.next_attempt_at) - Date.parse('2026-11-09T03:00:00Z'), minutes * 60_000);
+  }
+  pass('transient research backs off from an active lease with no checkpoint or a rejected cost and keeps the delay at or below four hours');
+
+  await as();
+  const badConfig = await queued({ model: 'WORKFLOW-PROVIDER-CREDENTIALS' });
+  const configLease = await rpc('claim', badConfig.job.id);
+  const unrelated = await queued({ model: 'WORKFLOW-OTHER-IN-FLIGHT' });
+  const unrelatedLease = await rpc('claim', unrelated.job.id);
+  await rpc('checkpoint', unrelated.job.id, unrelatedLease.lease, cp(0));
+  await assert.rejects(() => rpc('pause_provider', badConfig.job.id, randomUUID()), /lease/);
+  const parked = await rpc('pause_provider', badConfig.job.id, configLease.lease, { reason: 'Provider configuration missing' });
+  assert.equal(parked.state, 'queued');
+  assert.equal(parked.result.researchPaused, true);
+  assert.equal(parked.applied_at, null);
+  assert.equal((await rpc('budget')).researchProviderBlocked, true);
+  assert.equal(await rpc('enqueue', badConfig.request.id), null);
+  assert.equal(await rpc('claim', badConfig.job.id), null);
+  await assert.rejects(() => rpc('reserve', unrelated.job.id, unrelatedLease.lease, reserveData), /provider is paused/);
+  await rpc('yield', unrelated.job.id, unrelatedLease.lease);
+  assert.equal((await rpc('confirmation_claim', direct.request.id)).request.id, direct.request.id);
+  assert.deepEqual(await outbox(badConfig.request.id), []);
+  await owner('update model_automation_private.settings set research_provider_blocked=false where singleton');
+  await as();
+  assert.ok((await rpc('claim', badConfig.job.id)).lease);
+
+  const uncertainJob = await queued({ model: 'WORKFLOW-PROVIDER-UNCERTAIN' });
+  const uncertainLease = await rpc('claim', uncertainJob.job.id);
+  await rpc('checkpoint', uncertainJob.job.id, uncertainLease.lease, cp(0));
+  const uncertainCost = await rpc('reserve', uncertainJob.job.id, uncertainLease.lease, reserveData);
+  await rpc('uncertain', uncertainCost);
+  await assert.rejects(() => rpc('retry_research', uncertainJob.job.id, uncertainLease.lease), /reconciliation/);
+  const pausedUncertain = await rpc('pause_provider', uncertainJob.job.id, uncertainLease.lease, { reason: 'Unknown charge after upstream timeout' });
+  assert.equal(pausedUncertain.state, 'review');
+  assert.equal((await rpc('get', uncertainJob.job.id)).result.researchPaused, true);
+  assert.equal(pausedUncertain.applied_at, null);
+  assert.deepEqual(pausedUncertain.checkpoint, cp(0));
+  const heldBudget = await rpc('budget');
+  assert.equal(heldBudget.charged, beforeProviderBudget.charged);
+  assert.equal(heldBudget.reserved, beforeProviderBudget.reserved + reservation);
+  assert.equal(heldBudget.researchProviderBlocked, true);
+  await rpc('apply_result', uncertainJob.job.id, null, finalReview);
+  assert.equal((await rpc('get', uncertainJob.job.id)).applied_at, null);
+  assert.deepEqual(await outbox(uncertainJob.request.id), []);
+  await owner('update model_automation_private.settings set research_provider_blocked=false where singleton');
+  await as();
+  assert.equal(await rpc('enqueue', uncertainJob.request.id, null, { retry: true }), null);
+  assert.equal(await rpc('claim', uncertainJob.job.id), null);
+  assert.equal((await rpc('budget')).reserved, heldBudget.reserved);
+  pass('provider pause parks unbilled jobs, retains uncertain spend and blocks new reservations without stopping verified confirmations or sending alerts');
 
   console.log(`Isolated PostgreSQL research checks passed (${checks} groups). PGlite serializes queries; real transaction contention is covered separately by the native harness.`);
 } catch (error) {

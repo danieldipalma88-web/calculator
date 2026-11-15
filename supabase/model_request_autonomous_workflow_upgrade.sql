@@ -12,7 +12,8 @@ alter table model_automation_private.research_jobs
   add column if not exists workflow_retries integer not null default 0,
   add column if not exists completion_suppressed boolean not null default false;
 alter table model_automation_private.settings
-  add column if not exists autonomous_workflow_enabled boolean not null default false;
+  add column if not exists autonomous_workflow_enabled boolean not null default false,
+  add column if not exists research_provider_blocked boolean not null default false;
 
 create table if not exists model_automation_private.research_case_links (
   duplicate_id uuid primary key references public.calculator_model_requests(id) on delete cascade,
@@ -31,8 +32,8 @@ create index if not exists research_case_mail_idx
 alter table model_automation_private.research_case_links enable row level security;
 revoke all on model_automation_private.research_case_links from public,anon,authenticated;
 
--- Serialize short case/contact decisions, never network calls or provider
--- settlement. Case decisions lock request -> legacy job -> research/outbox.
+-- Serialize short case/contact and provider reservation/pause decisions, never
+-- network calls or settlement. Lock request -> legacy job -> research/outbox.
 create or replace function model_automation_private.workflow_lock() returns void
 language sql security invoker set search_path='' as $$
   select pg_advisory_xact_lock(546561296,804125116);
@@ -180,13 +181,37 @@ language sql stable security invoker set search_path='' as $$
     where j.external_id=p_id and j.completion_suppressed);
 $$;
 
+create or replace function model_automation_private.workflow_completion_allowed(p_id uuid,p_started timestamptz) returns boolean
+language sql stable security invoker set search_path='' as $$
+  select not model_automation_private.workflow_completion_suppressed(p_id)
+    and (p_started is not null or model_automation_private.workflow_canonical(p_id) is null);
+$$;
+
+-- Match the complete registered code or exact pair (including reversed order).
+-- One component alone cannot disambiguate a package from a registered pair.
+create or replace function model_automation_private.workflow_registry_matches(r public.calculator_model_requests,p_registry jsonb) returns boolean
+language sql immutable security invoker set search_path='' as $$
+  with codes as (
+    select array(select upper(btrim(code)) from unnest(string_to_array(r.model,'/')) code order by 1) as requested,
+      array(select upper(btrim(code)) from unnest(string_to_array(p_registry->>'model','/')) code order by 1) as registered
+  )
+  select coalesce(jsonb_typeof(p_registry->'registrationNumber')='string'
+    and nullif(btrim(p_registry->>'registrationNumber'),'') is not null
+    and upper(btrim(r.brand))=upper(btrim(p_registry->>'brand'))
+    and cardinality(registered) in (1,2)
+    and (cardinality(registered)=1 or registered[1]<>registered[2])
+    and not exists(select 1 from unnest(registered) code where code !~ '^[A-Z0-9][A-Z0-9 ._+()-]*$')
+    and requested=registered,false)
+  from codes;
+$$;
+
 -- Distinct note histories only merge after both current rounds independently
 -- verify the same exact registration, specs, installation and outcome.
 create or replace function model_automation_private.workflow_link_verified(p_id uuid) returns void
 language plpgsql security invoker set search_path='' as $$
 declare
   r public.calculator_model_requests%rowtype; j model_automation_private.research_jobs%rowtype;
-  v_canonical uuid; v_members uuid[]; v_started uuid[];
+  v_canonical uuid; v_members uuid[]; v_delivery uuid;
 begin
   select * into j from model_automation_private.research_jobs where id=p_id;
   if j.state not in ('complete','no_rebate') or j.applied_at is null
@@ -210,13 +235,20 @@ begin
       and q.applied_outcome#>'{product,capacityKw}'=j.applied_outcome#>'{product,capacityKw}';
   if coalesce(cardinality(v_members),0)<2 then return; end if;
   v_canonical:=v_members[1];
-  select array_agg(member.id) into v_started from unnest(v_members) member(id)
-    where exists(select 1 from public.calculator_model_request_jobs l where l.request_id=member.id and l.state='added'
-      and (l.email_started_at is not null or l.email_state='sent'))
-      or exists(select 1 from model_automation_private.mail_outbox m where m.request_id=member.id and m.kind='no_rebate'
-        and (m.started_at is not null or m.state='sent'));
-  -- If the newer case already started a delivery, keep that attempt under its
-  -- existing key. Never grant the older case a second send authorization.
+  select d.request_id into v_delivery from (
+    select l.request_id,l.email_started_at as started,l.email_state='sent' as sent
+      from public.calculator_model_request_jobs l
+      where j.state='complete' and l.request_id=any(v_members) and l.state='added'
+        and (l.email_started_at is not null or l.email_state='sent')
+    union all
+    select m.request_id,m.started_at,m.state='sent' from model_automation_private.mail_outbox m
+      join model_automation_private.research_requests h on h.request_id=m.request_id and h.version=m.research_version
+      where j.state='no_rebate' and m.request_id=any(v_members) and m.kind='no_rebate'
+        and (m.started_at is not null or m.state='sent')
+  ) d order by d.sent desc,d.started nulls last,array_position(v_members,d.request_id) limit 1;
+  v_delivery:=coalesce(v_delivery,v_canonical);
+  -- Keep canonical case ownership separate from an already-authorized delivery.
+  -- In particular, never move a retry onto a different provider key.
   insert into model_automation_private.research_case_links(duplicate_id,canonical_id,duplicate_details,duplicate_version)
     select c.id,v_canonical,model_automation_private.workflow_details(c),h.version
     from public.calculator_model_requests c join model_automation_private.research_requests h on h.request_id=c.id
@@ -224,10 +256,10 @@ begin
     on conflict(duplicate_id) do update set canonical_id=excluded.canonical_id,
       duplicate_details=excluded.duplicate_details,duplicate_version=excluded.duplicate_version
     where research_case_links.canonical_id is distinct from excluded.canonical_id;
-  update model_automation_private.research_jobs q set completion_suppressed=true
+  update model_automation_private.research_jobs q set completion_suppressed=(q.external_id<>v_delivery)
     from model_automation_private.research_requests h where q.external_id=h.request_id and q.round=h.version
-      and q.external_id=any(v_members) and q.state=j.state and not q.completion_suppressed
-      and (q.external_id<>v_canonical or (v_started is not null and not (v_canonical=any(v_started))));
+      and q.external_id=any(v_members) and q.state=j.state
+      and q.completion_suppressed is distinct from (q.external_id<>v_delivery);
   update model_automation_private.mail_outbox m set state=case when m.started_at is null then 'cancelled' else 'failed' end,
     lease=null,lease_until=null
     where m.request_id=any(v_members) and m.kind='no_rebate' and m.state in ('pending','sending')
@@ -253,18 +285,35 @@ language plpgsql security definer set search_path='' as $$
 declare
   r public.calculator_model_requests%rowtype; l public.calculator_model_request_jobs%rowtype;
   j model_automation_private.research_jobs%rowtype;
-  v_id uuid; v_version integer; v_snapshot jsonb; v jsonb; candidate record;
+  v_id uuid; v_version integer; v_snapshot jsonb; v_fingerprint text; v jsonb; candidate record;
+  v_blocked boolean; v_review_candidate boolean:=false; v_registry jsonb;
   v_outcome jsonb:=p_data->'outcome';
+  v_kind text:=v_outcome->>'kind';
 begin
   perform model_automation_private.workflow_authorized(p_secret);
   if p_data is null or jsonb_typeof(p_data)<>'object' then raise exception 'Invalid research data'; end if;
-  if p_action='reserve' and not model_automation_private.workflow_enabled() then raise exception 'Model workflow paused'; end if;
-  if p_action in ('enqueue','restore_prepaid','claim','apply_result','retry_research','confirmation_claim') then
+  if p_action in ('enqueue','restore_prepaid','claim','apply_result','retry_research','confirmation_claim','reserve','pause_provider') then
     perform model_automation_private.workflow_lock();
-    if not model_automation_private.workflow_enabled() then
+    if p_action<>'pause_provider' and not model_automation_private.workflow_enabled() then
+      if p_action='reserve' then raise exception 'Model workflow paused'; end if;
       if p_action in ('apply_result','retry_research') then return jsonb_build_object('state','paused'); end if;
       return null;
     end if;
+  end if;
+  select research_provider_blocked into v_blocked from model_automation_private.settings where singleton;
+  if p_action in ('enqueue','claim') and v_blocked then return null; end if;
+  if p_action='reserve' and v_blocked then raise exception 'Research provider is paused'; end if;
+  if p_action='budget' then
+    return model_automation_private.research_worker_before_workflow(p_secret,p_action,p_id,p_lease,p_data)
+      ||jsonb_build_object('researchProviderBlocked',v_blocked);
+  end if;
+  if p_action='get' and v_blocked then
+    v:=model_automation_private.research_worker_before_workflow(p_secret,p_action,p_id,p_lease,p_data);
+    if v->>'state' in ('queued','researching','review') and v->>'applied_at' is null then
+      v:=v||jsonb_build_object('result',coalesce(nullif(v->'result','null'::jsonb),'{}'::jsonb)
+        ||jsonb_build_object('researchPaused',true));
+    end if;
+    return v;
   end if;
   if p_action='enqueue' then
     -- Inspect at most a small batch under the case lock. Stalled legacy work
@@ -332,8 +381,7 @@ begin
     for candidate in select request_id from public.calculator_model_request_jobs where (p_id is null or request_id=p_id)
       and state='added' and email_state in ('pending','sending') and available_at<=now()
       and (lease_until is null or lease_until<=now())
-      and model_automation_private.workflow_canonical(request_id) is null
-      and not model_automation_private.workflow_completion_suppressed(request_id)
+      and model_automation_private.workflow_completion_allowed(request_id,email_started_at)
       order by available_at,request_id limit 16 loop
       v:=model_automation_private.research_worker_before_workflow(p_secret,p_action,candidate.request_id,p_lease,p_data);
       if v is not null then return v; end if;
@@ -354,7 +402,7 @@ begin
       if v is not null then return v; end if;
     end loop;
     return null;
-  elsif p_action in ('apply_result','retry_research') then
+  elsif p_action in ('apply_result','retry_research','pause_provider') then
     select external_id into v_id from model_automation_private.research_jobs where id=p_id;
     if not found then raise exception 'Unknown research job'; end if;
     select * into r from public.calculator_model_requests where id=v_id for update;
@@ -368,8 +416,30 @@ begin
     if j.applied_at is null and model_automation_private.workflow_live_mail(v_id) then
       return jsonb_build_object('state',j.state,'next_attempt_at',now()+interval '2 minutes');
     end if;
-    if p_action='retry_research' or v_outcome->>'kind'='retry_verification'
-      or (v_outcome->>'kind'='review' and v_outcome#>'{evidence,temporaryVerificationFailure}'='true'::jsonb) then
+    if p_action='pause_provider' then
+      if j.state<>'researching' or j.applied_at is not null or p_lease is null or j.lease is distinct from p_lease
+        or j.lease_until is null or j.lease_until<=now() or l.state is distinct from 'researching'
+        or not model_automation_private.can_contact_request(v_id) then
+        raise exception 'Research lease is no longer current' using errcode='40001'; end if;
+      v_snapshot:=model_automation_private.research_snapshot(v_id);
+      if not exists(select 1 from model_automation_private.research_rounds rr where rr.external_id=v_id and rr.round=j.round
+        and rr.request=v_snapshot and rr.fingerprint=encode(sha256(convert_to(v_snapshot::text,'UTF8')),'hex')) then
+        raise exception 'Research snapshot is no longer current' using errcode='40001'; end if;
+      if exists(select 1 from model_automation_private.research_costs where job_id=p_id and state='pending') then
+        raise exception 'Provider call requires reconciliation'; end if;
+      if exists(select 1 from model_automation_private.research_costs where job_id=p_id and state='uncertain') then
+        -- Keep the unknown charge reserved and never release the job to claim.
+        update model_automation_private.research_jobs set state='review',lease=null,lease_until=null,updated_at=now() where id=p_id;
+      else
+        perform model_automation_private.research_worker_before_workflow(p_secret,'yield',p_id,p_lease,'{}');
+      end if;
+      update model_automation_private.settings set research_provider_blocked=true where singleton;
+      insert into model_automation_private.research_events(job_id,kind,detail)
+        values(p_id,'provider_paused',left(coalesce(p_data->>'reason','Research provider paused'),600));
+      return model_automation_private.research_worker(p_secret,'get',p_id,null,'{}');
+    end if;
+    if p_action='retry_research' or v_kind='retry_verification'
+      or (v_kind='review' and v_outcome#>'{evidence,temporaryVerificationFailure}'='true'::jsonb) then
       if not model_automation_private.can_contact_request(v_id) then return jsonb_build_object('state','superseded'); end if;
       v_snapshot:=model_automation_private.research_snapshot(v_id);
       if v_snapshot is distinct from (select request from model_automation_private.research_rounds
@@ -382,7 +452,7 @@ begin
         or j.applied_at is not null or j.lease is not null or l.state not in ('researching','review') then
         raise exception 'Research outcome is not ready for verification retry';
       end if;
-      if j.next_attempt_at is null or j.next_attempt_at<=now() then
+      if p_action='retry_research' or j.next_attempt_at is null or j.next_attempt_at<=now() then
         update model_automation_private.research_jobs set next_attempt_at=now()
           + make_interval(mins=>least(240,5*(1<<least(workflow_retries,6)))),
           workflow_retries=least(workflow_retries+1,7),updated_at=now() where id=p_id returning * into j;
@@ -394,7 +464,50 @@ begin
     if j.applied_at is null and j.next_attempt_at>now() then
       return jsonb_build_object('state',j.state,'next_attempt_at',j.next_attempt_at);
     end if;
+    if j.applied_at is null and j.state='review' and model_automation_private.workflow_unreconciled(v_id) then
+      return jsonb_build_object('state','review','researchPaused',true);
+    end if;
+    if j.applied_at is null and j.state='review' and j.result->>'outcome'='review'
+      and v_kind in ('needs_details','ready_to_add','no_rebate') then
+      v_snapshot:=model_automation_private.research_snapshot(v_id);
+      v_fingerprint:=encode(sha256(convert_to(v_snapshot::text,'UTF8')),'hex');
+      -- Leave stale outcomes to the deployed snapshot fence. Otherwise adapt the
+      -- review to its equivalent verification state inside this transaction.
+      if exists(select 1 from model_automation_private.research_rounds rr where rr.external_id=v_id and rr.round=j.round
+        and rr.request=v_snapshot and rr.fingerprint=v_fingerprint) then
+        if j.lease is not null or j.lease_until>now() or l.state not in ('researching','review')
+          or l.contact_state is not null or not model_automation_private.can_contact_request(v_id) then
+          raise exception 'Research outcome is not ready to apply'; end if;
+        v_registry:=v_outcome#>'{evidence,verification,registry}';
+        if not model_automation_private.workflow_registry_matches(r,v_registry) then
+          raise exception 'Review verification is not bound to the original exact registry match'; end if;
+        if v_kind='needs_details' then
+          if v_outcome#>>'{evidence,verification,kind}' is distinct from 'clarify'
+            or (r.postcode~'^[0-9]{4}$' and r.postcode<>'0000' and r.install_type in ('new','replacement')) then
+            raise exception 'Verified review is not missing installation details'; end if;
+          update model_automation_private.research_jobs set state='waiting_for_details' where id=p_id;
+        else
+          if v_outcome#>>'{product,systemType}' is distinct from r.system_type
+            or v_outcome#>>'{evidence,verification,postcode}' is distinct from r.postcode
+            or v_outcome#>>'{evidence,verification,installType}' is distinct from r.install_type
+            or r.postcode!~'^[0-9]{4}$' or r.postcode='0000' or r.install_type not in ('new','replacement')
+            or coalesce(v_outcome#>>'{product,phase}','') not in ('Single','Three')
+            or jsonb_typeof(v_outcome#>'{product,capacityKw}') is distinct from 'number' then
+            raise exception 'Deterministic review outcome requires matching installation and model specs'; end if;
+          v_review_candidate:=true;
+          update model_automation_private.research_jobs set state='pending_verification',result=jsonb_build_object(
+            'outcome','candidate','canonical',jsonb_build_object('brand',v_registry->'brand','model',v_registry->'model',
+              'registrationNumber',v_registry->'registrationNumber','systemType',r.system_type,
+              'phase',v_outcome#>'{product,phase}','capacityKw',v_outcome#>'{product,capacityKw}')) where id=p_id;
+        end if;
+      end if;
+    end if;
     v:=model_automation_private.research_worker_before_workflow(p_secret,p_action,p_id,p_lease,p_data);
+    if v_review_candidate then
+      -- The original investigation remains the durable result; verifier proof
+      -- is retained separately in the applied outcome.
+      update model_automation_private.research_jobs set result=j.result where id=p_id;
+    end if;
     if v->>'state' in ('added','no_rebate') then
       perform model_automation_private.workflow_link_verified(p_id);
     end if;
@@ -431,11 +544,12 @@ begin
   perform model_automation_private.workflow_authorized(p_secret);
   if p_action='claim' then return model_automation_private.research_worker(p_secret,'confirmation_claim',p_id,null,'{}'); end if;
   if p_action in ('email_start','email_sent','email_error') then
+    perform model_automation_private.workflow_lock();
     if p_action='email_start' then
-      perform model_automation_private.workflow_lock();
       if not model_automation_private.workflow_enabled() then raise exception 'Model workflow paused'; end if;
-      if model_automation_private.workflow_canonical(p_id) is not null
-        or model_automation_private.workflow_completion_suppressed(p_id) then raise exception 'Duplicate completion suppressed'; end if;
+      if not model_automation_private.workflow_completion_allowed(p_id,
+        (select email_started_at from public.calculator_model_request_jobs where request_id=p_id)) then
+        raise exception 'Duplicate completion suppressed'; end if;
     end if;
     return model_automation_private.worker(p_secret,p_action,p_id,p_lease,p_data);
   end if;
@@ -543,16 +657,16 @@ begin
         and state in ('pending','sending') and (lease_until is null or lease_until<=now()) for update skip locked;
       if not found then continue; end if;
       if m.kind<>'weekly' and (m.kind<>'escalation' or m.mail_key like 'registry-unverified/%')
-        and model_automation_private.workflow_canonical(m.request_id) is null
+        and (case when m.kind='no_rebate' then model_automation_private.workflow_completion_allowed(m.request_id,m.started_at)
+          else model_automation_private.workflow_canonical(m.request_id) is null end)
         and model_automation_private.can_contact_request(m.request_id) and m.research_job_id is not null then
         v_snapshot:=model_automation_private.research_snapshot(m.request_id);
         if v_snapshot->>'round'=m.research_version::text
           and encode(sha256(convert_to(v_snapshot::text,'UTF8')),'hex')=m.research_fingerprint then
           v_valid:=case when m.kind='no_rebate' then j.state='no_rebate' and r.status='no_rebate'
-              and not model_automation_private.workflow_completion_suppressed(m.request_id)
               and lower(m.recipient)=lower(r.requester_email)
               and exists(select 1 from model_automation_private.research_jobs q where q.id=m.research_job_id
-                and q.state='no_rebate' and q.applied_at is not null)
+                and q.external_id=m.request_id and q.round=m.research_version and q.state='no_rebate' and q.applied_at is not null)
             when m.kind='escalation' then j.state='review' and j.contact_state is null and r.status='reviewing'
               and exists(select 1 from model_automation_private.research_jobs q where q.id=m.research_job_id
                 and q.state='review' and q.applied_at is not null
@@ -648,7 +762,8 @@ revoke all on function model_automation_private.workflow_lock(),model_automation
   model_automation_private.workflow_live_mail(uuid),
   model_automation_private.workflow_cancel_contact(uuid),model_automation_private.workflow_link(uuid),
   model_automation_private.workflow_unreconciled(uuid),model_automation_private.workflow_authorized(text),model_automation_private.workflow_enabled(),
-  model_automation_private.workflow_completion_suppressed(uuid),model_automation_private.workflow_link_verified(uuid),
+  model_automation_private.workflow_completion_suppressed(uuid),model_automation_private.workflow_completion_allowed(uuid,timestamptz),
+  model_automation_private.workflow_registry_matches(public.calculator_model_requests,jsonb),model_automation_private.workflow_link_verified(uuid),
   model_automation_private.workflow_prior_contact(uuid,text,text,text,text) from public,anon,authenticated;
 
 select pg_notify('pgrst','reload schema');

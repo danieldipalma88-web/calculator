@@ -85,6 +85,10 @@ result = await verifyResearchJob(reviewed, current, async () => ({ kind: 'clarif
 assert.equal(result.registry_match_unverified, false, 'Unsearched input is not a registry miss');
 result = await verifyResearchJob(reviewed, current, async () => ({ kind: 'verified', product, evidence }), emptyCatalogue);
 assert.equal(result.kind, 'ready_to_add', 'A recovered exact match must not stay in review');
+const componentReview = { ...reviewed, request: { ...request, model: 'IN' } };
+result = await verifyResearchJob(componentReview, async () => componentReview.request, async () => ({ kind: 'verified', product, evidence }), emptyCatalogue);
+assert.equal(result.kind, 'review', 'A component-only match cannot bypass full pairing research');
+assert.equal(result.registry_match_unverified, true);
 result = await verifyResearchJob(reviewed, current, async () => ({ kind: 'no_rebate', product, evidence }), emptyCatalogue);
 assert.equal(result.kind, 'no_rebate');
 result = await verifyResearchJob(reviewed, current, async () => ({ kind: 'clarify', reason: 'Postcode needed', candidates: [canonical.model], evidence }), emptyCatalogue);

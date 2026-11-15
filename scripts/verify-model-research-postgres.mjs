@@ -34,11 +34,15 @@ function command(name, args, input = '', extra = {}) {
 const sql = (text, app = 'qa-observer') => command('psql', ['-X', '-q', '-A', '-t', '-v', 'ON_ERROR_STOP=1'], text, { PGAPPNAME: app });
 const literal = value => "'" + String(value).replaceAll("'", "''") + "'";
 const secret = 'isolated-native-fixture-secret-never-used-in-production-0123456789';
-const call = (action, id = null, lease = null, payload = {}) => `public.model_request_research_worker(${literal(secret)},${literal(action)},${id ? literal(id) : 'null'},${lease ? literal(lease) : 'null'},${literal(JSON.stringify(payload))}::jsonb)`;
-const rpc = async (...args) => {
-  const output = await sql(`set role anon; select ${call(...args)};`);
+const workerCall = (worker, action, id = null, lease = null, payload = {}) => `${worker}(${literal(secret)},${literal(action)},${id ? literal(id) : 'null'},${lease ? literal(lease) : 'null'},${literal(JSON.stringify(payload))}::jsonb)`;
+const call = (...args) => workerCall('public.model_request_research_worker', ...args);
+const contact = (...args) => workerCall('public.model_request_contact_worker', ...args);
+const legacy = (...args) => workerCall('public.model_request_worker', ...args);
+const selectWorker = async expression => {
+  const output = await sql(`set role anon; select ${expression};`);
   return output ? JSON.parse(output) : null;
 };
+const rpc = (...args) => selectWorker(call(...args));
 const parseLines = text => text.split('\n').filter(line => line.trim().startsWith('{')).map(line => JSON.parse(line));
 async function barrier(app, event, milliseconds = 8000) {
   const started = Date.now();
@@ -172,6 +176,70 @@ try {
   assert.equal(await sendB, '');
   assert.equal((await rpc('budget')).reserved, reserve.micros);
   console.log('PASS independent sessions serialize exact duplicate intake, unmatched alert creation, and send authorization without changing reserved spend');
+
+  for (const kind of ['ready_to_add', 'no_rebate']) {
+    const added = kind === 'ready_to_add';
+    const tag = added ? 'confirmation' : 'zero';
+    const model = `RACE-${tag}-OUT / RACE-${tag}-IN`;
+    const requests = parseLines(await sql(`set role authenticated;
+      insert into public.calculator_model_requests(user_id,client_request_id,requester_email,business_id,system_type,brand,model,capacity,phase,postcode,install_type,notes)
+      values('${user}',gen_random_uuid(),'fixture@example.invalid','${business}','split','Fixture',${literal(model)},'3.5','single','2145','new','older evidence'),
+        ('${user}',gen_random_uuid(),'fixture@example.invalid','${business}','split','Fixture',${literal(model)},'3.5','single','2145','new','newer evidence')
+      returning jsonb_build_object('id',id,'notes',notes);`));
+    const ids = ['older evidence', 'newer evidence'].map(notes => requests.find(row => row.notes === notes).id);
+    await sql(`update public.calculator_model_requests set created_at=now()-interval '2 days' where id=${literal(ids[0])};`);
+    const exact = { ...canonical, model, registrationNumber: `RACE-${tag}-REG` };
+    const decision = { outcome: { kind, product: { ...exact, series: 'Fixture' }, identity: `FIXTURE|RACE-${tag}-IN/RACE-${tag}-OUT`, evidence: { verification: {
+      kind: added ? 'verified' : 'no_rebate', registry: exact, certificates: { esc: added ? 1 : 0, prc: 0 },
+    } } } };
+    const jobs = [];
+    for (const id of ids) {
+      const job = await rpc('enqueue', id);
+      assert.equal(job?.external_id, id, `${tag} notes must not merge before verification`);
+      const lease = await rpc('claim', job.id);
+      await rpc('finish', job.id, lease.lease, { state: 'pending_verification', result: { outcome: 'candidate', canonical: exact } });
+      jobs.push(job);
+    }
+    const state = added ? 'added' : 'no_rebate';
+    assert.equal((await rpc('apply_result', jobs[1].id, null, decision)).state, state);
+    const claim = id => added ? call('confirmation_claim', id) : contact('claim', id);
+    const firstClaim = added ? await selectWorker(claim(ids[1])) : null;
+    const start = firstClaim ? legacy('email_start', ids[1], firstClaim.job.lease_token) : claim(ids[1]);
+    const send = sql(`begin; set role anon; select ${start}; select pg_sleep(3); commit;`, `qa-${tag}-start`);
+    const sending = await barrier(`qa-${tag}-start`, 'PgSleep');
+    const merge = sql(`set role anon; select ${call('apply_result', jobs[0].id, null, decision)};`, `qa-${tag}-merge`);
+    const merging = await barrier(`qa-${tag}-merge`, 'Lock');
+    assert.notEqual(sending.pid, merging.pid);
+    evidence[`${tag}DeliveryRace`] = { sending, merging };
+    const firstStart = parseLines(await send)[0];
+    assert.equal(JSON.parse(await merge).state, state);
+    assert.equal(await selectWorker(claim(ids[0])), null);
+    assert.equal(await selectWorker(claim(ids[1])), null);
+    assert.equal((await rpc('get', jobs[0].id)).completion_suppressed, true);
+    assert.equal((await rpc('get', jobs[1].id)).completion_suppressed, false);
+    assert.equal(await sql(`select canonical_id from model_automation_private.research_case_links where duplicate_id=${literal(ids[1])};`), ids[0]);
+    await sql(added
+      ? `update public.calculator_model_request_jobs set lease_until=now()-interval '1 second' where request_id=${literal(ids[1])};`
+      : `update model_automation_private.mail_outbox set lease_until=now()-interval '1 second' where mail_key=${literal(firstStart.mail_key)};`);
+    const retry = await selectWorker(claim(ids[1]));
+    assert.equal(await selectWorker(claim(ids[1])), null);
+    assert.equal(await selectWorker(claim(ids[0])), null);
+    if (added) {
+      assert.equal(retry.request.id, firstClaim.request.id, 'request UUID is the provider idempotency key input');
+      assert.notEqual(retry.job.lease_token, firstClaim.job.lease_token);
+      const restarted = await selectWorker(legacy('email_start', retry.request.id, retry.job.lease_token));
+      assert.equal(restarted.email_started_at, firstStart.email_started_at);
+      await selectWorker(legacy('email_sent', retry.request.id, retry.job.lease_token, { id: 'fixture-confirmed' }));
+    } else {
+      assert.equal(retry.mail_key, firstStart.mail_key);
+      assert.equal(retry.started_at, firstStart.started_at);
+      assert.deepEqual(retry.payload, firstStart.payload);
+      assert.equal(retry.attempts, 2);
+      await selectWorker(contact('sent', retry.request_id, retry.lease, { key: retry.mail_key, provider_id: 'fixture-zero' }));
+    }
+    assert.equal(await selectWorker(claim(ids[1])), null);
+    console.log(`PASS ${tag}: older verification waits on newer send authorization; after timeout only the original provider key retries`);
+  }
 
   evidence.postgresVersion = await sql('show server_version;');
   passed = true;

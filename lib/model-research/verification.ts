@@ -43,6 +43,15 @@ export async function verifyResearchJob(
       if (!await isCurrent()) return { kind: "superseded", reason: "Request details changed during review verification" };
       evidence.verification = { ...checked.evidence, kind: checked.kind };
       const hasRegistry = Boolean(checked.evidence?.registry);
+      if (hasRegistry) {
+        const registered = (checked.evidence?.registry as { model?: unknown }).model;
+        const key = (value: string) => value.split("/").map(code => code.trim().toUpperCase()).sort().join("/");
+        const requested = requestDetails(job.request) as unknown as ModelRequestVerificationInput;
+        if (typeof registered !== "string" || key(requested.model) !== key(registered)) return {
+          kind: "review", reason: "The supplied component does not identify an exact complete registered system. Research could not confirm its full pairing.",
+          evidence, registry_match_unverified: true,
+        };
+      }
       if (checked.kind === "verified" || checked.kind === "no_rebate") return verifiedOutcome(checked, evidence, readCatalogue);
       if (checked.kind === "clarify" && hasRegistry) return { kind: "needs_details", question: checked.reason, evidence };
       return { kind: "review", reason: checked.kind === "review" || checked.kind === "clarify" ? checked.reason : job.result.summary,

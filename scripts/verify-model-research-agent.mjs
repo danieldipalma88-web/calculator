@@ -264,6 +264,7 @@ test('missing/over-bound usage, extra searches, missing ID and unexpected billed
   ]) {
     const { store, p, result } = await investigate(provider([value]));
     assert.equal(result.state, 'review'); assert.ok((await store.budget()).reserved > 0); assert.equal(p.count, 1);
+    assert.equal(store.providerPaused, true); assert.equal(result.result.researchPaused, true);
   }
 });
 
@@ -273,6 +274,7 @@ test('an over-reservation settlement halts without checkpoint/yield', async () =
   assert.equal((await agent.run(job.id)).state, 'review'); assert.equal(p.count, 1);
   assert.equal(store.jobs.get(job.id).checkpoint.round, 0);
   assert.ok((await store.budget()).reserved > 0); assert.equal(store.trace.includes('yield:start'), false);
+  assert.equal(store.providerPaused, true); assert.equal(store.jobs.get(job.id).result.researchPaused, true);
 });
 
 test('December 9 pricing review is fail-closed after the approved date', async () => {
