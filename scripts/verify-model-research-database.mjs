@@ -914,6 +914,11 @@ try {
   assert.equal(heldBudget.charged, beforeProviderBudget.charged);
   assert.equal(heldBudget.reserved, beforeProviderBudget.reserved + reservation);
   assert.equal(heldBudget.researchProviderBlocked, true);
+  const visibleUncertain = (await owner('select state,reason,lease_token,lease_until from calculator_model_request_jobs where request_id=$1', [uncertainJob.request.id])).rows[0];
+  assert.equal(visibleUncertain.state, 'review');
+  assert.match(visibleUncertain.reason, /usage needs reconciliation/);
+  assert.equal(visibleUncertain.lease_token, null); assert.equal(visibleUncertain.lease_until, null);
+  await as();
   await rpc('apply_result', uncertainJob.job.id, null, finalReview);
   assert.equal((await rpc('get', uncertainJob.job.id)).applied_at, null);
   assert.deepEqual(await outbox(uncertainJob.request.id), []);

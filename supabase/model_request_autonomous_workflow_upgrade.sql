@@ -430,6 +430,9 @@ begin
       if exists(select 1 from model_automation_private.research_costs where job_id=p_id and state='uncertain') then
         -- Keep the unknown charge reserved and never release the job to claim.
         update model_automation_private.research_jobs set state='review',lease=null,lease_until=null,updated_at=now() where id=p_id;
+        update public.calculator_model_request_jobs set state='review',lease_token=null,lease_until=null,
+          reason='Research provider usage needs reconciliation before further paid calls.',updated_at=now()
+          where request_id=v_id;
       else
         perform model_automation_private.research_worker_before_workflow(p_secret,'yield',p_id,p_lease,'{}');
       end if;
