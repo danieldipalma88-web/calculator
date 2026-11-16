@@ -53,17 +53,18 @@ assert.match(exactSydneyDate("2026-10-02T03:00:00Z"), /1:00:00 pm/);
 
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 const component = read("app/admin/users/directory-list.tsx");
-assert.match(component, /hidden=\{!displayed\.visible\.includes\(itemId\)\}/, "Hidden edits must stay mounted");
+assert.match(component, /hidden=\{!visibleIds\.has\(itemId\)\}/, "Hidden edits must stay mounted with constant-time visibility checks");
 assert.match(component, /key=\{itemId\}/, "Sorting must preserve each row identity");
 assert.doesNotMatch(component, /router\.|requestSubmit|<form/, "Directory controls must not submit an admin forms");
 assert.match(component, /useState\(\"\"\)/, "Preference state must be deterministic during SSR and hydration");
 assert.match(component, /loadedPrefix === prefix/, "Stored values must load before writes begin");
 assert.match(component, /new MutationObserver\(checkVisibility\)/, "Activity polling must react promptly to panel visibility");
-assert.match(component, /hasExpandedUser\(\).*results/, "Expanded user records must retain their directory snapshot after blur");
+assert.match(component, /if \(hasExpandedUser\(\) \|\| \(activeInResults && !activityFocus\)\) return;/, "Expanded and editable records retain snapshots, while activity-only focus can release them");
 assert.match(component, /Most recently active/, "Activity sort label must describe the direction");
-assert.match(component, /const view = directoryView\(/, "Search and activity filters produce a separate visibility set");
+assert.match(component, /const view = useMemo\(\(\) => directoryView\(/, "Search and activity filters produce a memoized visibility set");
 assert.match(component, /displayed\.ids\.map\(\(itemId\)/, "Every directory record stays mounted across filters");
 assert.match(component, /snapshot\.current = snapshotDirectoryView\(currentView\.current\)/, "Explicit changes refresh snapshots from the current rendered view");
+assert.match(component, /snapshotCriteria\.current === criteria \? snapshot\.current : view/, "An older edit snapshot cannot override newer explicit search or filter criteria");
 assert.doesNotMatch(component, /setTimeout\(\(\) => \{ if \(hasExpandedUser\(\)\) engage\(\)/, "Freeze refresh must not capture stale rendered IDs");
 assert.doesNotMatch(component, /now \|\| Date\.now\(\)|Date\.now\(\)\s*\}/, "Render output must not use a nondeterministic clock");
 const activityComponent = read("app/admin/users/user-activity.tsx");
@@ -75,12 +76,19 @@ assert.doesNotMatch(activityComponent, /<details|<summary/, "Activity must not n
 for (const tone of ["active", "neutral", "stale", "unknown"]) {
   assert.match(activityStyles, new RegExp(`:global\\(\\.user-summary-identity\\) \.activity\\.${tone} \\{ color:`), `The ${tone} label tone must override the summary muted text`);
 }
-assert.match(component, /!\(event\.target as HTMLElement\)\.closest\("\.activity"\)/, "Activity controls must not engage the edit freeze");
+assert.match(component, /!target\.closest\("\[data-directory-activity\]"\)/, "Activity controls must not engage the edit freeze");
+assert.match(activityComponent, /data-directory-activity/, "Activity exclusion must work with hashed CSS-module classes");
+assert.match(component, /const provider = useMemo<ActivityContextValue>/, "Typing must not invalidate every activity consumer");
+assert.match(component, /const onRemoved = useCallback/, "Typing must not invalidate every removal control");
 const page = read("app/admin/users/page.tsx");
 assert.match(page, /lastActiveAt: approvedUser\.last_active_at/);
 assert.match(page, /const \{ supabase, email: currentEmail \} = await requireAdmin\(\)/);
 const assignment = read("app/admin/users/business-multi-select.tsx");
 assert.match(assignment, /businesses\.map\(\(business\) =>/);
-assert.doesNotMatch(assignment, /businesses\.filter\(.*\)\.map/, "Filtering must not drop selected checkbox form values");
+assert.doesNotMatch(assignment, /businesses\.filter\(matches\)/, "Search filtering must not drop selected checkbox form values");
+assert.match(assignment, /!hasOpened \? businesses\.filter\(\(business\) => selected\.includes\(business\.id\)\)/, "Unopened menus must preserve the original checkbox submission order");
+assert.match(assignment, /if \(detailsRef\.current\?\.open\) setHasOpened\(true\)/, "A picker opened before hydration must populate without another click");
+assert.match(assignment, /hasOpened \? <div className="business-multiselect-menu"/, "Build assignment options only when first opened");
+assert.doesNotMatch(assignment, /setHasOpened\(false\)/, "Opened menus must retain checkbox and search state when closed");
 assert.match(assignment, /event\.key === "Enter"\) event\.preventDefault\(\)/);
 console.log("Admin directory search, sorting and draft-preservation guards passed.");

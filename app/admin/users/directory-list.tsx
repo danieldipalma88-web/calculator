@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { directoryView, snapshotDirectoryView, type ActivityFilter, type DirectoryRecord, type DirectorySort, type DirectoryView } from "../../../lib/admin-directory";
 import styles from "./directory-list.module.css";
 
@@ -43,7 +43,12 @@ export default function DirectoryList({
   const [removalNotice, setRemovalNotice] = useState("");
   const [locked, setLocked] = useState(false);
   const lockedRef = useRef(false);
+  const activityPointer = useRef(false);
   const snapshot = useRef<DirectoryView | null>(null);
+  const snapshotCriteria = useRef("");
+  const criteria = JSON.stringify([query, sort, activityFilter]);
+  const currentCriteria = useRef(criteria);
+  currentCriteria.current = criteria;
   const currentView = useRef<DirectoryView>({ ids: [], visible: [] });
   const pendingSnapshotRefresh = useRef(false);
   const activityRef = useRef(activity);
@@ -80,9 +85,13 @@ export default function DirectoryList({
         const payload = await response.json() as { activity?: { email: string; last_active_at: string | null }[] };
         if (disposed || !Array.isArray(payload.activity)) return;
         const next = { ...activityRef.current };
-        for (const row of payload.activity) if (row.email) next[row.email.toLowerCase()] = row.last_active_at;
-        activityRef.current = next;
-        setActivity(next);
+        let changed = false;
+        for (const row of payload.activity) {
+          if (!row.email) continue;
+          const email = row.email.toLowerCase();
+          if (next[email] !== row.last_active_at) { next[email] = row.last_active_at; changed = true; }
+        }
+        if (changed) { activityRef.current = next; setActivity(next); }
       } catch { /* Preserve the last known activity when the read endpoint is unavailable. */ }
       finally { window.clearTimeout(timer); controller = null; }
     };
@@ -113,12 +122,15 @@ export default function DirectoryList({
   const currentActivityItems = useMemo(() => items.filter((item) => !removed.includes(item.id.toLowerCase())).map((item) => kind === "users"
     ? { ...item, lastActiveAt: Object.prototype.hasOwnProperty.call(activity, item.id.toLowerCase()) ? activity[item.id.toLowerCase()] : item.lastActiveAt }
     : item), [items, activity, kind, removed]);
-  const view = directoryView(currentActivityItems, sort, query, activityFilter, now ?? 0);
+  const view = useMemo(() => directoryView(currentActivityItems, sort, query, activityFilter, now ?? 0),
+    [currentActivityItems, sort, query, activityFilter, now]);
   currentView.current = view;
   if (!locked && snapshot.current) snapshot.current = null;
-  const stableView = locked && snapshot.current ? snapshot.current : view;
-  const byId = new Map(currentActivityItems.map((item) => [item.id, item]));
+  // An edit-order snapshot must never override a newer explicit search or filter.
+  const stableView = locked && snapshot.current && snapshotCriteria.current === criteria ? snapshot.current : view;
+  const byId = useMemo(() => new Map(currentActivityItems.map((item) => [item.id, item])), [currentActivityItems]);
   const displayed = { ids: stableView.ids.filter((itemId) => byId.has(itemId)), visible: stableView.visible.filter((itemId) => byId.has(itemId)) };
+  const visibleIds = new Set(displayed.visible);
 
   function hasExpandedUser() {
     return kind === "users" && document.querySelector(`#${CSS.escape(id)}-results .user-card-collapsible[open]`) !== null;
@@ -132,42 +144,56 @@ export default function DirectoryList({
   function engage() {
     if (!lockedRef.current) {
       snapshot.current = snapshotDirectoryView(currentView.current);
+      snapshotCriteria.current = currentCriteria.current;
       lockedRef.current = true;
       setLocked(true);
     }
   }
   function release() {
     window.setTimeout(() => {
-      if (hasExpandedUser() || (document.activeElement instanceof HTMLElement && document.activeElement.closest(`#${CSS.escape(id)}-results`))) return;
+      const active = document.activeElement;
+      const activeInResults = active instanceof HTMLElement && active.closest(`#${CSS.escape(id)}-results`);
+      const activityFocus = active instanceof HTMLElement && (active.closest("[data-directory-activity]")
+        || (activityPointer.current && active.matches(".user-card-collapsible > summary")));
+      if (hasExpandedUser() || (activeInResults && !activityFocus)) return;
       lockedRef.current = false;
       setLocked(false);
     }, 0);
   }
   useEffect(() => {
-    if (!pendingSnapshotRefresh.current) return;
+    if (!pendingSnapshotRefresh.current && (!snapshot.current || snapshotCriteria.current === criteria)) return;
     pendingSnapshotRefresh.current = false;
     const activeInResults = document.activeElement instanceof HTMLElement
       && document.activeElement.closest(`#${CSS.escape(id)}-results`);
     if (!hasExpandedUser() && !activeInResults) return;
     snapshot.current = snapshotDirectoryView(currentView.current);
+    snapshotCriteria.current = currentCriteria.current;
     lockedRef.current = true;
     setLocked(true);
   });
 
-  const provider: ActivityContextValue = {
+  // Search/focus changes must not invalidate every activity label and account control.
+  const provider = useMemo<ActivityContextValue>(() => ({
     getActivity: (email, initial) => Object.prototype.hasOwnProperty.call(activity, email.toLowerCase()) ? activity[email.toLowerCase()] : initial,
     now,
-  };
+  }), [activity, now]);
+  const onRemoved = useCallback((email: string) => {
+    setRemoved((previous) => [...new Set([...previous, email.toLowerCase()])]);
+    setRemovalNotice(`Calculator access removed for ${email}. Saved quotes and payment records are unchanged.`);
+  }, []);
   return (
-    <UserRemovalContext.Provider value={(email) => {
-      setRemoved((previous) => [...new Set([...previous, email.toLowerCase()])]);
-      setRemovalNotice(`Calculator access removed for ${email}. Saved quotes and payment records are unchanged.`);
-    }}><ActivityContext.Provider value={provider}>
-      <div className={styles.directory} onFocusCapture={(event) => {
-        if (!(event.target as HTMLElement).closest(".activity")) engage();
+    <UserRemovalContext.Provider value={onRemoved}><ActivityContext.Provider value={provider}>
+      <div className={styles.directory} onPointerDownCapture={(event) => {
+        activityPointer.current = !!(event.target as HTMLElement).closest("[data-directory-activity]");
+      }} onKeyDownCapture={() => { activityPointer.current = false; }} onFocusCapture={(event) => {
+        const target = event.target as HTMLElement;
+        // WebKit can focus the native summary when its nested activity button is tapped.
+        if (activityPointer.current && target.matches(".user-card-collapsible > summary")) return;
+        if (!target.closest("[data-directory-activity]") && target.closest(`#${CSS.escape(id)}-results`)) engage();
       }} onBlurCapture={release} onClickCapture={(event) => {
         const target = event.target as HTMLElement;
-        if (!target.closest(".activity") && target.closest(".user-card-collapsible > summary")) engage();
+        if (target.closest("[data-directory-activity]")) { release(); return; }
+        if (target.closest(".user-card-collapsible > summary")) engage();
       }}>
         <div className={styles.toolbar}>
           <div className={styles.search}>
@@ -197,7 +223,7 @@ export default function DirectoryList({
         <div id={`${id}-results`} className={className}>
           {displayed.ids.map((itemId) => {
             const item = byId.get(itemId);
-            return item ? <div key={itemId} className={styles.entry} hidden={!displayed.visible.includes(itemId)}>{item.content}</div> : null;
+            return item ? <div key={itemId} className={styles.entry} hidden={!visibleIds.has(itemId)}>{item.content}</div> : null;
           })}
         </div>
         {!displayed.visible.length ? <div className="empty-card">{currentActivityItems.length ? `No ${kind} match the current filters.` : `No ${kind} yet.`}</div> : null}

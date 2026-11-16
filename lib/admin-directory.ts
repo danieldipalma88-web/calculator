@@ -9,6 +9,11 @@ export type DirectoryRecord = {
 export type DirectorySort = "name-asc" | "name-desc" | "newest" | "oldest" | "active-newest" | "active-oldest";
 export type ActivityFilter = "all" | "today" | "week" | "inactive" | "unknown";
 
+const nameCollator = new Intl.Collator("en-AU", { sensitivity: "base", numeric: true });
+const idCollator = new Intl.Collator("en-AU");
+const sydneyDay = new Intl.DateTimeFormat("en-CA", { timeZone: "Australia/Sydney", year: "numeric", month: "2-digit", day: "2-digit" });
+const sydneyTimestamp = new Intl.DateTimeFormat("en-AU", { dateStyle: "full", timeStyle: "long", timeZone: "Australia/Sydney" });
+
 function normalized(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("en-AU").trim();
 }
@@ -25,34 +30,32 @@ function timestamp(value: string | null | undefined) {
 
 export function sortDirectory<T extends DirectoryRecord>(records: T[], sort: DirectorySort): T[] {
   return [...records].sort((a, b) => {
-    const byName = a.name.localeCompare(b.name, "en-AU", { sensitivity: "base", numeric: true })
-      || a.id.localeCompare(b.id, "en-AU");
-    if (sort === "name-asc") return byName;
-    if (sort === "name-desc") return -byName;
+    const byName = () => nameCollator.compare(a.name, b.name) || idCollator.compare(a.id, b.id);
+    if (sort === "name-asc") return byName();
+    if (sort === "name-desc") return -byName();
     const active = sort === "active-newest" || sort === "active-oldest";
     const left = timestamp(active ? a.lastActiveAt : a.createdAt);
     const right = timestamp(active ? b.lastActiveAt : b.createdAt);
     // Unknown activity is not an old login; keep it after dated records in either direction.
     if (left === null || right === null) {
-      if (left === right) return byName;
+      if (left === right) return byName();
       return left === null ? 1 : -1;
     }
     const oldestFirst = sort === "oldest" || sort === "active-oldest";
-    return (oldestFirst ? left - right : right - left) || byName;
+    return (oldestFirst ? left - right : right - left) || byName();
   });
 }
 
 export function filterDirectoryActivity<T extends DirectoryRecord>(records: T[], filter: ActivityFilter, now = Date.now()): T[] {
   if (filter === "all") return records;
+  const today = filter === "today" ? sydneyDay.format(now) : null;
   return records.filter((record) => {
     const active = timestamp(record.lastActiveAt);
     if (filter === "unknown") return active === null;
     if (active === null) return false;
     const elapsed = now - active;
     if (filter === "today") {
-      const today = new Intl.DateTimeFormat("en-AU", { timeZone: "Australia/Sydney", year: "numeric", month: "numeric", day: "numeric" }).format(now);
-      const date = new Intl.DateTimeFormat("en-AU", { timeZone: "Australia/Sydney", year: "numeric", month: "numeric", day: "numeric" }).format(active);
-      return today === date;
+      return today === sydneyDay.format(active);
     }
     if (filter === "week") return elapsed >= 0 && elapsed < 7 * 86400000;
     return elapsed >= 30 * 86400000;
@@ -83,9 +86,8 @@ export function activityLabel(value: string | null | undefined, now = Date.now()
   if (elapsed < 60000) return { text: "Active just now", tone: "active" as const };
   if (elapsed < 3600000) return { text: `Active ${Math.floor(elapsed / 60000)} minutes ago`, tone: "active" as const };
   if (elapsed < 86400000) return { text: `Active ${Math.floor(elapsed / 3600000)} hours ago`, tone: "active" as const };
-  const dayKey = (date: number) => new Intl.DateTimeFormat("en-CA", { timeZone: "Australia/Sydney", year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
-  const [year, month, day] = dayKey(now).split("-").map(Number);
-  const [activeYear, activeMonth, activeDay] = dayKey(active).split("-").map(Number);
+  const [year, month, day] = sydneyDay.format(now).split("-").map(Number);
+  const [activeYear, activeMonth, activeDay] = sydneyDay.format(active).split("-").map(Number);
   const calendarDays = Math.round((Date.UTC(year, month - 1, day) - Date.UTC(activeYear, activeMonth - 1, activeDay)) / 86400000);
   if (calendarDays === 1) return { text: "Active yesterday", tone: "neutral" as const };
   if (elapsed < 30 * 86400000) return { text: `Active ${Math.floor(elapsed / 86400000)} days ago`, tone: "neutral" as const };
@@ -94,7 +96,5 @@ export function activityLabel(value: string | null | undefined, now = Date.now()
 
 export function exactSydneyDate(value: string | null | undefined) {
   const active = timestamp(value);
-  return active === null ? "No activity recorded" : new Intl.DateTimeFormat("en-AU", {
-    dateStyle: "full", timeStyle: "long", timeZone: "Australia/Sydney",
-  }).format(active);
+  return active === null ? "No activity recorded" : sydneyTimestamp.format(active);
 }

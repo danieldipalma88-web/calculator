@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 type BusinessOption = {
   id: string;
@@ -28,12 +28,18 @@ export default function BusinessMultiSelect({
 }) {
   const [selected, setSelected] = useState(() => normalizedSelection(businesses, selectedIds));
   const [query, setQuery] = useState("");
+  const [hasOpened, setHasOpened] = useState(false);
+  const detailsRef = useRef<HTMLDetailsElement>(null);
   const searchId = useId();
   const matches = (business: BusinessOption) => business.name.toLocaleLowerCase("en-AU").includes(query.trim().toLocaleLowerCase("en-AU"));
 
   useEffect(() => {
     setSelected(normalizedSelection(businesses, selectedIds));
   }, [businesses, selectedIds]);
+  useEffect(() => {
+    // Native details can be opened while the server-rendered page is still hydrating.
+    if (detailsRef.current?.open) setHasOpened(true);
+  }, []);
 
   function updateSelection(businessId: string, checked: boolean) {
     setSelected((current) => {
@@ -51,8 +57,12 @@ export default function BusinessMultiSelect({
 
   return (
     <details
+      ref={detailsRef}
       className="business-multiselect"
-      onToggle={(event) => closeOtherMenus(event.currentTarget)}
+      onToggle={(event) => {
+        if (event.currentTarget.open) setHasOpened(true);
+        closeOtherMenus(event.currentTarget);
+      }}
     >
       <summary className="business-multiselect-summary">
         <span className="business-multiselect-label" style={{ whiteSpace: "normal", overflow: "visible", textOverflow: "clip", overflowWrap: "anywhere", padding: "8px 0" }}>
@@ -60,7 +70,10 @@ export default function BusinessMultiSelect({
         </span>
         <span aria-hidden="true">v</span>
       </summary>
-      <div className="business-multiselect-menu">
+      {/* Keep form values available before opening; once opened, retain every checkbox and draft. */}
+      {!hasOpened ? businesses.filter((business) => selected.includes(business.id))
+        .map((business) => <input key={business.id} type="hidden" name="businessIds" value={business.id} />) : null}
+      {hasOpened ? <div className="business-multiselect-menu">
         <label className="business-multiselect-search" htmlFor={searchId}>Search businesses</label>
         <input id={searchId} type="search" value={query} placeholder="Business name" autoComplete="off"
           onChange={(event) => setQuery(event.target.value)}
@@ -85,7 +98,7 @@ export default function BusinessMultiSelect({
         ))}
         {businesses.length > 0 && !businesses.some(matches) ? <span className="empty-select-note" role="status">No businesses match your search.</span> : null}
         {!businesses.length ? <span className="empty-select-note">Add a business first.</span> : null}
-      </div>
+      </div> : null}
     </details>
   );
 }

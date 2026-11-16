@@ -13,7 +13,7 @@ export default function UserActivity({ email, initialLastActiveAt }: { email: st
     ? { text: "Activity recorded", tone: "neutral" as const }
     : activityLabel(lastActiveAt, now ?? 0);
   return (
-    <span className={`${styles.activity} ${styles[label.tone]}`}>
+    <span data-directory-activity className={`${styles.activity} ${styles[label.tone]}`}>
       <button type="button" aria-expanded={expanded} aria-controls={`${id}-timestamp`}
         onClick={(event) => { event.preventDefault(); event.stopPropagation(); setExpanded((open) => !open); }}
         onKeyDown={(event) => event.stopPropagation()}>
