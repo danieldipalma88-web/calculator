@@ -38,7 +38,7 @@ const models = ['20', '25', '35', '46', '50', '60', '71'].map(size => `RXV${size
         for (const model of models) {
           const index = await page.evaluate(value => data().findIndex(row => row.model === value), model);
           assert.ok(index >= 0, `${business}: ${model} is selectable`);
-          await page.locator('#product').selectOption(String(index));
+          await page.locator('#product').selectOption(String(index), { force: true });
           const price = model.includes('RXV25AVMA') ? 850 : model.includes('RXV50AVMA') ? 1420 : 0;
           assert.equal(await page.locator('#unitPriceInc').inputValue(), price.toFixed(2));
           assert.equal(await page.locator('#wifiMeta').innerText(), 'Wi-Fi optional adaptor');

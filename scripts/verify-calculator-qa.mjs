@@ -253,13 +253,14 @@ async function setupMulti(page) {
   await page.locator("#multiSplitBrand").selectOption("Rinnai");
   const outdoor = page.locator("#multiSplitOutdoor option").filter({ hasText: qaModels.multi }).first();
   await outdoor.waitFor({ state: "attached" });
-  await page.locator("#multiSplitOutdoor").selectOption(await outdoor.getAttribute("value"));
+  await page.locator("#multiSplitOutdoorSearchInput").fill(qaModels.multi);
+  await page.locator("#multiSplitOutdoorSearchList [role=option]").filter({ hasText: qaModels.multi }).click();
   await inputPostcode(page, "#multiSplitPostcode", "2550");
   await clickCentred(page.locator("#multiSplitNewBtn"));
   const head = page.getByRole("combobox", { name: "Indoor head 1 model" });
   if (!await head.count()) await page.locator("#multiSplitAddHeadBtn").click();
-  const indoor = head.locator("option").filter({ hasText: "HINRPX25M" }).first();
-  await head.selectOption(await indoor.getAttribute("value"));
+  await head.fill("HINRPX25M");
+  await page.locator("#multiSplitIndoorModel0SearchList [role=option]").filter({ hasText: "HINRPX25M" }).click();
   await clickCentred(page.getByRole("button", { name: "Increase indoor head 1 quantity" }));
 }
 
@@ -268,7 +269,8 @@ async function rebateJourney(page, qa) {
   await textIs(page, "#certRebateMeta", "Verified NSW backup");
   await page.locator("#ductedTab").click();
   await page.locator("#brand").selectOption("Fujitsu");
-  await page.locator("#product").selectOption({ label: "7.1kW - Single" });
+  await page.locator("#productSearchInput").fill(qaModels.ducted);
+  await page.locator("#productSearchList [role=option]").filter({ hasText: qaModels.ducted }).click();
   await page.locator("#replacementBtn").click();
   await inputPostcode(page, "#essPostcode", "2145");
   await textIs(page, "#selectedModel", qaModels.ducted);

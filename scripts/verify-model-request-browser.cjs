@@ -34,7 +34,7 @@ function adminMarkup(){
       await page.evaluate(()=>{refreshLiveRebateForCurrentProduct=async()=>{};refreshBestValueIndicator=()=>{};setSystem('split');$('brand').value='Daikin';populateProducts();});
       const index=await page.evaluate(()=>data().findIndex(p=>p.catalogueAdditionId));
       assert.ok(index>=0);
-      await page.locator('#product').selectOption(String(index));
+      await page.locator('#product').selectOption(String(index), { force: true });
       assert.equal(await page.locator('#unitPriceInc').inputValue(),'0.00');
       assert.equal(await page.locator('#wifiMeta').innerText(),'Wi-Fi unconfirmed');
       assert.equal(await page.locator('#warrantyMeta').innerText(),'Warranty unconfirmed');

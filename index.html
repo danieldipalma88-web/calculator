@@ -3638,6 +3638,23 @@ button.quoteDragHandle:active{cursor:grabbing}
 .productSelectWrap.hasCashback:after{content:"";position:absolute;right:14px;top:50%;width:7px;height:7px;border-right:2px solid #111827;border-bottom:2px solid #111827;transform:translateY(-70%) rotate(45deg);pointer-events:none}
 .productSelectCashback{display:flex;align-items:center;flex-wrap:wrap;gap:6px;min-height:44px;padding:8px 34px 8px 12px;font-size:14px;line-height:20px;pointer-events:none}
 .productSelectCashback[hidden]{display:none}
+.modelSearchPicker{position:relative;min-width:0;width:100%}
+.modelSearchControl{display:flex;align-items:center;min-width:0;border:1px solid var(--line-strong);border-radius:8px;background:#fff}
+.modelSearchControl:focus-within{outline:2px solid var(--primary);outline-offset:1px}
+.modelSearchControl input{min-width:0;width:100%;border:0!important;box-shadow:none!important;outline:none!important;background:transparent;padding-right:4px;font-size:16px}
+.modelSearchToggle{flex:0 0 38px;width:38px;height:42px;padding:0;background:transparent;color:var(--dark);border:0;border-radius:0}
+.modelSearchChevron{display:inline-block;width:7px;height:7px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg);margin-bottom:4px}
+.modelSearchList{position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:90;max-height:280px;max-height:min(280px,45dvh);overflow-y:auto;overscroll-behavior:contain;background:#fff;border:1px solid var(--line-strong);border-radius:8px;box-shadow:var(--shadow-md)}
+.modelSearchList[hidden]{display:none}
+.modelSearchOption{display:block;width:100%;min-height:44px;border:0;border-radius:0;padding:10px 12px;text-align:left;white-space:normal;overflow-wrap:anywhere;background:#fff;color:var(--dark);font-size:13px;line-height:1.45;font-weight:500}
+.modelSearchOption[aria-selected=true]{font-weight:800}
+.modelSearchOption.active,.modelSearchOption:hover{background:var(--primary-soft);color:var(--primary-strong)}
+.modelSearchEmpty{padding:12px;color:var(--muted);font-size:13px}
+.modelSearchNative{display:none!important}
+.productSelectWrap:has(.modelSearchPicker){display:block}
+.productSelectWrap:has(.modelSearchPicker):after{display:none}
+.productSelectWrap:has(.modelSearchPicker) .productSelectCashback{min-height:0;padding:5px 0 0}
+.productSelectWrap:has(.modelSearchPicker) .productCashbackUnitName{display:none}
 .mhiCashbackBadge{display:inline-flex;align-items:center;padding:3px 8px;border:1px solid #eab308;border-radius:999px;background:#fde047;color:#713f12;font-size:11px;font-weight:800;line-height:16px;white-space:nowrap}
 </style>
 <!-- Version: Option groups -->
@@ -4971,6 +4988,30 @@ for(const catalogue of [SPLIT_PRODUCTS,ANDOS_SPLIT_PRODUCTS]){
   });
   catalogue.push(...newModels);
 }
+// Append after legacy/business/verified positions; never renumber saved price keys.
+const APPROVED_HISENSE_MHI_SPLITS=[
+  ['Hisense','X5',2.5,'HAWH9KR'],
+  ['Hisense','X5',3.7,'HAWH12KR'],
+  ['Hisense','X5',5.1,'HAWH18KR'],
+  ['Hisense','X5',7.2,'HAWH24KR'],
+  ['Hisense','X5',8.0,'HAWH28KR'],
+  ['Mitsubishi Heavy Industries','Avanti',2.0,'DXC06ZSA-W / DXK06ZSA-W'],
+  ['Mitsubishi Heavy Industries','Avanti',2.5,'DXC09ZSA-W / DXK09ZSA-W'],
+  ['Mitsubishi Heavy Industries','Avanti',3.5,'DXC12ZSA-W / DXK12ZSA-W'],
+  ['Mitsubishi Heavy Industries','Avanti',5.0,'DXC18ZSA-W / DXK18ZSA-W'],
+  ['Mitsubishi Heavy Industries','Ciara',7.1,'DXC24ZTLA-WJ / DXK24ZTLA-WFJ']
+];
+for(const catalogue of [SPLIT_PRODUCTS,ANDOS_SPLIT_PRODUCTS]){
+  for(const [brand,series,capacityNum,model] of APPROVED_HISENSE_MHI_SPLITS){
+    if(catalogue.some(p=>p.brand===brand&&p.model===model)) continue;
+    catalogue.push({brand,series,capacityNum,capacity:capacityNum.toFixed(1)+'kW',model,
+      phase:'Single',nswOnly:true,lateCatalogueEntry:true,unitPriceInc:0,priceIncGst:0,rebate:0});
+  }
+}
+const APPROVED_MHI_SPLIT_SUPPORT=[
+  {brand:'Mitsubishi Heavy Industries',series:'Avanti',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional adaptor',warrantyYears:5,warrantyLabel:'5 yrs warranty'}},
+  {brand:'Mitsubishi Heavy Industries',series:'Ciara',details:{wifiStatus:'included',wifiLabel:'Built-in Wi-Fi',warrantyYears:5,warrantyLabel:'5 yrs warranty'}}
+];
 const PRODUCT_SUPPORT_DEFAULT={wifiStatus:'unknown',wifiLabel:'Wi-Fi TBC',warrantyYears:null,warrantyLabel:'Warranty TBC',originLabel:'Origin TBC'};
 const PANASONIC_DKR_SPLIT_SUPPORT=[
   {brand:'Panasonic',series:'Z Series - DKR',details:{}},
@@ -5003,6 +5044,7 @@ function productOriginLabelForBrand(brand){
   return BRAND_ORIGIN_LABELS[brand] || PRODUCT_SUPPORT_DEFAULT.originLabel;
 }
 const SPLIT_PRODUCT_SUPPORT=[
+  ...APPROVED_MHI_SPLIT_SUPPORT,
   ...PANASONIC_DKR_SPLIT_SUPPORT,
   {brand:'Fujitsu General',series:'Lifestyle',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional adaptor',warrantyYears:5,warrantyLabel:'5 yrs warranty'}},
   {brand:'Fujitsu General',series:'Comfort',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional adaptor',warrantyYears:5,warrantyLabel:'5 yrs warranty'}},
@@ -5061,6 +5103,8 @@ const DUCTED_PRODUCT_SUPPORT=[
   {brand:'Braemar',series:'Braemar Ducted',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi module sold separately',warrantyYears:5,warrantyLabel:'5 yrs warranty'}}
 ];
 const ANDOS_SPLIT_PRODUCT_SUPPORT=[
+  ...APPROVED_MHI_SPLIT_SUPPORT,
+  {brand:'Hisense',series:'X5',details:{wifiStatus:'included',wifiLabel:'Built-in Wi-Fi',warrantyYears:7,warrantyLabel:'7 yrs promo (conditions apply)'}},
   ...PANASONIC_DKR_SPLIT_SUPPORT,
   {brand:'Daikin',series:'Alira X - A Series',details:{wifiStatus:'included',wifiLabel:'Built-in Wi-Fi',warrantyYears:5,warrantyLabel:'5 yrs parts & labour',originLabel:'Japanese'}},
   {brand:'Daikin',series:'Cora - A Series',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional adaptor',warrantyYears:5,warrantyLabel:'5 yrs parts & labour',originLabel:'Japanese'}},
@@ -5452,6 +5496,11 @@ const PRODUCT_MODEL_DISPLAY_ALIASES={
   "FDCA160VNX-W-FDUA160VH":"FDCA160VNX-W / FDUA160VH"
 };
 const REBATE_LOOKUP_MODEL_ALIASES={
+  "HAWH9KR":["HAWH9KR-O / HAWH9KR-I"],
+  "HAWH12KR":["HAWH12KR-O / HAWH12KR-I"],
+  "HAWH18KR":["HAWH18KR-O / HAWH18KR-I"],
+  "HAWH24KR":["HAWH24KR-O / HAWH24KR-I"],
+  "HAWH28KR":["HAWH28KR-O / HAWH28KR-I"],
   "AUD85UXHTSETAUD85UX4RTH1AUW85U4RK1":["AUW-85U4RK1/AUD-85UX4RTH1"],
   "FDCA71VNXWFDU71VH":["FDU71AVNXWVH"],
   "FDU71VHFDCA71VNXW":["FDU71AVNXWVH"],
@@ -6020,6 +6069,119 @@ function setInstall(t,options){
   refreshLiveRebateForCurrentProduct();
   refreshBestValueIndicator();
 }
+// Keep native option values as the source of truth: typing never selects or recalculates.
+const modelSearchPickers=new Map();
+function modelSearchDetails(select,option){
+  const p=select.id==='product'&&option.value!==''?data()[Number(option.value)]:null;
+  const text=option.textContent||'';
+  const model=p?normaliseModelName(p.model):'';
+  return {label:model?`${text} - ${model}`:text,search:[text,model,...(p?rebateLookupModelCandidates(p.model):[])].join(' ')};
+}
+function setupModelSearchPicker(select){
+  if(!select) return;
+  for(const [node,state] of modelSearchPickers){
+    if(!node.isConnected){state.observer.disconnect();modelSearchPickers.delete(node);}
+  }
+  const previous=modelSearchPickers.get(select);
+  if(previous){previous.sync();return;}
+  const picker=document.createElement('div');picker.className='modelSearchPicker';
+  const control=document.createElement('div');control.className='modelSearchControl';
+  const input=document.createElement('input');
+  input.type='search';input.id=select.id+'SearchInput';input.autocomplete='off';input.spellcheck=false;
+  input.placeholder='Search model, size or series';
+  input.setAttribute('role','combobox');input.setAttribute('aria-autocomplete','list');input.setAttribute('aria-expanded','false');
+  input.setAttribute('aria-label',select.getAttribute('aria-label')|| (select.id==='product'?'Unit model':'Outdoor unit model'));
+  const describedBy=select.getAttribute('aria-describedby');if(describedBy) input.setAttribute('aria-describedby',describedBy);
+  const toggle=document.createElement('button');toggle.type='button';toggle.className='modelSearchToggle';
+  toggle.setAttribute('aria-label','Show unit models');toggle.title='Show unit models';
+  toggle.innerHTML='<span class="modelSearchChevron" aria-hidden="true"></span>';
+  const list=document.createElement('div');list.id=select.id+'SearchList';list.className='modelSearchList';list.hidden=true;
+  list.setAttribute('role','listbox');list.setAttribute('aria-label','Unit models');input.setAttribute('aria-controls',list.id);
+  select.before(picker);picker.append(control,list,select);control.append(input,toggle);
+  for(const label of [...select.labels]) label.htmlFor=input.id;
+  select.classList.add('modelSearchNative');select.tabIndex=-1;select.setAttribute('aria-hidden','true');
+  let open=false,active=-1,visible=[],signature='',entries=[],optionNodes=[];
+  function selectedLabel(){return select.selectedOptions[0]?modelSearchDetails(select,select.selectedOptions[0]).label:'';}
+  function close(){open=false;list.hidden=true;list.replaceChildren();input.value=selectedLabel();input.setAttribute('aria-expanded','false');input.removeAttribute('aria-activedescendant');}
+  function activate(index){
+    active=visible.length?Math.max(0,Math.min(index,visible.length-1)):-1;
+    [...list.children].forEach((node,i)=>node.classList.toggle('active',i===active));
+    if(active<0) input.removeAttribute('aria-activedescendant');
+    else {input.setAttribute('aria-activedescendant',list.children[active].id);list.children[active].scrollIntoView({block:'nearest'});}
+  }
+  function choose(entry){
+    if(select.disabled||entry.option.disabled||!select.contains(entry.option)||entry.option.value==='') return;
+    const changed=select.value!==entry.option.value;
+    select.value=entry.option.value;
+    close();input.focus({preventScroll:true});close();
+    if(changed) select.dispatchEvent(new Event('change',{bubbles:true}));
+    const restored=document.getElementById(input.id);
+    if(restored&&restored!==input){
+      restored.focus({preventScroll:true});
+      modelSearchPickers.get(document.getElementById(select.id))?.close();
+    }
+  }
+  function renderMatches(){
+    const query=input.value.trim();
+    const tokens=query.split(/\s+/).map(normalizeLookup).filter(Boolean);
+    visible=entries.filter(entry=>tokens.every(token=>entry.search.includes(token)));
+    list.replaceChildren();
+    const fragment=document.createDocumentFragment();
+    visible.forEach((entry,index)=>{
+      const button=document.createElement('button');button.type='button';button.className='modelSearchOption';button.tabIndex=-1;
+      button.id=list.id+'-'+index;button.setAttribute('role','option');button.setAttribute('aria-selected',String(entry.option.value===select.value));
+      button.textContent=entry.label;button.addEventListener('click',()=>choose(entry));fragment.append(button);
+    });
+    if(!visible.length){const empty=document.createElement('div');empty.className='modelSearchEmpty';empty.setAttribute('role','status');empty.textContent='No matching models';fragment.append(empty);}
+    list.append(fragment);
+    activate(query?0:visible.findIndex(entry=>entry.option.value===select.value));
+  }
+  function show(){
+    if(open||select.disabled) return;
+    for(const state of modelSearchPickers.values()) state.close();
+    open=true;input.value='';list.hidden=false;input.setAttribute('aria-expanded','true');renderMatches();
+  }
+  function sync(){
+    input.disabled=select.disabled;toggle.disabled=select.disabled;
+    const next=[...select.options].map(option=>({...modelSearchDetails(select,option),option}));
+    const nextSignature=JSON.stringify(next.map(entry=>[entry.option.value,entry.label,entry.option.disabled]));
+    const replaced=next.length!==optionNodes.length||next.some((entry,index)=>entry.option!==optionNodes[index]);
+    optionNodes=next.map(entry=>entry.option);
+    entries=next.filter(entry=>entry.option.value!==''&&!entry.option.disabled).map(entry=>({...entry,search:normalizeLookup(entry.search)}));
+    if(nextSignature!==signature||replaced){
+      signature=nextSignature;
+      close();
+    }else if(select.disabled) close();
+    else if(!open) input.value=selectedLabel();
+  }
+  input.addEventListener('focus',show);input.addEventListener('click',show);
+  input.addEventListener('input',()=>{if(!open){const query=input.value;show();input.value=query;}renderMatches();});
+  input.addEventListener('search',()=>{if(open) renderMatches();});
+  input.addEventListener('keydown',event=>{
+    if(event.isComposing) return;
+    if(event.key==='Escape'){event.preventDefault();close();return;}
+    if(event.key==='Tab'){close();return;}
+    if(!['ArrowDown','ArrowUp','Enter'].includes(event.key)) return;
+    event.preventDefault();
+    if(!open){show();return;}
+    if(event.key==='ArrowDown') activate(active+1);
+    else if(event.key==='ArrowUp') activate(active-1);
+    else if(visible[active]) choose(visible[active]);
+  });
+  toggle.addEventListener('click',()=>{if(open) close();else{input.focus();show();}});
+  picker.addEventListener('focusout',event=>{if(!picker.contains(event.relatedTarget)) close();});
+  select.addEventListener('change',()=>{close();sync();});
+  const observer=new MutationObserver(sync);observer.observe(select,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['disabled','selected']});
+  modelSearchPickers.set(select,{sync,close,observer,picker});sync();
+}
+function syncModelSearchPickers(){
+  setupModelSearchPicker($('product'));
+  setupModelSearchPicker($('multiSplitOutdoor'));
+  document.querySelectorAll('#multiSplitIndoorRows select[data-model-search]').forEach(setupModelSearchPicker);
+}
+document.addEventListener('pointerdown',event=>{
+  for(const state of modelSearchPickers.values()) if(!state.picker.contains(event.target)) state.close();
+});
 function populateBrands(options){$('brand').innerHTML=brands(options).map(b=>`<option>${b}</option>`).join(''); populateProducts(options);}
 function sortedProductOptions(list){
   const seriesOrder={};
@@ -6035,7 +6197,7 @@ function sortedProductOptions(list){
     return a.i-b.i;
   });
 }
-function populateProducts(options){const b=$('brand').value; const list=sortedProductOptions(selectableProductOptions(options).filter(x=>x.p.brand===b)); $('product').innerHTML=list.map(x=>`<option value="${x.i}">${unitSelectLabel(x.p)}</option>`).join(''); if(options&&options.skipProductChange) mhiCashbackUnitBadge(null); else onProductChange();}
+function populateProducts(options){const b=$('brand').value; const list=sortedProductOptions(selectableProductOptions(options).filter(x=>x.p.brand===b)); $('product').innerHTML=list.map(x=>`<option value="${x.i}">${unitSelectLabel(x.p)}</option>`).join(''); if(typeof syncModelSearchPickers==='function') syncModelSearchPickers(); if(options&&options.skipProductChange) mhiCashbackUnitBadge(null); else onProductChange();}
 function unitSelectLabel(p){return `${p.capacity||p.size+'kW'}${p.series?' - '+p.series:''}${p.phase?' - '+p.phase:''}`;}
 function label(p){return `${unitSelectLabel(p)} - ${p.model}`;}
 function product(){return data()[Number($('product').value)||0]||data()[0]}
@@ -8361,6 +8523,7 @@ async function refreshLiveRebateForCurrentProduct(){
   }
 }
 function onProductChange(options){
+  if(typeof syncModelSearchPickers==='function') syncModelSearchPickers();
   loadedMhiCashbackRow=null;
   const p=product();
   $('unitPriceInc').value=(p.unitPriceInc||p.priceIncGst||0).toFixed(2);
@@ -10544,7 +10707,7 @@ function renderMultiSplitTrial(options){
         <div class="multiSplitIndoorRowMain">
           <div class="multiSplitIndoorRowTop"><span class="multiSplitIndoorBadge">Indoor head ${rowIndex+1}</span><span class="multiSplitIndoorSeries">${htmlEscape(row&&row.series||'')}</span></div>
           <label>Indoor model</label>
-          <select aria-label="Indoor head ${rowIndex+1} model" onchange="updateMultiSplitIndoorRow(${rowIndex},'indoorIndex',this.value)">${options}</select>
+          <select id="multiSplitIndoorModel${rowIndex}" data-model-search aria-label="Indoor head ${rowIndex+1} model" onchange="updateMultiSplitIndoorRow(${rowIndex},'indoorIndex',this.value)">${options}</select>
           <div class="multiSplitIndoorFacts">
             <div class="multiSplitIndoorFact"><span>Cooling</span><strong>${ratedCooling.toFixed(1)}kW</strong></div>
             <div class="multiSplitIndoorFact"><span>Heating</span><strong>${ratedHeating?ratedHeating.toFixed(1)+'kW':'Not rated'}</strong></div>
@@ -10558,6 +10721,7 @@ function renderMultiSplitTrial(options){
       </div>`;
     }).join('') || '<div class="sub" style="padding:14px 0">No indoor heads selected. Add an indoor head to continue.</div>';
   }
+  if(typeof syncModelSearchPickers==='function') syncModelSearchPickers();
   const list=$('multiSplitHeadsList');
   if(list){
     const outdoorPriceMissing=!!(outdoor&&!hasPositiveUnitPrice(outdoor.unitPriceInc));

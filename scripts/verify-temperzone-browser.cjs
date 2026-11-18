@@ -24,7 +24,7 @@ const models=JSON.parse(fs.readFileSync(path.join(root,'scripts/fixtures/temperz
       assert.equal(await page.locator('#product option').count(),5);
       for(const registered of models){
         const index=await page.evaluate(model=>data().findIndex(row=>row.model===model),registered.model);
-        await page.locator('#product').selectOption(String(index));
+        await page.locator('#product').selectOption(String(index), { force: true });
         assert.equal(await page.locator('#unitPriceInc').inputValue(),'0.00');
         assert.equal(await page.locator('#wifiMeta').innerText(),'Wi-Fi unconfirmed');
         assert.equal(await page.locator('#warrantyMeta').innerText(),'5 yrs parts & labour (conditions apply)');
