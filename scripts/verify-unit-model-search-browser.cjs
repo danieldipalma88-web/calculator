@@ -55,6 +55,16 @@ const outdoorModels = [
       await list.locator('[role=option]').click();
       assert.equal(await page.evaluate(() => product().model), 'DXC24ZTLA-WJ / DXK24ZTLA-WFJ');
       await page.locator('#brand').selectOption('Hisense');
+      for (const model of ['HAWK25KR', 'HAWK35KR', 'HAWK50KR', 'HAWK71KR', 'HAWK80KR']) {
+        await input.fill(model + '-I');
+        assert.equal(await list.locator('[role=option]').count(), 1, 'X4 indoor alias finds one registered system');
+        await input.press('Enter');
+        assert.equal(await page.evaluate(() => product().model), model);
+        assert.equal(await page.locator('#unitPriceInc').inputValue(), '0.00');
+        await input.fill(model + '-O');
+        assert.equal(await list.locator('[role=option]').count(), 1, 'X4 outdoor alias finds one registered system');
+        await input.press('Escape');
+      }
       await input.fill('hawh9kr-i');
       assert.equal(await list.locator('[role=option]').count(), 1, 'Physical Hisense indoor alias finds registered set');
       await input.press('Enter');

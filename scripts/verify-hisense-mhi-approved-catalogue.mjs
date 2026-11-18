@@ -5,6 +5,8 @@ import vm from "node:vm";
 import { buildPublicRebateCatalogue } from "../lib/public-rebate-catalogue.ts";
 
 const approved = [
+  ...[["HAWK25KR", 2.5], ["HAWK35KR", 3.5], ["HAWK50KR", 5.4], ["HAWK71KR", 7.1], ["HAWK80KR", 8]]
+    .map(([model, capacity]) => ({ brand: "Hisense", series: "X4", model, capacity, outdoor: `${model}-O`, indoor: `${model}-I` })),
   ...[["HAWH9KR", 2.5], ["HAWH12KR", 3.7], ["HAWH18KR", 5.1], ["HAWH24KR", 7.2], ["HAWH28KR", 8]]
     .map(([model, capacity]) => ({ brand: "Hisense", series: "X5", model, capacity, outdoor: `${model}-O`, indoor: `${model}-I` })),
   ...[
@@ -19,7 +21,7 @@ const approved = [
 ];
 
 // Pin the original HEAD so the regression still runs after the catalogue is committed.
-const baseline = execFileSync("git", ["show", "d94c8bd292f93a78575b470278892575cc088c6c:index.html"], {
+const baseline = execFileSync("git", ["show", "65f79fce9ae43e12799c7d929b62813eca3516e6:index.html"], {
   cwd: new URL("../", import.meta.url), encoding: "utf8", maxBuffer: 16 * 1024 * 1024,
 });
 const source = await readFile(new URL("../index.html", import.meta.url), "utf8");
@@ -32,6 +34,8 @@ function section(html, startMarker, endMarker) {
 }
 
 const verifiedFixture = [
+  { brand: "Hisense", model: "HAWK25KR", series: "X4", capacityNum: 2.5, phase: "Single", type: "split", nswOnly: true,
+    catalogueAdditionId: "fixture-hawk25kr", unitPriceInc: 731, priceIncGst: 731, rebate: 0 },
   { brand: "Hisense", model: "HAWH9KR", series: "X5", capacityNum: 2.5, phase: "Single", type: "split", nswOnly: true,
     catalogueAdditionId: "fixture-hawh9kr", unitPriceInc: 0, priceIncGst: 0, rebate: 0 },
   { brand: "Hisense", model: "TEST-VERIFIED-SPLIT", type: "split", nswOnly: true,
@@ -40,12 +44,12 @@ const verifiedFixture = [
 const businessFixture = { brand: "Hisense", model: "TEST-BUSINESS-SPLIT", type: "split", unitPriceInc: 0, priceIncGst: 0, rebate: 0 };
 const normalize = value => String(value).toUpperCase().replace(/[^A-Z0-9]/g, "");
 
-function loadCatalogues(html, catalogue = "default", state = "NSW", additions = []) {
+function loadCatalogues(html, catalogue = "default", state = "NSW", additions = [], businessProducts = [businessFixture]) {
   const sandbox = {
     activeCatalogKey: () => catalogue,
     activeBusinessState: () => state,
     activeBusinessConfiguration: () => true,
-    businessConfigurationCache: { products: [structuredClone(businessFixture)] },
+    businessConfigurationCache: { products: structuredClone(businessProducts) },
     calculatorUserContext: () => ({ businessId: "fixture" }),
     normaliseBrandName: brand => brand,
     normalizeLookup: normalize,
@@ -116,6 +120,32 @@ for (const catalogue of ["default", "andos"]) {
 }
 
 const publicCatalogue = await buildPublicRebateCatalogue();
+for (const catalogue of ["default", "andos"]) {
+  for (const product of approved.filter(p => p.series === "X4")) {
+    const pairs = [" / ", " - ", ", ", " "].flatMap(separator => [
+      `${product.outdoor}${separator}${product.indoor}`, `${product.indoor}${separator}${product.outdoor}`,
+    ]);
+    for (const model of pairs) {
+      const pair = { brand: "Hisense", model, type: "split", series: "X4", phase: "Single", capacityNum: product.capacity,
+        nswOnly: true, unitPriceInc: 731, priceIncGst: 731, rebate: 0 };
+      for (const location of ["business", "verified"]) {
+        const additions = location === "verified" ? [pair] : [];
+        const businessProducts = location === "business" ? [businessFixture, pair] : [businessFixture];
+        const beforePairs = loadCatalogues(baseline, catalogue, "NSW", additions, businessProducts).effective;
+        const afterPairs = loadCatalogues(source, catalogue, "NSW", additions, businessProducts).effective;
+        assertPreservedPrefix(beforePairs, afterPairs, `${catalogue}/${location}/${model}`);
+        const matches = afterPairs.filter(row => matchesApproved(row, product));
+        assert.equal(matches.length, 1, "An existing complete pair must not gain a duplicate canonical row");
+        assert.equal(matches[0].model, model, "Keep the original pair identity and saved price key");
+        assert.equal(matches[0].unitPriceInc, 731, "Keep the existing pair price");
+      }
+      const aliasSandbox = {};
+      vm.runInNewContext(section(source, "const REBATE_LOOKUP_MODEL_ALIASES=", "function multiOutdoor(") +
+        `globalThis.aliases=REBATE_LOOKUP_MODEL_ALIASES;`, aliasSandbox);
+      assert.ok(aliasSandbox.aliases[normalize(model)].includes(product.model), "Existing pair resolves to canonical rebate system");
+    }
+  }
+}
 for (const product of approved) {
   const matches = publicCatalogue.products.filter(row => matchesApproved(row, product));
   assert.equal(matches.length, 1, `Estimator: ${product.model} must appear exactly once`);
@@ -128,4 +158,4 @@ for (const product of approved) {
   }
 }
 
-console.log("Hisense X5 and MHI Avanti/Ciara: baseline indices and prices, NSW visibility, verified dedupe, zero static rebates and estimator aliases passed.");
+console.log("Hisense X4/X5 and MHI Avanti/Ciara: baseline indices and prices, NSW visibility, verified dedupe, zero static rebates and estimator aliases passed.");

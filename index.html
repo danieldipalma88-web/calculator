@@ -4999,7 +4999,12 @@ const APPROVED_HISENSE_MHI_SPLITS=[
   ['Mitsubishi Heavy Industries','Avanti',2.5,'DXC09ZSA-W / DXK09ZSA-W'],
   ['Mitsubishi Heavy Industries','Avanti',3.5,'DXC12ZSA-W / DXK12ZSA-W'],
   ['Mitsubishi Heavy Industries','Avanti',5.0,'DXC18ZSA-W / DXK18ZSA-W'],
-  ['Mitsubishi Heavy Industries','Ciara',7.1,'DXC24ZTLA-WJ / DXK24ZTLA-WFJ']
+  ['Mitsubishi Heavy Industries','Ciara',7.1,'DXC24ZTLA-WJ / DXK24ZTLA-WFJ'],
+  ['Hisense','X4',2.5,'HAWK25KR'],
+  ['Hisense','X4',3.5,'HAWK35KR'],
+  ['Hisense','X4',5.4,'HAWK50KR'],
+  ['Hisense','X4',7.1,'HAWK71KR'],
+  ['Hisense','X4',8.0,'HAWK80KR']
 ];
 for(const catalogue of [SPLIT_PRODUCTS,ANDOS_SPLIT_PRODUCTS]){
   for(const [brand,series,capacityNum,model] of APPROVED_HISENSE_MHI_SPLITS){
@@ -5045,6 +5050,7 @@ function productOriginLabelForBrand(brand){
 }
 const SPLIT_PRODUCT_SUPPORT=[
   ...APPROVED_MHI_SPLIT_SUPPORT,
+  {brand:'Hisense',series:'X4',details:{wifiStatus:'included',wifiLabel:'Built-in Wi-Fi',warrantyYears:7,warrantyLabel:'7 yrs promo (conditions apply)'}},
   ...PANASONIC_DKR_SPLIT_SUPPORT,
   {brand:'Fujitsu General',series:'Lifestyle',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional adaptor',warrantyYears:5,warrantyLabel:'5 yrs warranty'}},
   {brand:'Fujitsu General',series:'Comfort',details:{wifiStatus:'optional',wifiLabel:'Wi-Fi optional adaptor',warrantyYears:5,warrantyLabel:'5 yrs warranty'}},
@@ -5104,6 +5110,7 @@ const DUCTED_PRODUCT_SUPPORT=[
 ];
 const ANDOS_SPLIT_PRODUCT_SUPPORT=[
   ...APPROVED_MHI_SPLIT_SUPPORT,
+  {brand:'Hisense',series:'X4',details:{wifiStatus:'included',wifiLabel:'Built-in Wi-Fi',warrantyYears:7,warrantyLabel:'7 yrs promo (conditions apply)'}},
   {brand:'Hisense',series:'X5',details:{wifiStatus:'included',wifiLabel:'Built-in Wi-Fi',warrantyYears:7,warrantyLabel:'7 yrs promo (conditions apply)'}},
   ...PANASONIC_DKR_SPLIT_SUPPORT,
   {brand:'Daikin',series:'Alira X - A Series',details:{wifiStatus:'included',wifiLabel:'Built-in Wi-Fi',warrantyYears:5,warrantyLabel:'5 yrs parts & labour',originLabel:'Japanese'}},
@@ -5405,7 +5412,13 @@ function withVerifiedCatalogueProducts(type,list,lateEntries=[]){
   if(lateEntries.length){
     const indexByIdentity=new Map(merged.map((p,i)=>[identity(p),i]));
     lateEntries.forEach(p=>{
-      const index=indexByIdentity.get(identity(p));
+      let index=indexByIdentity.get(identity(p));
+      // Retain an existing complete X4 pair and its price key instead of adding its set code again.
+      if(index===undefined&&p.brand==='Hisense'&&p.series==='X4'&&/^HAWK(?:25|35|50|71|80)KR$/.test(p.model)){
+        const pairKeys=new Set([p.model+'O'+p.model+'I',p.model+'I'+p.model+'O']);
+        const pairIndex=merged.findIndex(existing=>normal(normaliseBrandName(existing.brand))==='HISENSE'&&pairKeys.has(normal(existing.model)));
+        if(pairIndex>=0) index=pairIndex;
+      }
       if(index===undefined){
         indexByIdentity.set(identity(p),merged.length);
         merged.push(p);
@@ -5496,6 +5509,16 @@ const PRODUCT_MODEL_DISPLAY_ALIASES={
   "FDCA160VNX-W-FDUA160VH":"FDCA160VNX-W / FDUA160VH"
 };
 const REBATE_LOOKUP_MODEL_ALIASES={
+  "HAWK25KROHAWK25KRI":["HAWK25KR"],"HAWK25KRIHAWK25KRO":["HAWK25KR"],
+  "HAWK35KROHAWK35KRI":["HAWK35KR"],"HAWK35KRIHAWK35KRO":["HAWK35KR"],
+  "HAWK50KROHAWK50KRI":["HAWK50KR"],"HAWK50KRIHAWK50KRO":["HAWK50KR"],
+  "HAWK71KROHAWK71KRI":["HAWK71KR"],"HAWK71KRIHAWK71KRO":["HAWK71KR"],
+  "HAWK80KROHAWK80KRI":["HAWK80KR"],"HAWK80KRIHAWK80KRO":["HAWK80KR"],
+  "HAWK25KR":["HAWK25KR-O / HAWK25KR-I"],
+  "HAWK35KR":["HAWK35KR-O / HAWK35KR-I"],
+  "HAWK50KR":["HAWK50KR-O / HAWK50KR-I"],
+  "HAWK71KR":["HAWK71KR-O / HAWK71KR-I"],
+  "HAWK80KR":["HAWK80KR-O / HAWK80KR-I"],
   "HAWH9KR":["HAWH9KR-O / HAWH9KR-I"],
   "HAWH12KR":["HAWH12KR-O / HAWH12KR-I"],
   "HAWH18KR":["HAWH18KR-O / HAWH18KR-I"],
