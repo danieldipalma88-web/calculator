@@ -31,3 +31,11 @@ Registry source: [Australian GEMS air-conditioner data](https://data.gov.au/data
 - Extend desktop/mobile Chromium and WebKit picker tests to select all five X4 indoor aliases and find all five outdoor aliases, without writing quotes or prices.
 - Independent review identified a duplicate risk for an existing priced component-pair row. The late-addition check now recognises only these five exact complete X4 pairs using the same punctuation-insensitive keys as rebate aliases, preserving the old model string, index and price key. Reverse aliases let that retained pair resolve to its registered set. Both component orders and slash, hyphen, comma and space separators are tested in both business and verified additions, for both catalogues.
 - Run catalogue, quote/price guards, rebate regressions, and a production build before independent review and release. Government eligibility and calculation formulas remain unchanged.
+
+## Live cache regression discovered during release verification
+
+The newly published catalogue was searchable but live metadata GETs for HAWK25KR and HAWK50KR returned `GEMS_MODEL_NOT_FOUND`. Fresh uncached calls to the exact same metadata loader resolved all five correctly. The framework inventory cache used a constant key even though its candidates are classified using catalogue package/component aliases. A previous release's `single` identities could therefore be reused while the new release expected `package` identities.
+
+The cache namespace now includes the generated catalogue's `sourceVersion`, so catalogue changes cannot reuse incompatible classified candidates. Five-minute revalidation, one-hour hard expiry, conflict/eligibility checks, formulas, and response shapes stay unchanged. Regression coverage includes all five X4 canonical/pair lookups, rejection of a lone indoor component, and a persisted old-cache/new-release test that leaves the old cache untouched.
+
+Final candidate verification: the metadata suite, 60 model/postcode/install parity cases, all six TCL registration-estimate tests, 25 browser metadata/outage checks, and the Next.js production build passed.

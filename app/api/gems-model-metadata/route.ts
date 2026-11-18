@@ -1,12 +1,12 @@
 import { unstable_cache } from "next/cache";
 import { NextResponse } from "next/server";
-import { createGemsCalculationMetadata, GEMS_INVENTORY_REVALIDATE_SECONDS, GemsCalculationMetadataError } from "../../../lib/gems-calculation-metadata";
+import { createGemsCalculationMetadata, GEMS_INVENTORY_CACHE_KEYS, GEMS_INVENTORY_REVALIDATE_SECONDS, GemsCalculationMetadataError } from "../../../lib/gems-calculation-metadata";
 
 export const runtime = "nodejs";
 export const maxDuration = 12;
 
 const lookup = createGemsCalculationMetadata({
-  wrapInventory: load => unstable_cache(load, ["gems-calculation-inventory-v3"], { revalidate: GEMS_INVENTORY_REVALIDATE_SECONDS }),
+  wrapInventory: load => unstable_cache(load, GEMS_INVENTORY_CACHE_KEYS, { revalidate: GEMS_INVENTORY_REVALIDATE_SECONDS }),
 });
 
 export async function GET(request: Request) {

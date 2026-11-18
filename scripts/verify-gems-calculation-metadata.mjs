@@ -50,6 +50,13 @@ await reject(fixed([{ ...row, Model_No: "AOTG09KMTC" }])(brand, model), 404, "GE
 await reject(fixed([row])(brand, "AOTG09KMTC"), 404, "GEMS_MODEL_NOT_FOUND");
 const hisense = { ...row, Brand: "Hisense", Model_No: "HAWG9KR", "Registration Number": "AAC8005", "Outdoor unit only": "No" };
 assert.equal((await fixed([hisense])("Hisense", "HAWG9KR")).model, "HAWG9KR");
+for (const model of ["HAWK25KR", "HAWK35KR", "HAWK50KR", "HAWK71KR", "HAWK80KR"]) {
+  const x4 = { ...hisense, Model_No: model };
+  const lookup = fixed([x4]);
+  assert.equal((await lookup("Hisense", model)).model, model);
+  assert.equal((await lookup("Hisense", `${model}-O / ${model}-I`)).model, model);
+  await reject(lookup("Hisense", `${model}-I`), 404, "GEMS_MODEL_NOT_FOUND");
+}
 for (const change of [{ "Outdoor unit only": "Yes" }, { "Outdoor unit only": null }, { Configuration2: "" }, { Model_No: "HAWG9KR-O" }]) {
   const candidate = { ...hisense, ...change };
   await reject(fixed([candidate])("Hisense", candidate.Model_No), 422, "GEMS_MODEL_REJECTED");
@@ -342,7 +349,27 @@ try {
   vm.runInNewContext(outputText, sandbox);
   const { GET } = sandbox.exports;
   assert.equal(cacheOptions.revalidate, 300);
-  assert.ok(cacheOptions.keys[0].includes("inventory-v3"));
+  const catalogue = JSON.parse(await readFile(new URL("../lib/public-rebate-catalogue.generated.json", import.meta.url), "utf8"));
+  assert.deepEqual(cacheOptions.keys, ["gems-calculation-inventory-v4", catalogue.sourceVersion]);
+  // Simulate a redeployment while the framework's shared cache still contains old classified rows.
+  const persisted = new Map();
+  const seed = { catalogue: "before-X4", candidates: [] };
+  const oldKeys = ["gems-calculation-inventory-v4", "prior-catalogue-version"];
+  persisted.set(JSON.stringify([oldKeys, "hisense"]), seed);
+  const versionedSandbox = { exports: {}, URL, require(name) {
+    if (name === "next/server") return { NextResponse: { json: Response.json } };
+    if (name === "next/cache") return { unstable_cache(load, keys) { return async brand => {
+      const key = JSON.stringify([keys, brand]);
+      if (!persisted.has(key)) persisted.set(key, await load(brand));
+      return persisted.get(key);
+    }; } };
+    return { ...lib, createGemsCalculationMetadata: ({ wrapInventory }) =>
+      async () => wrapInventory(async () => ({ catalogue: catalogue.sourceVersion, candidates: ["HAWK25KR"] }))("hisense") };
+  } };
+  vm.runInNewContext(outputText, versionedSandbox);
+  const refreshed = await versionedSandbox.exports.GET(new Request("https://calculator.test/api/gems-model-metadata?brand=Hisense&model=HAWK25KR"));
+  assert.deepEqual(await refreshed.json(), { catalogue: catalogue.sourceVersion, candidates: ["HAWK25KR"] });
+  assert.equal(persisted.get(JSON.stringify([oldKeys, "hisense"])), seed, "New release must not mutate the older release's cache");
   const bad = await GET(new Request("https://calculator.test/api/gems-model-metadata?brand=Fujitsu&brand=Other&model=AB123"));
   assert.equal(bad.status, 400);
   for (const suffix of ['registrationEstimate=yes', 'registrationEstimate=', 'registrationEstimate=lower-total-v1&registrationEstimate=lower-total-v1']) {

@@ -2,6 +2,8 @@ import catalogue from "./public-rebate-catalogue.generated.json";
 import { conservativeRegistrationIds, fetchGemsDatastoreRecords, GEMS_AIRCON_RESOURCE_IDS, GEMS_VERIFIED_INVENTORY_SOURCE, isGemsMultiSplitOutdoorRecord, type GemsSearchRecord } from "./gems-model-search";
 
 export const GEMS_INVENTORY_REVALIDATE_SECONDS = 300;
+// Cached candidates are classified using this catalogue's package/component aliases.
+export const GEMS_INVENTORY_CACHE_KEYS = ["gems-calculation-inventory-v4", catalogue.sourceVersion];
 export const GEMS_INVENTORY_MAX_AGE_MS = 60 * 60 * 1000;
 const DEADLINE_MS = 8000;
 const FAILURE_COOLDOWN_MS = 5000;
