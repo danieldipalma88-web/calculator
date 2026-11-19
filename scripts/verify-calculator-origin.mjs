@@ -49,5 +49,6 @@ assert.match(workflow, /needs: read-only-health/);
 assert.match(workflow, /always\(\).*github\.repository == 'danieldipalma88-web\/calculator'/);
 assert.match(workflow, /github\.event\.repository\.private == false/);
 assert.match(workflow, /persist-credentials: false/);
+assert.match(workflow, /continue-on-error: true\s+run: node scripts\/monitor-calculator-origin\.mjs/);
 assert.doesNotMatch(workflow, /SUPABASE_SERVICE|DATABASE_URL|RESEND_API|pull_request_target/);
 console.log("Origin monitor: healthy, confirmed slow/outage, transient recovery, invalid 200, bounded retry, no writes or customer data passed.");

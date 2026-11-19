@@ -33,6 +33,8 @@ jobs:
           node scripts/verify-calculator-origin.mjs
           node scripts/verify-calculator-origin-incident.mjs
       - name: Check authentication and database without reading customer data
+        # Service incidents notify through the deduplicated issue, not a failing workflow every ten minutes.
+        continue-on-error: true
         run: node scripts/monitor-calculator-origin.mjs --output=calculator-origin-report.json
       - name: Capture fixed-data health state
         id: report
