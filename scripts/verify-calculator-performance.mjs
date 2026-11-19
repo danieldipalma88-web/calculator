@@ -212,7 +212,8 @@ function certificateContext(fetchJson) {
       return climate.promise;
     },
     normalizeAirConditionerType: (value) => value,
-    calculateCertificatesForModel: async (_meta, _climate, options) => {
+    getDcceewContractMatch: () => null,
+    calculateResolvedCertificates: async (_resolved, _climate, options) => {
       assert.equal(options.installType, "replacement");
       return {
         esc: 2,

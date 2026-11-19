@@ -1,0 +1,73 @@
+name: Calculator sign-in and database health
+on:
+  schedule:
+    # Best-effort schedule: GitHub can delay runs. This is an alert, not an availability guarantee.
+    - cron: '4,14,24,34,44,54 * * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/*calculator-origin*'
+      - '.github/workflows/calculator-origin-health.yml'
+permissions:
+  contents: read
+concurrency:
+  group: calculator-origin-health
+  cancel-in-progress: false
+jobs:
+  read-only-health:
+    if: github.repository == 'danieldipalma88-web/calculator' && github.event.repository.private == false && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    outputs:
+      report: ${{ steps.report.outputs.report }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Verify outage and warning handling with fixtures
+        run: |
+          node scripts/verify-calculator-origin.mjs
+          node scripts/verify-calculator-origin-incident.mjs
+      - name: Check authentication and database without reading customer data
+        run: node scripts/monitor-calculator-origin.mjs --output=calculator-origin-report.json
+      - name: Capture fixed-data health state
+        id: report
+        if: always()
+        run: |
+          node -e 'const fs=require("node:fs");let report=null;try{report=JSON.parse(fs.readFileSync("calculator-origin-report.json","utf8"))}catch{}fs.appendFileSync(process.env.GITHUB_OUTPUT,"report="+JSON.stringify(report)+"\n")'
+      - name: Include health results in the run summary
+        if: always()
+        run: |
+          if [ -f calculator-origin-report.json ]; then
+            printf '%s\n' '## Calculator origin health' '```json' >> "$GITHUB_STEP_SUMMARY"
+            cat calculator-origin-report.json >> "$GITHUB_STEP_SUMMARY"
+            printf '%s\n' '```' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  incident-alert:
+    needs: read-only-health
+    if: always() && github.repository == 'danieldipalma88-web/calculator' && github.event.repository.private == false && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Read state without evaluating report content
+        env:
+          HEALTH_REPORT: ${{ needs.read-only-health.outputs.report }}
+        run: node -e 'require("node:fs").writeFileSync("calculator-origin-report.json",process.env.HEALTH_REPORT||"null")'
+      - name: Notify the owner only when incident state changes
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/report-calculator-origin-incident.mjs

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { readQuoteProfile } from "../../../lib/read-quote-profile";
 import { canManageUsers, canSeeCommissionDetails, canSeeProfitDetails, isOwnerEmail } from "../../../lib/admin";
 import {
   CERTIFICATE_VALUES_STORAGE_KEYS,
@@ -591,31 +592,9 @@ export async function GET(request: Request) {
   if ("error" in visibility) return NextResponse.json({ error: visibility.error }, { status: visibility.status });
   let userData: Record<string, unknown> = {};
   if (!settingsOnly) {
-    const byEmail = await supabase
-      .from("user_calculator_data")
-      .select("data")
-      .eq("email", viewingEmail)
-      .maybeSingle();
-
-    if (byEmail.error) {
-      return NextResponse.json({ error: byEmail.error.message }, { status: 500 });
-    }
-
-    userData = (byEmail.data?.data || {}) as Record<string, unknown>;
-
-    if (viewingEmail === currentEmail) {
-      const { data, error } = await supabase
-        .from("user_calculator_data")
-        .select("data")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
-      }
-
-      if (!byEmail.data?.data) userData = (data?.data || {}) as Record<string, unknown>;
-    }
+    const profile = await readQuoteProfile(supabase, user.id, currentEmail, viewingEmail);
+    if (profile.error) return NextResponse.json({ error: profile.error.message }, { status: 500 });
+    userData = (profile.data?.data || {}) as Record<string, unknown>;
   }
 
   let businessData: Record<string, unknown> = {};

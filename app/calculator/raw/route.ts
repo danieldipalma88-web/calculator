@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { calculatorAddedProducts, readAddedModels } from "../../../lib/model-catalogue";
 import path from "node:path";
 import { NextResponse } from "next/server";
+import { readQuoteProfile } from "../../../lib/read-quote-profile";
 import { parseAadCataloguePriceDefaults } from "../../../lib/aad-catalogue-price-defaults";
 import {
   canManageUsers,
@@ -1744,19 +1745,7 @@ async function getSavedCalculatorData(
   viewingEmail: string,
   businessId?: string | null,
 ) {
-  const byEmailPromise = supabase
-    .from("user_calculator_data")
-    .select("data")
-    .eq("email", viewingEmail)
-    .maybeSingle();
-  const byUserPromise =
-    viewingEmail === currentEmail
-      ? supabase
-      .from("user_calculator_data")
-      .select("data")
-      .eq("user_id", currentUserId)
-      .maybeSingle()
-      : Promise.resolve({ data: null, error: null });
+  const profilePromise = readQuoteProfile(supabase, currentUserId, currentEmail, viewingEmail);
   const businessPromise = businessId
     ? supabase
         .from("business_calculator_data")
@@ -1769,21 +1758,19 @@ async function getSavedCalculatorData(
     .select("id, esc_spot_price, prc_spot_price, source, locked, updated_at")
     .eq("id", PLATFORM_CERTIFICATE_VALUES_ID)
     .maybeSingle();
-  const [byEmail, byUser, businessResult, platformResult] = await Promise.all([
-    byEmailPromise,
-    byUserPromise,
+  const [profile, businessResult, platformResult] = await Promise.all([
+    profilePromise,
     businessPromise,
     platformPromise,
   ]);
 
   // A failed read is not an empty saved profile. The browser replaces its
   // baseline with the snapshot from this route when it starts up.
-  const useUserIdFallback = viewingEmail === currentEmail && !byEmail.data?.data;
-  if (byEmail.error || (useUserIdFallback && byUser.error)) return { loadError: "user" as const };
+  if (profile.error) return { loadError: "user" as const };
   if (businessResult.error) return { loadError: "business" as const };
   if (platformResult.error) return { loadError: "platform-values" as const };
 
-  const userData = ((useUserIdFallback ? byUser.data?.data : byEmail.data?.data) || {}) as Record<string, unknown>;
+  const userData = (profile.data?.data || {}) as Record<string, unknown>;
   const platformValues = platformCertificateValuesFromRow(platformResult.data as PlatformCertificateValuesRow | null);
   const businessData = validatedBusinessConfigurationData(
     overlayPlatformCertificateValues((businessResult.data?.data || {}) as Record<string, unknown>, platformValues),

@@ -56,7 +56,7 @@ assert.match(
 );
 assert.match(
   rawRoute,
-  /const \[byEmail, byUser, businessResult, platformResult\] = await Promise\.all\(/,
+  /const \[profile, businessResult, platformResult\] = await Promise\.all\(/,
   "Independent calculator data reads must run in parallel.",
 );
 assert.match(

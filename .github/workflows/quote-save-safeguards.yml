@@ -12,6 +12,7 @@ on:
       - 'lib/calculator-data-save.ts'
       - 'lib/calculator-save-payload.ts'
       - 'lib/calculator-transfer-response.ts'
+      - 'lib/read-quote-profile.ts'
       - 'lib/quote*.ts'
       - 'lib/won-*.ts'
       - 'app/admin/users/**'
@@ -23,6 +24,8 @@ on:
       - 'scripts/verify-calculator-transfer-next.mjs'
       - 'scripts/verify-quote*.mjs'
       - 'scripts/verify-business-configuration.mjs'
+      - 'scripts/verify-admin-lazy*'
+      - 'scripts/verify-rebate-settings-refresh.mjs'
       - 'package*.json'
       - '.github/workflows/quote-save-safeguards.yml'
   pull_request:
@@ -32,6 +35,7 @@ on:
       - 'lib/calculator-data-save.ts'
       - 'lib/calculator-save-payload.ts'
       - 'lib/calculator-transfer-response.ts'
+      - 'lib/read-quote-profile.ts'
       - 'lib/quote*.ts'
       - 'lib/won-*.ts'
       - 'app/admin/users/**'
@@ -43,6 +47,8 @@ on:
       - 'scripts/verify-calculator-transfer-next.mjs'
       - 'scripts/verify-quote*.mjs'
       - 'scripts/verify-business-configuration.mjs'
+      - 'scripts/verify-admin-lazy*'
+      - 'scripts/verify-rebate-settings-refresh.mjs'
       - 'package*.json'
       - '.github/workflows/quote-save-safeguards.yml'
 
@@ -80,3 +86,5 @@ jobs:
         run: |
           npm run verify:quote-sync
           npm run verify:business-configuration
+      - name: Verify read reduction and permission parity
+        run: npm run verify:read-efficiency

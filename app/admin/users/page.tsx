@@ -2543,6 +2543,12 @@ function wonExportScript() {
       restoreWonUiState();
       applyWonSalespersonFilter();
       refreshBulkInputs();
+      if (window.__adminWonDockObserver) window.__adminWonDockObserver.disconnect();
+      var selectionDock = document.querySelector("[data-won-mobile-selection-dock]");
+      if (selectionDock && typeof ResizeObserver === "function") {
+        window.__adminWonDockObserver = new ResizeObserver(updateWonDockSpacing);
+        window.__adminWonDockObserver.observe(selectionDock);
+      }
     }
   };
   if (!window.__adminWonOptionsHandlersBound) {
@@ -2582,12 +2588,6 @@ function wonExportScript() {
     }, true);
   }
   window.__adminWonOptionsRuntime.refresh();
-  if (window.__adminWonDockObserver) window.__adminWonDockObserver.disconnect();
-  var selectionDock = document.querySelector("[data-won-mobile-selection-dock]");
-  if (selectionDock && typeof ResizeObserver === "function") {
-    window.__adminWonDockObserver = new ResizeObserver(updateWonDockSpacing);
-    window.__adminWonDockObserver.observe(selectionDock);
-  }
 })();
 `;
 }
@@ -3842,17 +3842,17 @@ async function unlockWonOption(formData: FormData) {
   const wonAt = normalizeText(formData.get("wonAt"));
 
   if (!userEmail || !optionId) {
-    redirect("/admin/users?error=Could not identify the won option to unlock.");
+    redirect("/admin/users?view=jobs&error=Could not identify the won option to unlock.#won-options");
   }
 
   const errorMessage = await updateWonOptionState(supabase, userEmail, optionId, "unlock", adminEmail, sourceId, dataUserId, dataOwnerEmail, wonAt);
 
   if (errorMessage) {
-    redirect(`/admin/users?error=${encodeURIComponent(errorMessage)}`);
+    redirect(`/admin/users?view=jobs&error=${encodeURIComponent(errorMessage)}#won-options`);
   }
 
   revalidatePath("/admin/users");
-  redirect("/admin/users?message=Won option was unlocked.");
+  redirect("/admin/users?view=jobs&message=Won option was unlocked.#won-options");
 }
 
 async function deleteWonOption(formData: FormData) {
@@ -3867,17 +3867,17 @@ async function deleteWonOption(formData: FormData) {
   const wonAt = normalizeText(formData.get("wonAt"));
 
   if (!userEmail || !optionId) {
-    redirect("/admin/users?error=Could not identify the won option to delete.");
+    redirect("/admin/users?view=jobs&error=Could not identify the won option to delete.#won-options");
   }
 
   const errorMessage = await updateWonOptionState(supabase, userEmail, optionId, "delete", adminEmail, sourceId, dataUserId, dataOwnerEmail, wonAt);
 
   if (errorMessage) {
-    redirect(`/admin/users?error=${encodeURIComponent(errorMessage)}`);
+    redirect(`/admin/users?view=jobs&error=${encodeURIComponent(errorMessage)}#won-options`);
   }
 
   revalidatePath("/admin/users");
-  redirect("/admin/users?message=Won option was deleted.");
+  redirect("/admin/users?view=jobs&message=Won option was deleted.#won-options");
 }
 
 async function updateWonPaymentStatus(formData: FormData) {
@@ -3893,11 +3893,11 @@ async function updateWonPaymentStatus(formData: FormData) {
   const mode = String(formData.get("paymentMode") || "");
 
   if (!userEmail || !optionId) {
-    redirect("/admin/users?error=Could not identify the won option to update.");
+    redirect("/admin/users?view=jobs&error=Could not identify the won option to update.#won-options");
   }
 
   if (mode !== "payment_requested" && mode !== "paid_in" && mode !== "paid_out" && mode !== "reset_payment") {
-    redirect("/admin/users?error=Choose a valid payment status.");
+    redirect("/admin/users?view=jobs&error=Choose a valid payment status.#won-options");
   }
 
   const errorMessage = await updateWonOptionState(
@@ -3914,11 +3914,11 @@ async function updateWonPaymentStatus(formData: FormData) {
 
   if (errorMessage === WON_PAYMENT_ALREADY_RECORDED) {
     const label = mode === "payment_requested" ? "Agency payment request" : mode === "paid_in" ? "Agency payment" : "Salesperson commission";
-    redirect(`/admin/users?message=${encodeURIComponent(`${label} was already recorded; the original timestamp was kept.`)}`);
+    redirect(`/admin/users?view=jobs&message=${encodeURIComponent(`${label} was already recorded; the original timestamp was kept.`)}#won-options`);
   }
 
   if (errorMessage) {
-    redirect(`/admin/users?error=${encodeURIComponent(errorMessage)}`);
+    redirect(`/admin/users?view=jobs&error=${encodeURIComponent(errorMessage)}#won-options`);
   }
 
   const message =
@@ -3931,7 +3931,7 @@ async function updateWonPaymentStatus(formData: FormData) {
         : "Payment status was reset.";
 
   revalidatePath("/admin/users");
-  redirect(`/admin/users?message=${encodeURIComponent(message)}`);
+  redirect(`/admin/users?view=jobs&message=${encodeURIComponent(message)}#won-options`);
 }
 
 type WonOptionSelection = {
@@ -4506,7 +4506,7 @@ async function submitWonBatch(
   const includeBackups = formData.get("wonBatchIncludeBackups") === "1";
   const resume = formData.get("wonBatchResume") === "1";
   function finish(message: string, error: boolean, savedId?: string): never {
-    const params = new URLSearchParams({ [error ? "error" : "message"]: message });
+    const params = new URLSearchParams({ view: "jobs", [error ? "error" : "message"]: message });
     if (includeBackups) params.set("checkBackups", "1");
     if (savedId) params.set("wonBatch", savedId);
     redirect(`/admin/users?${params}#won-options`);
@@ -4619,11 +4619,11 @@ async function bulkUpdateWonOptions(formData: FormData) {
   const selections = parseWonOptionSelections(formData.get("selectedWonOptions"));
 
   if (!selections.length) {
-    redirect("/admin/users?error=Select at least one won option first.");
+    redirect("/admin/users?view=jobs&error=Select at least one won option first.#won-options");
   }
 
   if (mode !== "reset_payment" && mode !== "unlock" && mode !== "delete" && mode !== "update_rebate") {
-    redirect("/admin/users?error=Choose a valid bulk action.");
+    redirect("/admin/users?view=jobs&error=Choose a valid bulk action.#won-options");
   }
 
   if (mode === "update_rebate") {
@@ -4640,7 +4640,7 @@ async function bulkUpdateWonOptions(formData: FormData) {
       certificateResult.errorMessage,
     ].filter(Boolean);
     if (setupErrors.length) {
-      redirect(`/admin/users?error=${encodeURIComponent(`Rebate update setup failed. ${setupErrors.join(" ")}`)}`);
+      redirect(`/admin/users?view=jobs&error=${encodeURIComponent(`Rebate update setup failed. ${setupErrors.join(" ")}`)}#won-options`);
     }
     const users = applyMembershipsToUsers(usersResult.data, membershipsResult.data);
     const environment: RebateRefreshEnvironment = {
@@ -4667,9 +4667,9 @@ async function bulkUpdateWonOptions(formData: FormData) {
     revalidatePath("/admin/users");
     const summary = `${updatedCount} won quote${updatedCount === 1 ? "" : "s"} updated across ${systemCount} system${systemCount === 1 ? "" : "s"}. Rebate total changed from ${formatMoney(previousTotal)} to ${formatMoney(nextTotal)}.`;
     if (errors.length) {
-      redirect(`/admin/users?error=${encodeURIComponent(`${summary} ${errors.length} failed. ${errors.slice(0, 3).join(" ")}`)}`);
+      redirect(`/admin/users?view=jobs&error=${encodeURIComponent(`${summary} ${errors.length} failed. ${errors.slice(0, 3).join(" ")}`)}#won-options`);
     }
-    redirect(`/admin/users?message=${encodeURIComponent(summary)}`);
+    redirect(`/admin/users?view=jobs&message=${encodeURIComponent(summary)}#won-options`);
   }
 
   const errors: string[] = [];
@@ -4697,12 +4697,12 @@ async function bulkUpdateWonOptions(formData: FormData) {
 
   if (errors.length) {
     const detail = errors.slice(0, 3).join(" ");
-    redirect(`/admin/users?error=${encodeURIComponent(`${updatedCount} updated, ${errors.length} failed. ${detail}`)}`);
+    redirect(`/admin/users?view=jobs&error=${encodeURIComponent(`${updatedCount} updated, ${errors.length} failed. ${detail}`)}#won-options`);
   }
 
   const actionLabel =
     mode === "reset_payment" ? "reset" : mode === "unlock" ? "unlocked" : "permanently deleted";
-  redirect(`/admin/users?message=${encodeURIComponent(`${updatedCount} won option${updatedCount === 1 ? "" : "s"} ${actionLabel}.`)}`);
+  redirect(`/admin/users?view=jobs&message=${encodeURIComponent(`${updatedCount} won option${updatedCount === 1 ? "" : "s"} ${actionLabel}.`)}#won-options`);
 }
 
 function WonBatchFormFields() {
@@ -4774,12 +4774,20 @@ function WonBulkActionControls() {
   );
 }
 
+function wonJobsRequested(params?: { [key: string]: string | undefined }) {
+  if (["businesses", "users", "prices"].includes(params?.view || "")) return false;
+  return params?.view === "jobs" || params?.checkBackups === "1" ||
+    Boolean(params?.wonBatch || params?.wonBatchPage || params?.wonReport ||
+      params?.wonSalesperson || params?.wonFrom || params?.wonTo);
+}
+
 export default async function AdminUsersPage({
   searchParams,
 }: {
   searchParams?: Promise<{
     error?: string;
     message?: string;
+    view?: string;
     checkBackups?: string;
     setupBusiness?: string;
     setupAction?: string;
@@ -4793,6 +4801,7 @@ export default async function AdminUsersPage({
   }>;
 }) {
   const params = await searchParams;
+  const loadWonJobs = wonJobsRequested(params);
   const includeBackupWonOptions = params?.checkBackups === "1";
   const activeWonBatchId = isWonBatchId(params?.wonBatch) ? params.wonBatch : undefined;
   const wonBatchPage = /^[1-9]\d{0,5}$/.test(params?.wonBatchPage || "") ? Number(params?.wonBatchPage) : 1;
@@ -4805,8 +4814,8 @@ export default async function AdminUsersPage({
     getPlatformCertificateValues(supabase, businessResult.data),
     listPlatformCertificateValueHistory(supabase),
     listApprovedUserActivity(supabase),
-    listWonBatches(supabase, wonBatchPage),
-    activeWonBatchId ? getWonBatch(supabase, activeWonBatchId) : null,
+    loadWonJobs ? listWonBatches(supabase, wonBatchPage) : { batches: [], unavailable: false, hasMore: false },
+    loadWonJobs && activeWonBatchId ? getWonBatch(supabase, activeWonBatchId) : null,
   ]);
 
   const businesses = businessResult.data;
@@ -4814,7 +4823,9 @@ export default async function AdminUsersPage({
     applyMembershipsToUsers(usersResult.data, membershipsResult.data),
     activityResult.data,
   );
-  const wonResult = await listWonOptions(supabase, users, includeBackupWonOptions);
+  const wonResult = loadWonJobs
+    ? await listWonOptions(supabase, users, includeBackupWonOptions)
+    : { data: [] as WonOption[], errorMessage: "", currentUnavailable: false };
   const wonOptions = wonResult.data;
   const batchJobIds = new Map(wonOptions.map((option) => [option, wonBatchJobId(option)]));
   const availableBatchIds = new Set(batchJobIds.values());
@@ -4869,7 +4880,7 @@ export default async function AdminUsersPage({
           </a>
         </div>
 
-        {isOwnerEmail(currentEmail) ? <PaymentFollowUpNotice
+        {isOwnerEmail(currentEmail) ? loadWonJobs ? <PaymentFollowUpNotice
           initialToday={sydneyToday()}
           unavailable={Boolean(wonResult.errorMessage)}
           jobs={wonOptions.filter((option) => !option.recoveredFromBackup).map((option) => ({
@@ -4881,7 +4892,10 @@ export default async function AdminUsersPage({
             agencyCommissionTotal: option.agencyCommissionTotal,
             salespersonCommissionTotal: option.salespersonCommissionTotal,
           }))}
-        /> : null}
+        /> : <aside className="payment-follow-up-notice" aria-label="Payment follow-up">
+          <strong>Payment reminders not checked</strong>
+          <p><a href="#won-options">Review Won Jobs</a></p>
+        </aside> : null}
 
         {params?.message ? <div className="notice success">{params.message}</div> : null}
         {params?.error ? <div className="notice">{params.error}</div> : null}
@@ -4933,7 +4947,10 @@ export default async function AdminUsersPage({
           </section>
         ) : null}
 
-        <AdminWorkspace storageScope={currentEmail} initialView={setupBusiness ? "users" : params?.certificateHistoryRange ? "prices" : includeBackupWonOptions || activeWonBatchId || params?.wonBatchPage || params?.wonReport ? "jobs" : undefined}>
+        <AdminWorkspace storageScope={currentEmail} jobsLoaded={loadWonJobs}
+          jobsUnavailable={Boolean(wonResult.currentUnavailable || batchHistory.unavailable || activeBatchResult?.error)}
+          initialView={params?.view === "businesses" || params?.view === "users" || params?.view === "prices" || params?.view === "jobs"
+            ? params.view : setupBusiness ? "users" : params?.certificateHistoryRange ? "prices" : loadWonJobs ? "jobs" : undefined}>
         <AdminPanel view="prices" id="certificate-values">
           <div className="section-heading admin-section-summary">
             <div>
@@ -5441,10 +5458,10 @@ export default async function AdminUsersPage({
               <h2>Won Quotes</h2>
               <p>Track agency payments and salesperson commissions.</p>
             </div>
-            <span className="section-count">{wonOptions.length} quotes</span>
+            {loadWonJobs ? <span className="section-count">{wonOptions.length} quotes</span> : null}
           </div>
 
-          <div className="admin-section-body" data-won-backup-scope={includeBackupWonOptions ? "1" : "0"}>
+          {loadWonJobs ? <div className="admin-section-body" data-won-backup-scope={includeBackupWonOptions ? "1" : "0"}>
             <WonSelectionScope scope={JSON.stringify([
               includeBackupWonOptions, activeWonBatchId, wonBatchPage, params?.wonReport, params?.wonSalesperson,
               params?.wonFrom, params?.wonTo,
@@ -5467,7 +5484,7 @@ export default async function AdminUsersPage({
                     ? "This view includes recovered backup records and may take longer to load."
                     : "Recovered backups are skipped on normal loads so paid-status updates stay fast."}
                 </span>
-                <a href={includeBackupWonOptions ? "/admin/users#won-options" : "/admin/users?checkBackups=1#won-options"}>
+                <a href={includeBackupWonOptions ? "/admin/users?view=jobs#won-options" : "/admin/users?view=jobs&checkBackups=1#won-options"}>
                   {includeBackupWonOptions ? "Hide recovered backups" : "Check recovered backups"}
                 </a>
               </details>
@@ -5826,7 +5843,7 @@ export default async function AdminUsersPage({
               <div className="won-selected-totals won-selected-totals-toolbar" data-won-selected-totals hidden aria-live="polite" />
               <span className="won-export-status" data-won-export-status role="status" aria-live="polite" />
             </aside>
-          </div>
+          </div> : null}
         </AdminPanel>
         </AdminWorkspace>
       </section>

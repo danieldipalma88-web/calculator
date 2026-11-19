@@ -22,7 +22,7 @@ function loadTs(filename) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
   }).outputText;
   vm.runInNewContext(source, {
-    module, exports: module.exports, URL, Request, Response, AbortController, AbortSignal, setTimeout, clearTimeout,
+    module, exports: module.exports, URL, Request, Response, Headers, Buffer, AbortController, AbortSignal, setTimeout, clearTimeout,
     fetch: (input, init) => {
       assert.ok(init.signal instanceof AbortSignal, "Save DB requests use the route deadline signal");
       return activeDatabase.transport(input, init);
@@ -151,6 +151,7 @@ async function parity(name, query, config = {}) {
 }
 
 const normal = await parity("normal", "businessId=business-a");
+assert.equal(normal.full.queries.filter(q => q.table === "user_calculator_data").length, 1);
 assert.equal(normal.full.body.data.privateProfile, "private-profile", "Old clients retain their profile");
 assert.equal(normal.full.body.data.installerManagedPricesV1, businessData.installerManagedPricesV1);
 assert.ok(!("installerWonOptionAdminStateV1" in normal.full.body.data));
@@ -164,6 +165,7 @@ await parity("unauthorized business", "businessId=not-a-member");
 await parity("non-admin as ignored", `as=${targetEmail}&businessId=business-a`);
 await parity("no business", "");
 const fallbackProfile = await parity("user-id profile fallback", "businessId=business-a", { missingEmailProfile: true });
+assert.equal(fallbackProfile.full.queries.filter(q => q.table === "user_calculator_data").length, 2);
 assert.equal(fallbackProfile.full.body.data.privateProfile, "private-profile");
 await parity("admin preview", "businessId=business-b&preview=admin", { role: "admin" });
 const as = await parity("admin as", `as=${targetEmail}&businessId=business-b`, { role: "admin" });

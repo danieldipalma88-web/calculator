@@ -27,7 +27,7 @@ const checks = [
   [files.ui, "const DEFAULT_FETCH_TIMEOUT_MS=12000;", "upstream request deadline"],
   [files.ui, "const LIVE_REBATE_TIMEOUT_MS=20000;", "live rebate calculation deadline"],
   [files.ui, "if(controller&&controller.signal.aborted) throw new Error('Live rebate service timed out. Please try again.');", "upstream timeout error state"],
-  [files.ui, "const result=await withTimeout(", "live rebate hard timeout"],
+  [files.ui, "result=await withTimeout(", "live rebate hard timeout"],
   [files.ui, "standardMissing||liveRebateLoading", "Add to Quote rebate protection"],
   [files.ui, "setSectionLoading('bestValueComparison',true", "best value comparison loader"],
   [files.ui, "setSectionLoading('multiSplitRebatePanel',true", "multi-head rebate loader"],

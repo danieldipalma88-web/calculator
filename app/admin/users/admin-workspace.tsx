@@ -1,8 +1,8 @@
 "use client";
 
-import { createContext, startTransition, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, startTransition, useCallback, useContext, useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { createPortal, useFormStatus } from "react-dom";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 const VIEWS = [
   { id: "businesses", label: "Businesses", panel: "businesses" },
@@ -107,11 +107,16 @@ export function SpotPriceSaveForm({ children, saveAction }: {
   </form>;
 }
 
-export default function AdminWorkspace({ children, storageScope, initialView }: {
-  children: ReactNode; storageScope: string; initialView?: View;
+export default function AdminWorkspace({ children, storageScope, initialView, jobsLoaded = true, jobsUnavailable = false }: {
+  children: ReactNode; storageScope: string; initialView?: View; jobsLoaded?: boolean; jobsUnavailable?: boolean;
 }) {
   const [view, setView] = useState<View>(initialView || "businesses");
   const root = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+  const [jobsPending, startJobsTransition] = useTransition();
+  const [jobsSlow, setJobsSlow] = useState(false);
+  const jobsRequest = useRef<string | null>(null);
+  const lazyView = useRef<View | null>(null);
   const params = useSearchParams();
   const resultKey = params.toString();
   const storageKey = `calculator-admin-workspace-v1:${storageScope}`;
@@ -119,8 +124,17 @@ export default function AdminWorkspace({ children, storageScope, initialView }: 
   useEffect(() => {
     let saved: { view?: View; expanded?: string[]; returning?: boolean; scrollY?: number } = {};
     try { saved = JSON.parse(sessionStorage.getItem(storageKey) || "{}"); } catch { /* Storage is optional. */ }
-    const nextView = hashView() || initialView || saved.view;
+    const nextView = lazyView.current || hashView() || initialView || saved.view;
     if (validView(nextView)) setView(nextView);
+    if (jobsLoaded && lazyView.current) {
+      const target = VIEWS.find((item) => item.id === lazyView.current)!;
+      const url = new URL(window.location.href);
+      url.searchParams.set("view", target.id);
+      url.hash = target.panel;
+      window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+      lazyView.current = null;
+      jobsRequest.current = null;
+    }
     const frame = requestAnimationFrame(() => {
       root.current?.querySelectorAll<HTMLDetailsElement>("details[data-admin-record]").forEach((record) => {
         if (saved.expanded?.includes(record.dataset.adminRecord || "")) record.open = true;
@@ -130,10 +144,47 @@ export default function AdminWorkspace({ children, storageScope, initialView }: 
         try { sessionStorage.setItem(storageKey, JSON.stringify({ ...saved, returning: false })); } catch { /* Optional. */ }
       }
     });
-    const onHash = () => { const next = hashView(); if (next) setView(next); };
+    const onHash = () => {
+      const next = hashView();
+      if (next) {
+        if (lazyView.current) lazyView.current = next;
+        setView(next);
+      }
+    };
     window.addEventListener("hashchange", onHash);
     return () => { cancelAnimationFrame(frame); window.removeEventListener("hashchange", onHash); };
-  }, [storageKey, initialView, resultKey]);
+  }, [storageKey, initialView, resultKey, jobsLoaded]);
+
+  const requestJobs = useCallback(() => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("view", "jobs");
+    url.hash = "won-options";
+    jobsRequest.current = `${url.pathname}${url.search}${url.hash}`;
+    lazyView.current = "jobs";
+    const target = jobsRequest.current;
+    startJobsTransition(() => {
+      if (target === `${window.location.pathname}${window.location.search}${window.location.hash}`) router.refresh();
+      else router.replace(target, { scroll: false });
+    });
+  }, [router]);
+
+  useEffect(() => {
+    if (view === "jobs" && !jobsLoaded && !jobsRequest.current) requestJobs();
+  }, [view, jobsLoaded, requestJobs]);
+
+  useEffect(() => {
+    if (!jobsPending) { setJobsSlow(false); return; }
+    const timer = setTimeout(() => setJobsSlow(true), 15000);
+    return () => clearTimeout(timer);
+  }, [jobsPending]);
+
+  useEffect(() => {
+    if (!jobsLoaded) return;
+    const frame = requestAnimationFrame(() => {
+      (window as Window & { __adminWonOptionsRuntime?: { refresh(): void } }).__adminWonOptionsRuntime?.refresh();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [children, jobsLoaded, resultKey]);
 
   useEffect(() => {
     const node = root.current;
@@ -151,8 +202,12 @@ export default function AdminWorkspace({ children, storageScope, initialView }: 
   function selectView(next: View) {
     remember(false, next);
     setView(next);
+    if (lazyView.current) lazyView.current = next;
     const target = VIEWS.find((item) => item.id === next)!;
-    window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}#${target.panel}`);
+    const url = new URL(window.location.href);
+    if (next !== "jobs" || jobsLoaded) url.searchParams.set("view", next);
+    url.hash = target.panel;
+    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
   }
 
   return <ViewContext.Provider value={view}>
@@ -180,6 +235,10 @@ export default function AdminWorkspace({ children, storageScope, initialView }: 
             document.getElementById(`admin-tab-${next.id}`)?.focus();
           }}>{item.label}</button>)}
       </nav>
+      {view === "jobs" && (!jobsLoaded || jobsUnavailable) ? <div className="notice" role="status" aria-live="polite" aria-busy={jobsPending}>
+        {jobsPending ? jobsSlow ? "Won Jobs is taking longer than usual. Your other forms are unchanged." : "Loading Won Jobs..." : jobsUnavailable ? "Won Jobs could not be loaded completely." : "Won Jobs has not loaded."}
+        {!jobsPending && (jobsUnavailable || jobsRequest.current) ? <button type="button" className="secondary" onClick={requestJobs}>Try again</button> : null}
+      </div> : null}
       {children}
     </div>
   </ViewContext.Provider>;

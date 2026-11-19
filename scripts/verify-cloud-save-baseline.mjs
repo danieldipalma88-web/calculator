@@ -212,6 +212,7 @@ unavailable(await load({
 }), "Admin target lookup failure must not bootstrap an empty viewed profile");
 
 const validEmail = await load({ errors: { byId: poolTimeout } });
+assert.equal(lookups(validEmail, "byId").length, 0, "Do not read the quote document twice");
 assert.deepEqual(successful(validEmail), { ...savedUser, ...savedBusiness }, "Unused fallback errors cannot block a valid email baseline");
 assert.deepEqual(successful(await load({ byEmail: {}, errors: { byId: poolTimeout } })), savedBusiness, "An existing empty profile does not use fallback");
 assert.deepEqual(successful(await load({ byEmail: null, byId: savedUser })), { ...savedUser, ...savedBusiness }, "Legacy user-ID fallback works");

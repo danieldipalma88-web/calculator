@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "verify:origin-health": "node scripts/verify-calculator-origin.mjs && node scripts/verify-calculator-origin-incident.mjs",
+    "verify:read-efficiency": "node scripts/verify-admin-lazy.mjs && node scripts/verify-rebate-settings-refresh.mjs && node scripts/verify-cloud-save-baseline.mjs",
     "verify:postcode-monitor": "node scripts/verify-postcode-monitor.mjs",
     "monitor:postcodes": "node scripts/monitor-nsw-postcodes.mjs",
     "monitor:rebate-sample": "node scripts/monitor-rebate-sample.mjs",
