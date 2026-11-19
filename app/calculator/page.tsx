@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { after } from "next/server";
 import { canManageUsers } from "../../lib/admin";
 import { createSupabaseServerClient } from "../../lib/supabase/server";
+import { temporaryAuthFailure, withCalculatorAuthDeadline } from "../../lib/supabase/calculator-entry";
 import PageLoadingOverlay, { CalculatorFrame } from "../page-loading-overlay";
 import AutoSubmitSelect from "./auto-submit-select";
 
@@ -132,10 +133,25 @@ export default async function CalculatorPage({
   searchParams?: Promise<{ as?: string; preview?: string; admin?: string; businessId?: string }>;
 }) {
   const params = await searchParams;
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const entry = await withCalculatorAuthDeadline(async (_signal, authFetch) => {
+    const supabase = await createSupabaseServerClient(authFetch);
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (temporaryAuthFailure(error)) throw error;
+    return { supabase, user };
+  }).catch((error: unknown) => {
+    if (!temporaryAuthFailure(error)) throw error;
+    return null;
+  });
+  if (!entry) {
+    return (
+      <main className="auth-shell"><section className="auth-panel">
+        <h1>Sign-in is taking longer than usual</h1>
+        <p>Please try opening the calculator again.</p>
+        <a className="secondary" href="">Try again</a>
+      </section></main>
+    );
+  }
+  const { supabase, user } = entry;
 
   if (!user?.email) {
     redirect("/");

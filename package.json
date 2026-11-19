@@ -32,7 +32,7 @@
     "verify:won-payment-admin": "node scripts/verify-won-payment-admin-ux.mjs && node scripts/verify-admin-commission-gst.mjs && node scripts/verify-salesperson-commission.mjs",
     "verify:won-payment-save": "node scripts/verify-won-reporting.mjs && node scripts/verify-won-reporting-integration.mjs && node scripts/verify-won-payment-save.mjs",
     "verify:payment-follow-up": "node scripts/verify-payment-follow-up.mjs",
-    "verify:auth": "node scripts/verify-email-code-login.mjs",
+    "verify:auth": "node scripts/verify-email-code-login.mjs && node scripts/verify-calculator-entry.cjs",
     "verify:google-address": "node scripts/verify-google-address.mjs",
     "verify:postcode-address": "node scripts/verify-nsw-installation-address.mjs && node scripts/verify-google-address.mjs",
     "verify:postcode-address-browser": "node scripts/verify-postcode-address-browser.mjs",

@@ -8,7 +8,7 @@ type CookieToSet = {
   options?: Parameters<Awaited<ReturnType<typeof cookies>>["set"]>[2];
 };
 
-export async function createSupabaseServerClient() {
+export async function createSupabaseServerClient(authFetch?: typeof fetch) {
   if (!supabaseUrl || !supabasePublishableKey) {
     throw new Error("Missing Supabase environment variables.");
   }
@@ -16,6 +16,7 @@ export async function createSupabaseServerClient() {
   const cookieStore = await cookies();
 
   return createServerClient(supabaseUrl, supabasePublishableKey, {
+    ...(authFetch ? { global: { fetch: authFetch } } : {}),
     cookies: {
       getAll() {
         return cookieStore.getAll();
