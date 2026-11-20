@@ -3656,6 +3656,180 @@ button.quoteDragHandle:active{cursor:grabbing}
 .productSelectWrap:has(.modelSearchPicker) .productSelectCashback{min-height:0;padding:5px 0 0}
 .productSelectWrap:has(.modelSearchPicker) .productCashbackUnitName{display:none}
 .mhiCashbackBadge{display:inline-flex;align-items:center;padding:3px 8px;border:1px solid #eab308;border-radius:999px;background:#fde047;color:#713f12;font-size:11px;font-weight:800;line-height:16px;white-space:nowrap}
+/* Multi-head workspace only; the standard split and ducted layouts are unchanged. */
+body.multiWorkspaceActive{background:#f4f5f7}
+body.multiWorkspaceActive .header{padding:0;box-shadow:none}
+body.multiWorkspaceActive .brand{background:#fff;border-color:#e2e4e7;border-radius:20px;box-shadow:none}
+body.multiWorkspaceActive .header h1{font-size:22px;font-weight:650;letter-spacing:0;margin:0 0 16px}
+body.multiWorkspaceActive .header .kicker,body.multiWorkspaceActive .header .brand>.sub{display:none}
+body.multiWorkspaceActive .systemTabs{margin-top:0;gap:8px}
+body.multiWorkspaceActive .systemTabs button{border-radius:6px}
+#multiSplitTrialCard{margin-top:24px;letter-spacing:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1d1d1f}
+#multiSplitTrialCard h2,#multiSplitTrialCard h3,#multiSplitTrialCard input,#multiSplitTrialCard select,#multiSplitTrialCard button{font-family:inherit;letter-spacing:0}
+#multiSplitTrialCard .multiWorkspaceHeading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px}
+#multiSplitTrialCard .multiWorkspaceHeading h2{font-size:22px;font-weight:600;margin:0;color:#1d1d1f}
+#multiSplitTrialCard .multiSplitPageGrid{grid-template-columns:minmax(0,1fr) 360px;gap:24px}
+#multiSplitTrialCard .multiSplitMainStack{display:grid;gap:20px;align-content:start;background:none;padding:0;border:0;border-radius:0;min-width:0}
+#multiSplitTrialCard .multiWorkspaceSection{padding:24px;border:1px solid #e0e3e7;background:#fff;border-radius:18px;min-width:0}
+#multiSplitTrialCard .sectionTitle{font-size:20px;font-weight:600;line-height:1.3;display:flex;align-items:center;margin:0 0 20px;color:#1d1d1f}
+#multiSplitTrialCard .multiSplitSetupHeader .sectionTitle{margin:0}
+#multiSplitTrialCard .multiSplitSetupHeader{margin-bottom:20px;padding-bottom:18px;border-bottom:1px solid #eceef0}
+#multiSplitTrialCard .multiWorkspaceSection>.sectionTitle{padding-bottom:18px;border-bottom:1px solid #eceef0}
+#multiSplitTrialCard .multiSectionNumber{display:none}
+#multiSplitTrialCard label,#multiSplitTrialCard .multiSplitIndoorFact span{letter-spacing:0;font-size:12px;line-height:1.4;text-transform:none;font-weight:500;color:#5f6570}
+#multiSplitTrialCard input,#multiSplitTrialCard select{border-radius:8px;min-width:0;border-color:#d8dce2;background:#fafbfc}
+#multiSplitTrialCard .modelSearchControl{border-color:#d8dce2;background:#fafbfc;border-radius:8px}
+#multiSplitTrialCard .modelSearchControl input{font-size:14px}
+#multiSplitTrialCard .modelRequestLink{font-size:12px;font-weight:600}
+#multiSplitTrialCard .row2{grid-template-columns:minmax(0,.65fr) minmax(0,1.35fr)}
+#multiSplitTrialCard .multiSplitProductMeta{grid-template-columns:minmax(0,1fr) 168px;gap:16px;margin-top:12px;align-items:center}
+#multiSplitTrialCard .multiSplitPriceCell{padding:8px;background:#fff;border-radius:6px}
+#multiSplitTrialCard .multiSplitPriceCell.priceMissing{background:#fff9e8}
+#multiSplitTrialCard .multiSplitPriceCell>span{font-size:11px;font-weight:700}
+#multiSplitTrialCard .multiSplitPriceHint{display:none}
+#multiSplitTrialCard .multiSplitFact{border:0;padding:0}
+#multiSplitTrialCard .multiSplitFact span{font-size:11px;text-transform:none;color:#6e747d;font-weight:500}
+#multiSplitTrialCard .multiSplitFact strong{font-size:16px;font-weight:600}
+#multiSplitTrialCard .multiSplitSelected{margin:8px 0 0;padding:0;border:0}
+#multiSplitTrialCard .multiSplitSelected .selectedHeader{font-size:13px}
+#multiSplitTrialCard .multiSplitSelected .tiny{font-size:11px}
+#multiSplitTrialCard .multiSplitPanelHead{margin-bottom:8px;padding-bottom:18px;border-bottom:1px solid #eceef0}
+#multiSplitTrialCard .multiSplitPanelHead .sectionTitle{margin-bottom:8px}
+#multiSplitTrialCard #multiSplitLimitHint{font-size:12px}
+#multiSplitTrialCard .multiSplitIndoorRows{border-top:0}
+#multiSplitTrialCard .multiSplitIndoorRow{grid-template-columns:minmax(0,1fr) 148px 148px;gap:12px;padding:14px 0;align-items:center}
+#multiSplitTrialCard .multiSplitIndoorRowTop{margin-bottom:6px;gap:6px;flex-wrap:wrap}
+#multiSplitTrialCard .multiSplitIndoorBadge{padding:0;background:none;border-radius:0;min-height:0;letter-spacing:0;font-size:12px;text-transform:none;font-weight:600;color:#343b46}
+#multiSplitTrialCard .multiSplitIndoorSeries{font-size:11px;white-space:normal;color:#6e747d}
+#multiSplitTrialCard .multiSplitIndoorRowMain>label{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+#multiSplitTrialCard .multiSplitIndoorFacts{display:flex;gap:12px;margin-top:5px}
+#multiSplitTrialCard .multiSplitIndoorFacts .multiSplitIndoorFact{padding:0;border:0;display:flex;gap:4px;align-items:baseline}
+#multiSplitTrialCard .multiSplitIndoorFacts .multiSplitIndoorFact span{font-size:10px;text-transform:none;font-weight:500}
+#multiSplitTrialCard .multiSplitIndoorFacts .multiSplitIndoorFact strong{font-size:11px;margin:0}
+#multiSplitTrialCard .multiSplitIndoorPrice{padding:6px;border:1px solid transparent;border-radius:6px;min-width:0}
+#multiSplitTrialCard .multiSplitIndoorPrice.priceMissing{border-color:#f6cf78;background:#fff9e8}
+#multiSplitTrialCard .multiSplitIndoorControls{grid-template-columns:108px 32px;gap:8px}
+#multiSplitTrialCard .multiSplitQtyControl{grid-template-columns:34px 38px 34px;border-radius:6px}
+#multiSplitTrialCard .multiSplitQtyControl button,#multiSplitTrialCard .multiSplitRemoveButton{height:40px;border-radius:5px}
+#multiSplitTrialCard .multiSplitPriceInput{height:40px;font-size:14px;appearance:textfield}
+#multiSplitTrialCard .multiSplitPriceInput::-webkit-inner-spin-button{appearance:none}
+#multiSplitTrialCard .multiAddHead{margin-top:12px;min-height:40px;border:1px solid #d8dce2;border-radius:8px;background:#fff;color:#0f675f;font-weight:600}
+#multiSplitTrialCard .multiSplitCapacityFeedback{margin-top:14px;padding:12px 0 0}
+#multiSplitTrialCard .multiSplitProgressTrack{height:4px}
+#multiSplitTrialCard .multiSplitProgressHead{display:block;font-size:11px}
+#multiSplitTrialCard .multiSplitProgressHead strong{display:block;margin-top:3px}
+#multiSplitTrialCard .multiSplitCapacityMessage{font-size:11px;margin-top:8px}
+#multiSplitTrialCard .multiInstallGrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:end}
+#multiSplitTrialCard .installTabs{margin:0;gap:4px;padding:4px;background:#eff1f4;border-radius:8px}
+#multiSplitTrialCard .installTabs button{min-height:36px;padding:8px;font-size:12px;border-radius:6px;background:transparent;color:#5f6570;font-weight:600}
+#multiSplitTrialCard .installTabs button.active{background:#fff;color:#1d1d1f;box-shadow:0 1px 3px #1d1d1f18}
+#multiSplitTrialCard .fieldLabelRow{flex-wrap:wrap;gap:4px}
+#multiSplitTrialCard .fieldPill{font-size:8px}
+#multiSplitTrialCard .labourInstallerChoice{margin:16px 0;background:none;border:0;padding:0}
+#multiSplitTrialCard .labourInstallerLabel{text-transform:none;letter-spacing:0;font-size:12px;font-weight:500;color:#5f6570}
+#multiSplitTrialCard .labourInstallerOptions{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+#multiSplitTrialCard .labourInstallerOption{border-radius:6px;min-height:40px}
+#multiSplitTrialCard .labourInstallerOption.active{background:#e9f6f0;border-color:#a2d7c2;color:#145e44}
+#multiSplitTrialCard .labourInstallerStatus{font-size:11px}
+#multiSplitTrialCard .multiSplitSummaryCard{padding:22px;border:1px solid #e0e3e7;border-radius:18px;box-shadow:none;top:16px;max-height:calc(100dvh - 32px);overflow-y:auto;scrollbar-width:thin}
+#multiSplitTrialCard .multiCustomerPrice>label{color:#334155;text-transform:none;font-size:12px}
+#multiSplitTrialCard .multiCustomerPriceControl{display:grid;grid-template-columns:48px minmax(0,1fr) 48px;gap:6px;align-items:center}
+#multiSplitTrialCard .multiCustomerPriceControl>button{height:46px;min-width:0;padding:0;font-size:11px;border-radius:6px}
+#multiSplitTrialCard .multiPriceInput{display:flex;gap:4px;align-items:center;border:1px solid #b7c8c4;border-radius:8px;padding:0 10px;min-width:0;background:#fafcfb}
+#multiSplitTrialCard .multiPriceInput>span{font-size:18px;color:#125b47}
+#multiSplitTrialCard .multiPriceInput .moneyStepper{display:block;width:100%;min-width:0}
+#multiSplitTrialCard .multiPriceInput .moneyStepBtn{display:none}
+#multiSplitTrialCard #multiFinalInc{font-size:23px;font-weight:800;border:0;background:none;box-shadow:none;outline-offset:2px;height:48px;padding:0;width:100%;appearance:textfield}
+#multiSplitTrialCard #multiFinalInc::-webkit-inner-spin-button{appearance:none}
+#multiSplitTrialCard #multiFinalInc::placeholder{font-size:12px;font-weight:600}
+#multiSplitTrialCard #multiInstallSection .moneyStepper input{appearance:textfield}
+#multiSplitTrialCard #multiInstallSection .moneyStepper input::-webkit-inner-spin-button{appearance:none}
+#multiSplitTrialCard .multiResetPrice{background:none;color:#526779;font-size:11px;padding:6px 0;text-decoration:underline;border-radius:0}
+#multiSplitTrialCard .summaryLine{display:grid;grid-template-columns:minmax(0,1fr) max-content;padding:6px 0;gap:12px;font-size:12px;align-items:baseline}
+#multiSplitTrialCard .summaryLine>span{min-width:0;overflow-wrap:anywhere}
+#multiSplitTrialCard .summaryLine>strong{font-size:13px;white-space:nowrap;text-align:right;overflow-wrap:normal;max-width:none}
+#multiSplitTrialCard .multiCostOverview{margin:8px 0}
+#multiSplitTrialCard .multiRebateCompact{padding:12px 0;border-top:1px solid #d6e2e8;border-bottom:1px solid #d6e2e8;border-radius:0;background:none}
+#multiSplitTrialCard .multiRebateAmount{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:12px}
+#multiSplitTrialCard .multiRebateAmount>strong{font-size:17px;color:#0f766e}
+#multiSplitTrialCard .multiRebateAction{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px}
+#multiSplitTrialCard .multiRebateAction>button{padding:9px 10px;border-radius:6px;font-size:11px;min-height:36px}
+#multiSplitTrialCard .multiSplitRebateFreshness{border:0;border-radius:0;background:transparent;margin:0;padding:0;font-size:10px;min-height:0;flex:1}
+#multiSplitTrialCard .multiSplitStatus{border-radius:6px;font-size:11px;margin-top:8px}
+#multiSplitTrialCard .multiSplitTechnicalDetails{border:0;margin:8px 0 0}
+#multiSplitTrialCard .multiSplitTechnicalDetails summary{padding:0;font-size:11px}
+#multiSplitTrialCard .multiSplitRebateResults{grid-template-columns:repeat(2,minmax(0,1fr));margin-top:10px}
+#multiSplitTrialCard .multiSplitRebateResult{padding:0;border:0;background:none;border-radius:0}
+#multiSplitTrialCard .multiSplitRebateResult strong{font-size:16px}
+#multiSplitTrialCard .multiSplitRebateRates{font-size:11px;gap:6px 12px}
+#multiSplitTrialCard #multiRebateCostField{margin-top:10px}
+#multiSplitTrialCard .multiProfitOverview{padding:10px 0;border-bottom:1px solid #d6e2e8}
+#multiSplitTrialCard .multiPrimaryProfit>strong{font-size:19px;color:#0d765c}
+#multiSplitTrialCard .quoteTargetControl{margin-top:14px}
+#multiSplitTrialCard .quoteTargetControl .row2{grid-template-columns:minmax(0,1fr) 100px;gap:6px}
+#multiSplitTrialCard .quoteTargetControl button{padding:8px;font-size:11px;border-radius:6px}
+#multiSplitTrialCard .selectedQuoteNameBar{padding:5px 0;margin-top:4px;border:0;background:none;border-radius:0}
+#multiSplitTrialCard .selectedQuoteNameCopy{display:none}
+#multiSplitTrialCard .selectedQuoteNameBar>button{margin-left:auto;min-height:28px;background:none;padding:2px 0;color:#526779;text-decoration:underline}
+#multiSplitTrialCard .multiSplitPrimaryActions{display:block;margin-top:4px}
+#multiSplitTrialCard .multiSplitPrimaryActions button{border-radius:6px;min-height:44px;font-size:13px;white-space:normal}
+#multiSplitTrialCard .multiSplitSummaryLines{border:0;background:none;padding:0;border-radius:0}
+#multiSplitTrialCard .multiSplitFinancialDetails .cash{background:none!important;border:0!important;padding:6px 0!important;border-radius:0}
+#multiSplitTrialCard .multiSplitFinancialDetails summary,#multiSplitTrialCard .multiSplitTools summary{font-size:11px}
+#multiSplitTrialCard .dcceewContractPanel{padding:10px;border-radius:6px;margin:10px 0}
+#multiSplitTrialCard .dcceewContractHead{display:block}
+#multiSplitTrialCard .dcceewContractCopy strong{font-size:13px}
+#multiSplitTrialCard .dcceewContractCopy p,#multiSplitTrialCard .dcceewComparisonNote{font-size:11px}
+#multiSplitTrialCard .dcceewInfoPrompt{margin-top:8px}
+#multiSplitTrialCard .dcceewComparison{grid-template-columns:1fr}
+#multiSplitTrialCard .dcceewComparisonCard{border:0;border-radius:0;padding:7px 0;background:none}
+#multiSplitTrialCard .dcceewContractPanel details{margin-top:8px;font-size:11px}
+.multiWorkspaceFooterPrice{display:none}
+@media(min-width:801px){body.multiWorkspaceActive #standardFloatingActionBar{display:none}}
+@media(max-width:1100px){
+  #multiSplitTrialCard .multiSplitPageGrid{grid-template-columns:minmax(0,1fr)}
+  #multiSplitTrialCard .multiSplitSummaryCard{position:static;max-height:none;overflow:visible}
+}
+@media(max-width:640px){
+  body.multiWorkspaceActive .header{padding:12px}
+  body.multiWorkspaceActive .header h1{font-size:18px}
+  body.multiWorkspaceActive .systemTabs button{font-size:11px;padding:9px 5px}
+  #multiSplitTrialCard .multiWorkspaceHeading h2{font-size:18px}
+  #multiSplitTrialCard .multiWorkspaceHeading>button{font-size:11px;padding:10px}
+  #multiSplitTrialCard .multiSplitMainStack{gap:14px}
+  #multiSplitTrialCard .multiWorkspaceSection{padding:20px 14px;border-radius:16px}
+  #multiSplitTrialCard .multiSplitSetupHeader{gap:8px;align-items:baseline}
+  #multiSplitTrialCard .multiSplitSetupHeader .modelRequestLink{font-size:10px;white-space:normal;text-align:right;max-width:90px;padding:0}
+  #multiSplitTrialCard .sectionTitle{font-size:18px}
+  #multiSplitTrialCard .modelSearchControl input{font-size:16px}
+  #multiSplitTrialCard .row2,#multiSplitTrialCard .multiInstallGrid{grid-template-columns:1fr;gap:12px}
+  #multiSplitTrialCard .multiSplitProductMeta{grid-template-columns:1fr;gap:10px}
+  #multiSplitTrialCard .multiSplitPriceCell{padding:8px}
+  #multiSplitTrialCard .multiSplitIndoorRow{grid-template-columns:minmax(0,1fr) 148px;gap:10px}
+  #multiSplitTrialCard .multiSplitIndoorRowMain{grid-column:1/-1}
+  #multiSplitTrialCard .multiSplitIndoorPrice{padding:4px;align-self:end}
+  #multiSplitTrialCard .multiSplitIndoorFacts .multiSplitIndoorFact:last-child{grid-column:auto}
+  #multiSplitTrialCard .multiSplitIndoorControls{grid-template-columns:108px 32px}
+  #multiSplitTrialCard .multiSplitPriceInput{height:44px;font-size:16px}
+  #multiSplitTrialCard .multiSplitQtyControl button,#multiSplitTrialCard .multiSplitRemoveButton{height:44px}
+  #multiSplitTrialCard .multiSplitCapacityGrid{gap:10px}
+  #multiSplitTrialCard .row3{grid-template-columns:1fr;gap:12px}
+  #multiSplitTrialCard #multiUnitPriceCostField{grid-column:1/-1}
+  #multiSplitTrialCard .multiSplitSummaryCard{padding:16px}
+  #multiSplitTrialCard .quoteTargetControl .row2{grid-template-columns:minmax(0,1fr) 90px}
+}
+@media(max-width:380px){
+  #multiSplitTrialCard .multiSplitIndoorRow{grid-template-columns:minmax(0,1fr)}
+  #multiSplitTrialCard .multiSplitIndoorControls{justify-self:end}
+}
+@media(max-width:800px){
+  body.multiWorkspaceActive #standardFloatingActionBar{left:0;right:0;bottom:0;width:auto;max-width:none;border-radius:0;background:#fff;border-top:1px solid #c9dcd6;box-shadow:0 -3px 12px #173c3412;padding:8px 12px calc(8px + env(safe-area-inset-bottom));display:flex;gap:12px;align-items:center}
+  body.multiWorkspaceActive .multiWorkspaceFooterPrice{display:flex;flex:1;min-width:0;flex-direction:column;gap:2px;font-size:10px;color:#526779}
+  body.multiWorkspaceActive .multiWorkspaceFooterPrice strong{font-size:17px;color:#183f33;overflow-wrap:anywhere}
+  body.multiWorkspaceActive #standardFloatingActionBar .floatingAdd{flex:0 0 auto;width:auto;max-width:52%;border-radius:6px;font-size:12px;padding:12px 16px;min-height:44px}
+  body.multiWorkspaceActive #standardFloatingActionBar .floatingView{display:none}
+  body.multiWorkspaceActive.drawerOpen #standardFloatingActionBar,body.multiWorkspaceActive.quoteWorkspaceVisible #standardFloatingActionBar{display:none}
+}
 </style>
 <!-- Version: Option groups -->
 </head>
@@ -3774,51 +3948,33 @@ button.quoteDragHandle:active{cursor:grabbing}
       <div class="quoteTargetControl"><label for="addOptionSelectSearchInput">Add current unit to quote</label><div class="row2"><select id="addOptionSelect" onchange="onOptionSelectionChange(this.value)"></select><button class="secondary" type="button" onclick="createNewOption(true)">+ New Quote</button></div><div class="selectedQuoteNameBar"><div class="selectedQuoteNameCopy"><span>Selected quote</span><strong id="mainOptionName">Quote 1</strong></div><button id="mainOptionRenameButton" class="secondary smallBtn" type="button" onclick="openRenameQuoteModal()">Rename</button></div></div>
     </aside>
   </div>
-  <div class="multiSplitTrialCard" id="multiSplitTrialCard">
-    <div class="card">
-      <div class="multiSplitTrialIntro">
-        <div>
-          <div class="kicker">Quote calculator</div>
-          <h2 class="sectionTitle">Multi-head split system calculator</h2>
-          <div class="sub">Build multi-head systems, calculate eligible NSW rebates, and add the complete system to a customer quote.</div>
-        </div>
-      </div>
-    </div>
+  <div class="multiSplitTrialCard multiWorkspace" id="multiSplitTrialCard">
+    <div class="multiWorkspaceHeading"><h2>Multi-head system</h2><button class="secondary" type="button" onclick="openDrawer()">View Quotes</button></div>
     <div class="multiSplitPageGrid">
       <main class="multiSplitMainStack">
-        <div class="card">
-          <div class="multiSplitSetupHeader"><h2 class="sectionTitle">Product and install setup</h2><button class="modelRequestLink" type="button" onclick="openModelRequestModal('multi')" aria-label="Can't find your system? Request a model" title="Can't find your system? Request a model">Request a model</button></div>
+        <section class="multiWorkspaceSection" id="multiOutdoorSection" aria-labelledby="multiOutdoorTitle">
+          <div class="multiSplitSetupHeader"><h3 id="multiOutdoorTitle" class="sectionTitle"><span class="multiSectionNumber">1</span>Outdoor unit</h3><button class="modelRequestLink" type="button" onclick="openModelRequestModal('multi')" aria-label="Can't find your system? Request a model" title="Can't find your system? Request a model">Request a model</button></div>
           <div class="row2">
-            <div><label>Brand</label><select id="multiSplitBrand" onchange="populateMultiSplitOutdoors()"></select></div>
-            <div><label>Outdoor unit</label><select id="multiSplitOutdoor" onchange="onMultiSplitOutdoorChange()"></select></div>
+            <div><label for="multiSplitBrand">Brand</label><select id="multiSplitBrand" onchange="populateMultiSplitOutdoors()"></select></div>
+            <div><label for="multiSplitOutdoorSearchInput">Outdoor model</label><select id="multiSplitOutdoor" onchange="onMultiSplitOutdoorChange()"></select></div>
           </div>
           <div class="multiSplitProductMeta">
             <div class="multiSplitFactStrip"><div class="multiSplitFact"><span>Outdoor capacity</span><strong id="multiSplitOutdoorCapacity">Select outdoor</strong></div><div class="multiSplitFact"><span>Max indoor heads</span><strong id="multiSplitMaxHeads">Select outdoor</strong></div></div>
             <div id="multiSplitOutdoorPriceChip" class="multiSplitPriceCell"><span>Outdoor price inc GST</span><div class="multiSplitPriceEditor"><span aria-hidden="true">$</span><input id="multiSplitOutdoorPriceInput" class="multiSplitPriceInput" type="number" min="0" step="0.01" inputmode="decimal" aria-label="Outdoor unit price including GST" onchange="beginMultiSplitPriceEdit('outdoor',null,this.value)"></div><small class="multiSplitPriceHint">Enter a price to use it now, then choose whether to save it to this business.</small></div>
           </div>
-          <div class="installTabs">
-            <button id="multiSplitNewBtn" type="button" onclick="setMultiSplitInstall('new')">New install</button>
-            <button id="multiSplitReplacementBtn" type="button" class="active" onclick="setMultiSplitInstall('replacement')">Replacement</button>
-          </div>
-          <select id="multiSplitInstallType" class="hidden" onchange="renderMultiSplitTrial()"><option value="new">New install</option><option value="replacement" selected>Replacement</option></select>
-          <div class="multiSplitRebateQuickRow">
-            <div class="postcodeField multiSplitPostcodeField" id="multiSplitPostcodeField"><div class="fieldLabelRow"><label for="multiSplitPostcode">Customer postcode</label><span class="fieldPill" id="multiSplitPostcodeRequiredPill">Required for rebate</span></div><input id="multiSplitPostcode" type="text" inputmode="numeric" maxlength="4" value="2170" aria-describedby="multiSplitPostcodeRequiredPill"></div>
-            <div class="multiSplitQuickRebateAction"><button id="multiSplitQuickRebateBtn" class="green" type="button" onclick="calculateMultiSplitTrialRebate(true)">Calculate rebate</button></div>
-          </div>
-          <div id="multiPostcodeVerification" class="postcodeVerification" hidden><span>Installation location needs checking before a rebate can be calculated.</span><button class="secondary" type="button" onclick="openPostcodeAddressModal('multi',this)">Verify address</button></div>
           <div class="selected multiSplitSelected">
             <div class="selectedText">
               <div class="selectedHeader"><strong id="multiSplitSelectedModel">Select an outdoor unit</strong></div>
               <div class="tiny" id="multiSplitSelectedMeta">Choose a brand and outdoor unit, then add compatible indoor heads below.</div>
             </div>
           </div>
-        </div>
-        <div class="card">
+        </section>
+        <section class="multiWorkspaceSection" id="multiIndoorSection" aria-labelledby="multiIndoorTitle">
           <div class="multiSplitPanelHead">
-            <div><h2 class="sectionTitle" style="margin-bottom:4px">Indoor units</h2><div class="sub" id="multiSplitLimitHint">Choose an outdoor unit first.</div></div>
-            <button id="multiSplitAddHeadBtn" class="secondary" type="button" onclick="addMultiSplitIndoorRow()">+ Add indoor head</button>
+            <div><h3 id="multiIndoorTitle" class="sectionTitle"><span class="multiSectionNumber">2</span>Indoor units</h3><div class="sub" id="multiSplitLimitHint">Choose an outdoor unit first.</div></div>
           </div>
           <div id="multiSplitIndoorRows" class="multiSplitIndoorRows"></div>
+          <button id="multiSplitAddHeadBtn" class="secondary multiAddHead" type="button" onclick="addMultiSplitIndoorRow()">+ Add indoor unit</button>
           <div class="multiSplitCapacityFeedback" aria-live="polite">
             <div class="multiSplitCapacityGrid">
               <div>
@@ -3832,47 +3988,20 @@ button.quoteDragHandle:active{cursor:grabbing}
             </div>
             <div id="multiSplitCapacityMessage" class="multiSplitCapacityMessage">Add compatible indoor heads to build the system.</div>
           </div>
-        </div>
-        <div class="card multiSplitRebateCard" id="multiSplitRebatePanel">
-          <div class="multiSplitRebateHead">
-            <div class="multiSplitRebateHeadCopy">
-              <div class="kicker">NSW ESS / PDRS</div>
-              <h2 class="sectionTitle" style="margin:3px 0 0">Energy savings rebate</h2>
-              <div id="multiSplitRebateFreshness" class="multiSplitRebateFreshness">Calculation required</div>
-            </div>
-            <div class="multiSplitTrialActions"><button id="multiSplitCheckRebateBtn" class="green" type="button" onclick="calculateMultiSplitTrialRebate()">Calculate rebate</button></div>
+        </section>
+        <section class="multiWorkspaceSection" id="multiInstallSection" aria-labelledby="multiInstallTitle">
+          <h3 id="multiInstallTitle" class="sectionTitle"><span class="multiSectionNumber">3</span>Installation &amp; costs</h3>
+          <div class="multiInstallGrid">
+            <div><label>Installation type</label><div class="installTabs">
+              <button id="multiSplitNewBtn" type="button" onclick="setMultiSplitInstall('new')">New install</button>
+              <button id="multiSplitReplacementBtn" type="button" class="active" onclick="setMultiSplitInstall('replacement')">Replacement</button>
+            </div></div>
+            <div class="postcodeField multiSplitPostcodeField" id="multiSplitPostcodeField"><div class="fieldLabelRow"><label for="multiSplitPostcode">Customer postcode</label><span class="fieldPill" id="multiSplitPostcodeRequiredPill">Required for rebate</span></div><input id="multiSplitPostcode" type="text" inputmode="numeric" maxlength="4" value="2170" aria-describedby="multiSplitPostcodeRequiredPill"></div>
           </div>
-          <div class="dcceewContractPanel" id="multiSplitDcceewContractPanel" aria-hidden="true">
-            <div class="dcceewContractHead"><div class="dcceewContractCopy"><span class="dcceewContractBadge">DCCEEW contract match</span><strong>Potentially eligible for the fixed $30 per ESC rate</strong><p>The selected postcode and multi-head outdoor model are on the approved contract lists. Required compliance steps must still be completed.</p></div><div class="dcceewInfoPrompt"><span>Action required</span><div class="dcceewInfoActions"><button id="multiSplitDcceewInfoButton" class="dcceewInfoButton" type="button" onclick="openDcceewInfoModal()"><span class="dcceewInfoIcon" aria-hidden="true">i</span>Important information</button><a class="dcceewGuideButton" href="https://rebateportal.com.au/first-job-guide" target="_blank" rel="noopener noreferrer">Open first job checklist</a></div></div></div>
-            <div class="dcceewComparison"><div class="dcceewComparisonCard"><span>Standard rebate</span><strong id="multiSplitDcceewStandardTotal">Calculating...</strong><small id="multiSplitDcceewStandardMeta">Using the normal business ESC rate</small></div><div class="dcceewComparisonCard contract"><span>DCCEEW contract rebate</span><strong id="multiSplitDcceewContractTotal">Calculating...</strong><small id="multiSplitDcceewContractMeta">ESCs at $30.00 plus unchanged PERC</small></div><div class="dcceewComparisonCard uplift"><span>Additional contract value</span><strong id="multiSplitDcceewContractUplift">Calculating...</strong><small id="multiSplitDcceewUpliftMeta">Difference from the standard payout</small></div></div>
-            <div class="dcceewComparisonNote" id="multiSplitDcceewComparisonNote">The contract-rate rebate will be included in Costs when live certificate values are available. Missing a required compliance step means the standard market rate applies.</div>
-          </div>
-          <div class="multiSplitRebateResults">
-            <div class="multiSplitRebateResult primary"><span>Calculated rebate</span><strong id="multiSplitRebateValue">-</strong><small id="multiSplitCalculationSource" aria-live="polite"></small></div>
-            <div class="multiSplitRebateResult"><span>ESC generated</span><strong id="multiSplitEscCount">-</strong></div>
-            <div class="multiSplitRebateResult"><span>PERC generated</span><strong id="multiSplitPrcCount">-</strong></div>
-          </div>
-          <div class="multiSplitRebateRates"><span>ESC payout rate <strong id="multiSplitEscRateDisplay">$0.00</strong></span><span>PERC payout rate <strong id="multiSplitPrcRateDisplay">$0.00</strong></span></div>
-          <details id="multiSplitTechnicalDetails" class="multiSplitTechnicalDetails">
-            <summary>Calculation details</summary>
-            <div id="multiSplitStatus" class="multiSplitStatus">Select a system and calculate its NSW multi-split rebate.</div>
-          </details>
-        </div>
-        <div class="card">
-          <h2 class="sectionTitle">Costs</h2>
-          <div class="finalPriceStrip"><div><div class="fieldLabelRow"><label for="multiFinalInc">Final customer price inc GST</label><span class="fieldPill confirmed">Customer pays</span></div><div class="fieldHint">Main quoted price shown to the customer.</div></div><input id="multiFinalInc" type="number" step="0.01"></div>
-          <div class="row3">
-            <div id="multiUnitPriceCostField" class="priceRequiredField"><label>Equipment price inc GST</label><input id="multiUnitPriceInc" type="number" step="0.01" readonly><div class="fieldHint">Total of the outdoor unit and indoor heads entered above.</div><div id="multiUnitPriceMissingMessage" class="priceMissingMessage" role="alert">Price missing for selected equipment. Add the missing model price before adding this system to a quote.</div></div>
-            <div><label>Labour ex GST</label><input id="multiLabour" type="number" step="0.01" value="500"></div>
-            <div id="multiRebateCostField"><label id="multiRebateCostLabel">Rebate</label><input id="multiRebate" type="number" step="0.01" value="0"><div id="multiRebateCostHint" class="rebateCostHint"></div></div>
-          </div>
-          <div class="row3" style="margin-top:14px">
-            <div><label>Materials inc GST</label><input id="multiMaterials" type="number" step="0.01" value="150"></div>
-            <div><label>Misc cost inc GST</label><input id="multiMisc" type="number" step="0.01" value="0"></div>
-            <div><label>Power / electrical ex GST</label><input id="multiPower" type="number" step="0.01" value="500"></div>
-          </div>
+          <select id="multiSplitInstallType" class="hidden" onchange="renderMultiSplitTrial()"><option value="new">New install</option><option value="replacement" selected>Replacement</option></select>
+          <div id="multiPostcodeVerification" class="postcodeVerification" hidden><span>Installation location needs checking before a rebate can be calculated.</span><button class="secondary" type="button" onclick="openPostcodeAddressModal('multi',this)">Verify address</button></div>
           <div class="labourInstallerChoice" data-labour-checkbox="multiInstallerRetainsLabour">
-            <div class="labourInstallerLabel">Who will complete the installation?</div>
+            <div class="labourInstallerLabel">Installation team</div>
             <div class="labourInstallerOptions" role="group" aria-label="Multi-head installation team">
               <button class="labourInstallerOption" type="button" data-retained="true" onclick="setLabourInstallerMode('multiInstallerRetainsLabour',true)">In-house team</button>
               <button class="labourInstallerOption" type="button" data-retained="false" onclick="setLabourInstallerMode('multiInstallerRetainsLabour',false)">External subcontractor</button>
@@ -3880,18 +4009,45 @@ button.quoteDragHandle:active{cursor:grabbing}
             <div class="labourInstallerStatus" data-labour-status aria-live="polite"></div>
             <input id="multiInstallerRetainsLabour" class="hidden" type="checkbox" checked aria-hidden="true" tabindex="-1">
           </div>
-          <div class="priceResetRow"><button class="secondary" type="button" onclick="resetMultiSplitSuggestedPrice()">Reset suggested price</button></div>
-        </div>
+          <div class="row3">
+            <div id="multiUnitPriceCostField" class="priceRequiredField"><label for="multiUnitPriceInc">Equipment total inc GST</label><input id="multiUnitPriceInc" type="number" step="0.01" readonly><div id="multiUnitPriceMissingMessage" class="priceMissingMessage" role="alert">Price missing for selected equipment. Add the missing model price before adding this system to a quote.</div></div>
+            <div><label for="multiLabour">Labour ex GST</label><input id="multiLabour" type="number" step="0.01" value="500"></div>
+            <div><label for="multiPower">Electrical ex GST</label><input id="multiPower" type="number" step="0.01" value="500"></div>
+          </div>
+          <div class="row3" style="margin-top:14px">
+            <div><label for="multiMaterials">Materials inc GST</label><input id="multiMaterials" type="number" step="0.01" value="150"></div>
+            <div><label for="multiMisc">Miscellaneous inc GST</label><input id="multiMisc" type="number" step="0.01" value="0"></div>
+          </div>
+        </section>
       </main>
       <aside class="summary card multiSplitSummaryCard">
-        <div class="final"><div class="finalCopy"><span>Final customer price inc GST</span><strong id="multiFinalBig">$0.00</strong></div><div class="finalBumpGroup"><button class="finalBumpBtn" type="button" onclick="applyMoneyStep('multiFinalInc',-50)">- $50</button><button class="finalBumpBtn" type="button" onclick="applyMoneyStep('multiFinalInc',50)">+ $50</button></div></div>
-        <div id="multiMhiCashback"></div>
-        <div class="multiSplitSummaryKeyGrid">
-          <div id="multiSplitEquipmentMetric" class="multiSplitMetric"><span>Equipment inc GST</span><strong id="multiSplitEquipmentTotal">$0.00</strong></div>
-          <div class="multiSplitMetric"><span>Rebate</span><strong id="multiSplitSummaryRebate">$0.00</strong></div>
-          <div class="multiSplitMetric"><span>Installer profit</span><strong id="multiSplitSummaryNetProfit">$0.00</strong></div>
-          <div class="multiSplitMetric"><span>Net margin</span><strong id="multiSplitSummaryMargin">0.00%</strong></div>
+        <h3 class="sectionTitle">Price &amp; profit</h3>
+        <div class="multiCustomerPrice"><label for="multiFinalInc">Customer total inc GST</label><div class="multiCustomerPriceControl"><button type="button" class="secondary" title="Reduce customer price by $50" onclick="applyMoneyStep('multiFinalInc',-50)">- $50</button><div class="multiPriceInput"><span aria-hidden="true">$</span><input id="multiFinalInc" type="number" step="0.01" inputmode="decimal"></div><button type="button" class="secondary" title="Increase customer price by $50" onclick="applyMoneyStep('multiFinalInc',50)">+ $50</button></div><strong id="multiFinalBig" class="hidden">$0.00</strong><button class="multiResetPrice" type="button" onclick="resetMultiSplitSuggestedPrice()">Reset suggested price</button></div>
+        <div class="multiCostOverview"><div id="multiSplitEquipmentMetric" class="summaryLine"><span>Equipment inc GST</span><strong id="multiSplitEquipmentTotal">$0.00</strong></div><div class="summaryLine"><span>Installation costs ex GST</span><strong id="multiInstallCostsTotal">$0.00</strong></div></div>
+        <section class="multiRebateCompact" id="multiSplitRebatePanel" aria-label="Government rebate">
+          <div class="multiRebateAmount"><span>Government rebate</span><strong id="multiSplitRebateValue">-</strong></div>
+          <div class="multiRebateAction"><span id="multiSplitRebateFreshness" class="multiSplitRebateFreshness">Calculation required</span><button id="multiSplitQuickRebateBtn" class="secondary" type="button" onclick="calculateMultiSplitTrialRebate(true)">Calculate rebate</button></div>
+          <div class="dcceewContractPanel" id="multiSplitDcceewContractPanel" aria-hidden="true">
+            <div class="dcceewContractHead"><div class="dcceewContractCopy"><span class="dcceewContractBadge">DCCEEW contract match</span><strong>Potentially eligible for the fixed $30 per ESC rate</strong><p>The selected postcode and multi-head outdoor model are on the approved contract lists. Required compliance steps must still be completed.</p></div><div class="dcceewInfoPrompt"><span>Action required</span><div class="dcceewInfoActions"><button id="multiSplitDcceewInfoButton" class="dcceewInfoButton" type="button" onclick="openDcceewInfoModal()"><span class="dcceewInfoIcon" aria-hidden="true">i</span>Important information</button><a class="dcceewGuideButton" href="https://rebateportal.com.au/first-job-guide" target="_blank" rel="noopener noreferrer">Open first job checklist</a></div></div></div>
+            <details><summary>Contract comparison</summary><div class="dcceewComparison"><div class="dcceewComparisonCard"><span>Standard rebate</span><strong id="multiSplitDcceewStandardTotal">Calculating...</strong><small id="multiSplitDcceewStandardMeta">Using the normal business ESC rate</small></div><div class="dcceewComparisonCard contract"><span>DCCEEW contract rebate</span><strong id="multiSplitDcceewContractTotal">Calculating...</strong><small id="multiSplitDcceewContractMeta">ESCs at $30.00 plus unchanged PERC</small></div><div class="dcceewComparisonCard uplift"><span>Additional contract value</span><strong id="multiSplitDcceewContractUplift">Calculating...</strong><small id="multiSplitDcceewUpliftMeta">Difference from the standard payout</small></div></div></details>
+            <div class="dcceewComparisonNote" id="multiSplitDcceewComparisonNote">The contract-rate rebate will be included in Costs when live certificate values are available. Missing a required compliance step means the standard market rate applies.</div>
+          </div>
+          <details id="multiSplitTechnicalDetails" class="multiSplitTechnicalDetails"><summary>Rebate details</summary>
+            <div id="multiSplitStatus" class="multiSplitStatus" role="status">Select a system and calculate its NSW multi-split rebate.</div>
+            <small id="multiSplitCalculationSource" aria-live="polite"></small>
+            <div class="multiSplitRebateResults"><div class="multiSplitRebateResult"><span>ESC generated</span><strong id="multiSplitEscCount">-</strong></div><div class="multiSplitRebateResult"><span>PERC generated</span><strong id="multiSplitPrcCount">-</strong></div></div>
+            <div class="multiSplitRebateRates"><span>ESC payout <strong id="multiSplitEscRateDisplay">$0.00</strong></span><span>PERC payout <strong id="multiSplitPrcRateDisplay">$0.00</strong></span></div>
+            <div id="multiRebateCostField"><label id="multiRebateCostLabel" for="multiRebate">Rebate</label><input id="multiRebate" type="number" step="0.01" value="0"><div id="multiRebateCostHint" class="rebateCostHint"></div></div>
+          </details>
+        </section>
+        <div class="multiProfitOverview">
+          <div id="multiOverviewProfitRow" class="summaryLine multiPrimaryProfit"><span>Installer profit ex GST</span><strong id="multiSplitSummaryNetProfit">$0.00</strong></div>
+          <div id="multiOverviewMarginRow" class="summaryLine"><span>Net margin</span><strong id="multiSplitSummaryMargin">0.00%</strong></div>
+          <div id="multiOverviewSalesRow" class="summaryLine hidden"><span>Salesperson commission payable</span><strong id="multiOverviewSales">$0.00</strong></div>
+          <div id="multiOverviewAgencyRow" class="summaryLine hidden"><span>Agency profit inc GST</span><strong id="multiOverviewAgency">$0.00</strong></div>
         </div>
+        <div class="quoteTargetControl"><label for="multiAddOptionSelectSearchInput">Quote / option</label><div class="row2"><select id="multiAddOptionSelect" onchange="onOptionSelectionChange(this.value)"></select><button class="secondary" type="button" onclick="createNewOption(true)">+ New Quote</button></div><div class="selectedQuoteNameBar"><div class="selectedQuoteNameCopy"><span>Selected quote</span><strong id="multiMainOptionName">Quote 1</strong></div><button id="multiMainOptionRenameButton" class="secondary smallBtn" type="button" onclick="openRenameQuoteModal()">Rename</button></div></div>
+        <div class="multiSplitPrimaryActions"><button id="multiSplitAddToQuoteBtn" class="orange" onclick="addToQuote()">Add system to quote</button></div>
         <details class="multiSplitFinancialDetails">
           <summary>Detailed cost and commission breakdown</summary>
           <div class="multiSplitSummaryLines">
@@ -3918,10 +4074,7 @@ button.quoteDragHandle:active{cursor:grabbing}
           <div id="multiAgencyProfitAfterSalesRow" class="summaryLine cash agencyProfitHighlight"><span>Agency profit after salesperson commission inc GST</span><strong id="multiAgencyProfitAfterSalesInc">$0.00</strong></div>
           <div id="multiNetProfitRow" class="summaryLine cash profitHighlight"><span>Installer profit after commission ex GST</span><strong><span id="multiNetProfit">$0.00</span><small id="multiNetProfitMargin"></small></strong></div>
         </details>
-        <div class="multiSplitPanelHead" style="margin-top:14px;margin-bottom:6px"><div><div class="kicker">Selected equipment</div><div class="sub">Outdoor and indoor units in this system</div></div></div>
-        <div id="multiSplitHeadsList" class="multiSplitHeadsList"></div>
-        <div class="quoteTargetControl"><label for="multiAddOptionSelectSearchInput">Add current unit to quote</label><div class="row2"><select id="multiAddOptionSelect" onchange="onOptionSelectionChange(this.value)"></select><button class="secondary" type="button" onclick="createNewOption(true)">+ New Quote</button></div><div class="selectedQuoteNameBar"><div class="selectedQuoteNameCopy"><span>Selected quote</span><strong id="multiMainOptionName">Quote 1</strong></div><button id="multiMainOptionRenameButton" class="secondary smallBtn" type="button" onclick="openRenameQuoteModal()">Rename</button></div></div>
-        <div class="multiSplitPrimaryActions"><button id="multiSplitAddToQuoteBtn" class="orange" onclick="addToQuote()">Add to Quote</button><button class="secondary" onclick="openDrawer()">View Quotes (<span id="multiQuoteCount">0</span>)</button></div>
+        <div id="multiMhiCashback"></div>
         <details class="multiSplitTools"><summary>Tools</summary><div class="actions"><button class="green" onclick="openWonJobsDrawer()">Won Jobs (<span data-won-jobs-count>0</span>)</button><button class="secondary" onclick="openPriceDrawer()">Price Manager</button><button id="multiCertValuesActionBtn" class="secondary" onclick="openCertDrawer()">Certificate Values</button></div></details>
       </aside>
     </div>
@@ -4012,7 +4165,7 @@ button.quoteDragHandle:active{cursor:grabbing}
   </div>
 
 </div>
-<div class="floatingActionBar" id="standardFloatingActionBar"><button class="floatingAction floatingAdd" onclick="addToQuote()">+ Add to Quote</button><button class="floatingAction floatingView" onclick="openDrawer()">View Quotes</button></div>
+<div class="floatingActionBar" id="standardFloatingActionBar"><span class="multiWorkspaceFooterPrice">Customer total inc GST<strong id="multiWorkspaceFooterTotal">Price required</strong></span><button class="floatingAction floatingAdd" onclick="addToQuote()">+ Add to Quote</button><button class="floatingAction floatingView" onclick="openDrawer()">View Quotes</button></div>
 <div id="quoteActionNotice" class="quoteActionNotice" role="status" aria-live="polite"></div>
 <div id="quoteNameModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="quoteNameModalTitle" aria-describedby="quoteNameModalDescription" onclick="if(event.target===this)closeQuoteNameModal()"><div class="quoteNameModalCard"><div id="quoteNameModalKicker" class="kicker">Name this quote</div><h2 id="quoteNameModalTitle">Who is this quote for?</h2><p id="quoteNameModalDescription">Enter the customer name before adding the first system.</p><label for="quoteNameModalInput">Customer name</label><input id="quoteNameModalInput" type="text" autocomplete="name" placeholder="Example: Ash Macquarie Links" oninput="updateQuoteNameModalSubmitState()" onkeydown="if(event.key==='Enter')confirmQuoteNameModal()"><div id="quoteNameModalHint" class="hint" role="status" aria-live="polite" style="display:none"></div><div class="quoteNameModalActions"><button class="secondary" type="button" onclick="closeQuoteNameModal()">Cancel</button><button id="quoteNameModalSubmit" class="orange" type="button" onclick="confirmQuoteNameModal()" disabled>Add to Quote</button></div></div></div>
 <div id="removeSystemModal" class="quoteNameModal" role="dialog" aria-modal="true" aria-labelledby="removeSystemModalTitle" onclick="if(event.target===this)closeRemoveSystemModal()"><div class="quoteNameModalCard"><div class="kicker">Current quote</div><h2 id="removeSystemModalTitle">Remove this system?</h2><p id="removeSystemModalMessage">This system will no longer be included in the quote totals.</p><div class="quoteNameModalActions"><button class="secondary" type="button" onclick="closeRemoveSystemModal()">Cancel</button><button class="danger" type="button" onclick="confirmRemoveCurrentQuoteSystem()">Remove system</button></div></div></div>
@@ -9372,6 +9525,7 @@ function updateCalculatorSectionVisibility(){
   const enabled=multiSplitTrialEnabled();
   if(!enabled && activeCalculatorView==='multiSplit') activeCalculatorView='standard';
   const multiActive=enabled&&activeCalculatorView==='multiSplit';
+  document.body.classList.toggle('multiWorkspaceActive',multiActive);
   const allModelsActive=allModelsViewActive();
   if($('multiSplitTab')){
     $('multiSplitTab').classList.toggle('hidden',!enabled);
@@ -10543,6 +10697,8 @@ function renderMultiSplitFinancials(){
   const pricingPercent=value=>pricingReady?pct(value):'Price required';
   const set=(id,value)=>{const el=$(id); if(el) el.textContent=value;};
   set('multiFinalBig',pricingMoney(x.finalInc));
+  set('multiWorkspaceFooterTotal',pricingMoney(x.finalInc));
+  set('multiInstallCostsTotal',money(x.labour+x.matsEx+x.miscEx+x.service));
   if($('multiMhiCashback')) $('multiMhiCashback').innerHTML=mhiCashbackBlock([mhiCashbackCurrentOffer('multi',x)],pricingReady?x.finalInc:null);
   set('multiSellEx',pricingMoney(x.sellEx));
   set('multiOriginalInc',pricingMoney(x.finalInc+x.rebate));
@@ -10568,6 +10724,12 @@ function renderMultiSplitFinancials(){
   set('multiAgencyProfitAfterSalesInc',pricingMoney(x.agencyProfitAfterSalesInc));
   set('multiNetProfit',pricingMoney(x.netProfit));
   set('multiSplitSummaryNetProfit',pricingMoney(x.netProfit));
+  set('multiOverviewSales',pricingMoney(x.salespersonCommissionInc));
+  set('multiOverviewAgency',pricingMoney(x.agencyProfitAfterSalesInc));
+  if($('multiOverviewSalesRow')) $('multiOverviewSalesRow').classList.toggle('hidden',!showSales);
+  if($('multiOverviewAgencyRow')) $('multiOverviewAgencyRow').classList.toggle('hidden',!showAgencyProfit);
+  if($('multiOverviewProfitRow')) $('multiOverviewProfitRow').classList.toggle('hidden',!showPrivate&&!showLimitedSales);
+  if($('multiOverviewMarginRow')) $('multiOverviewMarginRow').classList.toggle('hidden',!showPrivate&&!showLimitedSales);
   set('multiNetProfitMargin',pricingReady?`Net margin ${pct(x.netMargin)}`:'Price required');
   ['multiCommissionRow','multiCommissionGstRow','multiCommissionIncRow'].forEach(id=>{if($(id)) $(id).classList.toggle('hidden',!showAgency);});
   ['multiSalespersonCommissionRow'].forEach(id=>{if($(id)) $(id).classList.toggle('hidden',!showSales);});
@@ -10729,14 +10891,14 @@ function renderMultiSplitTrial(options){
       return `<div class="multiSplitIndoorRow">
         <div class="multiSplitIndoorRowMain">
           <div class="multiSplitIndoorRowTop"><span class="multiSplitIndoorBadge">Indoor head ${rowIndex+1}</span><span class="multiSplitIndoorSeries">${htmlEscape(row&&row.series||'')}</span></div>
-          <label>Indoor model</label>
+          <label for="multiSplitIndoorModel${rowIndex}SearchInput">Indoor model</label>
           <select id="multiSplitIndoorModel${rowIndex}" data-model-search aria-label="Indoor head ${rowIndex+1} model" onchange="updateMultiSplitIndoorRow(${rowIndex},'indoorIndex',this.value)">${options}</select>
           <div class="multiSplitIndoorFacts">
             <div class="multiSplitIndoorFact"><span>Cooling</span><strong>${ratedCooling.toFixed(1)}kW</strong></div>
             <div class="multiSplitIndoorFact"><span>Heating</span><strong>${ratedHeating?ratedHeating.toFixed(1)+'kW':'Not rated'}</strong></div>
-            <div class="multiSplitIndoorFact${hasPositiveUnitPrice(row&&row.unitPriceInc)?'':' priceMissing'}"><span>Price inc GST</span><div class="multiSplitPriceEditor"><span aria-hidden="true">$</span><input class="multiSplitPriceInput" type="number" min="0" step="0.01" inputmode="decimal" aria-label="${htmlEscape(row&&row.model||`Indoor head ${rowIndex+1}`)} price including GST" value="${hasPositiveUnitPrice(row&&row.unitPriceInc)?Number(row.unitPriceInc).toFixed(2):''}" onchange="beginMultiSplitPriceEdit('indoor',${Number(selection.indoorIndex)},this.value)"></div></div>
           </div>
         </div>
+        <div class="multiSplitIndoorPrice${hasPositiveUnitPrice(row&&row.unitPriceInc)?'':' priceMissing'}"><label for="multiIndoorPrice${rowIndex}">Price inc GST</label><div class="multiSplitPriceEditor"><span aria-hidden="true">$</span><input id="multiIndoorPrice${rowIndex}" class="multiSplitPriceInput" type="number" min="0" step="0.01" inputmode="decimal" aria-label="${htmlEscape(row&&row.model||`Indoor head ${rowIndex+1}`)} price including GST" value="${hasPositiveUnitPrice(row&&row.unitPriceInc)?Number(row.unitPriceInc).toFixed(2):''}" onchange="beginMultiSplitPriceEdit('indoor',${Number(selection.indoorIndex)},this.value)"></div></div>
         <div class="multiSplitIndoorControls">
           <div><label>Quantity</label><div class="multiSplitQtyControl"><button type="button" aria-label="Decrease indoor head ${rowIndex+1} quantity" onclick="adjustMultiSplitIndoorQty(${rowIndex},-1)"${qty<=1?' disabled':''}>-</button><span class="multiSplitQtyValue">${qty}</span><button type="button" aria-label="Increase indoor head ${rowIndex+1} quantity" onclick="adjustMultiSplitIndoorQty(${rowIndex},1)"${canIncrease?'':' disabled'}>+</button></div></div>
           <button class="multiSplitRemoveButton" type="button" title="Remove indoor head" aria-label="Remove indoor head ${rowIndex+1}" onclick="removeMultiSplitIndoorRow(${rowIndex})">x</button>
@@ -12989,6 +13151,15 @@ function updateMainOptionNameInput(){
     button.disabled=optionIsWon(id);
     button.title=optionIsWon(id)?'Won quotes must be unlocked before renaming.':'Rename the selected quote';
   });
+  if(typeof updateMultiWorkspaceDestination==='function') updateMultiWorkspaceDestination(id);
+}
+function updateMultiWorkspaceDestination(id){
+  const button=$('multiSplitAddToQuoteBtn');
+  const def=optionDefById(id);
+  if(button&&def){
+    button.textContent='Add system to '+quoteChoiceName(def);
+    button.setAttribute('aria-label','Add system to '+quoteChoiceSelectorLabel(def));
+  }
 }
 function renderOptionSelectors(){
   ensureOptionDefs();
@@ -14073,6 +14244,7 @@ function refreshQuoteChoiceDestination(id){
     if(button){button.setAttribute('aria-pressed',String(active));button.querySelector('.quoteChoiceBadge').textContent=active?'Adding here':'Add here';}
   });
   $('currentOptionSummary').textContent=defs.length+' option'+(defs.length===1?'':'s')+' | Adding systems to '+quoteChoiceName(def);
+  if(typeof updateMultiWorkspaceDestination==='function') updateMultiWorkspaceDestination(id);
   updateCopyQuoteChoicesButton();
   return true;
 }

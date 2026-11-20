@@ -9,17 +9,23 @@ const dcceewProducts = JSON.parse(readFileSync(path.join(root, "lib", "dcceew-co
 
 const indoorBuilderPosition = html.indexOf('id="multiSplitIndoorRows"');
 const rebatePanelPosition = html.indexOf('id="multiSplitRebatePanel"');
-const costsPosition = html.indexOf('<h2 class="sectionTitle">Costs</h2>', rebatePanelPosition);
+const outdoorPosition = html.indexOf('id="multiOutdoorSection"');
+const indoorPosition = html.indexOf('id="multiIndoorSection"');
+const costsPosition = html.indexOf('id="multiInstallSection"');
 const summaryPosition = html.indexOf('class="summary card multiSplitSummaryCard"');
 
 assert.ok(indoorBuilderPosition >= 0, "The indoor-unit builder must exist.");
-assert.ok(rebatePanelPosition > indoorBuilderPosition, "Rebate calculation must follow the indoor-unit builder.");
-assert.ok(costsPosition > rebatePanelPosition, "Rebate calculation must appear before the costs section.");
+assert.ok(outdoorPosition >= 0 && indoorPosition > outdoorPosition, "Outdoor selection must precede indoor units.");
+assert.ok(indoorBuilderPosition > indoorPosition && costsPosition > indoorBuilderPosition, "Installation and costs must follow indoor selection.");
 assert.ok(summaryPosition > costsPosition, "The sticky financial summary must follow the main workflow in source order.");
+assert.ok(rebatePanelPosition > summaryPosition, "The compact government rebate must sit in Price & profit.");
 
-assert.match(html, /id="multiSplitCheckRebateBtn"[^>]*>Calculate rebate<\/button>/, "The prominent action must use the Calculate rebate label.");
-assert.match(html, /id="multiSplitQuickRebateBtn"[^>]*onclick="calculateMultiSplitTrialRebate\(true\)"/, "A second rebate action must sit beside the multi-head postcode.");
-assert.match(html, /scrollIntoView\(\{behavior:'smooth',block:'start'\}\)/, "The upper rebate action must reveal the rebate results.");
+assert.doesNotMatch(html, /id="multiSplitCheckRebateBtn"/, "The duplicate rebate button must be removed.");
+assert.equal([...html.matchAll(/id="multiSplitQuickRebateBtn"/g)].length, 1, "Exactly one compact rebate action must remain.");
+assert.match(html, /id="multiSplitQuickRebateBtn"[^>]*onclick="calculateMultiSplitTrialRebate\(true\)"/, "The retained rebate action must use the existing calculation handler.");
+assert.doesNotMatch(html.slice(outdoorPosition, html.indexOf('id="allModelsCard"')), /Energy savings rebate|id="multiSplitHeadsList"/, "The giant rebate heading and duplicate selected-equipment list must be removed.");
+assert.match(html, /Price &amp; profit|Price & profit/, "The summary must have a Price & profit heading.");
+assert.match(html, /multiWorkspaceFooterPrice/, "Multi-head must expose the compact footer price.");
 assert.doesNotMatch(html, />Check rebate<\/button>/, "The old Check rebate action label must not return.");
 assert.match(html, /id="multiSplitTab" onclick="setMultiSplitSection\(\)"/, "The multi-head tab must be visible by default.");
 assert.match(html, /function multiSplitTrialEnabled\(\)\{\s*return true;\s*\}/, "Multi-head access must be enabled for every approved calculator user.");
