@@ -1,0 +1,45 @@
+.page { max-width: 1200px; margin: auto; padding: 28px 24px 60px; color: #152032; }
+.header { display: flex; justify-content: space-between; gap: 16px; align-items: center; }
+.header h1 { margin: 4px 0 0; font-size: 26px; }
+.business { margin: 0; color: #0d7771; font-size: 14px; font-weight: 700; overflow-wrap: anywhere; }
+.page button { border: 1px solid #cbd7e1; border-radius: 6px; background: white; color: #182537; font: inherit; font-weight: 600; padding: 10px 15px; cursor: pointer; min-height: 42px; }
+.page button:disabled { opacity: .55; cursor: default; }
+.page button:focus-visible, .page input:focus-visible, .page select:focus-visible, .page summary:focus-visible { outline: 2px solid #087f77; outline-offset: 2px; }
+.muted, .status { color: #526477; font-size: 13px; }
+.status { min-height: 20px; margin: 14px 0; }
+.error { padding: 12px; border: 1px solid #dca8a0; background: #fff5f3; color: #943828; border-radius: 6px; }
+.filters { display: grid; grid-template-columns: 2fr 1.5fr 1fr 1fr; gap: 12px; padding: 18px 0; border-top: 1px solid #d6e0e7; }
+.filters > div { min-width: 0; display: grid; gap: 6px; }
+.filters label { font-size: 12px; color: #40566c; }
+.filters input, .filters select { width: 100%; min-width: 0; height: 42px; border: 1px solid #c3d1df; background: white; border-radius: 6px; padding: 8px 10px; font: inherit; font-size: 15px; color: #152032; }
+.totals { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 18px 0 24px; gap: 18px; border-bottom: 1px solid #d6e0e7; }
+.totals > div, .jobMoney > div { display: grid; gap: 5px; min-width: 0; }
+.totals span, .jobMoney span { font-size: 12px; color: #526477; }
+.totals strong { font-size: 22px; overflow-wrap: anywhere; }
+.totals > div:last-child strong, .jobMoney > div:last-child strong { color: #08796e; }
+.list { display: grid; gap: 12px; padding-top: 20px; }
+.job { border: 1px solid #cedae3; border-radius: 8px; background: white; padding: 18px; overflow-wrap: anywhere; }
+.jobHead { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+.job h2 { margin: 0; font-size: 17px; }
+.job p { font-size: 13px; line-height: 1.5; margin: 5px 0 0; }
+.jobMoney { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; flex-shrink: 0; text-align: right; }
+.jobMoney strong { font-size: 17px; }
+.job .location { margin: 14px 0; color: #526477; }
+.job summary { cursor: pointer; font-size: 13px; font-weight: 700; color: #08776f; padding: 5px 0; }
+.systems { margin-top: 8px; }
+.systems > div { border-top: 1px solid #e2e8ed; padding: 10px 0; display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
+.systems > div > span { flex-shrink: 0; }
+.systems p { color: #526477; }
+.empty { padding: 30px 0; color: #526477; }
+.paging { display: flex; justify-content: center; align-items: center; gap: 16px; margin-top: 22px; font-size: 13px; }
+@media (max-width: 680px) {
+  .page { padding: 20px 16px 40px; }
+  .header h1 { font-size: 23px; }
+  .filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .filters input, .filters select { font-size: 16px; }
+  .totals { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 12px; }
+  .totals strong { font-size: 20px; }
+  .jobHead { display: grid; }
+  .jobMoney { text-align: left; gap: 16px; }
+  .job { padding: 15px; }
+}

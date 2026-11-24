@@ -6,7 +6,9 @@ export async function middleware(request: NextRequest) {
     request.nextUrl.pathname === "/calculator/raw" ||
     request.nextUrl.pathname === "/api/calculator-data" ||
     request.nextUrl.pathname === "/api/calculator-version" ||
-    request.nextUrl.pathname === "/api/gems-model-metadata"
+    request.nextUrl.pathname === "/api/gems-model-metadata" ||
+    request.nextUrl.pathname === "/api/business-won-jobs" ||
+    request.nextUrl.pathname === "/business-won-jobs"
   ) {
     return NextResponse.next();
   }

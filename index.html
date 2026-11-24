@@ -13366,6 +13366,16 @@ function collectWonJobs(){
   return jobs.sort((a,b)=>Number(new Date(b.wonAt))-Number(new Date(a.wonAt)));
 }
 function updateWonJobsCount(){
+  if(businessWonJobsUrl()){
+    document.querySelectorAll('[data-won-jobs-count]').forEach(el=>{
+      const button=el.parentElement;
+      button.textContent='Business Won Jobs';
+      const own=document.createElement('button');
+      own.type='button'; own.className='secondary'; own.textContent='My Won Jobs'; own.onclick=openOwnWonJobsDrawer;
+      button.after(own);
+    });
+    return;
+  }
   const count=collectWonJobs().length;
   document.querySelectorAll('[data-won-jobs-count]').forEach(el=>{el.textContent=String(count);});
 }
@@ -13440,7 +13450,21 @@ function renderWonJobs(){
     </article>`;
   }).join('');
 }
-function openWonJobsDrawer(){ensureSecondaryStartup(); renderWonJobs(); const el=$('wonJobsDrawer'); if(el) el.classList.add('open'); syncOverlayState();}
+function businessWonJobsUrl(){
+  const user=calculatorUserContext();
+  if(user.role!=='business_owner'||!user.businessId) return '';
+  const params=new URLSearchParams({businessId:String(user.businessId)});
+  if(user.viewingEmail&&user.viewingEmail!==user.email) params.set('as',user.viewingEmail);
+  return '/business-won-jobs?'+params.toString();
+}
+function openWonJobsDrawer(){
+  const businessUrl=businessWonJobsUrl();
+  if(businessUrl){window.open(businessUrl,'_blank','noopener');return;}
+  openOwnWonJobsDrawer();
+}
+function openOwnWonJobsDrawer(){
+  ensureSecondaryStartup(); renderWonJobs(); const el=$('wonJobsDrawer'); if(el) el.classList.add('open'); syncOverlayState();
+}
 function closeWonJobsDrawer(){const el=$('wonJobsDrawer'); if(el) el.classList.remove('open'); syncOverlayState();}
 function rowShowsRebate(row){return !quoteStateDisablesRebates(row);}
 function rowsShowRebates(rows){
