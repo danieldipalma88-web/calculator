@@ -312,11 +312,30 @@ try {
     await test.close();
   }
 
-  // A curated exact MHI fallback remains available on a typed registry 404; an unlisted model does not.
+  const capturedMhi = JSON.parse(await readFile(resolve(root, "scripts/fixtures/mhi-ducted-gems-20261126.json"), "utf8"));
+  const mhiLookup = createGemsCalculationMetadata({ fetchInventory: async () => capturedMhi.map(({ resource, record }) =>
+    ({ ...record, [GEMS_VERIFIED_INVENTORY_SOURCE]: resource })) });
+  for (const installation of ["new", "replacement"]) {
+    for (const [model, capacity] of [[mhiFullPair, 7.1], ["FDC100VNP-W / FDU100VH", 10]]) {
+      const test = await pageFor({ brand: mhiBrand, model, capacity, systemType: "ducted", postcode: "2500", installation, lookup: mhiLookup });
+      currentTest = test;
+      await test.startLookup();
+      const state = await test.state();
+      assert.equal(state.retryVisible, false);
+      assert.equal(state.savedGemsFallback, false);
+      assert.equal(state.source, "Verified NSW backup (ae8d778)");
+      assert.equal(state.price, test.baseline.price);
+      assert.equal(state.quoteStorage, test.baseline.quoteStorage);
+      check(`MHI ${capacity} kW verified pair ${installation} in 2500`, { systemPriceUnchanged: true, savedQuoteUnchanged: true });
+      await test.close();
+    }
+  }
+  // A time-limited snapshot only bridges a transport outage, never an authoritative 404.
   {
     const mhiBrand = "Mitsubishi Heavy Industries";
     const mhiModel = "FDCA71VNX-W / FDU71VH";
-    const test = await pageFor({ brand: mhiBrand, model: mhiModel, metadataBehavior: "notfound" });
+    const test = await pageFor({ brand: mhiBrand, model: mhiModel, metadataBehavior: "503" });
+    await test.page.clock.setFixedTime(new Date("2026-11-26T01:00:00Z"));
     currentTest = test;
     await test.startLookup();
     const state = await test.state();
@@ -327,12 +346,25 @@ try {
     assert.match(state.message, /Verified NSW backup/);
     assert.equal(state.price, test.baseline.price);
     assert.equal(state.quoteStorage, test.baseline.quoteStorage);
-    check("MHI curated local metadata fallback on server 404", { outcome: "saved fallback used", metadataRequests: 1, systemPriceUnchanged: true, savedQuoteUnchanged: true });
+    check("MHI recently verified fallback on server outage", { outcome: "saved fallback used", metadataRequests: 1, systemPriceUnchanged: true, savedQuoteUnchanged: true });
+    await test.close();
+  }
+  {
+    const test = await pageFor({ brand: mhiBrand, model: mhiFullPair, systemType: "ducted", metadataBehavior: "503" });
+    currentTest = test;
+    await test.page.clock.setFixedTime(new Date("2026-12-26T00:00:00Z"));
+    await test.startLookup();
+    const state = await test.state();
+    assert.equal(state.retryVisible, true);
+    assert.equal(state.savedGemsFallback, false);
+    assert.equal(test.requests.some(r => r.purpose === "certificate"), false);
+    assert.equal(state.quoteStorage, test.baseline.quoteStorage);
+    check("MHI expired fallback withheld on outage", { savedQuoteUnchanged: true });
     await test.close();
   }
 
   // Existing MHI local metadata must not mask a malformed success or authoritative rejection.
-  for (const behavior of ["mhiWrongModel", "mhiBadIdentity", "mhiBadSchema", "mhiRejected"]) {
+  for (const behavior of ["mhiWrongModel", "mhiBadIdentity", "mhiBadSchema", "mhiRejected", "notfound"]) {
     const test = await pageFor({ brand: mhiBrand, model: mhiFullPair, systemType: "ducted", metadataBehavior: behavior });
     currentTest = test;
     await test.startLookup();
@@ -342,7 +374,7 @@ try {
     assert.equal(state.spinner, false, behavior);
     assert.equal(state.savedGemsFallback, false, behavior);
     assert.match(state.message, /not a confirmed \$0 rebate/i, behavior);
-    assert.match(state.detail, /could not be verified/i, behavior);
+    assert.match(state.detail, /could not be (verified|found)/i, behavior);
     assert.equal(test.requests.some((request) => request.purpose === "certificate"), false, behavior);
     assert.equal(state.price, test.baseline.price, behavior);
     assert.equal(state.quoteStorage, test.baseline.quoteStorage, behavior);

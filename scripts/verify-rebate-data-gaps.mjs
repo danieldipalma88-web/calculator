@@ -39,6 +39,7 @@ for (const change of [{ Brand: "Other" }, { SubmitStatus: "Pending" }, { "Availa
 }
 
 const originalFetch = globalThis.fetch;
+const mhiRows = JSON.parse(await readFile(new URL("./fixtures/mhi-ducted-gems-20261126.json", import.meta.url), "utf8"));
 let record;
 let backupOutage = false;
 globalThis.fetch = async (url, init = {}) => {
@@ -48,6 +49,10 @@ globalThis.fetch = async (url, init = {}) => {
     return handler.fetch(new Request(url, init));
   }
   if (new URL(url).hostname === "data.gov.au") {
+    const sql = new URL(url).searchParams.get("sql");
+    if (sql?.includes("mitsubishi heavy industries")) {
+      return Response.json({ success: true, result: { records: mhiRows.filter(({ resource }) => sql.includes(resource)).map(({ record }) => record) } });
+    }
     const query = new URL(url).searchParams.get("q");
     return Response.json({ success: true, result: { records: query === record.Model_No ? [record] : [] } });
   }
@@ -76,6 +81,16 @@ try {
     }
   }
   const finalRecord = record;
+  const mhiInput = { brand: "Mitsubishi Heavy Industries", postcode: "2500", systemType: "ducted", installType: "replacement", escRate: 23.5, prcRate: 2.6 };
+  // Reference amounts from the NSW calculation endpoint, checked 26 November 2026.
+  for (const [model, amount] of [["FDCA71VNX-W / FDU71VH", 1226.21], ["FDC100VNP-W / FDU100VH", 1181.43]]) {
+    const result = await production.calculateCurrentNswRebate({ ...mhiInput, model });
+    assert.equal(result.rebate, amount);
+    assert.equal(result.lookupSource, "GEMS registry + NSW formula");
+  }
+  for (const n of [125, 140, 160]) {
+    await assert.rejects(production.calculateCurrentNswRebate({ ...mhiInput, model: `FDCA${n}VNX-W / FDUA${n}VH` }), { code: "GEMS_MODEL_CONFLICT" });
+  }
   record = fixture.models[0].record;
   const invalidIdentityInput = { brand: "Other Brand", model: record.Model_No, postcode: "2145", installType: "new", systemType: "split", escRate: 23, prcRate: 2.6 };
   await assert.rejects(production.calculateCurrentNswRebate(invalidIdentityInput), /Model not found/, "An exact model string cannot bypass the expected brand");

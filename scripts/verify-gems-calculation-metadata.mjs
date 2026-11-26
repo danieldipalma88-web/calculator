@@ -101,6 +101,43 @@ const labelled = await fixed([{ ...otherRatings, "Rated Total Cool Capacity kW":
 assert.equal(labelled.meta["Cooling Capacity"], legacyCooling);
 assert.equal(labelled.meta["Heating Capacity"], legacyHeating);
 const from = (index, row) => ({ ...row, [GEMS_VERIFIED_INVENTORY_SOURCE]: GEMS_AIRCON_RESOURCE_IDS[index] });
+const capturedMhi = JSON.parse(await readFile(new URL("./fixtures/mhi-ducted-gems-20261126.json", import.meta.url), "utf8"))
+  .map(({ resource, record }) => ({ ...record, [GEMS_VERIFIED_INVENTORY_SOURCE]: resource }));
+const mhiLookup = fixed(capturedMhi);
+for (const [model, expectedKw, tcec, thec] of [[mhiPair, 1.77, 672, 1036], ["FDC100VNP-W / FDU100VH", 3.08, 981, 1289]]) {
+  const result = await mhiLookup(mhi, model);
+  assert.equal(result.meta["Input Power"], expectedKw);
+  assert.equal(Number(result.meta["Residential tcec_mixed"]), tcec);
+  assert.equal(Number(result.meta["Residential thec_mixed"]), thec);
+}
+for (const n of [125, 140, 160]) await reject(mhiLookup(mhi, `FDCA${n}VNX-W / FDUA${n}VH`), 409, "GEMS_MODEL_CONFLICT");
+const aac = capturedMhi.find(r => r["Registration Number"] === "AAC9147");
+for (const change of [{ Jurisdiction: null }, { "Effective date": null },
+  { "Registration Number": "AAC0000" }, { "Product Class": null }, { "Outdoor unit only": null },
+  { [GEMS_VERIFIED_INVENTORY_SOURCE]: undefined }, { "Rated cooling power input W": null }, { "Rated cooling power input W": -1 },
+  { "Residential thec_hot": null }]) await reject(fixed([{ ...aac, ...change }])(mhi, mhiPair), 422, "GEMS_MODEL_INCOMPLETE");
+await reject(fixed([{ ...aac, "Input Power": 1770 }])(mhi, mhiPair), 409, "GEMS_MODEL_CONFLICT");
+await reject(fixed([aac, { ...aac, "Registration Number": "AAC0000" }])(mhi, mhiPair), 409, "GEMS_MODEL_CONFLICT");
+for (const change of [{ Sold_in: "New Zealand" }, { "Availability Status": "Unavailable" }, { SubmitStatus: "Cancelled" },
+  { Jurisdiction: "NZ" }, { "Effective date": "2040-01-01" }, { "Product Class": "11" }, { Configuration1: "Non Ducted" },
+  { Configuration2: "Multi-Split" }, { Phase: "Three-phase" }, { ExpDate: "2021-01-01" }]) {
+  for (const identity of [mhiPair, mhiPackage]) {
+    const contrary = from(1, { ...aac, Model_No: identity, ...change });
+    for (const rows of [[aac, contrary], [contrary, aac]]) await reject(fixed(rows)(mhi, mhiPair), 422, "GEMS_MODEL_REJECTED");
+  }
+}
+await reject(fixed([{ ...aac, ExpDate: "2026-01-01" }])(mhi, mhiPair), 422, "GEMS_MODEL_REJECTED");
+for (const [id, alias] of [["AAC9147", mhiPackage], ["AAC9217", "FDU100VNPWVH"]]) {
+  const labelled = capturedMhi.find(r => r["Registration Number"] === id);
+  const detailed = from(1, { ...labelled, Sold_in: "Australia", "Availability Status": "Available",
+    "C-Power_Inp_Rated": Number(labelled["Rated cooling power input W"]) / 1000 });
+  for (const identity of [labelled.Model_No, alias]) {
+    for (const change of [{ SubmitStatus: "Cancelled" }, { Jurisdiction: "NZ" }, { "Effective date": "2040-01-01" }]) {
+      const contrary = { ...labelled, Model_No: identity, ...change };
+      for (const rows of [[contrary, detailed], [detailed, contrary]]) await reject(fixed(rows)(mhi, alias), 422, "GEMS_MODEL_REJECTED");
+    }
+  }
+}
 for (const [registration, precise, rounded] of [["AAC8714", "4.8352", "4.835"], ["AAC10167", "4.1832", "4.183"], ["AAC8788", "3.9555", "3.955"]]) {
   const legacy = from(1, { ...row, "Registration Number": registration, "Rated ACOP": precise });
   const labelled = from(0, { ...modernIdentity, "Registration Number": registration, "Rated ACOP": rounded });
@@ -350,7 +387,7 @@ try {
   const { GET } = sandbox.exports;
   assert.equal(cacheOptions.revalidate, 300);
   const catalogue = JSON.parse(await readFile(new URL("../lib/public-rebate-catalogue.generated.json", import.meta.url), "utf8"));
-  assert.deepEqual(cacheOptions.keys, ["gems-calculation-inventory-v4", catalogue.sourceVersion]);
+  assert.deepEqual(cacheOptions.keys, ["gems-calculation-inventory-v5", catalogue.sourceVersion]);
   // Simulate a redeployment while the framework's shared cache still contains old classified rows.
   const persisted = new Map();
   const seed = { catalogue: "before-X4", candidates: [] };

@@ -3,7 +3,7 @@ import { conservativeRegistrationIds, fetchGemsDatastoreRecords, GEMS_AIRCON_RES
 
 export const GEMS_INVENTORY_REVALIDATE_SECONDS = 300;
 // Cached candidates are classified using this catalogue's package/component aliases.
-export const GEMS_INVENTORY_CACHE_KEYS = ["gems-calculation-inventory-v4", catalogue.sourceVersion];
+export const GEMS_INVENTORY_CACHE_KEYS = ["gems-calculation-inventory-v5", catalogue.sourceVersion];
 export const GEMS_INVENTORY_MAX_AGE_MS = 60 * 60 * 1000;
 const DEADLINE_MS = 8000;
 const FAILURE_COOLDOWN_MS = 5000;
@@ -55,6 +55,12 @@ function pairParts(value: string) {
 }
 
 const pairKey = (parts: string[]) => parts.map(compact).sort().join("|");
+// These exact pairs are sold in Australia and listed in the regulator's public
+// available-products export. That export uses Jurisdiction, not Sold_in, and W, not kW.
+const reviewedMhiPairs = new Map([
+  ["pair:" + pairKey(["FDCA71VNX-W", "FDU71VH"]), { registration: "AAC9147", productClass: "10" }],
+  ["pair:" + pairKey(["FDC100VNP-W", "FDU100VH"]), { registration: "AAC9217", productClass: "11" }],
+]);
 const formattedPairKey = (brand: string, value: string) => `${brand}:${value.toUpperCase().replace(/\s+/g, "")}`;
 const knownPairFormats = new Map<string, Set<string>>();
 const aliases = new Map<string, Set<string>>();
@@ -89,6 +95,14 @@ for (const product of catalogue.products) {
 const standaloneSystems = new Set(catalogue.products.filter(({ brand, model }) =>
   !pairParts(model) && !/[\/|\\]/.test(model) && !catalogueComponents.has(`${brandKey(brand)}:${compact(model)}`),
 ).map(({ brand, model }) => `${brandKey(brand)}:${compact(model)}`));
+
+function reviewedPairForIdentity(key: string, identity: string) {
+  if (key !== "mitsubishi heavy industries") return undefined;
+  const direct = reviewedMhiPairs.get(identity);
+  if (direct || !identity.startsWith("package:")) return direct;
+  const related = aliases.get(`${key}:single:${identity.slice(8)}`);
+  return Array.from(related ?? [], id => reviewedMhiPairs.get(id)).find(Boolean);
+}
 
 function modelIdentity(brand: string, model: string) {
   const parts = pairParts(model);
@@ -125,7 +139,7 @@ function numeric(value: unknown): value is string | number {
 }
 
 type Meta = Record<string, string | number>;
-type Candidate = { identity: string; meta: Meta; registryExpiresAt: number | null; state: "eligible" | "unknown" | "rejected"; complete: boolean; invalidRatings: boolean; conflictingRatings?: true; resource?: GemsSearchRecord[typeof GEMS_VERIFIED_INVENTORY_SOURCE]; registration?: string };
+type Candidate = { identity: string; meta: Meta; registryExpiresAt: number | null; state: "eligible" | "unknown" | "rejected"; complete: boolean; invalidRatings: boolean; conflictingRatings?: true; reviewedRegistration?: true; resource?: GemsSearchRecord[typeof GEMS_VERIFIED_INVENTORY_SOURCE]; registration?: string };
 type Inventory = { brand: string; verifiedAt: number; candidates: Candidate[] };
 type FetchInventory = (brands: readonly string[], signal: AbortSignal) => Promise<GemsSearchRecord[]>;
 type ReadInventory = (brand: string) => Promise<Inventory>;
@@ -138,7 +152,7 @@ function registrationExpiry(value: unknown) {
   return day + 86_400_000;
 }
 
-function inventoryCandidates(records: GemsSearchRecord[], key: string) {
+function inventoryCandidates(records: GemsSearchRecord[], key: string, now: number) {
   const candidates: Candidate[] = [];
   for (const row of records) {
     if (!row || typeof row !== "object" || Array.isArray(row)) fail("GEMS_UNAVAILABLE");
@@ -165,11 +179,30 @@ function inventoryCandidates(records: GemsSearchRecord[], key: string) {
     const availability = text(row["Availability Status"]).toLowerCase();
     const market = text(valueFor(row, ["Sold_in", "Sold in"]));
     const australia = market.split(/[,;]/).some(country => /^australia$/i.test(country.trim()));
-    const state = !validSystem || (approval && approval !== "approved") || (availability && availability !== "available") || (market && !australia)
-      ? "rejected" : approval === "approved" && availability === "available" && australia ? "eligible" : "unknown";
+    const registration = text(row["Registration Number"]).toUpperCase();
     const registryExpiresAt = registrationExpiry(row.ExpDate);
+    const reviewed = reviewedPairForIdentity(key, identity);
+    const effectiveEndOfDay = registrationExpiry(row["Effective date"]);
+    const sameReviewedRegistration = !!reviewed && reviewed.registration === registration;
+    const contradictory = (value: unknown, expected: string[]) =>
+      value != null && String(value).trim() !== "" && !expected.includes(compact(String(value)));
+    const contraryEvidence = sameReviewedRegistration && (
+      contradictory(row.Jurisdiction, ["AUS", "AUSTRALIA"])
+      || contradictory(row.Configuration1, ["DUCTED"]) || contradictory(row.Configuration2, ["SINGLESPLITSYSTEM"])
+      || contradictory(valueFor(row, ["Product Class", "Product_Class", "ProductClass"]), [reviewed.productClass, "CLASS" + reviewed.productClass])
+      || contradictory(valueFor(row, ["Phase", "Power Phase", "Power supply phase"]), ["1", "1PHASE", "SINGLE", "SINGLEPHASE"])
+      || (row["Effective date"] != null && (!effectiveEndOfDay || effectiveEndOfDay - 86_400_000 > now))
+      || (registryExpiresAt !== null && registryExpiresAt <= now));
+    const reviewedLabel = sameReviewedRegistration && identity.startsWith("pair:") && row[GEMS_VERIFIED_INVENTORY_SOURCE] === GEMS_AIRCON_RESOURCE_IDS[0]
+      && text(row.Jurisdiction) === "AUS" && approval === "approved" && text(row.Configuration1) === "Ducted"
+      && text(row.Configuration2) === "Single Split System" && text(row["Outdoor unit only"]) === "No"
+      && text(row["Product Class"]) === reviewed.productClass && !!effectiveEndOfDay && effectiveEndOfDay - 86_400_000 <= now
+      && !!registryExpiresAt && registryExpiresAt > now;
+    const state = contraryEvidence || !validSystem || (approval && approval !== "approved") || (availability && availability !== "available") || (market && !australia)
+      ? "rejected" : (reviewedLabel || (approval === "approved" && availability === "available" && australia)) ? "eligible" : "unknown";
     if (state === "rejected") {
-      candidates.push({ identity, meta: { brand, model }, registryExpiresAt, state, complete: false, invalidRatings: false });
+      candidates.push({ identity, meta: { brand, model }, registryExpiresAt, state, complete: false, invalidRatings: false,
+        ...(reviewed ? { registration } : {}) });
       continue;
     }
     const meta: Meta = {
@@ -185,6 +218,11 @@ function inventoryCandidates(records: GemsSearchRecord[], key: string) {
     for (const field of ratingKeys) {
       const fields = ratingAliases[field] ?? [field];
       const rawValues = fields.map(key => row[key]);
+      if (reviewedLabel && field === "Input Power") {
+        const watts = row["Rated cooling power input W"];
+        if (!numeric(watts) || Number(watts) <= 0) invalidRatings = true;
+        else rawValues.push(Number(watts) / 1000);
+      }
       if (rawValues.some(raw => {
         if (!numericSyntax(raw)) return false;
         const rating = Number(raw);
@@ -196,7 +234,7 @@ function inventoryCandidates(records: GemsSearchRecord[], key: string) {
     }
     candidates.push({ identity, meta, registryExpiresAt, state, invalidRatings, conflictingRatings,
       complete: !invalidRatings && requiredRatingKeys.every(field => numeric(meta[field])),
-      resource: row[GEMS_VERIFIED_INVENTORY_SOURCE], registration: text(row["Registration Number"]).toUpperCase(),
+      resource: row[GEMS_VERIFIED_INVENTORY_SOURCE], registration, ...(sameReviewedRegistration ? { reviewedRegistration: true } : {}),
     });
   }
   return candidates;
@@ -243,6 +281,10 @@ function selectCandidate(candidates: Candidate[], identities: Set<string>, now: 
   const matches = candidates.filter(row => identities.has(row.identity));
   if (!matches.length) return fail("GEMS_MODEL_NOT_FOUND");
   const current = matches.filter(row => row.state !== "rejected" && (row.registryExpiresAt === null || now < row.registryExpiresAt));
+  for (const row of current.filter(row => row.reviewedRegistration)) {
+    if (matches.some(other => other.registration === row.registration && other.state === "rejected")) return fail("GEMS_MODEL_REJECTED");
+    if (current.some(other => other.registration !== row.registration)) return fail("GEMS_MODEL_CONFLICT");
+  }
   if (current.some(row => row.invalidRatings)) return fail("GEMS_MODEL_INCOMPLETE");
   const active = current.filter(row => row.state === "eligible");
   if (!active.length) {
@@ -316,7 +358,7 @@ export function createGemsCalculationMetadata({
     const previous = recent.get(brand);
     const age = previous ? now() - previous.verifiedAt : Infinity;
     if (previous && recoveryBridges.has(previous) && age >= 0 && age < GEMS_INVENTORY_REVALIDATE_SECONDS * 1000) return previous;
-    const candidates = await withinDeadline(deadlineMs, async signal => inventoryCandidates(await fetchInventory(brandNames(brand), signal), brand));
+    const candidates = await withinDeadline(deadlineMs, async signal => inventoryCandidates(await fetchInventory(brandNames(brand), signal), brand, now()));
     const inventory: Inventory = { brand, verifiedAt: now(), candidates };
     if (Buffer.byteLength(JSON.stringify(inventory)) > MAX_INVENTORY_BYTES) return fail("GEMS_UNAVAILABLE");
     recent.delete(brand);

@@ -6418,8 +6418,8 @@ const LOCAL_GEMS_MODEL_METADATA_ROWS=[
   {brand:'Actron Air',model:'CRV19BT / EVV19BS',type:'Ducted',productClass:'Class 11',cooling:19,heating:19,input:5.54,aeer:3.4006,acop:3.7093,tcspfCold:4.594,tcspfMixed:4.432,tcspfHot:4.787,hspfCold:3.448,hspfMixed:3.958,hspfHot:4.442,tcecCold:1130,tcecMixed:1774,tcecHot:5167,thecCold:7228,thecMixed:2644,thecHot:394},
   {brand:'Actron Air',model:'CRV22BT / EVV22BS',type:'Ducted',productClass:'Class 11',cooling:22,heating:23,input:6.61,aeer:3.3063,acop:3.652,tcspfCold:4.524,tcspfMixed:4.356,tcspfHot:4.687,hspfCold:3.528,hspfMixed:4.031,hspfHot:4.535,tcecCold:1336,tcecMixed:2099,tcecHot:6119,thecCold:8543,thecMixed:3133,thecHot:458},
   {brand:'Actron Air',model:'CRV25BT / EVV25BS',type:'Ducted',productClass:'Class 11',cooling:25,heating:26,input:7.267,aeer:3.418,acop:3.7772,tcspfCold:4.535,tcspfMixed:4.389,tcspfHot:4.699,hspfCold:3.5,hspfMixed:4.028,hspfHot:4.532,tcecCold:1517,tcecMixed:2369,tcecHot:6937,thecCold:9731,thecMixed:3543,thecHot:516},
-  {brand:'Mitsubishi Heavy Industries',model:'FDCA71VNX-W / FDU71VH',type:'Ducted',cooling:7.1,heating:8,input:1.77,aeer:3.868,acop:4.334,tcspfCold:4.091,tcspfMixed:4.142,tcspfHot:0,hspfCold:3.922,hspfMixed:4.414,hspfHot:0,tcecCold:0,tcecMixed:0,tcecHot:0,thecCold:0,thecMixed:0,thecHot:0},
-  {brand:'Mitsubishi Heavy Industries',model:'FDC100VNP-W / FDU100VH',type:'Ducted',cooling:10,heating:10,input:3.08,aeer:3.22,acop:4.039,tcspfCold:4.393,tcspfMixed:4.218,tcspfHot:0,hspfCold:3.65,hspfMixed:4.28,hspfHot:0,tcecCold:0,tcecMixed:0,tcecHot:0,thecCold:0,thecMixed:0,thecHot:0},
+  {brand:'Mitsubishi Heavy Industries',model:'FDCA71VNX-W / FDU71VH',type:'Ducted',productClass:'Class 10',cooling:7.1,heating:8,input:1.77,aeer:3.868,acop:4.334,tcspfCold:4.091,tcspfMixed:4.142,tcspfHot:4.895,hspfCold:3.922,hspfMixed:4.414,hspfHot:4.734,tcecCold:444,tcecMixed:672,tcecHot:1852,thecCold:2707,thecMixed:1036,thecHot:190},
+  {brand:'Mitsubishi Heavy Industries',model:'FDC100VNP-W / FDU100VH',type:'Ducted',productClass:'Class 11',cooling:10,heating:10,input:3.08,aeer:3.22,acop:4.039,tcspfCold:4.393,tcspfMixed:4.218,tcspfHot:4.536,hspfCold:3.65,hspfMixed:4.28,hspfHot:4.883,tcecCold:622,tcecMixed:981,tcecHot:2870,thecCold:3595,thecMixed:1289,thecHot:191},
   {brand:'TCL',model:'TAC-10CHSD/VEIH',type:'Non Ducted',cooling:2.64,heating:3.3,input:0.56,aeer:4.6032,acop:4.3506,tcspfCold:6.652,tcspfMixed:6.546,tcspfHot:8.028,hspfCold:4.325,hspfMixed:4.703,hspfHot:5.096,tcecCold:103,tcecMixed:160,tcecHot:421,thecCold:1005,thecMixed:392,thecHot:64},
   {brand:'TCL',model:'TAC-13CHSD/VEIH',type:'Non Ducted',cooling:3.53,heating:3.65,input:0.87,aeer:4.0041,acop:4.2363,tcspfCold:6.417,tcspfMixed:6.17,tcspfHot:7.268,hspfCold:4.211,hspfMixed:4.604,hspfHot:5.05,tcecCold:147,tcecMixed:233,tcecHot:628,thecCold:1140,thecMixed:440,thecHot:69},
   {brand:'TCL',model:'TAC-18CHSD/VEIH',type:'Non Ducted',cooling:5.3,heating:5.3,input:1.3,aeer:4.0407,acop:4.3031,tcspfCold:5.951,tcspfMixed:5.676,tcspfHot:6.184,hspfCold:4.106,hspfMixed:4.581,hspfHot:5.002,tcecCold:242,tcecMixed:385,tcecHot:1114,thecCold:1693,thecMixed:637,thecHot:98},
@@ -6762,6 +6762,11 @@ async function resolveModelMetadataForRebate(localBrand,localModel,signal){
     return await fetchGemsModelMetadata(localBrand,localModel,signal);
   }catch(gemsError){
     signal?.throwIfAborted();
+    if(localMeta?.brand==='Mitsubishi Heavy Industries'&&localMeta['Product Type']==='Ducted'){
+      // Only bridge a transport outage with the recently verified AAC9147/AAC9217 snapshot.
+      // A live rejection, conflict or withdrawal must take precedence.
+      if(gemsError?.code!=='GEMS_UNAVAILABLE'||Date.now()>=Date.parse('2026-12-26T00:00:00Z')) throw gemsError;
+    }
     if(!tclRegistrationEstimateIds(localBrand,localModel)&&localMeta&&['GEMS_UNAVAILABLE','GEMS_MODEL_NOT_FOUND'].includes(gemsError?.code)) return {meta:localMeta,brand:localMeta.brand||localBrand,model:localMeta.model||localModel,source:'Saved GEMS fallback + NSW formula'};
     throw gemsError;
   }

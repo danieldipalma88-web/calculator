@@ -1,4 +1,5 @@
 import catalogueData from "./public-rebate-catalogue.generated.json";
+import { createGemsCalculationMetadata, GEMS_INVENTORY_REVALIDATE_SECONDS } from "./gems-calculation-metadata";
 import { requestNswCalculation } from "./nsw-calculation-transport";
 import { postcodeDataIssue } from "./nsw-postcode-data-issue";
 import {
@@ -331,7 +332,23 @@ async function fetchNswEstimatorMetadata(brand: string, candidates: string[]) {
   throw new Error(`Model not found in the NSW estimator metadata: ${candidates[0] || "unknown model"}`);
 }
 
+// The audit/estimator must not choose the first registration when the quote UI
+// would reject the same MHI pair. This cache is only used for this one brand.
+const reviewedMhiLookup = createGemsCalculationMetadata({ wrapInventory: load => {
+  let cached: Awaited<ReturnType<typeof load>> | undefined;
+  return async brand => {
+    const age = cached ? Date.now() - cached.verifiedAt : Infinity;
+    if (cached?.brand === brand && age >= 0 && age < GEMS_INVENTORY_REVALIDATE_SECONDS * 1000) return cached;
+    return cached = await load(brand);
+  };
+} });
+
 async function resolveMetadata(brand: string, model: string) {
+  const product = catalogueProductFor(brand, model);
+  if (product?.brand === "Mitsubishi Heavy Industries" && /\/\s*FDUA?\d+VH$/i.test(product.model)) {
+    const { meta, source } = await reviewedMhiLookup(product.brand, product.model);
+    return { meta, source };
+  }
   const cacheKey = `${normalizeBrand(brand)}|${normalize(model)}`;
   const existing = metadataCache.get(cacheKey);
   if (existing) return existing;
