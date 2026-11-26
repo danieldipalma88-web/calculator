@@ -44,7 +44,7 @@ const verifiedFixture = [
 const businessFixture = { brand: "Hisense", model: "TEST-BUSINESS-SPLIT", type: "split", unitPriceInc: 0, priceIncGst: 0, rebate: 0 };
 const normalize = value => String(value).toUpperCase().replace(/[^A-Z0-9]/g, "");
 
-function loadCatalogues(html, catalogue = "default", state = "NSW", additions = [], businessProducts = [businessFixture]) {
+function loadCatalogues(html, catalogue = "default", state = "NSW", additions = [], businessProducts = [businessFixture], type = "split") {
   const sandbox = {
     activeCatalogKey: () => catalogue,
     activeBusinessState: () => state,
@@ -60,7 +60,7 @@ function loadCatalogues(html, catalogue = "default", state = "NSW", additions = 
     ${section(html, "const SPLIT_PRODUCTS =", "let systemType='split'")}
     ${section(html, "function mergeBusinessProducts(type,list)", "function data()")}
     globalThis.raw={default:SPLIT_PRODUCTS,andos:ANDOS_SPLIT_PRODUCTS,ducted:DUCTED_PRODUCTS,andosDucted:ANDOS_DUCTED_PRODUCTS};
-    globalThis.effective=productListFor('split');
+    globalThis.effective=productListFor(${JSON.stringify(type)});
   `, sandbox, { timeout: 8000 });
   return { raw: structuredClone(sandbox.raw), effective: structuredClone(sandbox.effective) };
 }
@@ -120,6 +120,33 @@ for (const catalogue of ["default", "andos"]) {
 }
 
 const publicCatalogue = await buildPublicRebateCatalogue();
+const beforeDucted = execFileSync("git", ["show", "c006a9ae0ef949f3ed7a15fed6047290d86e1f40:index.html"], {
+  cwd: new URL("../", import.meta.url), encoding: "utf8", maxBuffer: 16 * 1024 * 1024,
+});
+const ductedModels = ["FDCA125VSX-W / FDUA125VH", "FDCA125VSX-W / FDU125VH"];
+for (const catalogue of ["default", "andos"]) {
+  for (const state of ["NSW", "QLD"]) {
+    for (const duplicate of [null, "business", "verified"]) {
+      const fixture = model => ({ type: "ducted", brand: "Mitsubishi Heavy Industries", model, phase: "Three", unitPriceInc: 1234, priceIncGst: 1234 });
+      const business = [fixture("BUSINESS-EXAMPLE")], verified = [fixture("VERIFIED-EXAMPLE")];
+      if (duplicate) (duplicate === "business" ? business : verified).push(fixture(ductedModels[0]));
+      const args = [catalogue, state, verified, business, "ducted"];
+      const original = loadCatalogues(beforeDucted, ...args).effective;
+      const updated = loadCatalogues(source, ...args).effective;
+      assertPreservedPrefix(original, updated, [catalogue, state, duplicate].join("/"));
+      const added = updated.slice(original.length);
+      const expected = state !== "NSW" ? [] : ductedModels.filter((_, i) => !duplicate || i !== 0);
+      assert.deepEqual(added.map(p => p.model), expected);
+      for (const row of added) {
+        assert.equal(row.phase, "Three"); assert.equal(row.capacityNum, 12.5);
+        assert.equal(row.nswOnly, true); assert.equal(row.priceIncGst, 0); assert.equal(row.unitPriceInc, 0);
+      }
+    }
+  }
+}
+for (const model of ductedModels) {
+  assert.equal(publicCatalogue.products.filter(p => p.model === model && p.systemType === "ducted" && p.capacityKw === 12.5).length, 1);
+}
 for (const catalogue of ["default", "andos"]) {
   for (const product of approved.filter(p => p.series === "X4")) {
     const pairs = [" / ", " - ", ", ", " "].flatMap(separator => [

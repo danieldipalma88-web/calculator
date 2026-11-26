@@ -83,7 +83,8 @@ try {
   const finalRecord = record;
   const mhiInput = { brand: "Mitsubishi Heavy Industries", postcode: "2500", systemType: "ducted", installType: "replacement", escRate: 23.5, prcRate: 2.6 };
   // Reference amounts from the NSW calculation endpoint, checked 26 November 2026.
-  for (const [model, amount] of [["FDCA71VNX-W / FDU71VH", 1226.21], ["FDC100VNP-W / FDU100VH", 1181.43]]) {
+  for (const [model, amount] of [["FDCA71VNX-W / FDU71VH", 1226.21], ["FDC100VNP-W / FDU100VH", 1181.43],
+    ["FDCA125VSX-W / FDUA125VH", 1552.46], ["FDCA125VSX-W / FDU125VH", 1817.71]]) {
     const result = await production.calculateCurrentNswRebate({ ...mhiInput, model });
     assert.equal(result.rebate, amount);
     assert.equal(result.lookupSource, "GEMS registry + NSW formula");

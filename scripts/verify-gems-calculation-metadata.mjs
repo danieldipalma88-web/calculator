@@ -104,7 +104,8 @@ const from = (index, row) => ({ ...row, [GEMS_VERIFIED_INVENTORY_SOURCE]: GEMS_A
 const capturedMhi = JSON.parse(await readFile(new URL("./fixtures/mhi-ducted-gems-20261126.json", import.meta.url), "utf8"))
   .map(({ resource, record }) => ({ ...record, [GEMS_VERIFIED_INVENTORY_SOURCE]: resource }));
 const mhiLookup = fixed(capturedMhi);
-for (const [model, expectedKw, tcec, thec] of [[mhiPair, 1.77, 672, 1036], ["FDC100VNP-W / FDU100VH", 3.08, 981, 1289]]) {
+for (const [model, expectedKw, tcec, thec] of [[mhiPair, 1.77, 672, 1036], ["FDC100VNP-W / FDU100VH", 3.08, 981, 1289],
+  ["FDCA125VSX-W / FDUA125VH", 3.83, 1277, 1871], ["FDCA125VSX-W / FDU125VH", 3.49, 1247, 1899]]) {
   const result = await mhiLookup(mhi, model);
   assert.equal(result.meta["Input Power"], expectedKw);
   assert.equal(Number(result.meta["Residential tcec_mixed"]), tcec);
@@ -112,6 +113,16 @@ for (const [model, expectedKw, tcec, thec] of [[mhiPair, 1.77, 672, 1036], ["FDC
 }
 for (const n of [125, 140, 160]) await reject(mhiLookup(mhi, `FDCA${n}VNX-W / FDUA${n}VH`), 409, "GEMS_MODEL_CONFLICT");
 const aac = capturedMhi.find(r => r["Registration Number"] === "AAC9147");
+for (const [indoor, reg, other] of [["FDUA125VH", "AAC9959", "AAC9802"], ["FDU125VH", "AAC9802", "AAC9959"]]) {
+  const pair = "FDCA125VSX-W / " + indoor;
+  const source = capturedMhi.find(r => r.Model_No === pair && r["Registration Number"] === reg);
+  assert.equal((await mhiLookup(mhi, indoor + " / FDCA125VSX-W")).meta.Phase, "Three-phase");
+  await reject(fixed([{ ...source, Phase: null }])(mhi, pair), 422, "GEMS_MODEL_INCOMPLETE");
+  await reject(fixed([{ ...source, Phase: "Single-phase" }])(mhi, pair), 422, "GEMS_MODEL_REJECTED");
+  await reject(fixed([{ ...source, "Registration Number": other, Sold_in: "Australia", "Availability Status": "Available",
+    "C-Power_Inp_Rated": Number(source["Rated cooling power input W"]) / 1000 }])(mhi, pair), 409, "GEMS_MODEL_CONFLICT");
+}
+await reject(mhiLookup(mhi, "FDCA125VSX-W"), 404, "GEMS_MODEL_NOT_FOUND");
 for (const change of [{ Jurisdiction: null }, { "Effective date": null },
   { "Registration Number": "AAC0000" }, { "Product Class": null }, { "Outdoor unit only": null },
   { [GEMS_VERIFIED_INVENTORY_SOURCE]: undefined }, { "Rated cooling power input W": null }, { "Rated cooling power input W": -1 },

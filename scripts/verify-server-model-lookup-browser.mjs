@@ -316,7 +316,8 @@ try {
   const mhiLookup = createGemsCalculationMetadata({ fetchInventory: async () => capturedMhi.map(({ resource, record }) =>
     ({ ...record, [GEMS_VERIFIED_INVENTORY_SOURCE]: resource })) });
   for (const installation of ["new", "replacement"]) {
-    for (const [model, capacity] of [[mhiFullPair, 7.1], ["FDC100VNP-W / FDU100VH", 10]]) {
+    for (const [model, capacity] of [[mhiFullPair, 7.1], ["FDC100VNP-W / FDU100VH", 10],
+      ["FDCA125VSX-W / FDUA125VH", 12.5], ["FDCA125VSX-W / FDU125VH", 12.5]]) {
       const test = await pageFor({ brand: mhiBrand, model, capacity, systemType: "ducted", postcode: "2500", installation, lookup: mhiLookup });
       currentTest = test;
       await test.startLookup();

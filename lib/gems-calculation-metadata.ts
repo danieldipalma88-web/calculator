@@ -57,9 +57,11 @@ function pairParts(value: string) {
 const pairKey = (parts: string[]) => parts.map(compact).sort().join("|");
 // These exact pairs are sold in Australia and listed in the regulator's public
 // available-products export. That export uses Jurisdiction, not Sold_in, and W, not kW.
-const reviewedMhiPairs = new Map([
-  ["pair:" + pairKey(["FDCA71VNX-W", "FDU71VH"]), { registration: "AAC9147", productClass: "10" }],
-  ["pair:" + pairKey(["FDC100VNP-W", "FDU100VH"]), { registration: "AAC9217", productClass: "11" }],
+const reviewedMhiPairs = new Map<string, { registration: string; productClass: string; phase: "SINGLE" | "THREE"; requireExactRecord?: true }>([
+  ["pair:" + pairKey(["FDCA71VNX-W", "FDU71VH"]), { registration: "AAC9147", productClass: "10", phase: "SINGLE" }],
+  ["pair:" + pairKey(["FDC100VNP-W", "FDU100VH"]), { registration: "AAC9217", productClass: "11", phase: "SINGLE" }],
+  ["pair:" + pairKey(["FDCA125VSX-W", "FDUA125VH"]), { registration: "AAC9959", productClass: "11", phase: "THREE", requireExactRecord: true }],
+  ["pair:" + pairKey(["FDCA125VSX-W", "FDU125VH"]), { registration: "AAC9802", productClass: "11", phase: "THREE", requireExactRecord: true }],
 ]);
 const formattedPairKey = (brand: string, value: string) => `${brand}:${value.toUpperCase().replace(/\s+/g, "")}`;
 const knownPairFormats = new Map<string, Set<string>>();
@@ -139,7 +141,7 @@ function numeric(value: unknown): value is string | number {
 }
 
 type Meta = Record<string, string | number>;
-type Candidate = { identity: string; meta: Meta; registryExpiresAt: number | null; state: "eligible" | "unknown" | "rejected"; complete: boolean; invalidRatings: boolean; conflictingRatings?: true; reviewedRegistration?: true; resource?: GemsSearchRecord[typeof GEMS_VERIFIED_INVENTORY_SOURCE]; registration?: string };
+type Candidate = { identity: string; meta: Meta; registryExpiresAt: number | null; state: "eligible" | "unknown" | "rejected"; complete: boolean; invalidRatings: boolean; conflictingRatings?: true; reviewedRegistration?: true; reviewedLabel?: true; resource?: GemsSearchRecord[typeof GEMS_VERIFIED_INVENTORY_SOURCE]; registration?: string };
 type Inventory = { brand: string; verifiedAt: number; candidates: Candidate[] };
 type FetchInventory = (brands: readonly string[], signal: AbortSignal) => Promise<GemsSearchRecord[]>;
 type ReadInventory = (brand: string) => Promise<Inventory>;
@@ -190,7 +192,8 @@ function inventoryCandidates(records: GemsSearchRecord[], key: string, now: numb
       contradictory(row.Jurisdiction, ["AUS", "AUSTRALIA"])
       || contradictory(row.Configuration1, ["DUCTED"]) || contradictory(row.Configuration2, ["SINGLESPLITSYSTEM"])
       || contradictory(valueFor(row, ["Product Class", "Product_Class", "ProductClass"]), [reviewed.productClass, "CLASS" + reviewed.productClass])
-      || contradictory(valueFor(row, ["Phase", "Power Phase", "Power supply phase"]), ["1", "1PHASE", "SINGLE", "SINGLEPHASE"])
+      || contradictory(valueFor(row, ["Phase", "Power Phase", "Power supply phase"]), reviewed.phase === "THREE"
+        ? ["3", "3PHASE", "THREE", "THREEPHASE"] : ["1", "1PHASE", "SINGLE", "SINGLEPHASE"])
       || (row["Effective date"] != null && (!effectiveEndOfDay || effectiveEndOfDay - 86_400_000 > now))
       || (registryExpiresAt !== null && registryExpiresAt <= now));
     const reviewedLabel = sameReviewedRegistration && identity.startsWith("pair:") && row[GEMS_VERIFIED_INVENTORY_SOURCE] === GEMS_AIRCON_RESOURCE_IDS[0]
@@ -235,6 +238,7 @@ function inventoryCandidates(records: GemsSearchRecord[], key: string, now: numb
     candidates.push({ identity, meta, registryExpiresAt, state, invalidRatings, conflictingRatings,
       complete: !invalidRatings && requiredRatingKeys.every(field => numeric(meta[field])),
       resource: row[GEMS_VERIFIED_INVENTORY_SOURCE], registration, ...(sameReviewedRegistration ? { reviewedRegistration: true } : {}),
+      ...(reviewedLabel ? { reviewedLabel: true } : {}),
     });
   }
   return candidates;
@@ -418,6 +422,12 @@ export function createGemsCalculationMetadata({
       })
       : [selectCandidate(inventory.candidates, identities, current)];
     const candidate = candidates[0];
+    const reviewed = reviewedPairForIdentity(key, identity);
+    if (reviewed?.requireExactRecord) {
+      if (candidate.registration !== reviewed.registration) return fail("GEMS_MODEL_CONFLICT");
+      if (!matches.some(row => row.reviewedLabel && row.complete && row.state === "eligible" && row.registryExpiresAt && current < row.registryExpiresAt
+        && canonicalDescriptor("Phase", String(row.meta.Phase)) === reviewed.phase)) return fail("GEMS_MODEL_INCOMPLETE");
+    }
     const evidenceExpiries = registrationIds ? matches.filter(row => row.state !== "rejected"
       && row.registryExpiresAt !== null && current < row.registryExpiresAt).map(row => row.registryExpiresAt!) : [];
     const expiresAt = Math.min(maxAgeExpiry, ...candidates.map(row => row.registryExpiresAt ?? Infinity), ...evidenceExpiries);

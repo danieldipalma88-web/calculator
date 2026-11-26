@@ -5108,6 +5108,13 @@ ANDOS_DUCTED_PRODUCTS.push(
   andosAccessoryInc("Hisense", "Standard Wired Controller", "HACW02", 93.50)
 );
 ANDOS_DUCTED_PRODUCTS.push(...TEMPERZONE_NSW_DUCTED_PRODUCTS.map(product=>({...product})));
+for(const catalogue of [DUCTED_PRODUCTS,ANDOS_DUCTED_PRODUCTS]){
+  for(const [indoor,series] of [['FDUA125VH','FDUA High Static'],['FDU125VH','FDU Slimline']]){
+    catalogue.push({brand:'Mitsubishi Heavy Industries',series,model:'FDCA125VSX-W / '+indoor,
+      phase:'Three',size:12.5,capacityNum:12.5,capacity:'12.5kW',nswOnly:true,lateCatalogueEntry:true,
+      unitPriceInc:0,priceIncGst:0,rebate:0});
+  }
+}
 const PANASONIC_DKR_SPLIT_MODELS=[
   [2.5,'CU-Z25DKR / CS-Z25DKRW','CU-Z25AKR'],
   [3.5,'CU-Z35DKR / CS-Z35DKRW','CU-Z35AKR'],
@@ -5577,7 +5584,7 @@ function withVerifiedCatalogueProducts(type,list,lateEntries=[]){
         merged.push(p);
       }else{
         const existing=merged[index];
-        if(!hasPositiveUnitPrice(existing.unitPriceInc??existing.priceIncGst)){
+        if(type==='split'&&!hasPositiveUnitPrice(existing.unitPriceInc??existing.priceIncGst)){
           merged[index]={...existing,unitPriceInc:p.unitPriceInc,priceIncGst:p.priceIncGst,dkrDefaultPriceInc:p.unitPriceInc};
         }
       }
@@ -5588,7 +5595,7 @@ function withVerifiedCatalogueProducts(type,list,lateEntries=[]){
 }
 function productListFor(type){
   const base=baseProductListFor(type);
-  if(type!=='split'||activeBusinessState()!=='NSW') return withVerifiedCatalogueProducts(type,mergeBusinessProducts(type,base));
+  if(activeBusinessState()!=='NSW') return withVerifiedCatalogueProducts(type,mergeBusinessProducts(type,base));
   // Late additions must not take legacy business or verified product positions.
   const original=base.filter(p=>!p.lateCatalogueEntry);
   return withVerifiedCatalogueProducts(type,mergeBusinessProducts(type,original),base.filter(p=>p.lateCatalogueEntry));
