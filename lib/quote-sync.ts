@@ -1,5 +1,5 @@
 // @ts-ignore Explicit TS extension is required by the direct Node regression runners.
-import { applyStoredQuoteAdminUnlocks, cohereQuoteFamilyAliases, fenceQuoteFamilySnapshot } from "./quote-family.ts";
+import { applyStoredQuoteAdminUnlocks, cohereQuoteFamilyAliases, fenceQuoteFamilySnapshot, quoteCanonical, quoteObject } from "./quote-family.ts";
 
 export const QUOTE_SYNC_TOMBSTONES_STORAGE_KEY = "installerQuoteSyncTombstonesV1";
 
@@ -162,6 +162,40 @@ function preserveWonCommission(existing: SyncRecord | undefined, next: SyncRecor
   return output;
 }
 
+function preserveProjectedFinancials(existing: SyncRecord | undefined, next: SyncRecord) {
+  if (!existing || existing === next || (existing.wonAt && existing.wonAt !== next.wonAt) ||
+      !quoteObject(existing.state) || !quoteObject(next.state)) return next;
+  const financial = /commission|profit|margin/i;
+  const pairs = [[existing, next], [existing.state, next.state]] as const;
+  if (!pairs.some(([prior, incoming]) => Object.keys(prior).some(key => financial.test(key) && !(key in incoming)))) return next;
+  // Only complete, unchanged stored pricing can supply omitted response fields.
+  for (const key of ["unitInc", "finalInc", "labour", "materialsInc", "miscInc", "powerCost", "rebate"]) {
+    if (typeof existing[key] !== "number" || !Number.isFinite(existing[key])) return next;
+  }
+  if (!existing.type || !["Retained", "Expense"].includes(String(existing.labourTreatment))) return next;
+  const winMetadata = new Set([
+    "syncUpdatedAt", "wonAt", "wonByEmail", "wonByName", "installationAddress", "googlePlaceId",
+    "installationLatitude", "installationLongitude", "proposedInstallationDate",
+  ]);
+  const context = (record: SyncRecord, root = false): SyncRecord => Object.fromEntries(
+    Object.entries(record)
+      .filter(([key]) => !financial.test(key) && !(root && winMetadata.has(key)))
+      .map(([key, value]) => [key, key === "state" && quoteObject(value) ? context(value) : value]),
+  );
+  if (quoteCanonical(context(existing, true)) !== quoteCanonical(context(next, true))) return next;
+  // A partial financial edit is not a projection. Never mix it with prior totals/rates.
+  for (const [prior, incoming] of pairs) for (const key of Object.keys(incoming)) {
+    if (financial.test(key) && (!(key in prior) || quoteCanonical(prior[key]) !== quoteCanonical(incoming[key]))) return next;
+  }
+  const output: SyncRecord & { state: SyncRecord } = { ...next, state: { ...next.state } };
+  for (const [prior, target] of [[existing, output], [existing.state, output.state]]) {
+    for (const key of Object.keys(prior)) {
+      if (financial.test(key) && !(key in target)) target[key] = prior[key];
+    }
+  }
+  return output;
+}
+
 function mergeImmutableBackups(existingValue: unknown, incomingValue: unknown) {
   const incoming = parseStoredJson(incomingValue);
   if (!Array.isArray(incoming)) return undefined;
@@ -209,7 +243,7 @@ function mergeRecordCollection(
       existingRecord && recordVersion(existingRecord, kind) >= recordVersion(incomingRecord, kind)
         ? existingRecord
         : incomingRecord;
-    merged.push(kind === "rows" ? preserveWonCommission(existingRecord, winner) : winner);
+    merged.push(kind === "rows" ? preserveWonCommission(existingRecord, preserveProjectedFinancials(existingRecord, winner)) : winner);
     seen.add(id);
   }
 

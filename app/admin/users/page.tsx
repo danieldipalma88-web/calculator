@@ -4527,12 +4527,17 @@ async function submitWonBatch(
     finish("At least one selected quote changed. Refresh and review the selection. No payment statuses changed.", true);
   }
   // Recording a request is a dated note, not confirmation of a monetary amount.
-  if ((kind === "paid_in" || kind === "paid_out") && jobs.some((job, index) => {
+  const missingAmounts = (kind === "paid_in" || kind === "paid_out") ? jobs.filter((job, index) => {
     if (existing.batch?.outcomes.some(outcome => outcome.id === ids[index])) return false;
     if (kind === "paid_in" ? job.paidInAt : job.paidOutAt) return false;
     const amount = kind === "paid_out" ? job.review?.amounts.salespersonCommissionTotal : job.review?.amounts.agencyCommissionTotal;
     return amount == null || !Number.isFinite(amount);
-  })) finish("A selected payment amount is unavailable. Review the affected quote before recording payment statuses.", true);
+  }) : [];
+  if (missingAmounts.length) {
+    const names = missingAmounts.slice(0, 5).map(job => job.optionName.slice(0, 100)).join(", ");
+    const more = missingAmounts.length > 5 ? ` and ${missingAmounts.length - 5} more` : "";
+    finish(`The ${kind === "paid_out" ? "salesperson commission" : "agency payment"} amount is unavailable for: ${names}${more}. Review these jobs or deselect them to record the others. No payment statuses changed.`, true);
+  }
 
   const items = jobs.map((job, index) => ({
     id: ids[index], quote: job.optionName.slice(0, 160), salesperson: job.userName.slice(0, 160),
