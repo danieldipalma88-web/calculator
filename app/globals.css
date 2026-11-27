@@ -1682,25 +1682,32 @@ select {
   white-space: nowrap;
 }
 
-.won-loading-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 40;
-  display: none;
-  align-items: flex-start;
-  justify-content: center;
-  padding-top: 74px;
-  background: rgba(248, 251, 255, 0.72);
-  backdrop-filter: blur(3px);
-  -webkit-backdrop-filter: blur(3px);
+.won-loading-overlay::backdrop {
+  background: rgba(26, 40, 55, 0.36);
 }
-
-.won-options-section.is-loading .won-loading-overlay {
+.won-loading-overlay:not([open]), .won-loading-overlay [hidden] { display: none; }
+.won-action-result {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 150;
   display: flex;
+  align-items: center;
+  gap: 12px;
+  width: max-content;
+  max-width: calc(100% - 24px);
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  color: var(--ink);
+  box-shadow: 0 5px 18px rgba(15, 23, 42, .15);
 }
 
 .won-loading-panel {
   display: grid;
+  margin: auto;
   justify-items: center;
   gap: 8px;
   width: min(360px, calc(100% - 32px));
@@ -1736,6 +1743,9 @@ select {
   to {
     transform: rotate(360deg);
   }
+}
+@media (prefers-reduced-motion: reduce) {
+  .won-loading-spinner { animation: none; }
 }
 
 .sales-summary-grid {

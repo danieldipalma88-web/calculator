@@ -112,7 +112,7 @@ const context = vm.createContext({
     assert.equal(review.fingerprint, jobs.find((job) => job.optionId === optionId).review.fingerprint);
     assert.equal(review.batchLease.batchId, token);
     assert.equal(leaseHeld, true);
-    return optionId === "First" ? "Quote changed" : "";
+    return optionId === "First" ? "Quote changed" : optionId === "Second" ? "already recorded" : "";
   },
   revalidatePath: () => log.push("refresh"),
   redirect: (location) => { throw Object.assign(new Error("redirect"), { location }); },
@@ -132,7 +132,7 @@ assert.equal(first.hash, "#won-options");
 assert.equal(first.searchParams.get("wonBatch"), token);
 assert.equal(first.searchParams.get("checkBackups"), "1");
 assert.match(first.searchParams.get("error"), /1 updated, 1 already recorded, 1 failed/);
-assert.deepEqual(log.splice(0), ["auth", "resolve", "intent", "update First", "record 1", "record 2", "update Third", "record 3", "refresh"]);
+assert.deepEqual(log.splice(0), ["auth", "resolve", "intent", "update First", "record 1", "update Second", "record 2", "update Third", "record 3", "refresh"]);
 assert.deepEqual(stored.items.map(({ id }) => id), ids, "Persist all selected jobs, including ineligible ones");
 assert.deepEqual(storedOutcomes.map(({ status }) => status), ["failed", "already_recorded", "confirmed"]);
 assert.deepEqual(Object.keys(stored.items[0]).sort(), ["id", "quote", "recovered", "salesperson"]);
@@ -144,12 +144,12 @@ startStatus = "replayed";
 const resumeForm = form("paid_in");
 resumeForm.set("wonBatchResume", "1");
 assert.match((await submit(resumeForm)).searchParams.get("message"), /2 updated, 1 already recorded/);
-assert.deepEqual(log.splice(0), ["auth", "resolve", "intent", "record 2", "update Third", "record 3", "refresh"]);
+assert.deepEqual(log.splice(0), ["auth", "resolve", "intent", "update Second", "record 2", "update Third", "record 3", "refresh"]);
 assert.equal(storedOutcomes[0].status, "confirmed", "The prior batch outcome is immutable on resume");
 const reorderedResume = form("paid_in", [...ids].reverse(), [...reviews].reverse());
 reorderedResume.set("wonBatchResume", "1");
 await submit(reorderedResume);
-assert.deepEqual(log.splice(0), ["auth", "resolve", "intent", "record 2", "update Third", "record 3", "refresh"], "Stored IDs, not submitted positions, identify resumed jobs");
+assert.deepEqual(log.splice(0), ["auth", "resolve", "intent", "update Second", "record 2", "update Third", "record 3", "refresh"], "Stored IDs, not submitted positions, identify resumed jobs");
 existingBatch.actor_id = 'different-account-same-email';
 assert.match((await submit(resumeForm)).searchParams.get("error"), /already used/);
 assert.deepEqual(log.splice(0), ["auth"], "A recreated admin identity cannot resume another account's batch");
@@ -469,6 +469,74 @@ assert.equal(refused.data[stateKey], fullHistory[stateKey], 'Capacity must not e
 const existingHistoryUpdate = snapshotContext.upsertWonAdminState(fullHistory, history[0], 'payment_requested', admin);
 assert.equal(existingHistoryUpdate.updated, true);
 assert.deepEqual(JSON.parse(existingHistoryUpdate.data[stateKey]).slice(1), history.slice(1), 'Unrelated history is preserved verbatim, including additional fields');
+
+const batchDependencies = Object.fromEntries([
+  'requireAdmin', 'listWonOptions', 'updateWonOptionState', 'manageWonBatchLease', 'WON_PAYMENT_ALREADY_RECORDED',
+].map(name => [name, context[name]]));
+try {
+  context.WON_PAYMENT_ALREADY_RECORDED = vm.runInContext('WON_PAYMENT_ALREADY_RECORDED', snapshotContext);
+  existingBatch = null;
+  startStatus = 'created';
+  lostOutcome = false;
+  for (const [mode, field] of [
+    ['payment_requested', 'paymentRequestedAt'], ['paid_in', 'paidInAt'], ['paid_out', 'paidOutAt'],
+  ]) {
+    for (const resetAfterPreflight of [false, true]) {
+      const initial = snapshot();
+      initial.data[defsKey].push({ ...initial.data[defsKey][0], id: 'second-case' });
+      initial.data[rowsKey].push({ ...initial.data[rowsKey][0], id: 'second-system', optionId: 'second-case' });
+      if (resetAfterPreflight) initial.data[stateKey] = [{
+        userEmail: 'rep@example.test', optionId: 'second-case', wonAt, [field]: reqAt,
+      }];
+      const database = mockDatabase(initial);
+      const readJobs = () => {
+        const reader = snapshotContext.wonSnapshotReader([]);
+        reader.collectState(database.state.row);
+        reader.scan(database.state.row, database.state.row.updated_at);
+        return [...reader.wonOptions.values()];
+      };
+      const reviewedJobs = readJobs();
+      context.requireAdmin = async () => ({ supabase: database.db, email: admin, actorId: 'admin-uid' });
+      context.listWonOptions = async () => ({ data: readJobs(), errorMessage: '' });
+      context.updateWonOptionState = snapshotContext.updateWonOptionState;
+      let checks = 0;
+      context.manageWonBatchLease = async (supabase, change) => {
+        if (change.action === 'check' && ++checks === 2 && resetAfterPreflight) {
+          assert.equal(await snapshotContext.updateWonOptionState(database.db, 'rep@example.test', 'second-case',
+            'reset_payment', admin, 'current', initial.user_id, initial.email, wonAt), '');
+          assert.equal(readJobs()[1][field], '', 'The intervening reset really cleared the payment status');
+        }
+        return batchDependencies.manageWonBatchLease(supabase, change);
+      };
+      const result = await submit(form(mode, reviewedJobs.map(wonBatchJobId), reviewedJobs.map(job => job.review.fingerprint)));
+      assert.equal(leaseHeld, false);
+      assert.equal(checks, 2);
+      if (resetAfterPreflight) {
+        assert.match(result.searchParams.get('error') || '', /1 updated, 0 already recorded, 1 failed/,
+          `${mode} must recheck an earlier recorded status before journalling it`);
+        assert.deepEqual(storedOutcomes.map(({ status }) => status), ['confirmed', 'failed']);
+        assert.match(storedOutcomes[1].detail, /changed before saving/);
+        assert.equal(readJobs()[1][field], '', 'Do not reapply a payment after a conflicting reset');
+      } else {
+        assert.match(result.searchParams.get('message') || '', /2 updated, 0 already recorded, 0 failed/);
+        assert.deepEqual(storedOutcomes.map(({ status }) => status), ['confirmed', 'confirmed']);
+        assert.ok(readJobs().every(job => job[field]), 'Both same-owner payments survive the final reload');
+        const originalTimestamps = readJobs().map(job => job[field]);
+        const commits = database.state.commits;
+        const currentReviews = readJobs();
+        const replay = await submit(form(mode, currentReviews.map(wonBatchJobId), currentReviews.map(job => job.review.fingerprint)));
+        assert.match(replay.searchParams.get('message') || '', /0 updated, 2 already recorded, 0 failed/);
+        assert.equal(database.state.commits, commits, 'Already recorded payments do not write again');
+        assert.deepEqual(readJobs().map(job => job[field]), originalTimestamps, 'Keep the original payment timestamps');
+      }
+      log.splice(0);
+    }
+  }
+} finally {
+  Object.assign(context, batchDependencies);
+}
+console.log('PASS bulk payment backend: same-owner persistence, final-state idempotency, and reset-after-preflight conflicts for all three statuses');
+
 assert.equal(wonBatchReadyToResume({ created_at: new Date(Date.now() - 89_000).toISOString() }), false);
 assert.equal(wonBatchReadyToResume({ created_at: new Date(Date.now() - 91_000).toISOString() }), true);
 assert.equal(wonBatchReadyToResume({ created_at: 'invalid' }), false);
@@ -530,7 +598,9 @@ assert.ok(cards.every(({ box }) => !box.checked));
 assert.match(page, /<WonSelectionScope scope=\{JSON.stringify\(\[\s*includeBackupWonOptions, activeWonBatchId, wonBatchPage, params\?\.wonReport/);
 assert.match(runtimeText, /admin:won-selection-scope-changed/);
 assert.match(runtimeText, /if \(event.persisted && window\.__adminWonOptionsRuntime\)/);
-assert.match(runtimeText, /addEventListener\("submit",[\s\S]+?__adminWonOptionsRuntime\.submit\(event\);\s*\}, true\)/);
+const workspace = await readFile(new URL("../app/admin/users/admin-workspace.tsx", import.meta.url), "utf8");
+assert.match(workspace, /onSubmitCapture=\{[\s\S]+?runtime\.submit\(native\)[\s\S]+?await wonActions\[kind\]\(data\)/);
+assert.doesNotMatch(runtimeText, /addEventListener\("submit"/, "Exactly one dispatcher must own payment submission");
 assert.match(panels, /<caption>Weekly details<\/caption>/);
 
 assert.match(schema, /enable row level security/);

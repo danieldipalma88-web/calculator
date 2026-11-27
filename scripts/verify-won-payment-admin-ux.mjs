@@ -177,7 +177,7 @@ dock.offsetHeight = 210; dockScope.updateWonDockSpacing(); assert.equal(reserved
 dockScope.handleWonKeydown({ key: 'Escape' }); assert.equal(focusReturned, true);
 dockScope.setWonSectionLoading(true, 'Recording...'); assert.equal(dock.inert, true);
 let prevented = 0, confirmations = 0, saves = 0, restored = 0;
-const submitEvent = { target: { closest: () => section, hasAttribute: () => true, getAttribute: () => null }, submitter: { name: 'bulkMode', value: 'paid_in' }, preventDefault: () => { prevented++; } };
+const submitEvent = { target: { method: 'get', closest: () => section, hasAttribute: () => true, getAttribute: () => null }, submitter: { name: 'bulkMode', value: 'payment_requested' }, preventDefault: () => { prevented++; } };
 dockScope.handleWonSubmit(submitEvent);
 assert.equal(prevented, 1, 'Pending payment blocks repeat submissions before changing selection or confirming');
 dockScope.setWonSectionLoading(false); assert.equal(dock.inert, false);

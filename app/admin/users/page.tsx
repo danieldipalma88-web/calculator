@@ -1548,61 +1548,28 @@ function wonExportScript() {
     if (dock) dock.inert = !!active;
     var label = section.querySelector("[data-won-loading-label]");
     if (label && labelText) label.textContent = labelText;
+    var dialog = section.querySelector("[data-won-loading-overlay]");
+    var slow = section.querySelector("[data-won-loading-slow]");
+    if (slow) slow.hidden = true;
+    if (dialog && active && !dialog.open && dialog.showModal) {
+      dialog.oncancel = function(event){ event.preventDefault(); };
+      dialog.showModal();
+    } else if (dialog && !active && dialog.open) dialog.close();
   }
-  var wonActionUrlTimer = 0;
   var wonActionTimeout = 0;
-  var wonActionObserver = null;
-  function stopWonActionCompletionWatch() {
-    if (wonActionUrlTimer) window.clearInterval(wonActionUrlTimer);
-    if (wonActionTimeout) window.clearTimeout(wonActionTimeout);
-    if (wonActionObserver) wonActionObserver.disconnect();
-    wonActionUrlTimer = 0;
-    wonActionTimeout = 0;
-    wonActionObserver = null;
-  }
   function clearWonActionLoading() {
-    stopWonActionCompletionWatch();
+    window.clearTimeout(wonActionTimeout);
     setWonSectionLoading(false, "Updating...");
   }
-  function watchWonActionCompletion(section) {
-    stopWonActionCompletionWatch();
-    var startingUrl = window.location.href;
-    var results = section ? section.querySelector(".won-grid") : null;
-
-    wonActionUrlTimer = window.setInterval(function(){
-      if (window.location.href !== startingUrl) clearWonActionLoading();
-    }, 150);
-
-    window.requestAnimationFrame(function(){
-      if (!section || !section.classList.contains("is-loading") || !results) return;
-      wonActionObserver = new MutationObserver(function(){
-        clearWonActionLoading();
-      });
-      wonActionObserver.observe(results, {
-        attributes: true,
-        attributeFilter: [
-          "class",
-          "data-payment-unpaid",
-          "data-payment-requested",
-          "data-payment-paid-in",
-          "data-payment-paid-out"
-        ],
-        characterData: true,
-        childList: true,
-        subtree: true
-      });
-    });
-
-    wonActionTimeout = window.setTimeout(function(){
-      clearWonActionLoading();
-      setExportStatus("The update took longer than expected. Refresh if the latest status is not visible.", "error");
-    }, 30000);
-  }
   function setWonActionLoading(form, submitter) {
-    var section = form && form.closest ? form.closest(".won-options-section") : document.querySelector(".won-options-section");
+    var section = form.closest(".won-options-section");
     var actionText = submitter ? String(submitter.textContent || "").trim() : "Updating";
     setWonSectionLoading(true, actionText ? actionText + "..." : "Updating...");
-    if (section) watchWonActionCompletion(section);
+    window.clearTimeout(wonActionTimeout);
+    wonActionTimeout = window.setTimeout(function(){
+      var slow = section && section.querySelector("[data-won-loading-slow]");
+      if (slow) slow.hidden = false;
+    }, 15000);
   }
   function updateWonFilterStatus(activeEmails, activePayments) {
     var status = document.querySelector("[data-won-filter-status]");
@@ -2480,7 +2447,10 @@ function wonExportScript() {
       event.preventDefault();
       return;
     }
-    if (form.method === "get") return;
+    if (form.getAttribute("method") === "get" && !form.hasAttribute("data-won-action")) {
+      setWonSectionLoading(true, "Loading report...");
+      return;
+    }
     if (form.hasAttribute("data-bulk-won-form")) {
       var selectedCards = selectedWonCards();
       if (!selectedCards.length) {
@@ -2489,6 +2459,11 @@ function wonExportScript() {
         return;
       }
       var mode = bulkModeForForm(form, event.submitter);
+      if (!mode) {
+        event.preventDefault();
+        setExportStatus("Choose a payment or job action first.", "error");
+        return;
+      }
       var max = Number(form.getAttribute("data-won-batch-limit") || "0");
       if (max && selectedCards.length > max && ["manual", "payment_requested", "paid_in", "paid_out"].includes(mode)) {
         event.preventDefault();
@@ -2533,12 +2508,14 @@ function wonExportScript() {
     review: reviewWonJob,
     reopen: reopenWonBatch,
     submit: handleWonSubmit,
+    finish: clearWonActionLoading,
     resetSelection: function(){
       clearWonGroupAndChecks();
       applyWonSalespersonFilter();
     },
     refresh: function(){
-      clearWonActionLoading();
+      var section = document.querySelector(".won-options-section");
+      if (section && section.getAttribute("aria-busy") === "true") return;
       clearWonGroupAndChecks();
       restoreWonUiState();
       applyWonSalespersonFilter();
@@ -2563,7 +2540,10 @@ function wonExportScript() {
       if (window.__adminWonOptionsRuntime) window.__adminWonOptionsRuntime.resetSelection();
     });
     window.addEventListener("pageshow", function(event){
-      if (event.persisted && window.__adminWonOptionsRuntime) window.__adminWonOptionsRuntime.resetSelection();
+      if (event.persisted && window.__adminWonOptionsRuntime) {
+        window.__adminWonOptionsRuntime.finish();
+        window.__adminWonOptionsRuntime.resetSelection();
+      }
     });
     document.addEventListener("click", function(event){
       if (window.__adminWonOptionsRuntime) window.__adminWonOptionsRuntime.selectionClick(event);
@@ -2582,9 +2562,6 @@ function wonExportScript() {
     });
     document.addEventListener("toggle", function(event){
       if (window.__adminWonOptionsRuntime) window.__adminWonOptionsRuntime.toggle(event);
-    }, true);
-    document.addEventListener("submit", function(event){
-      if (window.__adminWonOptionsRuntime) window.__adminWonOptionsRuntime.submit(event);
     }, true);
   }
   window.__adminWonOptionsRuntime.refresh();
@@ -4575,8 +4552,8 @@ async function submitWonBatch(
         const index = ids.indexOf(item.id);
         if (index < 0) throw new Error("The original batch selection changed.");
         const job = jobs[index];
-        if (kind === "payment_requested" ? job.paymentRequestedAt
-          : kind === "paid_in" ? job.paidInAt : job.paidOutAt) return { status: "already_recorded" };
+        // Even an already-recorded status needs the final snapshot check: it
+        // may have been reset after the batch selection was reviewed.
         const fingerprint = reviewed?.[index];
         if (!fingerprint) throw new Error("Missing payment review fingerprint.");
         const error = await updateWonOptionState(supabase, job.userEmail, job.optionId, kind, adminEmail,
@@ -4717,7 +4694,7 @@ function WonBatchFormFields() {
 function WonBulkActionControls() {
   return (
     <>
-      <form action={bulkUpdateWonOptions} className="won-bulk-actions" data-bulk-won-form data-won-batch-limit={WON_BATCH_MAX_JOBS}>
+      <form action={bulkUpdateWonOptions} data-won-action="bulk" className="won-bulk-actions" data-bulk-won-form data-won-batch-limit={WON_BATCH_MAX_JOBS}>
         <input type="hidden" name="selectedWonOptions" data-selected-won-input />
         <WonBatchFormFields />
         <button className="secondary" type="submit" name="bulkMode" value="paid_in">
@@ -4733,7 +4710,7 @@ function WonBulkActionControls() {
         <div className="won-selected-totals" data-won-selected-totals hidden aria-live="polite" />
         <button className="secondary" data-select-all-won type="button">Select all</button>
         <button className="secondary" data-export-won-selected type="button">Export selected Excel</button>
-        <form action={bulkUpdateWonOptions} className="won-secondary-action" data-bulk-won-form data-won-batch-limit={WON_BATCH_MAX_JOBS}>
+        <form action={bulkUpdateWonOptions} data-won-action="bulk" className="won-secondary-action" data-bulk-won-form data-won-batch-limit={WON_BATCH_MAX_JOBS}>
           <input type="hidden" name="selectedWonOptions" data-selected-won-input />
           <WonBatchFormFields />
           <button className="secondary" type="submit" name="bulkMode" value="payment_requested">
@@ -4749,7 +4726,7 @@ function WonBulkActionControls() {
             Unlock quote
           </button>
         </form>
-        <form action={bulkUpdateWonOptions} className="won-secondary-action" data-bulk-won-form data-won-batch-limit={WON_BATCH_MAX_JOBS}>
+        <form action={bulkUpdateWonOptions} data-won-action="bulk" className="won-secondary-action" data-bulk-won-form data-won-batch-limit={WON_BATCH_MAX_JOBS}>
           <WonBatchFormFields />
           <input type="hidden" name="bulkMode" value="manual" />
           <label className="won-filter-field">
@@ -4759,7 +4736,7 @@ function WonBulkActionControls() {
           <button className="secondary" type="submit">Save selected as manual group</button>
         </form>
         <form
-          action={bulkUpdateWonOptions}
+          action={bulkUpdateWonOptions} data-won-action="bulk"
           data-bulk-won-form
         >
           <input type="hidden" name="selectedWonOptions" data-selected-won-input />
@@ -4948,6 +4925,9 @@ export default async function AdminUsersPage({
         ) : null}
 
         <AdminWorkspace storageScope={currentEmail} jobsLoaded={loadWonJobs}
+          wonActions={{ bulk: bulkUpdateWonOptions, payment: updateWonPaymentStatus, unlock: unlockWonOption, remove: deleteWonOption }}
+          wonResult={params?.view === "jobs" ? params.error || params.message : undefined}
+          wonResultError={Boolean(params?.error)}
           jobsUnavailable={Boolean(wonResult.currentUnavailable || batchHistory.unavailable || activeBatchResult?.error)}
           initialView={params?.view === "businesses" || params?.view === "users" || params?.view === "prices" || params?.view === "jobs"
             ? params.view : setupBusiness ? "users" : params?.certificateHistoryRange ? "prices" : loadWonJobs ? "jobs" : undefined}>
@@ -5466,13 +5446,11 @@ export default async function AdminUsersPage({
               includeBackupWonOptions, activeWonBatchId, wonBatchPage, params?.wonReport, params?.wonSalesperson,
               params?.wonFrom, params?.wonTo,
             ])} />
-            <div className="won-loading-overlay" data-won-loading-overlay>
-              <div className="won-loading-panel">
+            <dialog className="won-loading-overlay won-loading-panel" data-won-loading-overlay aria-labelledby="won-loading-label">
                 <span className="won-loading-spinner" aria-hidden="true" />
-                <strong data-won-loading-label>Updating...</strong>
-                <span>Please wait while the admin changes are saved.</span>
-              </div>
-            </div>
+                <strong id="won-loading-label" data-won-loading-label>Updating...</strong>
+                <span data-won-loading-slow hidden role="status">Still waiting. Keep this tab open. <a href="/admin/users?view=jobs#won-options" target="_blank" rel="noopener noreferrer">Check saved status in a new tab</a></span>
+            </dialog>
             <div className="won-backup-note">
               <details className="won-backup-menu">
                 <summary>Backup recovery</summary>
@@ -5697,7 +5675,7 @@ export default async function AdminUsersPage({
                     </span>
                     {option.recoveredFromBackup ? <span className="locked-pill">Recovered backup: payment read-only</span> : null}
                     {!option.recoveredFromBackup && !option.paymentRequestedAt && !option.paidInAt ? (
-                      <form action={updateWonPaymentStatus}>
+                      <form action={updateWonPaymentStatus} data-won-action="payment">
                         <input type="hidden" name="userEmail" value={option.userEmail} />
                         <input type="hidden" name="dataUserId" value={option.dataUserId} />
                         <input type="hidden" name="dataOwnerEmail" value={option.dataOwnerEmail} />
@@ -5711,7 +5689,7 @@ export default async function AdminUsersPage({
                       </form>
                     ) : null}
                     {!option.recoveredFromBackup && !option.paidInAt ? (
-                      <form action={updateWonPaymentStatus}>
+                      <form action={updateWonPaymentStatus} data-won-action="payment">
                         <input type="hidden" name="userEmail" value={option.userEmail} />
                         <input type="hidden" name="dataUserId" value={option.dataUserId} />
                         <input type="hidden" name="dataOwnerEmail" value={option.dataOwnerEmail} />
@@ -5725,7 +5703,7 @@ export default async function AdminUsersPage({
                       </form>
                     ) : null}
                     {!option.recoveredFromBackup && !option.paidOutAt ? (
-                      <form action={updateWonPaymentStatus}>
+                      <form action={updateWonPaymentStatus} data-won-action="payment">
                         <input type="hidden" name="userEmail" value={option.userEmail} />
                         <input type="hidden" name="dataUserId" value={option.dataUserId} />
                         <input type="hidden" name="dataOwnerEmail" value={option.dataOwnerEmail} />
@@ -5741,7 +5719,7 @@ export default async function AdminUsersPage({
                     <details className="won-secondary-actions">
                       <summary>More actions</summary>
                     {!option.recoveredFromBackup && (option.paymentRequestedAt || option.paidInAt || option.paidOutAt) ? (
-                      <form action={updateWonPaymentStatus}>
+                      <form action={updateWonPaymentStatus} data-won-action="payment">
                         <input type="hidden" name="userEmail" value={option.userEmail} />
                         <input type="hidden" name="dataUserId" value={option.dataUserId} />
                         <input type="hidden" name="dataOwnerEmail" value={option.dataOwnerEmail} />
@@ -5754,7 +5732,7 @@ export default async function AdminUsersPage({
                         </button>
                       </form>
                     ) : null}
-                    <form action={unlockWonOption}>
+                    <form action={unlockWonOption} data-won-action="unlock">
                       <input type="hidden" name="userEmail" value={option.userEmail} />
                       <input type="hidden" name="dataUserId" value={option.dataUserId} />
                       <input type="hidden" name="dataOwnerEmail" value={option.dataOwnerEmail} />
@@ -5768,7 +5746,7 @@ export default async function AdminUsersPage({
                     <details className="delete-confirm">
                       <summary>Delete quote</summary>
                       <form
-                        action={deleteWonOption}
+                        action={deleteWonOption} data-won-action="remove"
                         data-confirm-message="This permanently deletes this won opportunity from current and recovered backup data. This cannot be undone."
                       >
                         <input type="hidden" name="userEmail" value={option.userEmail} />

@@ -2,7 +2,7 @@
 
 import { createContext, startTransition, useCallback, useContext, useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { createPortal, useFormStatus } from "react-dom";
-import { useRouter, useSearchParams } from "next/navigation";
+import { unstable_rethrow, useRouter, useSearchParams } from "next/navigation";
 
 const VIEWS = [
   { id: "businesses", label: "Businesses", panel: "businesses" },
@@ -107,13 +107,26 @@ export function SpotPriceSaveForm({ children, saveAction }: {
   </form>;
 }
 
-export default function AdminWorkspace({ children, storageScope, initialView, jobsLoaded = true, jobsUnavailable = false }: {
+type WonActions = Record<"bulk" | "payment" | "unlock" | "remove", (data: FormData) => Promise<void>>;
+function wonRuntime() {
+  return (window as Window & { __adminWonOptionsRuntime?: {
+    submit(event: SubmitEvent): void; finish(): void; refresh(): void;
+  } }).__adminWonOptionsRuntime;
+}
+
+export default function AdminWorkspace({ children, storageScope, initialView, jobsLoaded = true, jobsUnavailable = false, wonActions, wonResult, wonResultError }: {
   children: ReactNode; storageScope: string; initialView?: View; jobsLoaded?: boolean; jobsUnavailable?: boolean;
+  wonActions: WonActions; wonResult?: string; wonResultError?: boolean;
 }) {
   const [view, setView] = useState<View>(initialView || "businesses");
   const root = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const [jobsPending, startJobsTransition] = useTransition();
+  const [savingWon, startWonSave] = useTransition();
+  const wonLock = useRef(false);
+  const [settledWon, setSettledWon] = useState(false);
+  const [wonFailure, setWonFailure] = useState("");
+  const [dismissedResult, setDismissedResult] = useState<string | null>(null);
   const [jobsSlow, setJobsSlow] = useState(false);
   const jobsRequest = useRef<string | null>(null);
   const lazyView = useRef<View | null>(null);
@@ -179,9 +192,17 @@ export default function AdminWorkspace({ children, storageScope, initialView, jo
   }, [jobsPending]);
 
   useEffect(() => {
+    if (savingWon || !settledWon) return;
+    wonLock.current = false;
+    wonRuntime()?.finish();
+    if (!wonFailure) wonRuntime()?.refresh();
+    setSettledWon(false);
+  }, [savingWon, settledWon, wonFailure]);
+
+  useEffect(() => {
     if (!jobsLoaded) return;
     const frame = requestAnimationFrame(() => {
-      (window as Window & { __adminWonOptionsRuntime?: { refresh(): void } }).__adminWonOptionsRuntime?.refresh();
+      if (!wonLock.current) wonRuntime()?.refresh();
     });
     return () => cancelAnimationFrame(frame);
   }, [children, jobsLoaded, resultKey]);
@@ -216,7 +237,44 @@ export default function AdminWorkspace({ children, storageScope, initialView, jo
         if (!(event.target instanceof HTMLFormElement)) return;
         const form = event.target;
         if (form.getAttribute("aria-busy") === "true") { event.preventDefault(); return; }
-        if (!form.closest(".won-options-section")) {
+        if (form.closest(".won-options-section")) {
+          const native = event.nativeEvent as SubmitEvent;
+          const runtime = wonRuntime();
+          if (native.defaultPrevented || wonLock.current) { event.preventDefault(); return; }
+          const kind = form.dataset.wonAction as keyof WonActions | undefined;
+          if (!kind && form.getAttribute("method") === "get") {
+            runtime?.submit(native);
+            if (!native.defaultPrevented) remember(true);
+            return;
+          }
+          if (!runtime || !kind || !Object.hasOwn(wonActions, kind)) {
+            event.preventDefault();
+            setWonFailure("Won Jobs is not ready. Reopen Won Jobs before making an update.");
+            return;
+          }
+          runtime.submit(native);
+          if (native.defaultPrevented) { event.preventDefault(); return; }
+          event.preventDefault();
+          const data = new FormData(form);
+          const button = native.submitter;
+          if ((button instanceof HTMLButtonElement || button instanceof HTMLInputElement) && button.name)
+            data.set(button.name, button.value);
+          wonLock.current = true;
+          remember(true);
+          setWonFailure("");
+          setDismissedResult(null);
+          startWonSave(async () => {
+            try {
+              await wonActions[kind](data);
+            } catch (error) {
+              unstable_rethrow(error);
+              setWonFailure("The save could not be confirmed. Check the saved job statuses before trying again.");
+            } finally {
+              setSettledWon(true);
+            }
+          });
+          return;
+        } else {
           const confirmation = form.dataset.confirmMessage;
           if (confirmation && !window.confirm(confirmation)) { event.preventDefault(); return; }
         }
@@ -235,6 +293,13 @@ export default function AdminWorkspace({ children, storageScope, initialView, jo
             document.getElementById(`admin-tab-${next.id}`)?.focus();
           }}>{item.label}</button>)}
       </nav>
+      {view === "jobs" && !savingWon && (wonFailure || (wonResult && dismissedResult !== resultKey)) ? <aside
+        className="won-action-result" role={wonFailure || wonResultError ? "alert" : "status"}>
+        <span>{wonFailure || wonResult} {wonFailure && <a href="/admin/users?view=jobs#won-options">Check saved jobs</a>}</span>
+        <button className="secondary" type="button" aria-label="Dismiss result" onClick={() => {
+          setWonFailure(""); setDismissedResult(resultKey);
+        }}>Dismiss</button>
+      </aside> : null}
       {view === "jobs" && (!jobsLoaded || jobsUnavailable) ? <div className="notice" role="status" aria-live="polite" aria-busy={jobsPending}>
         {jobsPending ? jobsSlow ? "Won Jobs is taking longer than usual. Your other forms are unchanged." : "Loading Won Jobs..." : jobsUnavailable ? "Won Jobs could not be loaded completely." : "Won Jobs has not loaded."}
         {!jobsPending && (jobsUnavailable || jobsRequest.current) ? <button type="button" className="secondary" onClick={requestJobs}>Try again</button> : null}

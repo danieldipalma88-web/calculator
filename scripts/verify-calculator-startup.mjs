@@ -147,7 +147,7 @@ assert.match(
 );
 assert.match(
   calculatorUi,
-  /function openWonJobsDrawer\(\)\{ensureSecondaryStartup\(\);/,
+  /function openWonJobsDrawer\(\)\{[^}]+if\(businessUrl\)\{[^}]+return;\}\s*openOwnWonJobsDrawer\(\);\s*\}\s*function openOwnWonJobsDrawer\(\)\{\s*ensureSecondaryStartup\(\);/,
   "Opening won jobs must initialize deferred quote history immediately.",
 );
 assert.doesNotMatch(

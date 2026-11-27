@@ -191,7 +191,7 @@ export function WonBatchHistory({
             {available < ids.length && <p>{ids.length - available} original quotes are unavailable in this view.</p>}
             <ReopenWonBatchButton ids={ids} available={available} />
             {batch.kind !== "manual" && outcomes.size < ids.length && batch.actor_email === actorEmail && batch.actor_id === actorId
-              && ids.every(id => reviews.has(id)) && <form action={retryAction}
+              && ids.every(id => reviews.has(id)) && <form action={retryAction} data-won-action="bulk"
                 data-confirm-message={`Retry the ${ids.length - outcomes.size} unfinished ${WON_BATCH_LABELS[batch.kind].toLowerCase()} updates? Already recorded statuses and quote amounts will not change.`}
                 style={{ marginTop: 12 }}>
                 <input type="hidden" name="bulkMode" value={batch.kind} />
