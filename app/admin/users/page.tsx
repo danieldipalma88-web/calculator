@@ -5639,7 +5639,7 @@ export default async function AdminUsersPage({
                   </div>
                   <div className="won-row-metrics">
                     <span className="won-payment-summary">
-                      <span className={option.paidInAt ? "is-complete" : "is-pending"}>Agency: {option.paidInAt ? "Received" : option.paymentRequestedAt || option.paidOutAt ? "Awaiting payment" : "Not requested"}</span>
+                      <span className={option.paidInAt ? "is-complete" : "is-pending"}>Agency: {option.paidInAt ? "Received" : option.paymentRequestedAt ? "Awaiting payment" : "Not requested"}</span>
                       <span className={option.paidOutAt ? "is-complete" : "is-pending"}>Commission: {option.paidOutAt ? "Paid" : "Not paid"}</span>
                     </span>
                     <span className="won-row-metric won-row-metric-won">

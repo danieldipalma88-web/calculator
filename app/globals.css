@@ -2141,13 +2141,22 @@ select {
 #won-options .won-row-metrics { display: flex; align-items: center; gap: 24px; }
 #won-options .won-row-metric-payment { min-width: 125px; }
 #won-options .won-row-metric span { white-space: normal; letter-spacing: 0; }
-#won-options .won-card { border-radius: 8px; }
-#won-options .won-card[data-payment-not-requested="true"] { border-color: #cbd5e1; background: #fff; }
+#won-options .won-card-payment_open { --won-row-fill: #ffdfdf; --won-row-stripe: #d14349; }
+#won-options .won-card-payment_requested { --won-row-fill: #fff0c9; --won-row-stripe: #bc7b0b; }
+#won-options .won-card-payment_partial[data-payment-paid-in="true"] { --won-row-fill: #dfeeff; --won-row-stripe: #347ec7; }
+#won-options .won-card-payment_partial[data-payment-paid-out="true"] { --won-row-fill: #ede2fa; --won-row-stripe: #8853b5; }
+#won-options .won-card-payment_complete { --won-row-fill: #dbf3e3; --won-row-stripe: #238555; }
+#won-options .won-card {
+  border-radius: 8px;
+  border-color: color-mix(in srgb, var(--won-row-stripe) 40%, transparent);
+}
+#won-options .won-card > .won-card-summary { background-color: var(--won-row-fill); }
+#won-options .won-card-payment_partial[data-payment-paid-out="true"] .won-payment-summary .is-complete { color: #08723b; }
+#won-options .won-card::before { background: var(--won-row-stripe); }
+#won-options .won-card[data-payment-not-requested="true"] { background: #fff; }
 #won-options .won-card[data-payment-not-requested="true"] .payment-pill { background: #eef2f6; color: #475569; }
-#won-options .won-card[data-payment-awaiting-agency="true"] { border-color: #93c5fd; background: #f8fbff; }
+#won-options .won-card[data-payment-awaiting-agency="true"] { background: #f8fbff; }
 #won-options .won-card[data-payment-awaiting-agency="true"] .payment-pill { background: #dbeafe; color: #1e40af; }
-#won-options .won-card[data-payment-not-requested="true"]::before { background: #94a3b8; }
-#won-options .won-card[data-payment-awaiting-agency="true"]::before { background: #3b82f6; }
 #won-options .won-selected-totals-inline { display: none; }
 #won-options .won-card[data-payment-not-requested="true"] .won-actions > form:has(input[value="payment_requested"]) button,
 #won-options .won-card[data-payment-awaiting-agency="true"] .won-actions > form:has(input[value="paid_in"]) button,
