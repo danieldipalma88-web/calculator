@@ -205,7 +205,7 @@ export function WonBatchHistory({
                   if (outcomes.has(item.id)) return false;
                   const review = reviews.get(item.id);
                   if (!review) return true;
-                  if (batch.kind === "paid_out" ? review.paid : batch.kind === "paid_in" ? review.received : review.requested) return false;
+                  if (batch.kind === "payment_requested" || (batch.kind === "paid_out" ? review.paid : review.received)) return false;
                   const amount = batch.kind === "paid_out" ? review.commission : review.agency;
                   return amount === null || !Number.isFinite(amount);
                 })}>Retry unfinished updates</button>

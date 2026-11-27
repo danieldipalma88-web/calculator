@@ -9,7 +9,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE_PATH || "playwright")
 const read = name => fs.readFileSync(path.resolve(__dirname, "..", name), "utf8");
 const source = read("app/admin/users/page.tsx");
 const tree = ts.createSourceFile("page.tsx", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-const helpers = ["formatMoney", "formatShortDate", "wonPaymentStatus"];
+const helpers = ["formatMoney", "formatShortDate", "wonPaymentStatus", "wonOutstandingLabel"];
 const functions = tree.statements.filter(n => ts.isFunctionDeclaration(n) && helpers.includes(n.name?.text));
 const summary = source.match(/<summary className="won-card-summary">[\s\S]*?<\/summary>/)[0];
 const card = source.match(/<details\s+className=\{.won-card won-card-[\s\S]*?key=\{wonOptionDomKey\(option\)\}\s*>/)[0];
@@ -27,14 +27,17 @@ const cases = [
   [0,0,1,"#ede2fa","#8853b5","Not requested"], [1,0,1,"#ede2fa","#8853b5","Awaiting payment"],
   [0,1,1,"#dbf3e3","#238555","Received"], [1,1,1,"#dbf3e3","#238555","Received"],
 ];
-const rows = cases.map(([requested, received, paid], index) => renderToStaticMarkup(fixtureModule.exports({
+const rowMarkup = ([requested, received, paid], index, agency = 300, commission = 140) => renderToStaticMarkup(fixtureModule.exports({
   optionName: "Sample " + index, userName: "Salesperson", businessName: "Sample business", wonAt: "2026-11-20",
   agencyCommissionTotal: 300, salespersonCommissionTotal: 140,
+  review: { amounts: { agencyCommissionTotal: agency, salespersonCommissionTotal: commission } },
   paymentRequestedAt: requested, paidInAt: received, paidOutAt: paid,
-})));
+}));
+const rows = cases.map((values, i) => rowMarkup(values, i));
 const html = '<meta name="viewport" content="width=device-width,initial-scale=1"><style>' + read("app/globals.css") +
   '</style><main class="admin-shell"><div class="admin-card admin-workspace"><section id="won-options" class="admin-section won-options-section"><div class="admin-section-body won-grid">' +
-  rows.join("") + '</div></section></div></main><aside>' + rows[0] + '</aside>';
+  rows.join("") + '</div></section></div></main><aside>' + rows[0] + '</aside><div id="missing">' +
+  rowMarkup([0,0,0],8,null) + rowMarkup([0,1,0],9,300,null) + rowMarkup([0,0,0],10,0) + '</div>';
 const rgb = hex => "rgb(" + hex.slice(1).match(/../g).map(pair => parseInt(pair,16)).join(", ") + ")";
 function luminance(rgbString) {
   const [r,g,b] = rgbString.match(/\d+/g).map(c => Number(c) / 255)
@@ -53,6 +56,7 @@ function luminance(rgbString) {
       await page.setViewportSize({ width, height: 840 });
       await page.setContent(html);
       const cards = page.locator("#won-options .won-card");
+      assert.deepEqual(await page.locator("#missing .won-row-metric-payment strong").allTextContents(), ["Incomplete","Incomplete","$0.00"]);
       assert.equal(await cards.count(), cases.length);
       for (const [i, [, received, paid, fill, stripe, agency]] of cases.entries()) {
         const row = cards.nth(i);

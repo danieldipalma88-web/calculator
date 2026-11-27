@@ -1187,6 +1187,12 @@ function formatMoney(value: number) {
   return value.toLocaleString("en-AU", { style: "currency", currency: "AUD" });
 }
 
+function wonOutstandingLabel(option: WonOption) {
+  if (option.paidInAt && option.paidOutAt) return formatMoney(0);
+  const amount = option.review?.amounts[option.paidInAt ? "salespersonCommissionTotal" : "agencyCommissionTotal"];
+  return amount != null && Number.isFinite(amount) ? formatMoney(amount) : "Incomplete";
+}
+
 function formatShortDate(value: string) {
   return value ? new Date(value).toLocaleDateString("en-AU") : "";
 }
@@ -1481,6 +1487,7 @@ function wonExportScript() {
       (paymentAction && amountMissing ? " (" + amountLabel + " total incomplete)?" :
         paymentAction ? " (" + amountLabel + " " + currency(amount) + ")?" : "?");
     if (paymentAction) {
+      if (mode === "payment_requested" && amountMissing) detail += " This records the request date only, not a payment or an amount.";
       var salespeople = Array.from(new Set(eligibleCards.map(function(card){ return (parseCard(card) || {}).Salesperson; }).filter(Boolean)));
       if (salespeople.length) detail += " Salespeople: " + salespeople.join(", ") + ".";
     }
@@ -3433,10 +3440,10 @@ async function updateWonOptionState(
       return "Could not find that won quote in the saved source.";
     }
     paymentFields = latest.paymentFields;
-    if (mode === "payment_requested" ? latest.paymentRequestedAt
+    if (mode === "payment_requested" ? latest.paymentRequestedAt || latest.paidInAt
       : mode === "paid_in" ? latest.paidInAt : latest.paidOutAt) return WON_PAYMENT_ALREADY_RECORDED;
     const amount = mode === "paid_out" ? latest.review?.amounts.salespersonCommissionTotal : latest.review?.amounts.agencyCommissionTotal;
-    if (review && (amount == null || !Number.isFinite(amount))) return "The payment amount is unavailable. Review the quote before recording this status.";
+    if (review && mode !== "payment_requested" && (amount == null || !Number.isFinite(amount))) return "The payment amount is unavailable. Review the quote before recording this status.";
   }
   const next = paymentAction ? { data, updated: false } : updateDataForSource(data, sourceId, paymentSavedSetIndex);
   if (paymentStatusWrite && !paymentAction && !next.updated) return "The quote is no longer won in the saved source.";
@@ -4519,9 +4526,10 @@ async function submitWonBatch(
   if (kind !== "manual" && jobs.some((job, index) => !job.review || job.review.fingerprint !== reviewed?.[index])) {
     finish("At least one selected quote changed. Refresh and review the selection. No payment statuses changed.", true);
   }
-  if (kind !== "manual" && jobs.some((job, index) => {
+  // Recording a request is a dated note, not confirmation of a monetary amount.
+  if ((kind === "paid_in" || kind === "paid_out") && jobs.some((job, index) => {
     if (existing.batch?.outcomes.some(outcome => outcome.id === ids[index])) return false;
-    if (kind === "payment_requested" ? job.paymentRequestedAt : kind === "paid_in" ? job.paidInAt : job.paidOutAt) return false;
+    if (kind === "paid_in" ? job.paidInAt : job.paidOutAt) return false;
     const amount = kind === "paid_out" ? job.review?.amounts.salespersonCommissionTotal : job.review?.amounts.agencyCommissionTotal;
     return amount == null || !Number.isFinite(amount);
   })) finish("A selected payment amount is unavailable. Review the affected quote before recording payment statuses.", true);
@@ -5648,7 +5656,7 @@ export default async function AdminUsersPage({
                     </span>
                     <span className="won-row-metric won-row-metric-payment">
                       <span>{!option.paidInAt ? "Agency outstanding" : !option.paidOutAt ? "Commission to pay" : "Outstanding"}</span>
-                      <strong>{formatMoney(!option.paidInAt ? option.agencyCommissionTotal : !option.paidOutAt ? option.salespersonCommissionTotal : 0)}</strong>
+                      <strong>{wonOutstandingLabel(option)}</strong>
                     </span>
                   </div>
                   <span className="won-expand-label">

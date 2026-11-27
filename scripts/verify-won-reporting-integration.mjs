@@ -168,6 +168,10 @@ jobs[2].review.amounts.agencyCommissionTotal = null;
 assert.match((await submit(form('paid_in'))).searchParams.get('error'), /amount is unavailable/);
 assert.deepEqual(log.splice(0), ['auth', 'resolve']);
 jobs[2].review.amounts.agencyCommissionTotal = 100;
+jobs[2].review.amounts.salespersonCommissionTotal = null;
+assert.match((await submit(form('paid_out'))).searchParams.get('error'), /amount is unavailable/);
+assert.deepEqual(log.splice(0), ['auth', 'resolve'], 'An incomplete payout batch must not start');
+jobs[2].review.amounts.salespersonCommissionTotal = 50;
 const changed = await submit(form("paid_in", ids, ["9".repeat(64), ...reviews.slice(1)]));
 assert.match(changed.searchParams.get("error"), /quote changed/);
 assert.deepEqual(log.splice(0), ["auth", "resolve"]);
@@ -305,6 +309,23 @@ function mockDatabase(initial, casConflict = false) {
 function changePayment(database, mode, review, source = "current") {
   return snapshotContext.updateWonOptionState(database.db, "rep@example.test", "case", mode, admin, source,
     "owner-id", "owner@example.test", wonAt, review && { fingerprint: review.review.fingerprint, users: [] });
+}
+{
+  const partial = snapshot();
+  partial.data[rowsKey].push({ id: "incomplete", optionId: "case", wonAt, finalInc: 50 });
+  const reviewed = currentJob(partial);
+  assert.ok(reviewed.agencyCommissionTotal > 0, "Legacy list can show a positive subtotal");
+  assert.equal(reviewed.review.amounts.agencyCommissionTotal, null);
+  for (const mode of ["paid_in", "paid_out"]) {
+    const db = mockDatabase(partial);
+    assert.match(await changePayment(db, mode, reviewed), /payment amount is unavailable/);
+    assert.equal(db.state.commits, 0, "Final write rejects an unverified monetary amount");
+  }
+  const received = snapshot({ paidInAt: receiptAt });
+  const db = mockDatabase(received);
+  assert.equal(await changePayment(db, "payment_requested", currentJob(received)),
+    vm.runInContext("WON_PAYMENT_ALREADY_RECORDED", snapshotContext));
+  assert.equal(db.state.commits, 0, "Never stamp a request on a job already received");
 }
 for (const [mode, prior, at, by, expected] of [
   ["paid_out", { agencyPaidInAt: receiptAt, agencyPaidInByEmail: "receiver@example.test" }, "paidInAt", "paidInByEmail", receiptAt],
@@ -485,6 +506,9 @@ try {
       const initial = snapshot();
       initial.data[defsKey].push({ ...initial.data[defsKey][0], id: 'second-case' });
       initial.data[rowsKey].push({ ...initial.data[rowsKey][0], id: 'second-system', optionId: 'second-case' });
+      if (mode === 'payment_requested') {
+        initial.data[rowsKey].push({ id: 'legacy-line', optionId: 'second-case', wonAt, finalInc: 50 });
+      }
       if (resetAfterPreflight) initial.data[stateKey] = [{
         userEmail: 'rep@example.test', optionId: 'second-case', wonAt, [field]: reqAt,
       }];
@@ -521,6 +545,12 @@ try {
         assert.match(result.searchParams.get('message') || '', /2 updated, 0 already recorded, 0 failed/);
         assert.deepEqual(storedOutcomes.map(({ status }) => status), ['confirmed', 'confirmed']);
         assert.ok(readJobs().every(job => job[field]), 'Both same-owner payments survive the final reload');
+        if (mode === 'payment_requested') {
+          assert.equal(readJobs()[1].review.amounts.agencyCommissionTotal, null);
+          assert.ok(readJobs().every(job => !job.paidInAt && !job.paidOutAt));
+          assert.deepEqual(database.state.row.data[rowsKey], initial.data[rowsKey], 'Do not backfill or change any quote amounts');
+          assert.deepEqual(database.state.row.data[defsKey], initial.data[defsKey], 'Original quote options remain unchanged');
+        }
         const originalTimestamps = readJobs().map(job => job[field]);
         const commits = database.state.commits;
         const currentReviews = readJobs();
